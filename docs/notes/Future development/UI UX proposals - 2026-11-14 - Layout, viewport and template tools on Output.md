@@ -1,6 +1,6 @@
 # UI / UX proposal — Layout, viewport and template tools on Output (2026-11-14)
 
-Status: **approved on 2026-11-14 ("Go ahead"). Batch 1 (items 1, 3, 4, 6, 8, 10) built in v2.136. Batch 2 (items 5, 9, 12) approved the same day ("go ahead with batch 2") and built in v2.141 on `feat/cad-layout-batch2`. Items 2, 7, 11, 13 and the open points below wait.**
+Status: **approved on 2026-11-14 ("Go ahead"). Batch 1 (items 1, 3, 4, 6, 8, 10) built in v2.136. Batch 2 (items 5, 9, 12) approved the same day ("go ahead with batch 2") and built in v2.143 on `feat/cad-layout-batch2`. Items 2, 7, 11, 13 and the open points below wait.**
 
 The user's condition: the arrangement must stay close to what people who know current industrial 2D drafting products expect, without copying one, so nobody has to hunt for a tool. Output therefore reads **Layout · Layout viewports · Plot · Publish · Export**, the typed commands keep their usual names (LAYOUT, MV, VPORTS, VPSCALE, VPLOCK, VPMAX / VPMIN, PAGESETUP, SCALELISTEDIT), and the same entries are on a layout tab's right-click menu.
 
@@ -26,9 +26,9 @@ Picture of the built ribbon (printed with the PDF check's hidden renderer, not t
 - Item 10: a page setup whose name is already in the project is left as it is (not replaced).
 - Checked by tests and a printed picture of the ribbon only: the screens were not opened in the app (project rules).
 
-## Built (v2.141, batch 2)
+## Built (v2.143, batch 2)
 
-Pictures (printed with the PDF check's hidden renderer, not the app): the new screens `docs/mockups/cad-layout-batch2-screens-v2.141.png`; a layout made with + of the sample villa as it plots `docs/mockups/cad-layout-plot-sample-v2.141.png`.
+Pictures (printed with the PDF check's hidden renderer, not the app): the new screens `docs/mockups/cad-layout-batch2-screens-v2.143.png`; a layout made with + of the sample villa as it plots `docs/mockups/cad-layout-plot-sample-v2.143.png`.
 
 - **Item 5, viewports on layouts made with +** (`src/model/drawingLayouts.ts`, `src/components/cad/CadFilePaper.tsx`): a frame is picked by its edge and dragged to move (its view goes with it); its corners resize it (the model stays where it is on the paper); MV makes one from two corners, showing the whole drawing at the scale it fits; Esc stops MV. A double-click inside works in it (MS): the wheel and a drag move its view; a double-click outside, PS or the status bar's PAPER / MODEL button goes back. VPSCALE, VPLOCK, VPFIT, VPCOPY, VPALIGN, VPMAX and VPFRAME act on the viewport worked in, else the one picked, else the only one. A picked viewport shows its properties in the palette (scale, locked, frame prints, delete); the same entries are on its right-click menu. Viewports are named by their place (Viewport 1, 2 …); `locked` and `frame` are kept on the viewport.
 - **Item 9, layouts from another drawing** (LAYOUT I; New layout → From another drawing…; a tab's and the paper's right-click menu): a DWG or DXF is picked, its layouts are listed with paper and viewports, the ones ticked are added with their paper and viewport frames at their scales, centred on this drawing. A name already taken becomes the next LayoutN. They can be kept as layout templates as well. The other drawing is read and closed again.

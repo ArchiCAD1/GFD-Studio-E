@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CadText, CadView, FileLayout } from '../../engines/cad/cadEngine';
 import { paperOf, viewportMap } from '../../model/fileLayouts';
+import { BAR_ALPHA, emPerCap, READ_PX, textBar, widthPerPx } from '../../model/cadTextScreen';
 
 /** A layout of the drawing (paper space) in Design CAD, the file's own or one made here: its paper with a shadow, the
  * printable area dashed and trim marks at the corners (on screen only), what is drawn on the paper, and the model
@@ -15,6 +16,10 @@ type Box = [number, number, number, number];
 const PAD = 28; // px round the paper when fitted
 const INK = '#111', MODEL_INK = '#333', FRAME = '#666';
 const CLICK_PX = 3; // a press that moves less is a click, not a drag
+/** The font texts are drawn in. */
+const FONT = 'sans-serif';
+/** Each drawing's texts' widths per px of font, measured once (for the bars of texts too small to read). */
+const widthsOf = new WeakMap<object, Map<string, number>>();
 
 /** Editing the viewports of a layout made here; its paper space is in mm from the paper's lower left corner. Viewports are
  * named by their place in layout.viewports. */
@@ -82,6 +87,8 @@ export function CadFilePaper({ layout, model, layersOn, onDblClick, onContext, e
     c.width = Math.round(size[0] * dpr); c.height = Math.round(size[1] * dpr);
     const ctx = c.getContext('2d');
     if (!ctx) return;
+    const widths = widthsOf.get(model.info) ?? new Map<string, number>();
+    widthsOf.set(model.info, widths);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, size[0], size[1]);
     const { k, x: ox, y: oy } = view;
@@ -138,7 +145,7 @@ export function CadFilePaper({ layout, model, layersOn, onDblClick, onContext, e
       ctx.fillStyle = MODEL_INK;
       for (const t of model.info.texts) {
         if (on[t.layer] === false || t.x < x0 + mox || t.x > x1 + mox || t.y < y0 + moy || t.y > y1 + moy) continue;
-        text(ctx, t, toScreen(map.ps(t.x, t.y)), t.h * map.scale * layout.mm_per_unit * k, (t.w ?? 0) * map.scale * layout.mm_per_unit * k);
+        text(ctx, t, toScreen(map.ps(t.x, t.y)), t.h * map.scale * layout.mm_per_unit * k, (t.w ?? 0) * map.scale * layout.mm_per_unit * k, widths);
       }
       ctx.restore();
       ctx.strokeStyle = FRAME; ctx.lineWidth = 1;
@@ -155,7 +162,7 @@ export function CadFilePaper({ layout, model, layersOn, onDblClick, onContext, e
     }
     ctx.stroke();
     ctx.fillStyle = INK;
-    for (const t of layout.texts) text(ctx, t, toScreen([t.x, t.y]), t.h * layout.mm_per_unit * k, (t.w ?? 0) * layout.mm_per_unit * k);
+    for (const t of layout.texts) text(ctx, t, toScreen([t.x, t.y]), t.h * layout.mm_per_unit * k, (t.w ?? 0) * layout.mm_per_unit * k, widths);
     ctx.restore();
   });
 
@@ -268,15 +275,23 @@ export function CadFilePaper({ layout, model, layersOn, onDblClick, onContext, e
   );
 }
 
-/** A text at its insertion point (screen px), its height in px, rotated, aligned left / centre / right. */
-function text(ctx: CanvasRenderingContext2D, t: CadText, [x, y]: Pt, hPx: number, wPx = 0) {
-  if (!(hPx >= 2) || hPx > 2000) return;
+/** A text at its insertion point (screen px), its capitals hPx tall (as CAD measures text), rotated, aligned left /
+ * centre / right, fitted to wPx when given; too small to read, a faint bar where its words are. */
+function text(ctx: CanvasRenderingContext2D, t: CadText, [x, y]: Pt, hPx: number, wPx: number, widths: Map<string, number>) {
+  if (!(hPx > 0) || hPx > 2000) return;
+  const em = hPx * emPerCap(ctx, FONT);
   ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(-t.rot);
-  ctx.font = `${hPx}px sans-serif`;
-  ctx.textAlign = t.align === 1 ? 'center' : t.align === 2 ? 'right' : 'left';
-  if (wPx > 0) { const nat = ctx.measureText(t.s).width; if (nat > 0) ctx.scale(wPx / nat, 1); }
-  ctx.fillText(t.s, 0, 0);
+  if (hPx < READ_PX) {
+    ctx.globalAlpha *= BAR_ALPHA; ctx.beginPath();
+    textBar(ctx, x, y, t.rot, hPx, wPx > 0 ? wPx : widthPerPx(ctx, FONT, t.s, widths) * em, t.align);
+    ctx.fill();
+  } else {
+    ctx.translate(x, y);
+    ctx.rotate(-t.rot);
+    ctx.font = `${em}px ${FONT}`;
+    ctx.textAlign = t.align === 1 ? 'center' : t.align === 2 ? 'right' : 'left';
+    if (wPx > 0) { const nat = ctx.measureText(t.s).width; if (nat > 0) ctx.scale(wPx / nat, 1); }
+    ctx.fillText(t.s, 0, 0);
+  }
   ctx.restore();
 }

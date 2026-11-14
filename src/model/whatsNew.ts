@@ -15,12 +15,19 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.141', date: '2026-11-14',
+    version: '2.143', date: '2026-11-14',
     items: [
       { title: 'Design CAD: viewports on a layout made with +', text: 'On a layout made with +, a viewport is picked by its frame: drag the frame to move it, drag a corner to resize it. Viewport (MV) makes a new one from two corners; Esc stops it. A double-click inside works in it: the wheel and a drag then move its view, and a double-click outside goes back to the paper (MS and PS, or the PAPER / MODEL button on the status bar). Scale, Lock, Fit, Copy, Align, Maximise and Frame prints act on the viewport picked; its properties show in the palette, and the same entries are on its right-click menu.', action: 'cad' },
       { title: 'Design CAD: layouts from another drawing', text: 'Output → Layout → New layout → From another drawing… (LAYOUT I) lists the layouts of a DWG or DXF file. The ones you tick are added to this drawing with their paper and their viewport frames at their scales; the viewports show this drawing. They can be kept as layout templates too. It is also on a layout tab\'s right-click menu.', action: 'cad' },
       { title: 'Design CAD: plot any layout', text: 'Plot now works on a layout made with + and on the drawing file\'s own layouts: a PDF on the layout\'s own paper (A4 to A0, either way up) or a printer (A4 to A1), black on white, with a preview first. A viewport\'s frame prints only where Frame prints is on. Plot is on the Output tab, the layout tab\'s right-click menu and the paper\'s.', action: 'cad' },
       { title: 'Design CAD: layers on layouts', text: 'A layer of the drawing turned off or frozen in the app is now hidden on the drawing\'s layouts and on their plots too, as it is on the Model tab.', action: 'cad' }
+    ]
+  },
+  {
+    version: '2.142', date: '2026-11-14',
+    items: [
+      { title: 'Design CAD: text at its real height', text: 'Text in an opened drawing is drawn with its capitals at the height the drawing gives, as other CAD programs show it. Text fitted to a width, as in drawings exported from the SLD, no longer looks squashed, and it keeps its shape when you zoom in close.' },
+      { title: 'Design CAD: text stays visible zoomed out', text: 'Text too small to read when you zoom out shows as a faint bar where its words are, as in other CAD programs, instead of disappearing. This covers the opened drawing, your own text and notes, and a file\'s layouts.' }
     ]
   },
   {
