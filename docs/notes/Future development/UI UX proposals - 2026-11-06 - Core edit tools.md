@@ -10,7 +10,7 @@ These tools work on what is **drawn in the app**: lines, polylines, rectangles, 
 
 | Tool | Command | What it does |
 |---|---|---|
-| Trim | TR | Click the part to cut away. It is cut at the nearest crossing lines, drawn or the architect's, with no edges to pick first (as AutoCAD's quick mode). Shift-click extends instead. Drag a fence to trim several at once. |
+| Trim | TR | Click the part to cut away. It is cut at the nearest crossing lines, drawn or the architect's, with no edges to pick first (as the quick mode of current industrial 2D drafting products). Shift-click extends instead. Drag a fence to trim several at once. |
 | Extend | EX | Click near an end. It runs on to the next line ahead, drawn or a wall. Shift-click trims instead. |
 | Offset | O | Type the distance (or T for through a point), click the object, then click the side. A tray offsets as a tray of the same width, service and route; a cable route offsets as a line. |
 | Fillet / Chamfer | F / CHA | Two lines: join the corner with a radius (0 gives a sharp corner) or cut it at a distance. On a tray run the radius is the bend's, and the bend counts as a fitting. |

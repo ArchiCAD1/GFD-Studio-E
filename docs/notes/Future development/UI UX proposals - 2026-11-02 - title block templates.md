@@ -42,7 +42,7 @@ Two ways in, one template format, one renderer for screen, PDF and DWG.
 2. The Design CAD engine (acadrust, already in the app) reads it: lines, polylines, arcs, circles, hatches, texts, and the block's **attributes** (tags such as `PROJECT`, `DWG_NO`, `REV`).
 3. **Map the fields** in a table: every attribute tag and every text is listed; each gets a project field or stays fixed. Tags are suggested by name (`DWG_NO` → `{SheetNo}`, `REV` → `{Rev}`, `DRN` / `DRAWN` → `{DrawnBy}`, `CHK` → `{CheckedBy}`, `SCALE` → `{Scale}`, `SHEET` → `{SheetIndex} of {SheetCount}`). A plain text is mapped by clicking it in the preview (for example the status line *FOR CONSTRUCTION* → `{Status}`).
 4. **Place it**: size in mm from the drawing units; it sits in the frame's bottom-right corner like the standard block, or, when the file is a whole sheet border, it *is* the frame (per paper size: A3, A2, A1).
-5. **Output**: PDF draws the vector geometry with the mapped values in the fields' places (height, alignment, rotation kept; long values shrink to fit). DXF / DWG writes the block back **as a block with attributes**, so the values stay editable in AutoCAD.
+5. **Output**: PDF draws the vector geometry with the mapped values in the fields' places (height, alignment, rotation kept; long values shrink to fit). DXF / DWG writes the block back **as a block with attributes**, so the values stay editable in a desktop drafting program.
 6. Saved as a template in the project and the library, beside the grid templates.
 
 The engine needs, for this: block definitions and their attribute definitions (tag, prompt, default, position, height, alignment); paper space and layouts (company borders often live there); one block's geometry on its own; and writing a block with attributes to DXF / DWG.
@@ -77,7 +77,7 @@ One function draws it as SVG (screen and PDF) and one as DXF entities (DXF and D
 ### Decisions for you
 
 - **D1** Start with import (A) or with drawing in Design CAD (B)? Recommended: A — the company's block already exists in CAD, and drawing one from scratch is rare.
-- **D2** In DWG, write the company block back as a block with attributes (values editable in AutoCAD), or as plain lines and texts as today? Recommended: block with attributes.
+- **D2** In DWG, write the company block back as a block with attributes (values editable in a desktop drafting program), or as plain lines and texts as today? Recommended: block with attributes.
 - **D3** One block for the whole project (as today), or one per sheet type (SLD, plans, report pages)?
 - **D4** Allow a template that is the whole sheet border (the company's frame with grid references), replacing the app's frame?
 - **D5** Where the designer lives: *Project → Title block* (as today), or inside *Design CAD → Sheets → Title block*, next to where the block is used?
@@ -85,7 +85,7 @@ One function draws it as SVG (screen and PDF) and one as DXF entities (DXF and D
 ### Limits to expect
 
 - **Fonts**: company blocks use SHX fonts; the PDF prints Arial, so widths differ. Fields shrink to fit; fixed texts are kept at their height.
-- **First version reads**: lines, polylines, arcs, circles, solid hatches, TEXT, plain MTEXT and attributes. Not nested or dynamic blocks, AutoCAD FIELD codes, or rich MTEXT formatting; these come in as plain text or are left out, with a note.
+- **First version reads**: lines, polylines, arcs, circles, solid hatches, TEXT, plain MTEXT and attributes. Not nested or dynamic blocks, FIELD codes, or rich MTEXT formatting; these come in as plain text or are left out, with a note.
 - **Images** inside the DWG (IMAGE entities, external references) are not read; the logo comes from the drawing settings, placed in the block's logo area.
 
 Up: [[Future development]]

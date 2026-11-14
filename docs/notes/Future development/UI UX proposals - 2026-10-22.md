@@ -29,3 +29,30 @@ The calculations support it (v1.78): `inputFilterKvar` (the UPS input filter's l
 ## Documents: remove the flat DB schedule
 
 Approved and done 2026-10-22 (v1.79): the flat DB schedule (every board's circuits in one table) is not used for construction or submission; the DEWA DB schedule forms on *Load schedule* are. Removed: the *Documents → DB schedule* page and ribbon button, its Export centre item (PDF / CSV), its table in the calculation and study reports (the section is now *Cable schedule*), and its entry in the documents to update after a design change. Load schedule, Cable schedule and Equipment are unchanged; RCD, kWh meter and isolator accessories stay in the BOQ and the MD forms.
+
+## DEWA submission format: SLD and Load Schedule enhancements
+
+Reviewed 22 October 2026 against official Dubai Electricity and Water Authority (DEWA) Regulations for Electrical Installations (2020 edition), Dubai Municipality Green Building Regulations, and typical Dubai consultant/contractor submittal packages.
+
+Interactive mockup created in `docs/mockups/dewa-submission-mockup.html` (open in browser to click and view side-by-side comparison). No source code changed; waiting for user confirmation before implementation.
+
+### 1. Single Line Diagram (SLD) enhancements
+1. **Intake & Metering Boundary:** Demarcate 11kV intake / RMU, transformer vector group (Dyn11), and dedicated **DEWA CT Metering Cabinet** (CT ratio 1600/5A or 2500/5A, Class 0.5S, 15VA, test block, tariff meter boundary).
+2. **Main Incomer ACB Annotation:** 4P Draw-out ACB with Microprocessor Trip (LSIG: Long-time, Short-time, Instantaneous, Ground fault), 50kA/1s breaking capacity, shunt trip, and under-voltage release (UVR).
+3. **Standard Instrumentation Compartment:** Main LV busbar instrument branch: 3 × Phase Indicating Lamps (R, Y, B with 2A fuses), Digital Multi-Function Meter (MFM Class 0.5), and Type 1+2 Surge Protection Device (SPD 50kA).
+4. **Busbar & Earth Bar Ratings:** Explicit rating notation: `TPN Cu Busbar · 50kA / 1s · 100% Neutral · 50×6mm Cu Earth Bar` (external earth pit R < 1.0 Ω).
+5. **Outgoing Feeder Calling Boxes:** Include Connected Load (TCL kW), Diversity Factor (DF), Maximum Demand (MD kW & kVA), Operating Current (Ib A), Voltage Drop (Vd %), and proposed kWh Meter category (1-Phase, 3-Phase, or CT).
+6. **Life Safety Feeders:** Distinct visual indication for Fire Pumps / Life Safety with Fire-Rated cable notation (BS 6387 CWZ / BS 7846).
+7. **DEWA General Notes & Title Block:** Standard 8-point DEWA Electrical Notes, Makani Number, Plot Number, Locality, and "FOR DEWA APPROVAL" stamp block.
+
+### 2. Load Distribution Schedule (DB Schedule) enhancements
+1. **Header Block:** Add Plot Number, Makani Number, and Locality alongside DB No and Fed From; specify `3-Phase, 4-Wire, 400/230V, 50 Hz, TPN Supply`.
+2. **3-Tier ELCB/RCCB Grouping:** Align default sections to standard DEWA sensitivities: 30mA (General Lighting, Sockets, Wet Areas), 100mA (Water Heaters, Cooker), and 300mA (HVAC / Split AC).
+3. **DEWA 4-Tier Summary Rows:** Replace mixed summary text with 4 dedicated rows:
+   - Row 1: `TOTAL CONNECTED LOAD PER PHASE (W / kW)`
+   - Row 2: `DIVERSITY FACTOR (D.F.)` (e.g. 0.80)
+   - Row 3: `MAXIMUM DEMAND (MD) in kW and kVA` (at 0.90 PF)
+   - Row 4: `DEMAND CURRENT PER PHASE (AMPS)` & Phase Unbalance check (&le; 10%)
+4. **Mandatory 20% Spare Ways Check:** Explicit summary counter: `Total Ways: 24 | Connected: 18 | Spares: 6 (25.0% - MEETS DEWA MIN 20%)`.
+5. **Incoming Feeder & Earthing Card:** Complete cable construction, ECC, individual feeder voltage drop (&le; 2.5%), and furthest circuit drop (&le; 4.0%).
+
