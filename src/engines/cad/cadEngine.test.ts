@@ -7,7 +7,7 @@ import { placeRefExtras, type CadRef } from '../../model/cadRefs';
 import { buildSheetDxfPages } from '../../docs/sheetDxf';
 import { symSvg } from '../../diagram/symbolLibrary';
 import { sampleProject } from '../../data/sampleProject';
-import { shapesOut, pointStyleOut, blockDefsOut } from '../../model/cadSketch';
+import { dimOf, shapesOut, pointStyleOut, blockDefsOut } from '../../model/cadSketch';
 import type { CadBlockDef } from '../../model/cadBlocks';
 import type { SketchItem } from '../../types';
 
@@ -225,6 +225,27 @@ describe('CAD engine (Rust, WebAssembly)', () => {
       let n = 0;
       for (let i = 0; i < saved.segLayers.length; i += 1) if (saved.segLayers[i] === anno) n += 1;
       expect(n, as).toBeGreaterThanOrEqual(shapes.filter((x) => x.kind === 'line').length + 8);
+      saved.close();
+    }
+  });
+
+  it('saves a dimension\'s text centred on the middle of its baseline, read back centred where the app draws it, in DXF and DWG', async () => {
+    const look = { arrow: 'closed' as const, size: 90, off: 20, ext: 50, unit: 'mm' as const, decimals: 0 };
+    const items: SketchItem[] = [
+      { id: 'up', kind: 'dim', layer: 'LV-DIMTEXT', pts: [[0, 0], [0, 3000], [-600, 1500]], h: 100, look: { ...look, textPos: 'above' }, dir: Math.PI / 2 },
+      { id: 'radius', kind: 'dim', dimKind: 'radius', layer: 'LV-DIMTEXT', pts: [[1000, 1000], [1500, 1000], [1200, 1300]], h: 90, look },
+      { id: 'angular', kind: 'dim', dimKind: 'angular', layer: 'LV-DIMTEXT', pts: [[3000, 3000], [4000, 3000], [3000, 4000], [3300, 3300]], h: 90, look }
+    ];
+    for (const as of ['dxf', 'dwg'] as const) {
+      const saved = await openDrawing(`dimtext.${as}`, await drawingWithDevices(gf, [], shapesOut(items, 0.001), as));
+      const layer = saved.info.layers.findIndex((l) => l.name === 'LV-DIMTEXT');
+      for (const it of items) {
+        const d = dimOf(it, 0.001), t = saved.info.texts.find((x) => x.layer === layer && x.s === d.label);
+        expect(t, `${as} ${it.id}`).toBeTruthy();
+        expect(t!.align, `${as} ${it.id}`).toBe(1);
+        expect(t!.x, `${as} ${it.id}`).toBeCloseTo(d.text[0], 6); expect(t!.y, `${as} ${it.id}`).toBeCloseTo(d.text[1], 6);
+        expect(t!.rot, `${as} ${it.id}`).toBeCloseTo(d.angle, 6);
+      }
       saved.close();
     }
   });

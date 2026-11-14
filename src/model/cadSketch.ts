@@ -569,9 +569,9 @@ export function shapesOut(items: SketchItem[], metresPerUnit: number, defs: CadB
     if (it.kind === 'dim') {
       const d = dimOf(it, metresPerUnit);
       // A dimension of a style is written as measured now (in its unit and decimals) unless typed over; one drawn
-      // before styles as the length in metres.
+      // before styles as the length in metres. Its text is centred on the middle of its baseline, as it is drawn.
       return [...d.lines.map((l): ShapeOut => ({ layer: it.layer, kind: 'line', pts: l })), ...d.arcs.map((a): ShapeOut => ({ layer: it.layer, kind: 'arc', pts: [a.c], r: a.r, a0: a.a0, a1: a.a1 })),
-        { layer: it.layer, kind: 'text', pts: [d.text], text: it.look || it.dimKind ? d.label : `${(d.length * metresPerUnit).toFixed(2)}`, h: d.h, rot: d.angle }];
+        { layer: it.layer, kind: 'text', pts: [d.text], text: it.look || it.dimKind ? d.label : `${(d.length * metresPerUnit).toFixed(2)}`, h: d.h, rot: d.angle, just: 'C' }];
     }
     if (it.tray) {
       // A single line broken at the middle for its label "CT 300 POWER" (with its route once assigned).
