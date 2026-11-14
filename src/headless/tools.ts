@@ -54,7 +54,7 @@ export interface Tool {
 
 export const r = (x: number | undefined, d = 2): number | undefined => (x === undefined || !Number.isFinite(x) ? undefined : Math.round(x * 10 ** d) / 10 ** d);
 
-const project = z.string().describe('Project file name in the projects folder (with or without .json), as given by list_projects');
+const project = z.string().describe('Project file name in the projects folder (with or without .lvds), as given by list_projects');
 const statusFilter = z.enum(['bad', 'warn', 'all']).default('bad').describe('bad = failures only, warn = failures and items to check, all = everything');
 const limit = z.number().int().min(1).max(1000).default(50).describe('Most rows to return');
 const phases = z.union([z.literal(1), z.literal(3)]).default(3).describe('1 or 3 phase');

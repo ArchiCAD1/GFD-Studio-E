@@ -80,8 +80,8 @@ from the dev server: never distribute them; ship the packaged app.
 On first run the app creates `~/LV Design Studio Projects`. Click the
 **Folder** button on the ribbon's **Project** tab and point it at a folder
 inside your Google Drive desktop-sync folder (e.g.
-`~/Google Drive/My Drive/LV Projects`). Every "Save" writes a plain `.json`
-file there, which Drive then syncs automatically — no login or API needed
+`~/Google Drive/My Drive/LV Projects`). Every "Save" writes a `.lvds`
+project file there (JSON text inside; older `.json` projects still open and are saved as `.lvds`), which Drive then syncs automatically — no login or API needed
 inside the app itself.
 
 ## Building an installer
@@ -108,7 +108,7 @@ the installed app can start without a network connection.
 
 Browser installations are independent: projects and personal libraries stay
 in that browser profile and are not synchronized to Google Drive or another
-device. Download project `.json` backups regularly. Clearing the site's data
+device. Download project `.lvds` backups regularly. Clearing the site's data
 or deleting the browser profile removes locally stored projects.
 
 The same workflow also publishes an architecture page at `<site>/architecture/`

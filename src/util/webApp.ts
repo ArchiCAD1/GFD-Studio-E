@@ -75,12 +75,12 @@ export function useWebApp(): { offline: OfflineState; canInstall: boolean; insta
   };
 }
 
-/** Download the project as a file (the same .json the desktop app opens). */
+/** Download the project as a file (the same .lvds the desktop app opens). */
 export function downloadProjectFile(project: Project): string {
-  const blob = new Blob([JSON.stringify(project, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ ...project, format: 'lvds.project' }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${safeFileName(project.name || 'project')}.json`;
+  a.download = `${safeFileName(project.name || 'project')}.lvds`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -93,7 +93,7 @@ export function chooseProjectFile(): Promise<{ project: Project; name: string } 
   return new Promise((resolve, reject) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json,application/json';
+    input.accept = '.lvds,.json,application/json';
     input.onchange = async () => {
       const f = input.files?.[0];
       if (!f) return resolve(null);

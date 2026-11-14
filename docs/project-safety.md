@@ -6,7 +6,14 @@ Added 5 October 2026 (Batch A of the project management plan).
 before this get them when opened (the id is derived from the file name, so it is the same
 every time); nothing is written until the next save, and opening never marks a project
 unsaved. A file saved by a newer version of the app opens read-only (Save as still works).
-New files are named `<name>-<first 8 of the id>.json` and never reuse an existing name.
+New files are named `<name>-<first 8 of the id>.lvds` and never reuse an existing name.
+
+**File format** (`electron/projectFiles.cjs`). A project is one `.lvds` file: JSON text whose first
+key is `"format": "lvds.project"`, with `schemaVersion` as its version. A project saved before this
+format is a `.json` file with the same content: it is still listed and opened, and its next save in the
+app writes `name.lvds` and keeps the `.json` as that file's backup (`name.lvds.bak`). The command line
+tools read both and write a project back under the name it has; `export_project_json`
+(`lvds project-json`) writes a plain `.json` copy to Exports.
 
 **One copy rule** (`src/model/projectMigrate.ts`, `copyProject`). Save as and Duplicate both
 make a new project with its own id, creation date and a "copied from" note, starting at status
@@ -18,7 +25,7 @@ size, content hash). If the file is different on disk at save time (another comp
 Drive / OneDrive sync, another program) nothing is overwritten: a dialog lists which parts
 differ and offers *Use the version on disk* (your version is kept as recoverable work),
 *Save mine as a copy*, or *Overwrite with mine* (the other version is kept as
-`name.json.theirs-<time>.bak`). Returning to the window also checks the open file and shows a
+`name.lvds.theirs-<time>.bak`). Returning to the window also checks the open file and shows a
 banner. Writes are atomic, read back and checked; a failed save shows the reason and *Retry
 save*. Files that look like a sync tool's conflicted copy are flagged in the Projects list with
 Compare.

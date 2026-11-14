@@ -98,6 +98,7 @@ There is no in-memory store here: each tool call opens the project file, works o
 | Proposal record MOD-00x (status proposed) | 26-revisions-changes (Reports → Changes, engineer accepts/applies) | `editTools.ts` `proposeTool` → `withRecord` |
 | Backups and change log `<folder>/.lvds-agent/backups/<file>/<id>.json`, `log.jsonl` | this module (`list_changes`, `undo_change`) | `write.ts` `commitText`, `readLog` |
 | Export files `<folder>/Exports/<project>/<date>/…` and `.lvds-agent/exports.jsonl` | the engineer / other programs | `exportTools.ts` `runExport`, `safeFiles.ts` `writeNewFile` |
+| Project as plain JSON | scripts, other programs | `export_project_json` |
 | Rooms package / design package / ELV loads package JSON | 30-exchange-inbox, external BIM/ELV tools | `export_rooms_package`, `export_design_package`, `export_elv_loads_package` |
 | Rooms on a level in Building information | 04-building-load-assessment, 29-elv | `rooms_from_cad` → `applyRooms` |
 | ELV circuits on LV boards | 07-load-schedule-panels, 06 | `elv_place_loads` → `placeElvLoads` |

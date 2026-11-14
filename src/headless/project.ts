@@ -58,8 +58,11 @@ export function parseProject(text: string, name: string): Project {
   return migrateProject(p, name);
 }
 
+/** A project file name: the native .lvds, or the older .json with the same content. */
+export const PROJECT_FILE = /\.(lvds|json)$/i;
+
 export interface ProjectRef {
-  /** A file name in the projects folder (with or without .json), or a path. */
+  /** A file name in the projects folder (with or without .lvds; an older project is .json), or a path. */
   ref: string;
   /** Where the project files are. */
   folder: string;
@@ -73,8 +76,7 @@ const outsideFolder = (folder: string) => `Only projects inside the projects fol
 export function resolveProject({ ref, folder, anywhere }: ProjectRef): string {
   const name = ref.trim();
   if (!name) throw new Error('Give a project: a file name in the projects folder, or a path.');
-  const withExt = name.toLowerCase().endsWith('.json') ? name : `${name}.json`;
-  const full = findFile(name, { folder, anywhere }, [withExt, name]);
+  const full = findFile(name, { folder, anywhere }, PROJECT_FILE.test(name) ? [name] : [`${name}.lvds`, `${name}.json`, name]);
   if (!full) throw new Error(`No project "${name}" in ${folder}. Use list_projects to see the project files.`);
   return confine(full, { folder, anywhere }, outsideFolder(folder));
 }
@@ -93,7 +95,7 @@ export interface ProjectListing { file: string; name: string; panels: number; ci
  * the local API (anywhere false), as in the app. */
 export function listProjects(folder: string, anywhere = false): ProjectListing[] {
   let names: string[] = [];
-  try { names = fs.readdirSync(folder).filter((f) => f.toLowerCase().endsWith('.json')); } catch { return []; }
+  try { names = fs.readdirSync(folder).filter((f) => PROJECT_FILE.test(f)); } catch { return []; }
   const files = names.flatMap((f) => {
     try {
       const st = (anywhere ? fs.statSync : fs.lstatSync)(path.join(folder, f));
