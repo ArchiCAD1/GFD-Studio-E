@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { explodeNote, fromDxfMtext, noteAttached, noteBox, noteCorners, noteHit, noteLayout, noteWithWidth, plainText, toDxfMtext, type NotePara } from './cadMtext';
+import { CHAR_W } from './cadText';
 import type { SketchItem } from '../types';
 
 /** Notes (MTEXT, S6 of the Design CAD 2D gap plan): wrapping to the box, the attachment, the DXF codes. */
 
-// Letters are 0.6 h wide, so at h 100 a 20-letter line is 1200 wide.
+// Letters are about 0.84 h wide (the height being the capitals'), so at h 100 a 20-letter line is 20 L wide.
+const L = CHAR_W * 100;
 const paras: NotePara[] = [
   { runs: [{ s: 'GENERAL ', b: true }, { s: 'NOTES' }] },
   { runs: [{ s: 'All cables to be ' }, { s: 'LSZH', u: true }, { s: ' unless noted otherwise' }] },
@@ -18,28 +20,30 @@ describe('Notes: wrapping and layout', () => {
   it('wraps words to the width, a paragraph on each new line, lists numbered and indented', () => {
     const lay = noteLayout(note);
     const lines = lay.lines.map((l) => l.segs.map((s) => s.s).join(''));
-    // 1500 wide = 25 letters: "All cables to be LSZH" (21) fits, " unless" would not.
-    expect(lines).toEqual(['GENERAL NOTES', 'All cables to be LSZH', 'unless noted otherwise', '', '1. Refer to the load', 'schedule', '2. Check on site']);
+    // 1500 wide = about 17.9 letters: "All cables to be" (16) fits, " LSZH" would not (25 letters at 0.6 h before).
+    expect(lines).toEqual(['GENERAL NOTES', 'All cables to be', 'LSZH unless noted', 'otherwise', '', '1. Refer to the', 'load schedule', '2. Check on site']);
     // The runs keep their look; a line's pieces follow each other.
-    expect(lay.lines[0].segs.map((s) => [s.s, !!s.b, s.x])).toEqual([['GENERAL ', true, 0], ['NOTES', false, 480]]);
-    expect(lay.lines[1].segs.map((s) => [s.s, !!s.u])).toEqual([['All cables to be ', false], ['LSZH', true]]);
+    expect(lay.lines[0].segs.map((s) => [s.s, !!s.b])).toEqual([['GENERAL ', true], ['NOTES', false]]);
+    expect(lay.lines[0].segs[0].x).toBe(0); expect(lay.lines[0].segs[1].x).toBeCloseTo(8 * L, 9);
+    expect(lay.lines[2].segs.map((s) => [s.s, !!s.u])).toEqual([['LSZH', true], [' unless noted', false]]);
     // A list's further lines start past its number.
-    expect(lay.lines[5].segs[0].x).toBeCloseTo(180);
+    expect(lay.lines[6].segs[0].x).toBeCloseTo(3 * L);
     // Lines 5/3 of the height apart, the first baseline a height below the top.
     lay.lines.forEach((l, i) => expect(l.y).toBeCloseTo(100 + (i * 500) / 3));
-    expect(lay.H).toBeCloseTo(100 + (6 * 500) / 3);
+    expect(lay.H).toBeCloseTo(100 + (7 * 500) / 3);
     expect(lay.w).toBe(1500);
     // Without a width: as wide as the longest line, nothing wrapped.
     const free = noteLayout({ ...note, w: undefined });
     expect(free.lines.length).toBe(5);
-    expect(free.w).toBeCloseTo(0.6 * 100 * 'All cables to be LSZH unless noted otherwise'.length);
+    expect(free.w).toBeCloseTo(L * 'All cables to be LSZH unless noted otherwise'.length);
   });
 
   it('centres and right-aligns the lines for a centre or right attachment, and a word wider than the box has its own line', () => {
     const c = noteLayout({ ...note, just: 'TC', note: [{ runs: [{ s: 'AB' }] }, { runs: [{ s: 'ABCD' }] }] });
-    expect(c.lines.map((l) => l.segs[0].x)).toEqual([(1500 - 120) / 2, (1500 - 240) / 2]);
+    const xs = c.lines.map((l) => l.segs[0].x);
+    expect(xs).toHaveLength(2); expect(xs[0]).toBeCloseTo((1500 - 2 * L) / 2, 9); expect(xs[1]).toBeCloseTo((1500 - 4 * L) / 2, 9);
     const r = noteLayout({ ...note, just: 'BR', note: [{ runs: [{ s: 'AB' }] }] });
-    expect(r.lines[0].segs[0].x).toBe(1500 - 120);
+    expect(r.lines[0].segs[0].x).toBeCloseTo(1500 - 2 * L, 9);
     const long = noteLayout({ ...note, w: 300, note: [{ runs: [{ s: 'A SUPERCALIFRAGILISTIC B' }] }] });
     expect(long.lines.map((l) => l.segs.map((s) => s.s).join(''))).toEqual(['A', 'SUPERCALIFRAGILISTIC', 'B']);
   });
@@ -65,13 +69,13 @@ describe('Notes: wrapping and layout', () => {
   });
 
   it('a wider box keeps its top left corner and wraps again; EXPLODE gives one text per line', () => {
-    const wide = noteWithWidth(noteAttached(note, 'TR'), 3000);
-    expect(wide.w).toBe(3000);
+    const wide = noteWithWidth(noteAttached(note, 'TR'), 4000);
+    expect(wide.w).toBe(4000);
     expect(noteBox(wide).tl).toEqual([1000, 5000]);
     expect(noteLayout(wide).lines.length).toBe(5);
     expect(noteWithWidth(note, 10).w).toBe(200); // at least two letters wide
     const texts = explodeNote(note);
-    expect(texts.map((t) => t.text)).toEqual(['GENERAL NOTES', 'All cables to be LSZH', 'unless noted otherwise', '1. Refer to the load', 'schedule', '2. Check on site']);
+    expect(texts.map((t) => t.text)).toEqual(['GENERAL NOTES', 'All cables to be', 'LSZH unless noted', 'otherwise', '1. Refer to the', 'load schedule', '2. Check on site']);
     expect(texts[0]).toEqual({ kind: 'text', layer: 'LV-ANNO', pts: [[1000, 4900]], text: 'GENERAL NOTES', h: 100 });
     expect(texts[2].pts[0][1]).toBeCloseTo(4900 - 1000 / 3);
     expect(plainText(note)).toBe('GENERAL NOTES\nAll cables to be LSZH unless noted otherwise\n\nRefer to the load schedule\nCheck on site');

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import { annoOf, centreOf, hatchArea, hatchItem, hatchOutline, leaderItems, northArrowItems, roomTagItems, textUnits, unitsPerPaperMm } from './cadAnnotate';
 import { placedLines } from './cadHatch';
+import { CHAR_W } from './cadText';
 import type { SketchItem } from '../types';
 
 type Pt = [number, number];
@@ -39,8 +40,11 @@ describe('annotation', () => {
   it('a leader: an arrowed line and its text beside the last point (left of it when the line runs left)', () => {
     const [l, t] = leaderItems([[0, 0], [10, 5]], 'DB-GF1', 2);
     expect(l).toEqual({ kind: 'line', layer: 'LV-ANNO', pts: [[0, 0], [10, 5]], leader: true });
-    expect(t).toMatchObject({ kind: 'text', text: 'DB-GF1', h: 2, pts: [[11, 4.2]] });
-    expect(leaderItems([[0, 0], [-10, 5]], 'AB', 2)[1].pts[0][0]).toBeCloseTo(-13.4, 9);
+    // Half a height clear of the end, its capitals (the height) centred on it: the baseline half a height below.
+    expect(t).toMatchObject({ kind: 'text', text: 'DB-GF1', h: 2, pts: [[11, 4]] });
+    // Left of it, its right end half a height clear: "AB" 2 letters 0.84 × 2 wide.
+    expect(leaderItems([[0, 0], [-10, 5]], ' AB ', 2)[1]).toMatchObject({ text: 'AB' });
+    expect(leaderItems([[0, 0], [-10, 5]], 'AB', 2)[1].pts[0][0]).toBeCloseTo(-11 - 2 * CHAR_W * 2, 9);
     expect(leaderItems([[0, 0], [5, 5], [9, 5]], '', 2)).toEqual([{ kind: 'pline', layer: 'LV-ANNO', pts: [[0, 0], [5, 5], [9, 5]], leader: true }]);
   });
 
@@ -48,9 +52,13 @@ describe('annotation', () => {
     const [n, a] = roomTagItems('Living', 23.456, [10, 10], 1);
     expect([n.text, a.text]).toEqual(['LIVING', '23.46 m²']);
     expect(n.pts[0][1]).toBeGreaterThan(a.pts[0][1]);
+    // Each centred on the point: "LIVING" 6 letters 0.84 × 1 wide, "23.46 m²" 8 letters 0.84 × 0.8.
+    expect(n.pts[0][0]).toBeCloseTo(10 - 3 * CHAR_W, 9);
+    expect(a.pts[0][0]).toBeCloseTo(10 - 4 * CHAR_W * 0.8, 9);
     const north = northArrowItems([0, 0], 1);
     expect(north.map((x) => x.kind)).toEqual(['circle', 'pline', 'text']);
     expect(north[2].text).toBe('N');
+    expect(north[2].pts[0][0]).toBeCloseTo(-CHAR_W / 2, 9); // centred over the arrow
     expect(centreOf([[0, 0], [4, 0], [4, 2], [0, 2]])).toEqual([2, 1]);
   });
 });

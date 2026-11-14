@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { alignEdge, alignedTo, anchorFor, cased, centredAt, ISO_TEXT_MM, justDxf, justFractions, keynoteItems, legendNext, nextKeynote, numberText, oriented, padOf, parseFrame, parseJust, readableAngle, rejustified, spaced, textBaseAt, textBounds, textBox, textCentre, textCorners, textFrameOf, untaggedRooms, withTextHeight } from './cadText';
+import { alignEdge, alignedTo, anchorFor, cased, centredAt, CHAR_W, EM_PER_CAP, ISO_TEXT_MM, justDxf, justFractions, keynoteItems, legendNext, nextKeynote, numberText, oriented, padOf, parseFrame, parseJust, readableAngle, rejustified, spaced, textBaseAt, textBounds, textBox, textCentre, textCorners, textFrameOf, textWidth, untaggedRooms, withTextHeight } from './cadText';
 import type { SketchItem } from '../types';
 
-// "DB-01" at 250 high: 5 × 0.6 × 250 = 750 wide, anchored at the left end of its baseline.
+// A letter of text 250 high: about 0.84 × 250 wide, its capitals being the height (as CAD measures text).
+const L = CHAR_W * 250;
+// "DB-01" at 250 high: 5 letters wide, anchored at the left end of its baseline.
 const t: SketchItem = { id: 't1', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 2000]], text: 'DB-01', h: 250 };
 const close = (a: [number, number], b: [number, number]) => { expect(a[0]).toBeCloseTo(b[0], 6); expect(a[1]).toBeCloseTo(b[1], 6); };
 
 describe('text justification', () => {
+  it('takes a text\'s height as its capitals: a letter about 0.84 × the height wide (0.6 before)', () => {
+    expect(EM_PER_CAP).toBeCloseTo(2048 / 1467, 12); // Arial: its capitals 1467 of its 2048 units
+    expect(CHAR_W).toBeCloseTo(0.8376, 4);
+    expect(textWidth('DB-01', 250)).toBeCloseTo(1047.03, 2);
+    expect(textBox(t).w).toBeCloseTo(1047.03, 2);
+  });
+
   it('reads the anchor\'s place on the box: L / C / R on the baseline, T / M / B rows', () => {
     expect(justFractions(undefined)).toEqual({ fx: 0, fy: 0 });
     expect(justFractions('C')).toEqual({ fx: 0.5, fy: 0 });
@@ -17,27 +26,27 @@ describe('text justification', () => {
 
   it('keeps the text where it is when justified another way: the box does not move, the anchor does', () => {
     const box = textBox(t);
-    expect(box).toEqual({ origin: [1000, 2000], w: 750, h: 250 });
+    expect(box.origin).toEqual([1000, 2000]); expect(box.w).toBeCloseTo(5 * L, 9); expect(box.h).toBe(250);
     const mc = rejustified(t, 'MC');
     expect(mc.just).toBe('MC');
-    close(mc.pts[0], [1375, 2125]);
+    close(mc.pts[0], [1000 + 2.5 * L, 2125]);
     close(textBox(mc).origin, [1000, 2000]);
     const tr = rejustified(mc, 'TR');
-    close(tr.pts[0], [1750, 2250]);
+    close(tr.pts[0], [1000 + 5 * L, 2250]);
     close(textBox(tr).origin, [1000, 2000]);
     // Back to Left: not stored.
     const l = rejustified(tr, 'L');
     expect(l.just).toBeUndefined();
     close(l.pts[0], [1000, 2000]);
-    expect(anchorFor(t, 'BC')).toEqual([1375, 2000]);
+    close(anchorFor(t, 'BC'), [1000 + 2.5 * L, 2000]);
   });
 
   it('follows the rotation: a text up the page, anchored top right', () => {
     const up: SketchItem = { ...t, rot: Math.PI / 2, just: 'TR' };
     // Up the page: the baseline runs +y from the origin, the box extends to -x (its "up" is -x).
-    close(textBox(up).origin, [1000 + 250, 2000 - 750]);
+    close(textBox(up).origin, [1000 + 250, 2000 - 5 * L]);
     const c = textCorners(up);
-    close(c[0], [1250, 1250]); close(c[1], [1250, 2000]); close(c[2], [1000, 2000]); close(c[3], [1000, 1250]);
+    close(c[0], [1250, 2000 - 5 * L]); close(c[1], [1250, 2000]); close(c[2], [1000, 2000]); close(c[3], [1000, 2000 - 5 * L]);
     const b = textBaseAt(up);
     close(b.at, [1250, 2000]); expect(b.align).toBe('right');
   });
@@ -72,15 +81,16 @@ describe('text justification', () => {
 });
 
 describe('text tools on the texts picked', () => {
-  const a: SketchItem = { id: 'a', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 2000]], text: 'DB-01', h: 250 }; // box 1000–1750 × 2000–2250
-  const b: SketchItem = { id: 'b', kind: 'text', layer: 'LV-ANNO', pts: [[1400, 1000]], text: 'L1', h: 250 }; // box 1400–1700 × 1000–1250
-  const c: SketchItem = { id: 'c', kind: 'text', layer: 'LV-ANNO', pts: [[300, 1500]], text: 'SOCKETS', h: 250, just: 'MC' }; // 1050 wide: 300 ± 525 × 1375–1625
+  const a: SketchItem = { id: 'a', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 2000]], text: 'DB-01', h: 250 }; // box 1000–(1000 + 5 L) × 2000–2250
+  const b: SketchItem = { id: 'b', kind: 'text', layer: 'LV-ANNO', pts: [[1400, 1000]], text: 'L1', h: 250 }; // box 1400–(1400 + 2 L) × 1000–1250
+  const c: SketchItem = { id: 'c', kind: 'text', layer: 'LV-ANNO', pts: [[300, 1500]], text: 'SOCKETS', h: 250, just: 'MC' }; // 7 L wide: 300 ± 3.5 L × 1375–1625
 
   it('bounds and centre follow the justification and rotation', () => {
-    expect(textBounds(c)).toEqual({ x0: -225, y0: 1375, x1: 825, y1: 1625 });
-    expect(textCentre(a)).toEqual([1375, 2125]);
+    const bc = textBounds(c);
+    expect(bc.x0).toBeCloseTo(300 - 3.5 * L, 6); expect(bc.x1).toBeCloseTo(300 + 3.5 * L, 6); expect(bc.y0).toBe(1375); expect(bc.y1).toBe(1625);
+    close(textCentre(a), [1000 + 2.5 * L, 2125]);
     const up = textBounds({ ...a, rot: Math.PI / 2 });
-    expect(up.x0).toBeCloseTo(750, 6); expect(up.x1).toBeCloseTo(1000, 6); expect(up.y0).toBeCloseTo(2000, 6); expect(up.y1).toBeCloseTo(2750, 6);
+    expect(up.x0).toBeCloseTo(750, 6); expect(up.x1).toBeCloseTo(1000, 6); expect(up.y0).toBeCloseTo(2000, 6); expect(up.y1).toBeCloseTo(2000 + 5 * L, 6);
   });
 
   it('changes case: upper, lower, title (after spaces, brackets and dashes), sentence', () => {
@@ -97,11 +107,11 @@ describe('text tools on the texts picked', () => {
     expect(readableAngle(Math.PI / 3, 'both')).toBeCloseTo(Math.PI / 3, 9);
     expect(readableAngle(Math.PI / 3, 'bottom')).toBe(0);
     expect(readableAngle(0, 'right')).toBe(Math.PI / 2);
-    const upside = { ...a, rot: Math.PI }; // its box runs 250–1000 × 1750–2000, centre (625, 1875)
+    const upside = { ...a, rot: Math.PI }; // its box runs (1000 - 5 L)–1000 × 1750–2000, centre (1000 - 2.5 L, 1875)
     const o = oriented(upside, 'both');
     expect(o.rot).toBeUndefined();
     close(textCentre(o), textCentre(upside));
-    close(o.pts[0], [250, 1750]);
+    close(o.pts[0], [1000 - 5 * L, 1750]);
     expect(oriented(a, 'both')).toBe(a);
     const right = oriented(c, 'right');
     expect(right.rot).toBeCloseTo(Math.PI / 2, 9); expect(right.just).toBe('MC'); close(right.pts[0], [300, 1500]);
@@ -110,15 +120,15 @@ describe('text tools on the texts picked', () => {
   it('centres a text on a point', () => {
     const m = centredAt(a, [5000, 5000]);
     close(textCentre(m), [5000, 5000]);
-    close(m.pts[0], [5000 - 375, 5000 - 125]);
+    close(m.pts[0], [5000 - 2.5 * L, 5000 - 125]);
   });
 
   it('aligns texts on an edge and spaces them down the page', () => {
-    expect(alignEdge(a, 'left')).toBe(1000); expect(alignEdge(a, 'right')).toBe(1750); expect(alignEdge(a, 'centre')).toBe(1375);
+    expect(alignEdge(a, 'left')).toBe(1000); expect(alignEdge(a, 'right')).toBeCloseTo(1000 + 5 * L, 9); expect(alignEdge(a, 'centre')).toBeCloseTo(1000 + 2.5 * L, 9);
     expect(alignEdge(a, 'top')).toBe(2250); expect(alignEdge(a, 'bottom')).toBe(2000);
     expect(alignedTo(b, 'left', alignEdge(a, 'left')).pts[0]).toEqual([1000, 1000]);
-    expect(alignedTo(b, 'right', 1750).pts[0]).toEqual([1450, 1000]);
-    expect(alignedTo(c, 'centre', 1375).pts[0]).toEqual([1375, 1500]);
+    close(alignedTo(b, 'right', 1750).pts[0], [1750 - 2 * L, 1000]);
+    close(alignedTo(c, 'centre', 1375).pts[0], [1375, 1500]);
     expect(alignedTo(b, 'top', 2250).pts[0]).toEqual([1400, 2000]);
     expect(alignedTo(b, 'bottom', 2000).pts[0]).toEqual([1400, 2000]);
     // Spacing: a (centre y 2125) stays on top; c (1500) then b (1125) follow 400 apart.
@@ -138,19 +148,19 @@ describe('text tools on the texts picked', () => {
 });
 
 describe('frames, numbering and keynotes', () => {
-  const t: SketchItem = { id: 't', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 2000]], text: 'L1', h: 250, just: 'MC' }; // box 300 × 250 about (1000, 2000)
+  const t: SketchItem = { id: 't', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 2000]], text: 'L1', h: 250, just: 'MC' }; // box 2 L × 250 about (1000, 2000)
 
   it('frames a text round its box: a circle, a box or a hexagon, 0.3 h clear', () => {
     expect(textFrameOf(t)).toBeUndefined();
     const c = textFrameOf({ ...t, frame: 'circle' })!.circle!;
-    close(c.c, [1000, 2000]); expect(c.r).toBeCloseTo(Math.hypot(150, 125) + 75, 9);
+    close(c.c, [1000, 2000]); expect(c.r).toBeCloseTo(Math.hypot(L, 125) + 75, 9);
     const b = textFrameOf({ ...t, frame: 'box' })!.pts!;
-    expect(b).toHaveLength(4); close(b[0], [1000 - 225, 2000 - 200]); close(b[2], [1225, 2200]);
+    expect(b).toHaveLength(4); close(b[0], [1000 - L - 75, 2000 - 200]); close(b[2], [1000 + L + 75, 2200]);
     const hx = textFrameOf({ ...t, frame: 'hexagon' })!.pts!;
     expect(hx).toHaveLength(6); close(hx[0], [1000 + c.r, 2000]); close(hx[3], [1000 - c.r, 2000]);
     // Turned with the text: the box's first corner follows the rotation.
     const up = textFrameOf({ ...t, frame: 'box', rot: Math.PI / 2 })!.pts!;
-    close(up[0], [1000 + 200, 2000 - 225]);
+    close(up[0], [1000 + 200, 2000 - L - 75]);
     expect(parseFrame('h')).toBe('hexagon'); expect(parseFrame('None')).toBe('none'); expect(parseFrame('x')).toBeUndefined();
   });
 

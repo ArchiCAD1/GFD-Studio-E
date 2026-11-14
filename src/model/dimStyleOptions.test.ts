@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DIM_ARROWS, DIM_DEFAULTS, dimLookOf, dimStylesOf, dimStylesToStore, dimText, lookOf, type CadDimStyle } from './cadStyles';
 import { dimensionLines, dimLength, dimOf, scaleLook, segmentsOf, shapesOut, type DimLook } from './cadSketch';
 import { scaled } from './cadEdit';
+import { CHAR_W } from './cadText';
 import { sampleProject } from '../data/sampleProject';
 import type { Project, SketchItem } from '../types';
 
@@ -40,17 +41,21 @@ describe('dimension arrows and text placement', () => {
 
   it('puts the text above, centred in a break, or below the line, along it or at an extension line', () => {
     const at = (l: Partial<DimLook>) => dimOf(dim({ ...base, gap: 60, ...l }), 0.001);
-    // Above: the baseline the gap over the line; below: its height under it.
+    // Above: the baseline the gap over the line; below: its height (its capitals, 200) the gap under it.
     expect(at({ textPos: 'above' }).text[1]).toBeCloseTo(860, 6);
-    expect(at({ textPos: 'below' }).text[1]).toBeCloseTo(800 - 60 - 200 * 0.7, 6);
-    // Centred: the middle of the text on the line, the line broken round the text ("4000", 4 × 0.6 × 200 wide).
-    const c = at({ textPos: 'centered' });
-    expect(c.text[1]).toBeCloseTo(800 - 70, 6);
+    expect(at({ textPos: 'below' }).text[1]).toBeCloseTo(800 - 60 - 200, 6);
+    // Centred: the middle of its capitals on the line (the baseline half the height below), the line broken round the
+    // text ("4000": 4 letters 0.84 × 200 wide, about 670).
+    const c = at({ textPos: 'centered' }), half = 2 * CHAR_W * 200;
+    expect(half).toBeCloseTo(335.05, 2);
+    expect(c.text[1]).toBeCloseTo(800 - 100, 6);
     const lines = c.lines.filter(([a, b]) => a[1] === 800 && b[1] === 800);
-    expect(lines).toEqual([[[0, 800], [2000 - 240 - 60, 800]], [[2000 + 240 + 60, 800], [4000, 800]]]);
+    expect(lines).toHaveLength(2);
+    expect(lines[0][0]).toEqual([0, 800]); expect(lines[0][1][0]).toBeCloseTo(2000 - half - 60, 6);
+    expect(lines[1][0][0]).toBeCloseTo(2000 + half + 60, 6); expect(lines[1][1]).toEqual([4000, 800]);
     // At extension line 1: past the arrow, its half width in.
-    expect(at({ textPos: 'above', textAlong: 'first' }).text[0]).toBeCloseTo(250 * 1.5 + 240, 6);
-    expect(at({ textPos: 'above', textAlong: 'second' }).text[0]).toBeCloseTo(4000 - 250 * 1.5 - 240, 6);
+    expect(at({ textPos: 'above', textAlong: 'first' }).text[0]).toBeCloseTo(250 * 1.5 + half, 6);
+    expect(at({ textPos: 'above', textAlong: 'second' }).text[0]).toBeCloseTo(4000 - 250 * 1.5 - half, 6);
     // Fields left out: as before (over the line, away from the points, half the arrow size up).
     expect(dimOf(dim(base), 0.001).text).toEqual([2000, 925]);
   });
@@ -59,8 +64,8 @@ describe('dimension arrows and text placement', () => {
     const v: SketchItem = { id: 'v', kind: 'dim', layer: 'L', pts: [[0, 0], [0, 4000], [-800, 2000]], look: { ...base, textPos: 'above', textFlat: true, gap: 60 }, h: 200 };
     const g = dimOf(v, 0.001);
     expect(g.angle).toBe(0);
-    // The line is at x = -800; the text's middle half its width (240) and the gap off it.
-    expect(Math.abs(g.text[0] + 800)).toBeCloseTo(300, 6);
+    // The line is at x = -800; the text's middle half its width ("4000": 2 × 0.84 × 200) and the gap off it.
+    expect(Math.abs(g.text[0] + 800)).toBeCloseTo(2 * CHAR_W * 200 + 60, 6);
   });
 
   it('hides extension lines, runs the line past them, and scales the gap and the run with the dimension', () => {

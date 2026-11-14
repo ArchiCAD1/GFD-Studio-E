@@ -1,5 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { NOTE_ATTACHES, type NoteAttach, type NotePara, type NoteRun } from '../../model/cadMtext';
+import { emPerCapOf, SCREEN_FONT } from '../../model/cadTextScreen';
 
 /** The editor over a note's box (MTEXT, a double-click on a note; S6 of the Design CAD 2D gap plan): the words typed
  * in the box at its place, size and angle on the screen, a small bar above it with B, U, the height on paper, the
@@ -7,8 +8,8 @@ import { NOTE_ATTACHES, type NoteAttach, type NotePara, type NoteRun } from '../
  * was, a click outside keeps them too. The grip at the right edge drags the box's width. The words are kept as
  * paragraphs of plain, bold and underlined runs: what is typed is read back from the box, never kept as HTML. */
 export default function CadNoteEdit({ left, top, w, h, lineH, rot, note, heightMm, attach, unitsPerPx, onHeightMm, onAttach, onWidth, onCommit, onCancel }: {
-  /** The top left corner of the box on the screen (px), its width, the letters' height and the line height there, and
-   * its angle (radians, anticlockwise). */
+  /** The top left corner of the box on the screen (px), its width, the letters' height (their capitals) and the line
+   * height there, and its angle (radians, anticlockwise). */
   left: number;
   top: number;
   w: number;
@@ -65,7 +66,8 @@ export default function CadNoteEdit({ left, top, w, h, lineH, rot, note, heightM
     const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
     window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
   };
-  const px = Math.max(8, Math.min(h, 200)), lh = Math.max(px, Math.min(lineH, 340));
+  // The font as the drawing's: its capitals the note's height.
+  const px = Math.max(8, Math.min(h * emPerCapOf(SCREEN_FONT), 200)), lh = Math.max(px, Math.min(lineH, 340));
   return (
     <div ref={root} className="cad-ntedit" style={{ left, top, width: Math.max(w, px * 2), transform: `rotate(${-rot}rad)` }} onMouseDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
       <div className="cad-ntedit-bar" role="toolbar" aria-label="Note">

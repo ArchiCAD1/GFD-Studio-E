@@ -22,8 +22,13 @@ export function parseJust(s: string): TextJust | undefined {
   return t === 'LEFT' ? 'L' : t === 'CENTRE' || t === 'CENTER' ? 'C' : t === 'RIGHT' ? 'R' : t === 'MIDDLE' ? 'MC' : undefined;
 }
 
+/** Font size per unit of a text's height. CAD gives a text's height as the height of its capitals, and Arial's capitals
+ * are 1467 of its 2048 units: the sheets print Arial (and Save DXF names it) at about 1.4 times the height. */
+export const EM_PER_CAP = 2048 / 1467;
+/** About how wide a letter of text of height 1 is: 0.6 of its font size (Arial's average), about 0.84. */
+export const CHAR_W = 0.6 * EM_PER_CAP;
 /** About how wide text of height h is (the sheets print it in Arial). */
-export const textWidth = (s: string, h: number) => s.length * h * 0.6;
+export const textWidth = (s: string, h: number) => s.length * h * CHAR_W;
 
 /** The text heights on paper (mm) offered: the ISO 3098 series. */
 export const ISO_TEXT_MM = [1.8, 2.5, 3.5, 5, 7, 10, 14, 20];

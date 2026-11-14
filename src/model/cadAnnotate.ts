@@ -1,5 +1,6 @@
 import { inside } from './cadMeasure';
 import { ellipsePoints } from './cadSketch';
+import { textWidth } from './cadText';
 import { hatchOutlinePts, loopOf } from './cadHatchAssoc';
 export { hatchOutlinePts };
 import type { Project, SketchItem } from '../types';
@@ -83,12 +84,13 @@ export function leaderItems(pts: Pt[], text: string, h: number): Omit<SketchItem
   const [a, b] = [pts[pts.length - 2], pts[pts.length - 1]], right = b[0] >= a[0];
   const line: Omit<SketchItem, 'id'> = { kind: pts.length > 2 ? 'pline' : 'line', layer: ANNO, pts, leader: true };
   if (!text.trim()) return [line];
-  const w = 0.6 * h * text.length;
-  return [line, { kind: 'text', layer: ANNO, pts: [[b[0] + (right ? 0.5 * h : -0.5 * h - w), b[1] - 0.4 * h]], text: text.trim(), h, rot: 0 }];
+  // Half a height clear of the line's end, its capitals centred on it.
+  const s = text.trim(), w = textWidth(s, h);
+  return [line, { kind: 'text', layer: ANNO, pts: [[b[0] + (right ? 0.5 * h : -0.5 * h - w), b[1] - 0.5 * h]], text: s, h, rot: 0 }];
 }
 /** A room tag: its name over its area, centred at a point. */
 export function roomTagItems(name: string, areaM2: number, at: Pt, h: number): Omit<SketchItem, 'id'>[] {
-  const t = (s: string, dy: number, k: number): Omit<SketchItem, 'id'> => ({ kind: 'text', layer: ANNO, pts: [[at[0] - (0.6 * h * k * s.length) / 2, at[1] + dy]], text: s, h: h * k, rot: 0 });
+  const t = (s: string, dy: number, k: number): Omit<SketchItem, 'id'> => ({ kind: 'text', layer: ANNO, pts: [[at[0] - textWidth(s, h * k) / 2, at[1] + dy]], text: s, h: h * k, rot: 0 });
   return [t(name.toUpperCase(), 0.2 * h, 1), t(`${areaM2.toFixed(2)} m²`, -1.3 * h, 0.8)];
 }
 /** A north arrow at a point: a circle, the arrow (pointing up the plan, +y) and N above. */
@@ -97,7 +99,7 @@ export function northArrowItems(at: Pt, h: number): Omit<SketchItem, 'id'>[] {
   return [
     { kind: 'circle', layer: ANNO, pts: [at], r },
     { kind: 'pline', layer: ANNO, pts: [[x, y + r], [x + 0.6 * r, y - 0.7 * r], [x, y - 0.35 * r], [x - 0.6 * r, y - 0.7 * r]], closed: true },
-    { kind: 'text', layer: ANNO, pts: [[x - 0.3 * h, y + r + 0.4 * h]], text: 'N', h, rot: 0 }
+    { kind: 'text', layer: ANNO, pts: [[x - textWidth('N', h) / 2, y + r + 0.4 * h]], text: 'N', h, rot: 0 }
   ];
 }
 /** The centre of an outline (its vertices' mean). */

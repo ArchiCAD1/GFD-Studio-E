@@ -7,7 +7,7 @@ import { dimOf } from '../../model/cadSketch';
 import { POINT_SHAPES, pointMark, type PointStyle } from '../../model/cadPoints';
 import { askedAttdefs, attdefsOf, attrValue, blockNameError, type CadBlockDef } from '../../model/cadBlocks';
 import { cleanTag } from '../../model/cadAttributes';
-import { TEXT_JUSTS, type TextJust } from '../../model/cadText';
+import { EM_PER_CAP, TEXT_JUSTS, type TextJust } from '../../model/cadText';
 import { mergeImported, readDxfDimStyles } from '../../model/dxfDimStyles';
 import type { SketchItem } from '../../types';
 
@@ -298,7 +298,7 @@ const DIM_HELP: Record<DimTab, string> = {
   units: 'The length measured, in the unit, times the measurement scale; rounded to the step (in the unit) when set. Prefix and suffix are written before and after it.'
 };
 
-/** The selected style on a 3.20 m dimension, at paper size. */
+/** The selected style on a 3.20 m dimension, at paper size (the text's capitals at its height). */
 function DimPreview({ s }: { s: CadDimStyle }) {
   const h = s.textMm > 0 ? s.textMm : 2.5;
   const it: SketchItem = { id: 'preview', kind: 'dim', layer: '', pts: [[0, 0], [40, 0], [20, 8]], look: lookOf(s, 1), h };
@@ -308,7 +308,7 @@ function DimPreview({ s }: { s: CadDimStyle }) {
     <div className="cad-dlg-prev" aria-label={`Preview: ${g.label}`}>
       <svg viewBox="-6 -18 52 22" width="156" height="66" aria-hidden="true">
         <path d={g.lines.map(([a, b]) => `M${P(a)}L${P(b)}`).join('')} fill="none" stroke="currentColor" strokeWidth="0.25" />
-        <text x={x} y={y} fontSize={h} textAnchor="middle" fill="currentColor" transform={g.angle ? `rotate(${((-g.angle * 180) / Math.PI).toFixed(2)} ${x} ${y})` : undefined}>{g.label}</text>
+        <text x={x} y={y} fontSize={h * EM_PER_CAP} textAnchor="middle" fill="currentColor" transform={g.angle ? `rotate(${((-g.angle * 180) / Math.PI).toFixed(2)} ${x} ${y})` : undefined}>{g.label}</text>
       </svg>
     </div>
   );

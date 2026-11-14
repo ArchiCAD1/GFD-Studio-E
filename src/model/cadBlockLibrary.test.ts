@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockNameFromFile, blockThumb, defFromGeometry, defFromPieces, filterBlocks, loadRecentBlocks, pushRecentBlock, RECENT_KEY, RECENT_MAX } from './cadBlockLibrary';
 import type { CadBlockDef } from './cadBlocks';
+import { CHAR_W } from './cadText';
 import type { RefGeometry } from './cadRefs';
 
 /** The Blocks palette's helpers (INSERT, S10 of the Design CAD 2D gap plan). */
@@ -62,6 +63,12 @@ describe('Blocks from elsewhere', () => {
     expect(Math.min(...xs)).toBeCloseTo((4 / 3 - 1.2) / 2); expect(Math.max(...xs)).toBeCloseTo((4 / 3 + 1.2) / 2);
     expect(Math.min(...ys)).toBeCloseTo(0.05); expect(Math.max(...ys)).toBeCloseTo(0.95);
     expect(blockThumb({ name: 'E', items: [] })).toEqual({ lines: [], texts: [] });
+    // A text takes its height (its capitals) and about 0.84 × that a letter: "ABCD" 1 high is 4 × 0.84 wide, fitted
+    // into the 1.2 across the picture allows.
+    const words = blockThumb({ name: 'W', items: [{ id: 't', kind: 'text', layer: '0', pts: [[0, 0]], text: 'ABCD', h: 1 }] });
+    expect(words.texts).toHaveLength(1);
+    expect(words.texts[0].h).toBeCloseTo(1.2 / (4 * CHAR_W), 9);
+    expect(words.texts[0].at[0]).toBeCloseTo((4 / 3 - 1.2) / 2, 9);
     const list = [def('DB-TYPE-A'), def('DB-TYPE-B'), def('Socket twin')];
     expect(filterBlocks(list, 'db').map((d) => d.name)).toEqual(['DB-TYPE-A', 'DB-TYPE-B']);
     expect(filterBlocks(list, 'twin sock').map((d) => d.name)).toEqual(['Socket twin']);
