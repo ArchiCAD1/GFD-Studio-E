@@ -2,27 +2,62 @@ import { useEffect, useRef, useState } from 'react';
 import type { CadText, CadView, FileLayout } from '../../engines/cad/cadEngine';
 import { paperOf, viewportMap } from '../../model/fileLayouts';
 
-/** A drawing file's own layout (paper space) in Design CAD: its paper with a shadow, the printable area dashed and trim
- * marks at the corners (on screen only), what is drawn on the paper, and the model through each of its viewports — in
- * black on white, as it plots. The wheel zooms at the pointer, the middle button or a drag pans, a middle double-click
- * fits the paper again. Shown, not edited, for now: a double-click says so (onDblClick). */
+/** A layout of the drawing (paper space) in Design CAD, the file's own or one made here: its paper with a shadow, the
+ * printable area dashed and trim marks at the corners (on screen only), what is drawn on the paper, and the model
+ * through each of its viewports — in black on white, as it plots. The wheel zooms at the pointer, the middle button or
+ * a drag pans, a middle double-click fits the paper again. The file's own layouts are shown, not edited: a double-click
+ * says so (onDblClick). A layout made here is edited (`edit`): a frame picked by its edge moves, its corners resize it,
+ * MV makes one from two corners, a double-click inside works in it (the wheel and a drag then move its view), a
+ * double-click outside goes back to the paper. */
 
 type Pt = [number, number];
+type Box = [number, number, number, number];
 const PAD = 28; // px round the paper when fitted
 const INK = '#111', MODEL_INK = '#333', FRAME = '#666';
+const CLICK_PX = 3; // a press that moves less is a click, not a drag
 
-export function CadFilePaper({ layout, model, onDblClick, onContext }: {
+/** Editing the viewports of a layout made here; its paper space is in mm from the paper's lower left corner. Viewports are
+ * named by their place in layout.viewports. */
+export interface PaperEdit {
+  /** The viewport picked, and the one worked in (MS). */
+  sel: number | null;
+  ms: number | null;
+  /** MV: two corners picked on the paper make a viewport. */
+  mv: boolean;
+  onSelect: (i: number | null) => void;
+  onMs: (i: number | null) => void;
+  /** A frame moved or resized: its lower left corner, width and height (mm). */
+  onBox: (i: number, box: Box, how: 'move' | 'resize') => void;
+  onNew: (box: Box) => void;
+  /** The view of the viewport worked in dragged by a distance on the paper (mm, y up). */
+  onPan: (i: number, dx: number, dy: number) => void;
+  /** The view of the viewport worked in zoomed by a factor about a paper point (mm). */
+  onZoom: (i: number, f: number, at: Pt) => void;
+}
+
+const boxOf = (a: Pt, b: Pt): Box => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])];
+
+export function CadFilePaper({ layout, model, layersOn, onDblClick, onContext, edit }: {
   layout: FileLayout;
   model: Pick<CadView, 'segs' | 'segLayers' | 'info'>;
+  /** The model's layers that show, in the drawing's order, as the app has them (default: as the drawing has them). */
+  layersOn?: ArrayLike<number | boolean>;
   onDblClick?: () => void;
   /** A right-click: inside a viewport (its index in layout.viewports) or on the paper (null), at the screen point. */
   onContext?: (vp: number | null, x: number, y: number) => void;
+  edit?: PaperEdit;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const cv = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState<Pt>([0, 0]);
   // px per paper mm, and where the paper's lower left corner is on screen; null: fitted to the pane.
   const [cam, setCam] = useState<{ k: number; x: number; y: number } | null>(null);
+  // Editing: the frame being dragged, the first corner of a new one and where the pointer is, and the view being dragged.
+  const [drag, setDrag] = useState<{ i: number; how: 'move' | 'nw' | 'ne' | 'sw' | 'se'; from: Pt; box: Box } | null>(null);
+  const [first, setFirst] = useState<Pt | null>(null);
+  const [hover, setHover] = useState<Pt | null>(null);
+  const [live, setLive] = useState<{ i: number; dx: number; dy: number } | null>(null);
+  useEffect(() => { if (!edit?.mv) { setFirst(null); setHover(null); } }, [edit?.mv]);
   const paper = paperOf(layout);
   useEffect(() => {
     const el = host.current;
@@ -77,9 +112,11 @@ export function CadFilePaper({ layout, model, onDblClick, onContext }: {
     const toScreen = (p: Pt): Pt => { const [mx, my] = paper.mm(p[0], p[1]); return [sx(mx), sy(my)]; };
     // The model through each viewport that is on, clipped to its frame.
     const [mox, moy] = model.info.origin;
-    const on = model.info.layers.map((l) => l.on);
-    for (const v of layout.viewports) {
-      if (!v.on) continue;
+    const on = model.info.layers.map((l, i) => (layersOn && layersOn[i] !== undefined ? !!layersOn[i] : l.on));
+    for (const [i, v0] of layout.viewports.entries()) {
+      if (!v0.on) continue;
+      // The view being dragged in the viewport worked in follows the pointer before it is kept.
+      const v = live?.i === i && v0.h > 0 ? { ...v0, cx: v0.cx - (live.dx * v0.vh) / v0.h, cy: v0.cy - (live.dy * v0.vh) / v0.h } : v0;
       const map = viewportMap(v);
       const [ax, ay] = toScreen([v.x, v.y + v.h]), [bx, by] = toScreen([v.x + v.w, v.y]);
       ctx.save();
@@ -126,34 +163,107 @@ export function CadFilePaper({ layout, model, onDblClick, onContext }: {
     const v = cam ?? fitted(), k = Math.max(0.05, Math.min(400, v.k * f)), r = k / v.k;
     setCam({ k, x: px - (px - v.x) * r, y: py - (py - v.y) * r });
   };
+  /** A pointer event's place on the paper: mm from its lower left corner. */
+  const mmAt = (e: { clientX: number; clientY: number }): Pt => {
+    const r = host.current!.getBoundingClientRect();
+    return [(e.clientX - r.left - view.x) / view.k, (view.y - (e.clientY - r.top)) / view.k];
+  };
+  /** A viewport's frame on the paper (mm from its lower left corner: x, y, width, height). */
+  const frameOf = (v: FileLayout['viewports'][0]): Box => { const [x, y] = paper.mm(v.x, v.y), [x1, y1] = paper.mm(v.x + v.w, v.y + v.h); return [x, y, x1 - x, y1 - y]; };
+  /** The topmost viewport that is on under a paper point (mm), or -1. */
+  const vpAt = ([x, y]: Pt): number => {
+    for (let i = layout.viewports.length - 1; i >= 0; i--) {
+      if (!layout.viewports[i].on) continue;
+      const [l, b, w, h] = frameOf(layout.viewports[i]);
+      if (x >= l && x <= l + w && y >= b && y <= b + h) return i;
+    }
+    return -1;
+  };
+  const dragTo = (e: React.PointerEvent) => {
+    if (!drag) return;
+    const [x, y] = mmAt(e), dx = x - drag.from[0], dy = y - drag.from[1], [l, b, w, h] = frameOf(layout.viewports[drag.i]), r = l + w, t = b + h;
+    const box: Box = drag.how === 'move' ? [l + dx, b + dy, w, h]
+      : drag.how === 'nw' ? boxOf([l + dx, t + dy], [r, b]) : drag.how === 'ne' ? boxOf([r + dx, t + dy], [l, b]) : drag.how === 'sw' ? boxOf([l + dx, b + dy], [r, t]) : boxOf([r + dx, b + dy], [l, t]);
+    setDrag({ ...drag, box: box.map((n) => +n.toFixed(1)) as Box });
+  };
+  const endDrag = () => {
+    if (drag && edit && drag.box.join() !== frameOf(layout.viewports[drag.i]).map((n) => +n.toFixed(1)).join() && drag.box[2] > 2 && drag.box[3] > 2) edit.onBox(drag.i, drag.box, drag.how === 'move' ? 'move' : 'resize');
+    setDrag(null);
+  };
   return (
     <div ref={host} className="cad-filepaper" role="img" aria-label={`Layout ${layout.name}: ${Math.round(paper.w)} × ${Math.round(paper.h)} mm paper, ${layout.viewports.length} viewport${layout.viewports.length === 1 ? '' : 's'}`}
-      onWheel={(e) => { const r = e.currentTarget.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.2 : 1 / 1.2); }}
+      onWheel={(e) => {
+        const f = e.deltaY < 0 ? 1.2 : 1 / 1.2;
+        // In the viewport worked in, the wheel zooms its view (not when locked); elsewhere, the paper.
+        if (edit && edit.ms !== null && vpAt(mmAt(e)) === edit.ms) { if (!layout.viewports[edit.ms]?.locked) edit.onZoom(edit.ms, f, mmAt(e)); return; }
+        const r = e.currentTarget.getBoundingClientRect();
+        zoomAt(e.clientX - r.left, e.clientY - r.top, f);
+      }}
       onPointerDown={(e) => {
         if (e.button !== 0 && e.button !== 1) return;
         e.preventDefault();
         const from = { x: e.clientX, y: e.clientY, v: cam ?? fitted() };
         const el = e.currentTarget;
         el.setPointerCapture?.(e.pointerId);
-        const move = (m: PointerEvent) => setCam({ ...from.v, x: from.v.x + m.clientX - from.x, y: from.v.y + m.clientY - from.y });
-        const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+        // A drag with the left button in the viewport worked in moves its view; any other drag moves the paper.
+        const inMs = edit && e.button === 0 && edit.ms !== null && vpAt(mmAt(e)) === edit.ms ? edit.ms : null;
+        const fixed = inMs !== null && !!layout.viewports[inMs]?.locked;
+        let far = false;
+        const move = (m: PointerEvent) => {
+          const dx = m.clientX - from.x, dy = m.clientY - from.y;
+          if (Math.abs(dx) > CLICK_PX || Math.abs(dy) > CLICK_PX) far = true;
+          if (inMs === null) setCam({ ...from.v, x: from.v.x + dx, y: from.v.y + dy });
+          else if (!fixed) setLive({ i: inMs, dx: dx / from.v.k, dy: -dy / from.v.k });
+        };
+        const up = (m: PointerEvent) => {
+          el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up);
+          if (inMs !== null) { setLive(null); if (far && !fixed) edit!.onPan(inMs, (m.clientX - from.x) / from.v.k, -(m.clientY - from.y) / from.v.k); }
+          else if (!far && edit && edit.sel !== null && m.button === 0) edit.onSelect(null); // a click on the paper: nothing picked
+        };
         el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
       }}
       onAuxClick={(e) => { if (e.button === 1 && e.detail === 2) setCam(null); }}
-      onDoubleClick={() => onDblClick?.()}
+      onDoubleClick={(e) => {
+        if (!edit) { onDblClick?.(); return; }
+        const i = vpAt(mmAt(e));
+        if (i < 0 ? edit.ms !== null : i !== edit.ms) edit.onMs(i < 0 ? null : i);
+      }}
       onContextMenu={(e) => {
         if (!onContext) return;
         e.preventDefault();
-        const r = e.currentTarget.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, { k, x: ox, y: oy } = view;
-        const at = (p: Pt): Pt => { const [mx, my] = paper.mm(p[0], p[1]); return [ox + mx * k, oy - my * k]; };
-        const i = layout.viewports.findIndex((v) => {
-          if (!v.on) return false;
-          const [ax, ay] = at([v.x, v.y + v.h]), [bx, by] = at([v.x + v.w, v.y]);
-          return x >= Math.min(ax, bx) && x <= Math.max(ax, bx) && y >= Math.min(ay, by) && y <= Math.max(ay, by);
-        });
+        const i = vpAt(mmAt(e));
         onContext(i >= 0 ? i : null, e.clientX, e.clientY);
       }}>
       <canvas ref={cv} style={{ width: size[0], height: size[1] }} />
+      {edit && (
+        <div className={`cad-vps${edit.mv ? ' mv' : ''}`} style={{ cursor: edit.mv ? 'crosshair' : undefined }}
+          onPointerMove={edit.mv ? (e) => setHover(mmAt(e)) : undefined}
+          onPointerDown={edit.mv ? (e) => {
+            e.stopPropagation();
+            const at = mmAt(e);
+            if (!first) { setFirst(at); return; }
+            setFirst(null);
+            const b = boxOf(first, at);
+            if (b[2] > 2 && b[3] > 2) edit.onNew(b.map((n) => +n.toFixed(1)) as Box);
+          } : undefined}>
+          {layout.viewports.map((v, i) => {
+            if (!v.on) return null;
+            const [l, b, w, h] = drag?.i === i ? drag.box : frameOf(v), on = edit.sel === i, inside = edit.ms === i, name = `Viewport ${i + 1}`;
+            const grab = (how: 'move' | 'nw' | 'ne' | 'sw' | 'se') => (e: React.PointerEvent) => {
+              if (edit.mv) return;
+              e.stopPropagation(); e.currentTarget.setPointerCapture?.(e.pointerId);
+              edit.onSelect(i); setDrag({ i, how, from: mmAt(e), box: frameOf(v).map((n) => +n.toFixed(1)) as Box });
+            };
+            return (
+              <div key={i} className={`cad-vp${on ? ' on' : ''}${inside ? ' ms' : ''}`} aria-label={name} style={{ left: view.x + l * view.k, top: view.y - (b + h) * view.k, width: w * view.k, height: h * view.k }}>
+                {!inside && (['t', 'b', 'l', 'r'] as const).map((k) => <span key={k} className={`cad-vp-edge ${k}`} onPointerDown={grab('move')} onPointerMove={dragTo} onPointerUp={endDrag} title={`${name}${v.locked ? ' · locked' : ''} — drag to move, double-click inside to work in it`} />)}
+                {on && !inside && (['nw', 'ne', 'sw', 'se'] as const).map((k) => <span key={k} className={`cad-vp-grip ${k}`} onPointerDown={grab(k)} onPointerMove={dragTo} onPointerUp={endDrag} />)}
+              </div>
+            );
+          })}
+          {edit.mv && first && hover && (() => { const [l, b, w, h] = boxOf(first, hover); return <div className="cad-vp new" style={{ left: view.x + l * view.k, top: view.y - (b + h) * view.k, width: w * view.k, height: h * view.k }} />; })()}
+        </div>
+      )}
     </div>
   );
 }

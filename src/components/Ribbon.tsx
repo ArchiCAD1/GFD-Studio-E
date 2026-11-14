@@ -977,6 +977,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
           menu: [
             { label: 'New layout', title: 'A new layout of this drawing: A3, the whole drawing in one viewport; Page setup changes its paper', onClick: () => a.cad?.onLayoutCmd?.('LAYOUT') },
             { label: 'From template…', title: 'A new layout from one of your layout templates: its paper, viewports and tables', onClick: () => a.cad?.onLayoutCmd?.('LAYOUT T') },
+            { label: 'From another drawing…', title: 'Layouts of another drawing (DWG or DXF) added to this one: their paper and viewport frames', onClick: () => a.cad?.onLayoutCmd?.('LAYOUT I') },
             ...(['Lighting', 'Power', 'ELV', 'Containment'] as const).map((t, i) => ({ label: `${t} layout`, title: `A new ${t.toLowerCase()} plan sheet of this level`, sep: i === 0, onClick: () => a.cad?.onLayoutCmd?.(`LAYOUT ${t.toUpperCase()}`) }))
           ] },
         sm({ label: 'Page setup', icon: FileCog, cmd: 'PAGESETUP', title: 'This layout\'s paper and page setup (PAGESETUP)', onClick: () => a.cad?.onLayoutCmd?.('PAGESETUP'), disabled: !a.cad?.inLayout }),
@@ -992,7 +993,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
           menu: [...(a.cad?.info?.scales ?? VP_SCALES).map((k) => ({ label: `1:${k}`, title: `Viewport at 1:${k}`, onClick: () => a.cad?.onLayoutCmd?.(`VPSCALE ${k}`) })),
             { label: 'Scale list…', title: 'The scales offered: tick more standard ones or add your own (SCALELISTEDIT)', sep: true, onClick: () => a.cad?.onLayoutCmd?.('SCALELISTEDIT') }] }),
         sm({ label: 'Lock', icon: Lock, cmd: 'VPLOCK', title: 'Lock or unlock the viewport picked: locked, pan and zoom inside it leave its view alone (VPLOCK)', onClick: () => a.cad?.onLayoutCmd?.('VPLOCK'), active: a.cad?.info?.vp?.locked ?? a.cad?.vpLocked }),
-        sm({ label: 'Fit', icon: Expand, cmd: 'VPFIT', title: 'The whole level in the viewport picked, at the nearest scale of the list (VPFIT)', onClick: () => a.cad?.onLayoutCmd?.('VPFIT') }),
+        sm({ label: 'Fit', icon: Expand, cmd: 'VPFIT', title: 'The whole plan in the viewport picked, at the nearest scale it fits (VPFIT)', onClick: () => a.cad?.onLayoutCmd?.('VPFIT') }),
         sm({ label: 'Copy', icon: Copy, cmd: 'VPCOPY', title: 'A copy of the viewport picked, beside it (VPCOPY)', onClick: () => a.cad?.onLayoutCmd?.('VPCOPY') }),
         sm({ label: 'Align', icon: AlignVerticalSpaceAround, cmd: 'VPALIGN', title: 'Line up the view of the viewport picked with Viewport 1 (VPALIGN)', onClick: () => {}, menuOnly: true,
           menu: [{ label: 'Side by side', title: 'The same height of the plan on one line across both viewports', onClick: () => a.cad?.onLayoutCmd?.('VPALIGN H') },

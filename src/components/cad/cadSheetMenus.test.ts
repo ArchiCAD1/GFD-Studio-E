@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cadCommand } from './cadCommands';
 import { type CtxEntry, type CtxItem } from './cadContextMenu';
-import { argOf, drawingObjectMenu, paperMenu, REF_FADES, viewportMenu, xrefMenu } from './cadSheetMenus';
+import { argOf, drawingObjectMenu, drawingPaperMenu, paperMenu, REF_FADES, viewportMenu, xrefMenu } from './cadSheetMenus';
 import { SHEET_STATUSES } from '../../model/drawingSet';
 import { VP_SCALES, type PlanViewport } from '../../model/planViewports';
 
@@ -58,6 +58,44 @@ describe('right-click menus (phase 3): blocks, references and sheets', () => {
     const arr = flat(m).find((x) => x.label === 'Arrange viewports')!.sub!;
     expect(arr).toHaveLength(9);
     expect(arr.filter((x) => x.label === 'Two: side by side').map((x) => x.arg)).toEqual(['cmd|VPORTS 2V']);
+  });
+
+  it('a layout of the drawing, inside a viewport of one made here: activate, Model tab, scale ▸, lock, frame, erase, plot, page setup', () => {
+    const m = drawingPaperMenu({ inside: true, editable: true, scale: 100, scales: [50, 100], locked: false, frame: false });
+    expect(labels(m)).toEqual(['Activate (model space)', 'Show on the Model tab', '-', 'Viewport scale', 'Lock display', 'Frame prints', '-', 'Erase viewport', '-', 'Plot this layout…', 'Page setup…']);
+    expect(flat(m).find((x) => x.label === 'Activate (model space)')).toMatchObject({ act: 'fpaper', arg: 'ms', key: 'Dbl-click' });
+    expect(flat(m).find((x) => x.label === 'Show on the Model tab')!.arg).toBe('max');
+    expect(flat(m).find((x) => x.label === 'Viewport scale')!.sub!.map((x) => [x.arg, !!x.off])).toEqual([['scale|50', false], ['scale|100', true]]);
+    expect(flat(m).find((x) => x.label === 'Lock display')).toMatchObject({ arg: 'lock', key: 'VPLOCK' });
+    expect(flat(m).find((x) => x.label === 'Erase viewport')!.arg).toBe('erase');
+    expect(flat(m).find((x) => x.label === 'Plot this layout…')).toMatchObject({ arg: 'cmd|PLOT', key: 'PLOT' });
+    expect(flat(m).find((x) => x.label === 'Page setup…')!.arg).toBe('cmd|PAGESETUP');
+    const on = drawingPaperMenu({ inside: true, editable: true, locked: true, frame: true });
+    expect(labels(on)).toEqual(expect.arrayContaining(['Unlock display', 'Frame does not print']));
+    expect(flat(drawingPaperMenu({ inside: true, editable: true, scale: 250, scales: [50, 100] })).find((x) => x.label === 'Viewport scale')!.sub!.map((x) => x.label)).toEqual(['1:50', '1:100', '1:250']); // a scale in use is listed
+  });
+
+  it('a layout of the drawing, inside a viewport of the file\'s own layout: only what shows it, plots it and gets away', () => {
+    const m = drawingPaperMenu({ inside: true, editable: false });
+    expect(labels(m)).toEqual(['Show on the Model tab', '-', 'Plot this layout…', '-', 'New layout', 'Model tab']);
+  });
+
+  it('a layout of the drawing, on the paper: one made here has New viewport, Arrange, Plot, Page setup, New layout, From another drawing…, Rename, Copy, Delete; the file\'s own has Plot, New layout, From another drawing…', () => {
+    const m = drawingPaperMenu({ inside: false, editable: true });
+    expect(labels(m)).toEqual(['New viewport', 'Arrange viewports', '-', 'Plot this layout…', 'Page setup…', '-', 'New layout', 'From another drawing…', 'Rename layout…', 'Copy layout', 'Delete layout', '-', 'Model tab']);
+    expect(flat(m).find((x) => x.label === 'New viewport')).toMatchObject({ arg: 'cmd|MV', key: 'MV' });
+    expect(flat(m).find((x) => x.label === 'From another drawing…')!.arg).toBe('cmd|LAYOUT I');
+    expect(flat(m).find((x) => x.label === 'Arrange viewports')!.sub).toHaveLength(9);
+    const own = drawingPaperMenu({ inside: false, editable: false });
+    expect(labels(own)).toEqual(['Plot this layout…', '-', 'New layout', 'From another drawing…', '-', 'Model tab']);
+  });
+
+  it('every entry of the layout menus runs a typed command or a page action', () => {
+    for (const x of [true, false].flatMap((inside) => [true, false].flatMap((editable) => flat(drawingPaperMenu({ inside, editable }))))) {
+      if (x.sub) continue;
+      if (x.cmd) expect(cadCommand(x.cmd.split(' ')[0]), x.cmd).toBeTruthy();
+      else expect(x.act, x.label).toBeTruthy();
+    }
   });
 
   it('argOf: the action and its value back from the entry', () => {

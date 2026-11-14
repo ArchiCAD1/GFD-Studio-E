@@ -2,15 +2,21 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LayoutPaperDialog, LayoutTemplatesDialog, ScaleListDialog } from './CadLayoutDialogs';
+import { ImportLayoutsDialog, LayoutPaperDialog, LayoutPlotDialog, LayoutTemplatesDialog, ScaleListDialog } from './CadLayoutDialogs';
 import { loadLayoutTemplates, saveLayoutTemplates, templateFromPaper } from '../../model/layoutTemplates';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-const files = vi.hoisted(() => ({ saveText: vi.fn(async () => 'Saved x') }));
-vi.mock('../../util/files', async (orig) => ({ ...(await orig<typeof import('../../util/files')>()), saveText: files.saveText }));
+const files = vi.hoisted(() => ({ saveText: vi.fn(async () => 'Saved x'), saveBinary: vi.fn(async () => 'Saved Layout2.pdf'), savePdf: vi.fn(async () => 'Saved by the browser') }));
+vi.mock('../../util/files', async (orig) => ({ ...(await orig<typeof import('../../util/files')>()), saveText: files.saveText, saveBinary: files.saveBinary, savePdf: files.savePdf }));
+// The preview itself (PDF.js) is not run here: the dialog hands it its title and how to make the PDF.
+const previews = vi.hoisted(() => [] as { title: string; load: (toBytes: (o: { html: string; cssPages?: boolean }) => Promise<Uint8Array>) => Promise<{ bytes: Uint8Array; name: string }>; onClose: () => void }[]);
+vi.mock('../docs/SheetPdfPreview', async () => {
+  const { createElement } = await import('react');
+  return { canPreviewSheetPdf: () => !!window.lvds?.files?.pdfBytes, PdfPreview: (p: (typeof previews)[number]) => { previews.push(p); return createElement('div', { 'aria-label': 'PDF preview mock' }, p.title); } };
+});
 let root: Root, host: HTMLDivElement;
 beforeEach(() => { localStorage.clear(); host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); });
-afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; files.saveText.mockClear(); });
+afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; files.saveText.mockClear(); files.saveBinary.mockClear(); files.savePdf.mockClear(); previews.length = 0; vi.unstubAllGlobals(); });
 
 const button = (t: string) => [...document.querySelectorAll('button')].find((b) => b.textContent === t) as HTMLButtonElement;
 const click = (b: Element) => act(() => { (b as HTMLElement).click(); });
@@ -157,5 +163,121 @@ describe('Scale list dialog', () => {
     act(() => root.render(<ScaleListDialog scales={[100]} onSave={vi.fn()} onClose={() => {}} />));
     click(document.querySelector('[aria-label="Scales"] input:checked')!);
     expect(button('Save').disabled).toBe(true);
+  });
+});
+
+describe('Layouts from another drawing dialog', () => {
+  const list = [templateFromPaper('Layout1', [420, 297], [{ x: 10, y: 10, w: 400, h: 277, scale: 100 }]), templateFromPaper('A1 Lighting', [841, 594], [])];
+  const box = (name: string) => document.querySelector(`[aria-label="Import ${name}"]`) as HTMLInputElement;
+  it('lists the layouts with all ticked; the button counts the ticked; none ticked cannot import', () => {
+    act(() => root.render(<ImportLayoutsDialog file="other.dxf" list={list} onImport={vi.fn()} onClose={vi.fn()} />));
+    expect(document.querySelector('[aria-label="Layouts from another drawing"] h3')!.textContent).toBe('Layouts from another drawing other.dxf');
+    expect([...document.querySelectorAll('[aria-label="Layouts of that drawing"] tbody tr')].map((r) => [...r.querySelectorAll('td')].slice(1).map((c) => c.textContent))).toEqual([['Layout1', 'A3 landscape', '1 · 1:100'], ['A1 Lighting', 'A1 landscape', '0']]);
+    expect(box('Layout1').checked && box('A1 Lighting').checked).toBe(true);
+    expect(document.body.textContent).toContain('Each comes with its paper and its viewport frames at their scales. The viewports show this drawing.');
+    expect(button('Import 2 layouts')).toBeDefined();
+    click(box('A1 Lighting'));
+    expect(button('Import 1 layout')).toBeDefined();
+    click(box('Layout1'));
+    expect(button('Import 0 layouts').disabled).toBe(true);
+  });
+  it('imports the ticked ones, with the choice to keep them as templates (off at first), then closes', () => {
+    const onImport = vi.fn(), onClose = vi.fn();
+    act(() => root.render(<ImportLayoutsDialog file="other.dxf" list={list} onImport={onImport} onClose={onClose} />));
+    const keep = document.querySelector('.cad-devform input[type="checkbox"]') as HTMLInputElement;
+    expect(keep.checked).toBe(false);
+    expect(document.querySelector('.cad-devform')!.textContent).toContain('Also keep them as layout templates (your library)');
+    click(box('Layout1'));
+    click(button('Import 1 layout'));
+    expect(onImport).toHaveBeenCalledWith([list[1]], false);
+    expect(onClose).toHaveBeenCalled();
+    act(() => root.unmount()); root = createRoot(host);
+    act(() => root.render(<ImportLayoutsDialog file="other.dxf" list={list} onImport={onImport} onClose={onClose} />));
+    click(document.querySelector('.cad-devform input[type="checkbox"]')!);
+    click(button('Import 2 layouts'));
+    expect(onImport).toHaveBeenLastCalledWith(list, true);
+  });
+});
+
+describe('Layout plot dialog', () => {
+  const props = (over: Partial<Parameters<typeof LayoutPlotDialog>[0]> = {}) => ({ name: 'Layout2', about: '420 × 297 mm · 1 viewport at 1:100', paper: [420, 297] as [number, number], html: vi.fn(() => '<html>page</html>'), fileName: 'plan Layout2.pdf', onStatus: vi.fn(), onClose: vi.fn(), ...over });
+  const desktop = (extra: Record<string, unknown> = {}) => { const pdfBytes = vi.fn(async () => new Uint8Array([1, 2, 3])); vi.stubGlobal('lvds', { files: { pdfBytes, ...extra } }); return pdfBytes; };
+  it('plots a PDF: the page and its own size (css pages) go to the PDF maker, the saved-file message goes on, the dialog closes; the page is made only then', async () => {
+    const pdfBytes = desktop(), p = props();
+    act(() => root.render(<LayoutPlotDialog {...p} />));
+    expect(document.querySelector('[aria-label="Plot"] h3')!.textContent).toBe('Plot Layout2');
+    expect(document.querySelector('.cad-devform')!.textContent).toContain('420 × 297 mm · 1 viewport at 1:100');
+    expect(document.querySelector('.cad-devform')!.textContent).toContain('Printing is always black-and-white.');
+    expect(document.querySelector('[aria-label="Copies"]')).toBeNull(); // PDF: no copies
+    expect(p.html).not.toHaveBeenCalled();
+    await act(async () => { button('Plot PDF').click(); });
+    expect(pdfBytes).toHaveBeenCalledWith({ html: '<html>page</html>', cssPages: true });
+    expect(files.saveBinary).toHaveBeenCalledWith('plan Layout2.pdf', new Uint8Array([1, 2, 3]), 'PDF', 'pdf', 'application/pdf');
+    expect(p.onStatus).toHaveBeenCalledWith('Saved Layout2.pdf');
+    expect(p.onClose).toHaveBeenCalledTimes(1);
+  });
+  it('in a browser (no desktop app) the PDF goes through the print dialog path', async () => {
+    const p = props();
+    act(() => root.render(<LayoutPlotDialog {...p} />));
+    expect(button('Preview')).toBeUndefined(); // needs the desktop app
+    await act(async () => { button('Plot PDF').click(); });
+    expect(files.savePdf).toHaveBeenCalledWith('plan Layout2.pdf', '<html>page</html>', { cssPages: true });
+    expect(p.onStatus).toHaveBeenCalledWith('Saved by the browser');
+    expect(p.onClose).toHaveBeenCalled();
+  });
+  it('says when a plot fails, and stays open', async () => {
+    const pdfBytes = desktop(), p = props();
+    pdfBytes.mockRejectedValueOnce(new Error('boom'));
+    act(() => root.render(<LayoutPlotDialog {...p} />));
+    await act(async () => { button('Plot PDF').click(); });
+    expect(p.onStatus).toHaveBeenCalledWith('Plot failed: boom');
+    expect(p.onClose).not.toHaveBeenCalled();
+    expect(button('Plot PDF').disabled).toBe(false);
+  });
+  it('prints on a printer the paper suits: copies, the paper and its direction go with the page', async () => {
+    const printHtml = vi.fn(async () => true);
+    desktop({ printHtml, printers: async () => [{ name: 'P1', displayName: 'Plotter one', isDefault: false }] });
+    const p = props();
+    act(() => root.render(<LayoutPlotDialog {...p} />));
+    await flush();
+    type('Printer', 'P1');
+    type('Copies', '2');
+    expect(button('Print').disabled).toBe(false);
+    expect(document.querySelector('.cad-devform')!.textContent).not.toContain('A printer takes A4 to A1');
+    await act(async () => { button('Print').click(); });
+    expect(printHtml).toHaveBeenCalledWith({ html: '<html>page</html>', deviceName: 'P1', copies: 2, pageSize: 'A3', landscape: true });
+    expect(p.onStatus).toHaveBeenCalledWith('Sent Layout2 to P1, 2 copies');
+    expect(p.onClose).toHaveBeenCalled();
+  });
+  it('a paper a printer does not take here plots to PDF only: the note shows and Print is off', async () => {
+    const printHtml = vi.fn(async () => true);
+    desktop({ printHtml, printers: async () => [{ name: 'P1', displayName: 'Plotter one', isDefault: false }] });
+    const p = props({ paper: [500, 300] });
+    act(() => root.render(<LayoutPlotDialog {...p} />));
+    await flush();
+    type('Printer', 'P1');
+    expect(document.querySelector('.cad-devform')!.textContent).toContain('A printer takes A4 to A1 here: this paper plots to PDF.');
+    expect(button('Print').disabled).toBe(true);
+    expect(printHtml).not.toHaveBeenCalled();
+    expect(p.html).not.toHaveBeenCalled();
+  });
+  it('a printer kept from the desktop app is not usable in a browser: the note shows and the button is off', () => {
+    localStorage.setItem('lvds.plotPrinter', 'P1');
+    desktop(); // PDF bytes only: no printing
+    act(() => root.render(<LayoutPlotDialog {...props()} />));
+    expect(document.querySelector('.cad-devform')!.textContent).toContain('Printers need the desktop app.');
+    expect(button('Print').disabled).toBe(true);
+  });
+  it('Preview hands the preview the layout\'s name and how to make its PDF; the page is made only then', async () => {
+    const pdfBytes = desktop(), p = props();
+    act(() => root.render(<LayoutPlotDialog {...p} />));
+    click(button('Preview'));
+    expect(document.querySelector('[aria-label="PDF preview mock"]')!.textContent).toBe('Layout2');
+    expect(p.html).not.toHaveBeenCalled();
+    const made = await previews[0].load(pdfBytes);
+    expect(pdfBytes).toHaveBeenCalledWith({ html: '<html>page</html>', cssPages: true });
+    expect(made).toEqual({ bytes: new Uint8Array([1, 2, 3]), name: 'plan Layout2.pdf' });
+    act(() => previews[0].onClose());
+    expect(document.querySelector('[aria-label="PDF preview mock"]')).toBeNull();
   });
 });
