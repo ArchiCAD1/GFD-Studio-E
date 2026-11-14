@@ -236,6 +236,22 @@ describe('Sheets page', () => {
     expect(td('C1').style.borderLeft).toBe('1px solid var(--tx)');
   });
 
+  it('the sheet tabs stay one row: New sheet sits beside it, and many sheets get a list to jump to one', () => {
+    render(book({ A1: 'first' }));
+    expect(document.querySelector('.shx-sheets [aria-label="New sheet"]')).toBeNull();
+    expect(document.querySelector('.shx-sheetbar > [aria-label="New sheet"]')).not.toBeNull();
+    expect(document.querySelector('select[aria-label="Go to sheet"]')).toBeNull();
+    const many: Project = { ...sampleProject, sheets: { sheets: Array.from({ length: 12 }, (_, i) => withCells({ ...newSheet(), id: `s${i}`, name: `Board ${i + 1}` }, { A1: `cell ${i + 1}` })) } };
+    render(many);
+    expect(document.querySelectorAll('.shx-sheets [role="tab"]').length).toBe(12);
+    const list = document.querySelector<HTMLSelectElement>('select[aria-label="Go to sheet"]')!;
+    expect([...list.options].map((o) => o.textContent)).toEqual(many.sheets!.sheets.map((x) => x.name));
+    act(() => { list.value = 's10'; list.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(document.querySelector('.shx-sheets [aria-selected="true"]')!.textContent).toBe('Board 11');
+    expect(td('A1').textContent).toBe('cell 11');
+    expect(changes).toBe(0);
+  });
+
   it('sheets: add, rename, switch and delete', () => {
     render(book({ A1: 'first' }));
     act(() => [...document.querySelectorAll<HTMLButtonElement>('.shx-tab')].find((t) => t.textContent === 'File')!.click());
