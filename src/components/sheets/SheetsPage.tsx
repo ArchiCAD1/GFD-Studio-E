@@ -460,6 +460,7 @@ export default function SheetsPage({ project, onChange, onStatus, onUndo, openSh
         </table>
       </div>
       {panel === 'link' && <LinkPanel project={project} sheet={sheet} sheets={book.sheets} active={act} onSheet={(next) => save(next)} onStatus={onStatus} onClose={() => setPanel(null)} onFormats={() => setPanel('formats')}
+        onPush={(next, pushed) => onChange({ ...next, sheets: { ...book, sheets: book.sheets.map((x) => (x.id === pushed.id ? pushed : x)) } }, true)}
         onAddSheets={(made) => onChange({ ...project, sheets: { ...book, sheets: [...book.sheets, ...made] } }, true)} />}
       {panel === 'formats' && <FormatsPanel project={project} sheets={book.sheets} onStatus={onStatus} onClose={() => setPanel(null)} onProject={(next) => onChange(next, true)}
         onAddSheets={(made) => { onChange({ ...project, sheets: { ...book, sheets: [...book.sheets, ...made] } }, true); setSheetId(made[made.length - 1].id); setEdit(null); }} />}

@@ -4,15 +4,14 @@ import { buildDashboard } from '../calc/dashboard';
 import { evaluateFeeder, runsOf } from '../calc/electrical';
 import { runCalculations } from '../calc/runs';
 import { applyRecommendation, recommend } from '../calc/sizing';
-import { selectCable } from '../calc/electrical';
 import { addOp, newModification, PROPOSABLE, transition, withProposal, withRecord, type ModTarget } from '../model/designChanges';
 import { moveBlocked, moveBoard } from '../model/moveBoard';
 import { renamePanels, renameProblems } from '../model/renamePanels';
+import { buildPanel } from '../model/addPanel';
 import { pasteBoard } from '../model/copyBoard';
 import { boardAndDescendants, deleteBoard } from '../model/edit';
 import { removeDanglingReferences } from '../model/integrity';
 import { deleteCircuit } from '../model/schedule';
-import { supplyAuthorityOf } from '../model/designReference';
 import { BOARD_KINDS, LOAD_TYPES, type Board, type BoardKind, type Feeder, type LoadType, type Project } from '../types';
 import { openProject } from './project';
 import { circuitIssues, r, type Tool, type ToolContext } from './tools';
@@ -81,9 +80,6 @@ const taken = (p: Project) => new Set([...p.boards.map((b) => b.id), ...p.feeder
 /** base-1, base-2 … (or base1, base2 … with sep ''), the first one free. */
 const uniqueId = (p: Project, base: string, sep = '-') => { const t = taken(p); for (let n = 1; ; n++) if (!t.has(`${base}${sep}${n}`)) return `${base}${sep}${n}`; };
 const checkNewId = (p: Project, id: string) => { if (!id.trim()) throw new Error('The id is empty.'); if (taken(p).has(id)) throw new Error(`${id} already exists in the project.`); };
-
-/** Board ratings for a new panel, as the diagram palette gives them (src/model/sldEdit.ts). */
-const BOARD_RATING: Record<BoardKind, number> = { MC: 400, 'LV-ACB': 1600, MDB: 1600, 'LV-MDB': 1600, SMDB: 250, DB: 63, EDB: 63, MCC: 400, EMCC: 400, EMDB: 250, 'LV-EMDB': 800, FP: 250, UPS: 32 };
 
 // ---- Proposals -------------------------------------------------------------------
 
@@ -202,25 +198,12 @@ export const EDIT_TOOLS: Tool[] = [
       const parent = a.fedFrom ? findBoard(p, String(a.fedFrom)) : undefined;
       if (!parent && (a.transformerKva === undefined) !== (a.impedancePct === undefined)) throw new Error('Give both transformerKva and impedancePct, or neither.');
       if (parent && a.transformerKva !== undefined) throw new Error('A transformer goes on a main board (no fedFrom).');
-      const board: Board = {
-        id, name: a.name ? String(a.name) : id, kind, ratedCurrentA: Number(a.ratedA ?? BOARD_RATING[kind]),
-        ...(parent ? { upstreamId: parent.id } : { supply: { fedFrom: supplyAuthorityOf(p) } }),
-        ...(a.location ? { location: String(a.location) } : {}),
-        ...(a.transformerKva !== undefined ? { sourceKva: Number(a.transformerKva), sourceImpedancePct: Number(a.impedancePct) } : {})
-      };
-      if (!parent) return { next: { ...p, boards: [...p.boards, board] }, summary: `Add main board ${id} (${kind}) with its own supply`, details: { panel: board } };
-      const rating = board.ratedCurrentA!;
-      const lengthM = Number(a.lengthM ?? 30);
-      const inc0: Feeder = {
-        id: taken(p).has(`INC-${id}`) ? uniqueId(p, `INC-${id}`) : `INC-${id}`, boardId: parent.id, feedsBoardId: id, name: `Incomer to ${board.name}`,
-        loadKw: 0, demandFactor: 1, powerFactor: 0.85, lengthM, cores: 4, breakerRatingA: rating, breakerIcuKa: 36,
-        cableCsaMm2: selectCable(rating, lengthM, p.voltageV, 4, 0.85, p.ambientC, 100, rating) ?? 300,
-        breakerType: rating > 1600 ? 'ACB' : rating > 63 ? 'MCCB' : 'C'
-      };
-      const withBoard = { ...p, boards: [...p.boards, board], feeders: [...p.feeders, inc0] };
-      const inc = applyRecommendation(inc0, recommend(withBoard, inc0, 'fix'));
-      const next = { ...withBoard, feeders: withBoard.feeders.map((f) => (f.id === inc.id ? inc : f)) };
-      return { next, summary: `Add ${id} (${kind}) on ${parent.id}: incomer ${inc.id}, ${inc.breakerRatingA} A, ${runsOf(inc) > 1 ? `${runsOf(inc)} × ` : ''}4C × ${inc.cableCsaMm2} mm², ${lengthM} m`, details: { panel: board, incomer: { id: inc.id, breakerA: inc.breakerRatingA, icuKA: inc.breakerIcuKa, cableMm2: inc.cableCsaMm2, runs: runsOf(inc) } } };
+      const { project: next, board, incomer: inc } = buildPanel(p, id, kind, parent?.id, {
+        name: a.name ? String(a.name) : undefined, ratedA: a.ratedA !== undefined ? Number(a.ratedA) : undefined, lengthM: Number(a.lengthM ?? 30), location: a.location ? String(a.location) : undefined,
+        transformerKva: a.transformerKva !== undefined ? Number(a.transformerKva) : undefined, impedancePct: a.impedancePct !== undefined ? Number(a.impedancePct) : undefined
+      });
+      if (!inc) return { next, summary: `Add main board ${id} (${kind}) with its own supply`, details: { panel: board } };
+      return { next, summary: `Add ${id} (${kind}) on ${parent!.id}: incomer ${inc.id}, ${inc.breakerRatingA} A, ${runsOf(inc) > 1 ? `${runsOf(inc)} × ` : ''}4C × ${inc.cableCsaMm2} mm², ${Number(a.lengthM ?? 30)} m`, details: { panel: board, incomer: { id: inc.id, breakerA: inc.breakerRatingA, icuKA: inc.breakerIcuKa, cableMm2: inc.cableCsaMm2, runs: runsOf(inc) } } };
     })
   },
   {
