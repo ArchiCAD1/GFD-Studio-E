@@ -32,6 +32,9 @@ pub const PERPENDICULAR: u32 = 256;
 const INK: u32 = 0xFF00_0007;
 const MAX_SEGMENTS: usize = 3_000_000;
 const MAX_DEPTH: u32 = 12;
+/// About how wide a letter of text of height 1 is: a text's height is its capitals, Arial's capitals are 1467 of its
+/// 2048 units, and its letters are about 0.6 of its font size wide (about 0.84; CHAR_W in src/model/cadText.ts).
+const CHAR_W: f64 = 0.6 * 2048.0 / 1467.0;
 
 #[derive(Clone, Copy)]
 struct Affine { a: f64, b: f64, c: f64, d: f64, e: f64, f: f64 } // x' = a x + c y + e; y' = b x + d y + f
@@ -715,7 +718,7 @@ impl CadDoc {
         }
         for t in &self.texts {
             if closed_only || !on(t.layer) || t.h <= 0.0 || self.gone(t.o) { continue; }
-            let w = if t.w > 0.0 { t.w } else { 0.6 * t.h * t.s.chars().count() as f64 };
+            let w = if t.w > 0.0 { t.w } else { CHAR_W * t.h * t.s.chars().count() as f64 };
             let (sin, cos) = t.rot.sin_cos();
             let (px, py) = ((x - t.x) * cos + (y - t.y) * sin, -(x - t.x) * sin + (y - t.y) * cos);
             let x0 = match t.align { 1 => -w / 2.0, 2 => -w, _ => 0.0 };
@@ -1068,8 +1071,8 @@ fn entity_of(sh: &ShapeOut) -> Option<EntityType> {
                 let (fy, v) = match row { "T" => (1.0, V::Top), "M" => (0.5, V::Middle), "B" => (0.0, V::Bottom), _ => (0.0, V::Baseline) };
                 t.horizontal_alignment = h; t.vertical_alignment = v;
                 t.alignment_point = Some(t.insertion_point);
-                // The left end of the baseline, from the text's approximate width (0.6 × height per character).
-                let w = 0.6 * sh.h * sh.text.chars().count() as f64;
+                // The left end of the baseline, from the text's approximate width (CHAR_W × height per character).
+                let w = CHAR_W * sh.h * sh.text.chars().count() as f64;
                 let (sin, cos) = sh.rot.sin_cos();
                 t.insertion_point = Vector3::new(sh.pts[0].0 - fx * w * cos + fy * sh.h * sin, sh.pts[0].1 - fx * w * sin - fy * sh.h * cos, 0.0);
             }
@@ -1368,6 +1371,39 @@ mod tests {
         assert_eq!((m.x, m.y, m.align, m.w), (300.0, 400.0, 1, 0.0));
         let l = get("LEFT");
         assert_eq!((l.x, l.y, l.align, l.w), (100.0, 200.0, 0, 0.0));
+    }
+
+    /// A centred or right text is written at its alignment point, its first point the left end of its baseline found
+    /// from its width: about 0.84 × its height a letter, its capitals being the height (0.6 before).
+    #[test]
+    fn justified_text_written_from_its_width() {
+        let shapes = r#"[{"layer":"LV-ANNO","kind":"text","pts":[[1000,500]],"text":"ABCD","h":100,"just":"C"},{"layer":"LV-ANNO","kind":"text","pts":[[1000,800]],"text":"WXYZ","h":100,"just":"R"}]"#;
+        let dxf = String::from_utf8(export_dxf(drawing(), "[]", shapes, "[]", "").unwrap()).unwrap();
+        let lines: Vec<&str> = dxf.lines().map(str::trim).collect();
+        let pairs: Vec<(&str, &str)> = lines.chunks(2).filter(|c| c.len() == 2).map(|c| (c[0], c[1])).collect();
+        // A group code's value in the TEXT with these words.
+        let code = |s: &str, k: &str| -> f64 {
+            let own = |i: usize| pairs[i + 1..].iter().take_while(|p| p.0 != "0");
+            let i = (0..pairs.len()).find(|&i| pairs[i] == ("0", "TEXT") && own(i).any(|p| *p == ("1", s))).unwrap_or_else(|| panic!("TEXT {s}"));
+            own(i).find(|p| p.0 == k).unwrap_or_else(|| panic!("{s}: code {k}")).1.parse().unwrap()
+        };
+        // Four letters 100 high: about 335 wide.
+        assert!((code("ABCD", "10") - 832.47).abs() < 0.01, "ABCD starts at {}", code("ABCD", "10"));
+        assert_eq!((code("ABCD", "11"), code("ABCD", "21"), code("ABCD", "72")), (1000.0, 500.0, 1.0));
+        assert!((code("WXYZ", "10") - 664.95).abs() < 0.01, "WXYZ starts at {}", code("WXYZ", "10"));
+        assert_eq!((code("WXYZ", "11"), code("WXYZ", "72")), (1000.0, 2.0));
+    }
+
+    /// A text of a drawing is picked anywhere on its words: about 0.84 × its height a letter wide, as it is drawn with
+    /// its capitals at its height (0.6 before, so its last letters missed).
+    #[test]
+    fn text_picked_along_its_width() {
+        let dxf = "0\nSECTION\n2\nENTITIES\n0\nTEXT\n8\n0\n10\n0\n20\n0\n30\n0\n40\n10\n1\nABCDEFGHIJ\n0\nENDSEC\n0\nEOF\n";
+        let d = CadDoc::new(dxf.as_bytes().to_vec()).unwrap();
+        let on = vec![1u8; d.layers.len()];
+        // Ten letters 10 high: about 84 wide.
+        assert!(!d.pick(80.0, 5.0, 0.5, &on, false).is_empty(), "on its last letters");
+        assert!(d.pick(86.0, 5.0, 0.5, &on, false).is_empty(), "past its end");
     }
 
     /// The drawing's own blocks: a BLOCK record with its objects and an INSERT of it, read back as one block, its

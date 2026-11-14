@@ -159,6 +159,54 @@ describe('drawn objects on the canvas', () => {
     expect(bars.map((b) => b.pts.length)).toEqual([12]);
   });
 
+  it('sizes the drawn texts, notes, dimension, tray, cable and fitting labels so their capitals are their height', () => {
+    // A canvas font is sized by its em: here 1 / 0.7 times its capitals (the stand-in canvas measures no ink). Past a
+    // 200 px font the words are scaled up evenly, so the em is the font times that scale.
+    const sketch: SketchItem[] = [
+      { id: 't', kind: 'text', layer: 'LV-SKETCH', pts: [[100, 3000]], text: 'DB-1', h: 100 },
+      { id: 'n', kind: 'mtext', layer: 'LV-SKETCH', pts: [[100, 4000]], h: 100, w: 3000, note: [{ runs: [{ s: 'GENERAL ', b: true }, { s: 'NOTES', u: true }] }] },
+      { id: 'd', kind: 'dim', layer: 'LV-SKETCH', pts: [[0, 0], [4000, 0], [2000, 800]], h: 100, text: '4.00' },
+      { id: 'tr', kind: 'pline', layer: 'E-TRAY', pts: [[0, 6000], [5000, 6000], [5000, 9000]], tray: { widthMm: 300 } },
+      { id: 'c', kind: 'pline', layer: 'E-CABLE', pts: [[0, 7000], [4000, 7000]], cable: { feederId: 'F1' } }
+    ];
+    act(() => root.render(<CadCanvas view={drawing()} layersOn={new Uint8Array()} toggles={OFF} fitKey={1} onCursor={() => {}} onClick={() => {}} sketch={sketch} labels={{ c: 'DB-1/L1' }} />));
+    const em = (t: (typeof rec.texts)[number]) => fontPx(t.font) * (t.scale?.[1] ?? 1);
+    // Text, note, dimension 100 high; the tray's label 150 (TRAY_TEXT_MM), the cable's 120 (drawing units a mm: 1).
+    for (const [s, h] of [['DB-1', 100], ['GENERAL ', 100], ['NOTES', 100], ['4.00', 100], ['CT 300', 150], ['DB-1/L1', 120]] as const) {
+      const drawn = rec.texts.filter((t) => t.s === s && t.view === 1);
+      expect(drawn.length, s).toBeGreaterThan(0);
+      for (const t of drawn) {
+        expect(t.font.endsWith('px system-ui, sans-serif'), s).toBe(true);
+        expect(em(t), s).toBeCloseTo(h / 0.7, 6);
+      }
+    }
+    // Over 200 px (the tray's 150 high label: 214 px) the font stays at 200 and is scaled up.
+    const tray = rec.texts.find((t) => t.s === 'CT 300' && t.view === 1)!;
+    expect(fontPx(tray.font)).toBe(200); expect(tray.scale?.[0]).toBeCloseTo(150 / 0.7 / 200, 6);
+    // A note's bold piece keeps its weight; the fitting's name (100 mm high) its capitals at its height up to 40 px.
+    expect(rec.texts.find((t) => t.s === 'GENERAL ' && t.view === 1)!.font.startsWith('700 ')).toBe(true);
+    const fit = rec.texts.filter((t) => t.s.startsWith('Bend'));
+    expect(fit.length).toBeGreaterThan(0);
+    for (const t of fit) expect(fontPx(t.font)).toBeCloseTo(Math.min(100 * t.view, 40) / 0.7, 6);
+    expect(rec.depth()).toBe(0);
+  });
+
+  it('shows a drawn text with capitals of 2 px or more as words, a smaller one as a bar as tall as its capitals', () => {
+    // At a pixel a unit: capitals 2.5 px read (its font, 3.6 px, was a bar before); 1.5 px is a bar 1.5 px tall.
+    const sketch: SketchItem[] = [
+      { id: 'a', kind: 'text', layer: 'LV-SKETCH', pts: [[100, 3000]], text: 'READ', h: 2.5 },
+      { id: 'b', kind: 'text', layer: 'LV-SKETCH', pts: [[100, 4000]], text: 'BAR', h: 1.5 }
+    ];
+    act(() => root.render(<CadCanvas view={drawing()} layersOn={new Uint8Array()} toggles={OFF} fitKey={1} onCursor={() => {}} onClick={() => {}} sketch={sketch} />));
+    expect(rec.texts.filter((t) => t.view === 1).map((t) => t.s)).toEqual(['READ']);
+    const bars = rec.fills.filter((f) => f.view === 1 && f.alpha === 0.5);
+    expect(bars).toHaveLength(1);
+    // As tall as its capitals, as long as its words at their font (0.1 px a px of font, the font 1 / 0.7 the capitals).
+    const [w, h] = extent(bars[0].pts);
+    expect(h).toBeCloseTo(1.5, 6);
+    expect(w).toBeCloseTo((0.1 * 1.5) / 0.7, 6);
+  });
+
   it('shows a drawn text or note too small to read as a faint bar too', () => {
     const sketch: SketchItem[] = [
       { id: 't', kind: 'text', layer: 'LV-SKETCH', pts: [[100, 3000]], text: 'DB-1', h: 10 },

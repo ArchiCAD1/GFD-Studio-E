@@ -87,6 +87,15 @@ describe('angular dimensions', () => {
     expect(out.map((s) => s.kind)).toContain('arc');
     expect(out.find((s) => s.kind === 'text')?.text).toBe('90.00°');
   });
+  it('keeps text reading towards the vertex off the arc: its baseline a gap and its height (its capitals) out', () => {
+    const r = Math.hypot(500, 500), gap = 90 * 0.25;
+    // Outside the corner: the arc's middle down and left, the text reading towards the vertex.
+    const inward = dimOf(ang([1500, 1500]), 0.001);
+    expect(Math.hypot(inward.text[0] - 2000, inward.text[1] - 2000)).toBeCloseTo(r + gap + 90, 6);
+    // Inside it, reading away from the vertex: the gap out.
+    const out = dimOf(ang([2500, 2500]), 0.001);
+    expect(Math.hypot(out.text[0] - 2000, out.text[1] - 2000)).toBeCloseTo(r + gap, 6);
+  });
   it('is an angular dimension in the palette, measured in degrees', () => {
     const it0 = ang([2500, 2500]);
     expect(kindLabel(it0)).toBe('Angular dimension'); expect(geomKind(it0)).toBe('dimang');

@@ -23,6 +23,7 @@ import { annoOf, unitsPerPaperMm } from '../../model/cadAnnotate';
 import { drawingLayoutsOf } from '../../model/drawingLayouts';
 import type { CadDimStyle } from '../../model/cadStyles';
 import { explodeNote, noteBox } from '../../model/cadMtext';
+import { CHAR_W } from '../../model/cadText';
 import { blockDefOf, blockDefsOf, type CadBlockDef } from '../../model/cadBlocks';
 import { openTitleBlockInCad, TB_LAYERS } from '../../model/titleBlockCad';
 import type { TitleTemplate } from '../../model/titleBlock';
@@ -432,7 +433,9 @@ describe('CAD view', () => {
 
   it('TJUST justifies the texts picked without moving them; TXTHEIGHT sets their height on paper, or the height for new text', async () => {
     const X = 200000, F = 'sample-villa-gf.dxf';
-    // "DB ROOM" 250 high (2.5 mm at 1:100): 1,050 wide from the left end of its baseline at (X, 0).
+    // "DB ROOM" 250 high (2.5 mm at 1:100, its capitals): 7 letters 0.84 × 250 wide from the left end of its baseline at
+    // (X, 0); its middle 3.5 letters in.
+    const mid = 3.5 * CHAR_W * 250;
     const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'T1', kind: 'text', layer: 'LV-ANNO', pts: [[X, 0]], text: 'DB ROOM', h: 250 }] }] };
     act(() => root.render(<Host start={start} />));
     await flush();
@@ -444,7 +447,7 @@ describe('CAD view', () => {
     expect(state.history[state.history.length - 1]).toContain('TJUST  Justify [Left/Centre/Right/TL/TC/TR/ML/MC/MR/BL/BC/BR] <Left>:');
     await command('mc');
     expect(it().just).toBe('MC');
-    expect(it().pts[0][0]).toBeCloseTo(X + 525, 6); expect(it().pts[0][1]).toBeCloseTo(125, 6);
+    expect(it().pts[0][0]).toBeCloseTo(X + mid, 6); expect(it().pts[0][1]).toBeCloseTo(125, 6);
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toBe('TJUST  1 text justified middle centre · ⌘Z to undo');
     // Its box is where it was: a click at the old spot still picks it, and Properties shows the justification.
     act(() => state.setSelected(null));
@@ -456,7 +459,7 @@ describe('CAD view', () => {
     expect(state.history[state.history.length - 1]).toContain('<2.5>:');
     await command('5');
     expect(it().h).toBe(500);
-    expect(it().pts[0][0]).toBeCloseTo(X + 525, 6);
+    expect(it().pts[0][0]).toBeCloseTo(X + mid, 6);
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toBe('TXTHEIGHT  1 object 5 mm on paper at 1:100 · ⌘Z to undo');
     // With nothing picked: the height for new text.
     act(() => state.setSelected(null));
@@ -470,7 +473,9 @@ describe('CAD view', () => {
 
   it('text tools on the texts picked: TCASE, TPREFIX, TALIGN, TCEN, TCOPY; ROOMTAGALL tags the rooms not tagged yet', async () => {
     const X = 200000, F = 'sample-villa-gf.dxf';
-    // T1 "db room" (1,050 wide) at the left end of its baseline (X, 0); T2 "L1" at (X + 400, 1000); T3 "SOCKETS" centred on (X, 3000).
+    // T1 "db room" (7 letters 0.84 × 250 wide) at the left end of its baseline (X, 0); T2 "L1" at (X + 400, 1000); T3
+    // "SOCKETS" centred on (X, 3000), its left edge 3.5 letters left of it.
+    const half = 3.5 * CHAR_W * 250;
     const start: Project = { ...villa, cadSketch: [{ file: F, items: [
       { id: 'T1', kind: 'text', layer: 'LV-ANNO', pts: [[X, 0]], text: 'db room', h: 250 },
       { id: 'T2', kind: 'text', layer: 'LV-ANNO', pts: [[X + 400, 1000]], text: 'L1', h: 250 },
@@ -493,13 +498,13 @@ describe('CAD view', () => {
     await command('tsuffix');
     await command('/GF');
     expect(it('T2').text).toBe('EX. L1/GF');
-    // Line up on the left edge of T3's box (X − 525).
+    // Line up on the left edge of T3's box (X − half).
     await command('ta');
     expect(state.history[state.history.length - 1]).toContain('TALIGN  Align [Left/Right/Centre/Top/Bottom/Spacing] <Left>:');
     await command('l');
     await clickAt(X, 3000);
-    expect(it('T1').pts[0][0]).toBeCloseTo(X - 525, 6); expect(it('T1').pts[0][1]).toBe(0);
-    expect(it('T2').pts[0][0]).toBeCloseTo(X - 525, 6); expect(it('T2').pts[0][1]).toBe(1000);
+    expect(it('T1').pts[0][0]).toBeCloseTo(X - half, 6); expect(it('T1').pts[0][1]).toBe(0);
+    expect(it('T2').pts[0][0]).toBeCloseTo(X - half, 6); expect(it('T2').pts[0][1]).toBe(1000);
     expect(it('T3').pts[0]).toEqual([X, 3000]);
     expect(last()).toBe('TALIGN  2 texts lined up left on "SOCKETS" · ⌘Z to undo');
     // Space the two picked 5 mm apart on paper (500 units at 1:100): T2 (centre y 1125) stays on top, T1's centre goes to 625.
@@ -512,13 +517,13 @@ describe('CAD view', () => {
     expect(last()).toBe('TALIGN  2 texts spaced 5 mm apart on paper · ⌘Z to undo');
     // TCEN: one text between two typed points.
     act(() => { state.setSelected(null); });
-    await clickAt(X - 525 + 150, 1100); // inside T2's box
+    await clickAt(X - half + 150, 1100); // inside T2's box
     expect(state.selected).toBe('sk:T2');
     await command('tcen');
     expect(state.history[state.history.length - 1]).toContain('TCEN  Specify first point:');
     await command(`${X},5000`);
     await command(`${X + 2000},5000`);
-    const w2 = 0.6 * 250 * it('T2').text!.length;
+    const w2 = CHAR_W * 250 * it('T2').text!.length;
     expect(it('T2').pts[0][0]).toBeCloseTo(X + 1000 - w2 / 2, 6); expect(it('T2').pts[0][1]).toBeCloseTo(5000 - 125, 6);
     // TCOPY: T2 takes T3's words.
     await command('tcopy');

@@ -9,6 +9,7 @@ import type { Project, SketchItem } from '../types';
 import { toFront } from '../model/cadDrawOrder';
 import { addPlanSheets, drawingAreaMm, drawnTextMm, layoutPaper, layoutViewports, planDrawing, planLegendLabels, planLevels, planNotes, planScale } from './planLayout';
 import type { PlanViewport } from '../model/planViewports';
+import { CHAR_W } from '../model/cadText';
 import { buildSheetDxfPages } from './sheetDxf';
 import { buildSldSheetHtml } from './sldSheet';
 import { abbreviationsIn } from './sldNotes';
@@ -46,8 +47,9 @@ const drawn = (p: Project, items: SketchItem[], units = 4): Project => ({ ...p, 
 const pathPts = (d: string) => [...d.matchAll(/[ML]([\d.-]+) ([\d.-]+)/g)].map((m) => [Number(m[1]), Number(m[2])]);
 const heavy = (svg: string) => /<path d="([^"]+)" fill="none" stroke="#000" stroke-width="0.5"\/>/.exec(svg)?.[1] ?? '';
 const dashed = (svg: string) => /<path class="ln" d="([^"]+)" fill="none" stroke="#000" stroke-width="0.25" stroke-dasharray="2 1"\/>/.exec(svg)?.[1] ?? '';
-/** The text elements with this text: position and rotation (paper mm, degrees). */
-const textsOf = (svg: string, text: string) => [...svg.matchAll(/<text x="([\d.-]+)" y="([\d.-]+)" transform="rotate\(([\d.-]+) [^"]+" font-size="2.5"[^>]*>([^<]*)</g)]
+/** The text elements with this text: position and rotation (paper mm, degrees). Tray and cable text: its capitals
+ * 2.5 mm high, the font 2.5 × 2048 / 1467 (Arial's em per capital). */
+const textsOf = (svg: string, text: string) => [...svg.matchAll(/<text x="([\d.-]+)" y="([\d.-]+)" transform="rotate\(([\d.-]+) [^"]+" font-size="3.49"[^>]*>([^<]*)</g)]
   .filter((m) => m[4] === text).map((m) => ({ x: Number(m[1]), y: Number(m[2]), rot: Number(m[3]) }));
 
 describe('plan sheets (Design CAD → Sheets → Plans)', () => {
@@ -200,11 +202,11 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
       const p: Project = { ...withWork(), ...drawn(villa(), [ins]), cadBlockDefs: [{ file: 'GF.dwg', defs: [{ name: 'DB-A', items: [
         { id: 'r', kind: 'pline', layer: '0', closed: true, pts: [[0, 0], [400, 0], [400, 300], [0, 300]] }, { id: 't', kind: 'text', layer: 'LV-ANNO', pts: [[50, 100]], text: 'DB', h: 100 }] }] }] };
       const g = /<g class="drawn" clip-path="url\(#dw-[\w-]+\)">(.*?)<\/g>/.exec(svgOf(p))![1];
-      // At 1:100: the 0.8 × 0.6 m rectangle is 8 × 6 mm on paper, the text 2 mm high.
+      // At 1:100: the 0.8 × 0.6 m rectangle is 8 × 6 mm on paper, the text 2 mm high (its capitals: the font 2.79).
       const m = /<path d="M([\d.]+) ([\d.]+)L([\d.]+) ([\d.]+)L([\d.]+) ([\d.]+)L([\d.]+) ([\d.]+)L/.exec(g)!;
       expect(Number(m[3]) - Number(m[1])).toBeCloseTo(8);
       expect(Number(m[6]) - Number(m[4])).toBeCloseTo(-6);
-      expect(g).toMatch(/font-size="2"[^>]*>DB<\/text>/);
+      expect(g).toMatch(/font-size="2.79"[^>]*>DB<\/text>/);
     });
 
     it('prints drawn points with the point style: 2 mm across when sized to the screen, else at their size in the drawing\'s units (S8)', () => {
@@ -227,7 +229,7 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
       const [a, b] = pathPts(centre);
       expect(a[1] - b[1]).toBeCloseTo(160, 1); // 16 m at 1:100, up the plan
       expect(a[0]).toBeCloseTo(b[0], 6);
-      expect(g).toMatch(/<text x="[\d.]+" y="[\d.]+" font-size="2.5" fill="#000">PLANT &lt;A&gt;<\/text>/); // 250 mm at 1:100
+      expect(g).toMatch(/<text x="[\d.]+" y="[\d.]+" font-size="3.49" fill="#000">PLANT &lt;A&gt;<\/text>/); // 250 mm at 1:100: capitals 2.5 mm high
       expect(g).toMatch(/font-size="[\d.]+" text-anchor="middle" fill="#000">20.00<\/text>/); // the dimension's text
       expect(g).not.toContain('HELPER'); // its layer set not to print
       expect(g.match(/stroke-width="0.25"/g)).toHaveLength(2); // the dimension and the leader at the drawn-lines pen; the line on the layer that is off is left out
@@ -245,7 +247,7 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
     it('prints a dimension of a style at its paper sizes, with its length measured in its unit', () => {
       const dim: SketchItem = { id: 'D1', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [20000, 0], [10000, -1000]], h: 200, look: { arrow: 'closed', size: 250, off: 60, ext: 125, unit: 'mm', decimals: 0 } };
       const g = /<g class="drawn" clip-path="url\(#dw-[\w-]+\)">(.*?)<\/g>/.exec(svgOf(drawn(villa(), [dim])))![1];
-      expect(g).toMatch(/font-size="2" text-anchor="middle" fill="#000">20000<\/text>/); // 200 mm at 1:100
+      expect(g).toMatch(/font-size="2.79" text-anchor="middle" fill="#000">20000<\/text>/); // 200 mm at 1:100: capitals 2 mm high
       const pts = pathPts(/<path d="([^"]+)"/.exec(g)![1]);
       const lens = pts.slice(1).map((q, i) => Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]));
       expect(lens.some((l) => Math.abs(l - Math.hypot(2.5, 2.5 / 6)) < 0.01)).toBe(true); // the arrow's side: 250 mm, 2.5 mm on paper
@@ -425,11 +427,11 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
       expect(d.svg).toContain('GROUND FLOOR · CONTAINMENT LAYOUT');
       expect(d.svg).toContain('DB-GF1'); // the DB it runs to
       expect(d.svg).not.toMatch(/<circle cx="[\d.]+" cy="[\d.]+" r="1.8"/); // no lights or sockets
-      // 16 m at 1:100 is 160 mm, broken in the middle for 16 characters of text.
+      // 16 m at 1:100 is 160 mm, broken in the middle for 16 characters of text (each 0.84 × 2.5 mm wide) and a height.
       const pts = pathPts(heavy(d.svg));
       expect(pts).toHaveLength(4);
       expect(pts[3][0] - pts[0][0]).toBeCloseTo(160, 1);
-      expect(pts[2][0] - pts[1][0]).toBeCloseTo(0.6 * 2.5 * 16 + 2.5, 1);
+      expect(pts[2][0] - pts[1][0]).toBeCloseTo(CHAR_W * 2.5 * 16 + 2.5, 1);
       const [label] = textsOf(d.svg, 'CT 300 POWER · A');
       expect(label.x).toBeCloseTo((pts[0][0] + pts[3][0]) / 2, 1);
       expect(label.rot).toBeCloseTo(0, 5);
@@ -483,7 +485,7 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
       expect(d.svg).not.toContain('GONE');
       const [a] = textsOf(d.svg, texts[0]), [b] = textsOf(d.svg, texts[1]);
       expect(a.x).toBeCloseTo(b.x, 1);
-      expect(a.y - b.y).toBeCloseTo(3, 1);
+      expect(a.y - b.y).toBeCloseTo((5 / 3) * 2.5, 1); // a line's spacing: 5/3 of the capitals' height
       expect(d.legendSvg).toContain('Cable route, with its cable and size');
       // Only the plan's bits of text survive into R12: the arrow is spelled out.
       const [page] = buildSheetDxfPages(p, d.svg, d.size, { no: 'E-CNT-001', title: 'Containment', index: 1, count: 1, legendSvg: d.legendSvg, scale: '1:100' });
@@ -502,7 +504,7 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
       const d = planDrawing(p, sheetOf(p, 'containment').sheets[0])!;
       const line = pathPts(heavy(d.svg))[0][1];
       const [label] = textsOf(d.svg, 'CT 300 POWER · A');
-      expect(label.y).toBeCloseTo(line + 0.35 * 2.5, 1);
+      expect(label.y).toBeCloseTo(line + 0.5 * 2.5, 1); // its capitals centred on the line
       const tag = [...d.svg.matchAll(/<text x="[\d.-]+" y="([\d.-]+)" transform="rotate[^>]*>(DB-GF1[^<]*)</g)][0];
       expect(Number(tag[1])).toBeLessThan(label.y - 2.5);
     });

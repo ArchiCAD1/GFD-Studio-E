@@ -1,11 +1,12 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react';
+import { emPerCapOf, SCREEN_FONT } from '../../model/cadTextScreen';
 
 /** The box over a text or dimension being typed over (TEXTEDIT, a double-click on it; S5 of the Design CAD 2D gap plan):
  * at the text's place, height and angle on the screen, its text selected. Enter commits, Esc cancels, a click outside
  * (the box losing focus) commits. */
 export default function CadTextEdit({ left, top, h, w, rot, value, onChange, onCommit, onCancel }: {
-  /** The left end of the text's baseline on the screen (px), the text's height and width there, and its angle (radians,
-   * anticlockwise). */
+  /** The left end of the text's baseline on the screen (px), the text's height (its capitals) and width there, and its
+   * angle (radians, anticlockwise). */
   left: number;
   top: number;
   h: number;
@@ -26,7 +27,8 @@ export default function CadTextEdit({ left, top, h, w, rot, value, onChange, onC
     if (e.key === 'Enter') { e.preventDefault(); end(true); }
     else if (e.key === 'Escape') { e.preventDefault(); end(false); }
   };
-  const px = Math.max(8, Math.min(h, 200));
+  // The font as the drawing's: its capitals the text's height.
+  const px = Math.max(8, Math.min(h * emPerCapOf(SCREEN_FONT), 200));
   return (
     <input ref={ref} className="cad-edtext" aria-label="Edit text" value={value} autoComplete="off" spellCheck={false}
       style={{ left, top, height: px, width: Math.max(w, px * 2), fontSize: px, transform: `translateY(-100%) rotate(${-rot}rad)` }}

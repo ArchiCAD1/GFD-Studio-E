@@ -46,6 +46,14 @@ describe('Dimension style dialog', () => {
     });
   });
 
+  it('draws the preview\'s text with its capitals at the style\'s text height', () => {
+    render();
+    tab('Text');
+    set('Text height', '3.5');
+    const t = q('[aria-label^="Preview: "] text')!;
+    expect(Number(t.getAttribute('font-size'))).toBeCloseTo((3.5 * 2048) / 1467, 6); // Arial's em per capital
+  });
+
   it('imports the dimension styles of a DXF, the drawing\'s current one selected, and says what it read', async () => {
     const onSave = render();
     const text = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '4', '9', '$DIMSTYLE', '2', 'B', '0', 'ENDSEC', '0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'DIMSTYLE',

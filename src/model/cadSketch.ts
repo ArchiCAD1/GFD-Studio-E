@@ -303,8 +303,8 @@ export function dimensionLines(p1: Pt, p2: Pt, at: Pt, look?: DimLook, box?: Dim
   const size = look ? look.size : len * 0.015;
   const w = box?.w ?? 0, h = box?.h ?? 0, tgap = look?.gap ?? size * 0.25;
   // Along the line: centred, or next to an extension line (inside its arrow). Horizontal text takes up its width
-  // along a horizontal line and its height along a vertical one.
-  const half = look?.textFlat ? (Math.abs(ux) * w) / 2 + Math.abs(uy) * h * 0.35 : w / 2;
+  // along a horizontal line and its height (its capitals) along a vertical one.
+  const half = look?.textFlat ? (Math.abs(ux) * w) / 2 + (Math.abs(uy) * h) / 2 : w / 2;
   const s = look?.textAlong === 'first' ? Math.min(len / 2, size * 1.5 + half) : look?.textAlong === 'second' ? Math.max(len / 2, len - size * 1.5 - half) : len / 2;
   const base: Pt = [d1[0] + ux * s, d1[1] + uy * s];
   const pos = look?.textPos;
@@ -315,10 +315,10 @@ export function dimensionLines(p1: Pt, p2: Pt, at: Pt, look?: DimLook, box?: Dim
   } else {
     // The side of the line that is up as the text reads, and how far the text's middle sits from the line.
     const upx = -Math.sin(lineAngle), upy = Math.cos(lineAngle);
-    const clear = pos === 'centered' ? 0 : (tgap + (look?.textFlat ? (Math.abs(upx) * w) / 2 + Math.abs(upy) * h * 0.35 : h * 0.35)) * (pos === 'below' ? -1 : 1);
-    // The baseline sits 0.35 of the height below the middle, as the text reads.
+    const clear = pos === 'centered' ? 0 : (tgap + (look?.textFlat ? (Math.abs(upx) * w) / 2 + (Math.abs(upy) * h) / 2 : h / 2)) * (pos === 'below' ? -1 : 1);
+    // The baseline sits half the height below the middle (the capitals are the height), as the text reads.
     const bx = -Math.sin(angle), by = Math.cos(angle);
-    text = [base[0] + upx * clear - bx * h * 0.35, base[1] + upy * clear - by * h * 0.35];
+    text = [base[0] + upx * clear - (bx * h) / 2, base[1] + upy * clear - (by * h) / 2];
   }
   // The dimension line: past the extension lines by dle, broken round centred text.
   const dle = look?.dle ?? 0, a0 = -dle, a1 = len + dle;
@@ -410,7 +410,7 @@ export function angularDimLines(it: SketchItem, look?: DimLook, h = 0): DimLines
   // when it reads towards the vertex, so it never lies over the arc.
   const am = a0 + sweep / 2, angle = look?.textFlat ? 0 : readable(am - Math.PI / 2), lift = look?.gap ?? size * 0.25;
   const inward = -Math.sin(angle) * Math.cos(am) + Math.cos(angle) * Math.sin(am) < 0;
-  return { lines, arcs: [{ c: v, r, a0, a1 }], text: onArc(am, r + lift + (inward ? h * 0.7 : 0)), angle, length: (sweep * 180) / Math.PI };
+  return { lines, arcs: [{ c: v, r, a0, a1 }], text: onArc(am, r + lift + (inward ? h : 0)), angle, length: (sweep * 180) / Math.PI };
 }
 
 /** A linear dimension's line from where it is dragged: horizontal when the point is above or below the two points,
@@ -488,7 +488,7 @@ export function trayLabel(it: SketchItem): { at: Pt; text: string; rot: number }
  * the label is not broken. */
 export function trayLine(it: SketchItem, h: number): { pieces: Pt[][]; textAt: Pt } {
   const l = trayLabel(it), pts = it.pts;
-  const w = 0.6 * h * l.text.length, c = Math.cos(l.rot), s = Math.sin(l.rot);
+  const w = textWidth(l.text, h), c = Math.cos(l.rot), s = Math.sin(l.rot);
   const textAt: Pt = [l.at[0] - (w / 2) * c + (h / 2) * s, l.at[1] - (w / 2) * s - (h / 2) * c];
   const mid = Math.max(0, Math.floor((pts.length - 2) / 2)), a = pts[mid], b = pts[mid + 1];
   const len = b ? dist(a, b) : 0, gap = w + h;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emPerCap, textBar, widthPerPx } from './cadTextScreen';
+import { emPerCap, emPerCapOf, textBar, widthPerPx } from './cadTextScreen';
 
 type P = [number, number];
 /** A path that keeps its points. */
@@ -35,6 +35,12 @@ describe('text on the CAD screen', () => {
   it('takes the usual 0.7 where the canvas gives no plausible ink measure', () => {
     expect(emPerCap(canvas().ctx, 'Font B')).toBeCloseTo(1 / 0.7);
     expect(emPerCap(canvas(0.1).ctx, 'Font C')).toBeCloseTo(1 / 0.7);
+  });
+
+  it('gives HTML over the canvas the measure a canvas made of a font, else the usual 0.7', () => {
+    expect(emPerCapOf('Font D')).toBeCloseTo(1 / 0.7);
+    emPerCap(canvas(0.75).ctx, 'Font D');
+    expect(emPerCapOf('Font D')).toBeCloseTo(1 / 0.75);
   });
 
   it('measures how wide a string is per px of font once', () => {

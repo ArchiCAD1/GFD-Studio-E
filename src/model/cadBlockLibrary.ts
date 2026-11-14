@@ -2,6 +2,7 @@ import type { SketchItem } from '../types';
 import type { CadBlockDef } from './cadBlocks';
 import { expandAll } from './cadBlocks';
 import { segmentsOf } from './cadSketch';
+import { textWidth } from './cadText';
 import type { CadPiece } from './cadCrop';
 import type { RefGeometry } from './cadRefs';
 
@@ -103,7 +104,7 @@ export function blockThumb(def: CadBlockDef, defs: CadBlockDef[] = [], aspect = 
     else if (it.kind === 'point') lines.push([[it.pts[0][0] - 1, it.pts[0][1]], [it.pts[0][0] + 1, it.pts[0][1]]]);
     else lines.push(...segmentsOf(it, 0.001, defs));
   }
-  const all = [...lines.flat(), ...texts.flatMap((t) => [t.at, [t.at[0] + 0.6 * t.h * t.s.length, t.at[1] + t.h] as Pt])];
+  const all = [...lines.flat(), ...texts.flatMap((t) => [t.at, [t.at[0] + textWidth(t.s, t.h), t.at[1] + t.h] as Pt])];
   if (!all.length) return { lines: [], texts: [] };
   const x0 = Math.min(...all.map((q) => q[0])), x1 = Math.max(...all.map((q) => q[0])), y0 = Math.min(...all.map((q) => q[1])), y1 = Math.max(...all.map((q) => q[1]));
   const w = Math.max(x1 - x0, 1e-9), h = Math.max(y1 - y0, 1e-9), k = Math.min((aspect * 0.9) / w, 0.9 / h);

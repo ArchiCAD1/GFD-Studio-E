@@ -11,7 +11,7 @@ import { attdefAsText, expandAll, type CadBlockDef } from '../../model/cadBlocks
 import type { PlanCells, PlanCover } from '../elv/elvOverlay';
 import { fittingLabel, trayFittings } from '../../model/cadTrayFittings';
 import { cssRgb, dashArray, hatchLines, patternLength, screenColour, tileOf } from '../../model/cadDraw';
-import { BAR_ALPHA, emPerCap, READ_PX, textBar, widthPerPx } from '../../model/cadTextScreen';
+import { BAR_ALPHA, emPerCap, READ_PX, SCREEN_FONT, textBar, widthPerPx } from '../../model/cadTextScreen';
 import type { SketchItem } from '../../types';
 import { effective, styleOf, type LayerStyle } from '../../model/cadLayerStyle';
 import { colourCss } from '../../model/cadColours';
@@ -26,7 +26,7 @@ type Pt = [number, number];
 /** The canvas colour when the theme gives none; the cursor's outline is drawn in it. */
 const BG = '#15171A';
 /** The font texts are drawn in. */
-const FONT = 'system-ui, sans-serif';
+const FONT = SCREEN_FONT;
 
 /** The status bar toggles; `dyn` (dynamic input at the cursor) is the page's, the drawing does not use it. */
 /** `polar` tracking (F10), object snap tracking `otrack` (F11) and lineweights shown (`lwt`) default to off, off, on. */
@@ -486,15 +486,19 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         ctx.translate((b.tl[0] - o0 - ox) * scale, size.h - (b.tl[1] - o1 - oy) * scale);
         ctx.rotate(-(it.rot ?? 0));
         ctx.fillStyle = isSel(it.id) ? selSk : nef.color ?? skC; ctx.textAlign = 'left';
-        if (b.h * scale < READ_PX * emK) {
+        if (b.h * scale < READ_PX) {
           ctx.save(); ctx.globalAlpha *= BAR_ALPHA; ctx.beginPath();
-          for (const line of b.lines) for (const seg of line.segs) textBar(ctx, seg.x * scale, line.y * scale, 0, (seg.h * scale) / emK, seg.w * scale, 0);
+          for (const line of b.lines) for (const seg of line.segs) textBar(ctx, seg.x * scale, line.y * scale, 0, seg.h * scale, seg.w * scale, 0);
           ctx.fill(); ctx.restore();
         } else for (const line of b.lines) for (const seg of line.segs) {
-          const sp = Math.min(seg.h * scale, 200);
-          ctx.font = `${seg.b ? '700 ' : ''}${sp}px system-ui, sans-serif`;
-          ctx.fillText(seg.s, seg.x * scale, line.y * scale);
-          if (seg.u) ctx.fillRect(seg.x * scale, line.y * scale + sp * 0.12, seg.w * scale, Math.max(1, sp * 0.06));
+          // Its capitals at its height: the font no bigger than 200 px, scaled up past that.
+          const em = seg.h * scale * emK, sp = Math.min(em, 200), up = em / sp;
+          ctx.save(); ctx.translate(seg.x * scale, line.y * scale);
+          if (up !== 1) ctx.scale(up, up);
+          ctx.font = `${seg.b ? '700 ' : ''}${sp}px ${FONT}`;
+          ctx.fillText(seg.s, 0, 0);
+          if (seg.u) ctx.fillRect(0, sp * 0.12, (seg.w * scale) / up, Math.max(1 / up, sp * 0.06));
+          ctx.restore();
         }
         if (isSel(it.id)) { ctx.strokeStyle = selSk; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.strokeRect(0, 0, b.w * scale, b.H * scale); ctx.setLineDash([]); }
         ctx.restore();
@@ -508,12 +512,12 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         if (!label || !label.s) return;
         const lef = effective(it, layerStyle);
         if (lef.hidden) return;
-        const px = label.h * scale;
-        if (!(px > 0) || (it.tray && !trayText)) return;
+        // Its capitals at its height, as CAD measures text (the font's em is emK times that).
+        const cap = label.h * scale, em = cap * emK;
+        if (!(cap > 0) || (it.tray && !trayText)) return;
         ctx.save();
         ctx.translate((label.at[0] - o0 - ox) * scale, size.h - (label.at[1] - o1 - oy) * scale);
         ctx.rotate(-label.rot);
-        ctx.font = `${Math.min(px, 200)}px system-ui, sans-serif`;
         if (it.kind === 'text' && it.mask) {
         // The mask: its box in the background colour, under the text (over the lines and hatches drawn before).
         ctx.save(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = bg; ctx.beginPath();
@@ -523,12 +527,18 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         ctx.textAlign = label.align;
         if (it.tray) ctx.textBaseline = 'middle'; // in the gap of the tray's line
         ctx.fillStyle = isSel(it.id) ? selSk : lef.color ?? skC;
-        if (px < READ_PX * emK) {
+        if (cap < READ_PX) {
           // Too small to read: a faint bar where the words are.
           ctx.globalAlpha *= BAR_ALPHA; ctx.beginPath();
-          textBar(ctx, 0, 0, 0, px / emK, widthPerPx(ctx, FONT, label.s, widths) * px, label.align === 'center' ? 1 : label.align === 'right' ? 2 : 0);
+          textBar(ctx, 0, 0, 0, cap, widthPerPx(ctx, FONT, label.s, widths) * em, label.align === 'center' ? 1 : label.align === 'right' ? 2 : 0);
           ctx.fill();
-        } else ctx.fillText(label.s, 0, 0);
+        } else {
+          // The font no bigger than 200 px, scaled up past that so the words keep their shape as the view zooms in.
+          const fpx = Math.min(em, 200), up = em / fpx;
+          ctx.font = `${fpx}px ${FONT}`;
+          if (up !== 1) ctx.scale(up, up);
+          ctx.fillText(label.s, 0, 0);
+        }
         ctx.restore();
     };
     // What the engineer drew, in its draw order (later on top): lines and hatches in drawing units, each object's words in its turn.
@@ -693,11 +703,12 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       ctx.fillStyle = w.tag.warn ? bad : lvC;
       ctx.fillText(w.tag.s, (w.tag.at[0] - o0 - ox) * scale + 6, size.h - (w.tag.at[1] - o1 - oy) * scale - 6);
     }
-    // Tray fittings: a dot at the joint and its name beside it.
+    // Tray fittings: a dot at the joint and its name beside it, its capitals 100 mm high (as Save DXF writes it) up to
+    // 40 px.
     const fpx = 100 * unitsPerMm * scale;
     if (fpx >= 4) {
       ctx.fillStyle = skC;
-      ctx.font = `${Math.min(fpx, 40)}px system-ui, sans-serif`;
+      ctx.font = `${Math.min(fpx, 40) * emK}px ${FONT}`;
       ctx.textAlign = 'left';
       for (const f of fittings) {
         const sx = (f.at[0] - o0 - ox) * scale, sy = size.h - (f.at[1] - o1 - oy) * scale;

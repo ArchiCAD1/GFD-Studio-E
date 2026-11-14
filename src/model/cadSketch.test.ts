@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import { addSketch, arcStartCentreEnd, arcThrough, bulgeArc, circle2P, cloudLobes, dimensionLines, ellipseOf, ellipsePoints, itemAt, moved, polygonPts, rectangle, removeSketch, rotated, segmentsOf, shapesOut, sketchOf, snapPoints, trayLabel, trayLength, trayLine, typedPoint, updateSketch } from './cadSketch';
+import { CHAR_W } from './cadText';
 import type { SketchItem } from '../types';
 
 const p0 = { ...sampleProject, cadSketch: undefined };
+/** Point lists equal to 6 decimals. */
+const near = (a: [number, number][][], b: [number, number][][]) => {
+  expect(a.map((q) => q.length)).toEqual(b.map((q) => q.length));
+  a.forEach((q, i) => q.forEach(([x, y], j) => { expect(x).toBeCloseTo(b[i][j][0], 6); expect(y).toBeCloseTo(b[i][j][1], 6); }));
+};
 const line: Omit<SketchItem, 'id'> = { kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [4000, 0]] };
 
 describe('drawing in the CAD view', () => {
@@ -60,12 +66,14 @@ describe('drawing in the CAD view', () => {
   });
 
   it('picks a justified text by its box, and writes its justification for the DXF', () => {
-    // "TAG" 250 high, 450 wide, anchored at its middle centre: its box runs 775–1225 × 375–625.
+    // "TAG" 250 high (its capitals), about 628 wide (0.84 × 250 a letter), anchored at its middle centre: its box runs
+    // about 686–1314 × 375–625.
     const mc: SketchItem = { id: 'T1', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 500]], text: 'TAG', h: 250, just: 'MC' };
     expect(itemAt([mc], [800, 400], 10)?.id).toBe('T1');
     expect(itemAt([mc], [1200, 600], 10)?.id).toBe('T1');
+    expect(itemAt([mc], [1300, 500], 10)?.id).toBe('T1'); // its last letter (past the 0.6 × 250 a letter of before)
     expect(itemAt([mc], [1000, 700], 10)).toBeUndefined();
-    expect(itemAt([mc], [700, 500], 10)).toBeUndefined();
+    expect(itemAt([mc], [650, 500], 10)).toBeUndefined();
     expect(snapPoints([mc])).toContainEqual({ x: 1000, y: 500, kind: 16 });
     const [out] = shapesOut([mc], 0.001);
     expect(out).toMatchObject({ kind: 'text', pts: [[1000, 500]], text: 'TAG', h: 250, just: 'MC' });
@@ -90,10 +98,12 @@ describe('cable tray runs', () => {
   const run: SketchItem = { id: 'S1', kind: 'pline', layer: 'E-TRAY', pts: [[0, 0], [1000, 0], [1000, 1000]], tray: { widthMm: 300 } };
 
   it('is a single line, broken at the middle of its middle piece for the label', () => {
-    // "CT 300" at 150 mm: about 540 mm of text, a 690 mm gap centred on the first piece's middle.
-    const { pieces, textAt } = trayLine(run, 150);
-    expect(pieces).toEqual([[[0, 0], [155, 0]], [[845, 0], [1000, 0], [1000, 1000]]]);
-    expect(textAt).toEqual([230, -75]); // centred in the gap, on the line
+    // "CT 300" at 150 mm (its capitals): about 754 mm of text (0.84 × 150 a letter), a 904 mm gap centred on the first
+    // piece's middle.
+    const { pieces, textAt } = trayLine(run, 150), w = 6 * CHAR_W * 150, g = w + 150;
+    expect(w).toBeCloseTo(753.9, 1);
+    near(pieces, [[[0, 0], [500 - g / 2, 0]], [[500 + g / 2, 0], [1000, 0], [1000, 1000]]]);
+    near([[textAt]], [[[500 - w / 2, -75]]]); // centred in the gap: the baseline half the height below the line
     expect(trayLine({ ...run, pts: [[0, 0], [500, 0]] }, 150).pieces).toEqual([[[0, 0], [500, 0]]]); // too short to break
     expect(trayLength(run)).toBe(2000);
   });
@@ -110,7 +120,8 @@ describe('cable tray runs', () => {
     const out = shapesOut([run], 0.001);
     expect(out.map((o) => o.kind)).toEqual(['pline', 'pline', 'text', 'text']);
     expect(out.every((o) => o.layer === 'E-TRAY')).toBe(true);
-    expect(out[2]).toMatchObject({ text: 'CT 300', h: 150, pts: [[230, -75]] });
+    expect(out[2]).toMatchObject({ text: 'CT 300', h: 150 });
+    near([out[2].pts], [[[500 - (6 * CHAR_W * 150) / 2, -75]]]);
     expect(out[3]).toMatchObject({ text: 'Bend 90° 300', h: 100 }); // its fitting
   });
 

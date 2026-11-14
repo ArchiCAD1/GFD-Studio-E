@@ -6,12 +6,14 @@
 type PathLike = Pick<CanvasPath, 'moveTo' | 'lineTo' | 'closePath'>;
 type Measurer = Pick<CanvasRenderingContext2D, 'font' | 'measureText'> & Partial<Pick<CanvasRenderingContext2D, 'textBaseline'>>;
 
+/** The font Design CAD draws text in on the screen (the sheets print Arial). */
+export const SCREEN_FONT = 'system-ui, sans-serif';
 /** Capitals shorter than this (px) show as a bar, not words. */
 export const READ_PX = 2;
 /** How strongly a bar shows: about the ink of words that small. */
 export const BAR_ALPHA = 0.5;
 
-const emPer = new Map<string, number>();
+const emPer = new Map<string, number>(), NO_INK = 1 / 0.7;
 /** Font size per px of capitals in `family`: 100 over the height of an H set at 100 px above its baseline, measured
  * once (1 / 0.7, about the usual share, when the canvas gives no ink measure). */
 export function emPerCap(ctx: Measurer, family: string): number {
@@ -23,11 +25,14 @@ export function emPerCap(ctx: Measurer, family: string): number {
     const cap = ctx.measureText('H').actualBoundingBoxAscent;
     ctx.font = was;
     if (base) ctx.textBaseline = base;
-    k = cap > 30 && cap < 100 ? 100 / cap : 1 / 0.7;
+    k = cap > 30 && cap < 100 ? 100 / cap : NO_INK;
     emPer.set(family, k);
   }
   return k;
 }
+/** The same as last measured on a canvas (1 / 0.7 before that): for HTML laid over the canvas, such as the boxes a text
+ * is typed in, so their letters are as high as the drawing's. */
+export const emPerCapOf = (family: string): number => emPer.get(family) ?? NO_INK;
 
 /** How wide `s` is per px of font size in `family`, measured once per string into `cache`. */
 export function widthPerPx(ctx: Measurer, family: string, s: string, cache: Map<string, number>): number {

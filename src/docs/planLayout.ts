@@ -8,8 +8,8 @@ import { isFrozen, vpWindow, type PlanViewport } from '../model/planViewports';
 import { dimOf, scaleLook, segmentsOf, sketchOf, trayLabel, trayLength, trayLine } from '../model/cadSketch';
 import { effective, layerStylesOf, styleOf } from '../model/cadLayerStyle';
 import { annoOf } from '../model/cadAnnotate';
-import { textBaseAt, textCorners } from '../model/cadText';
-import { noteBox, noteSegAt } from '../model/cadMtext';
+import { EM_PER_CAP, textBaseAt, textCorners, textWidth } from '../model/cadText';
+import { LINE_FACTOR, noteBox, noteSegAt } from '../model/cadMtext';
 import { pointMark, pointStyleOf } from '../model/cadPoints';
 import { attdefAsText, blockDefsOf, expandAll } from '../model/cadBlocks';
 import { atOrigin, dotsOnly, hatchDots, hatchStrokes, mirroredY, defOf, placedLines } from '../model/cadHatch';
@@ -53,7 +53,7 @@ export const PLAN_TYPES = Object.keys(PLAN_PREFIX) as PlanType[];
 const SIZES: SheetSize[] = ['A3', 'A2', 'A1'];
 const MARGIN = 4, STRIP = 14; // mm: around the plan, and the strip under it (title, scale bar, north arrow)
 const R = 1.8; // symbol radius on paper (mm)
-const TAG = 2.5; // tray and cable text on paper (mm)
+const TAG = 2.5; // tray and cable text on paper (mm): its capitals' height
 const GREY = '#8c8c8c';
 
 /** "1:50" → 50; blank → 100. */
@@ -284,14 +284,15 @@ export function drawnTextMm(p: Project, s: Pick<DrawingSheet, 'buildingId' | 'le
 
 /** The drawn work in paper mm, clipped to the window: hatches (pattern lines or dots with the hatch pen, Solid light
  * grey), lines at their linetype and lineweight (else the drawn-lines pen; all thin when the sheet prints thin), leader
- * arrows (3 mm), and text at its drawn height. `id` keeps the sheet's clip paths apart from other sheets'. */
+ * arrows (3 mm), and text at its drawn height (its capitals, as CAD measures text). `id` keeps the sheet's clip paths
+ * apart from other sheets'. */
 function drawnSvg(items: Drawn[], X: (x: number) => number, Y: (y: number) => number, f: number, win: Box, pen: Record<PenKey, Pen>, thin: boolean, id: string): string {
   if (!items.length) return '';
   const P = ([x, y]: Pt) => `${X(x)} ${Y(y)}`, ink = inkOf(pen.sketch), defs: string[] = [], body: string[] = [];
   const text = (at: Pt, s: string, h: number, rot: number, anchor: 'start' | 'middle' | 'end', look: { b?: boolean; u?: boolean } = {}) => {
     if (!s || !(h > 0) || !within(at, win)) return;
     const x = X(at[0]), y = Y(at[1]);
-    body.push(`<text x="${x}" y="${y}"${rot ? ` transform="rotate(${n((-rot * 180) / Math.PI)} ${x} ${y})"` : ''} font-size="${n(h * f)}"${anchor !== 'start' ? ` text-anchor="${anchor}"` : ''}${look.b ? ' font-weight="bold"' : ''}${look.u ? ' text-decoration="underline"' : ''} fill="${ink}">${esc(s)}</text>`);
+    body.push(`<text x="${x}" y="${y}"${rot ? ` transform="rotate(${n((-rot * 180) / Math.PI)} ${x} ${y})"` : ''} font-size="${n(h * f * EM_PER_CAP)}"${anchor !== 'start' ? ` text-anchor="${anchor}"` : ''}${look.b ? ' font-weight="bold"' : ''}${look.u ? ' text-decoration="underline"' : ''} fill="${ink}">${esc(s)}</text>`);
   };
   items.forEach(({ it, dash, lw, pt }, i) => {
     if (it.kind === 'point') {
@@ -385,33 +386,33 @@ function contentSvg(p: Project, s: DrawingSheet, c: Content, drawn: Drawn[], ref
   // The drawn work, over the architect's plan and under the design.
   out.push(drawnSvg(frozen ? drawn.filter((d) => !frozen(d.it.layer)) : drawn, X, Y, f, win, pen, plotOf(p, s).weights === 'thin', id));
   // The containment, black: trays heavy and broken for their labels, cable routes dashed with their tags beside the
-  // line. Tags of routes on one path stack outward rather than print over each other.
+  // line. Tags of routes on one path stack outward rather than print over each other, a line's spacing apart.
   const h = TAG / f, taken: { x: number; y: number; w: number; a: number }[] = [], labels: string[] = [];
   const along = (at: Pt, rot: number, off: number, text: string, stack = 0) => {
-    const a = -rot, cos = Math.cos(a), sin = Math.sin(a), w = 0.6 * TAG * text.length; // a: clockwise on paper, y being down
+    const a = -rot, cos = Math.cos(a), sin = Math.sin(a), w = textWidth(text, TAG); // a: clockwise on paper, y being down
     let x = X(at[0]) + off * sin, y = Y(at[1]) - off * cos;
     const hit = (q: typeof taken[number]) => Math.abs(q.a - a) < 1e-6 && Math.abs((x - q.x) * cos + (y - q.y) * sin) < (w + q.w) / 2 && Math.abs((y - q.y) * cos - (x - q.x) * sin) < stack;
     while (stack && taken.some(hit)) { x += stack * sin; y -= stack * cos; }
     taken.push({ x, y, w, a });
-    labels.push(`<text x="${n(x)}" y="${n(y)}" transform="rotate(${n((a * 180) / Math.PI)} ${n(x)} ${n(y)})" font-size="${TAG}" text-anchor="middle" fill="#000">${esc(text)}</text>`);
+    labels.push(`<text x="${n(x)}" y="${n(y)}" transform="rotate(${n((a * 180) / Math.PI)} ${n(x)} ${n(y)})" font-size="${n(TAG * EM_PER_CAP)}" text-anchor="middle" fill="#000">${esc(text)}</text>`);
   };
   const trayM = new Map<string, number>(), breaks: { at: Pt; rot: number; w: number }[] = [];
   let trays = '', routes = '';
   for (const it of c.trays) {
     const text = trayLabel(it).text;
-    for (const { run, m, labelled } of shownPieces(it, win, 0.6 * h * text.length)) {
+    for (const { run, m, labelled } of shownPieces(it, win, textWidth(text, h))) {
       trayM.set(text, (trayM.get(text) ?? 0) + m);
       trays += (labelled ? trayLine(run, h).pieces : [run.pts]).map((q) => path(q)).join('');
       if (!labelled) continue;
       const l = trayLabel(run);
-      along(l.at, l.rot, -0.35 * TAG, text); // centred in the break: the baseline below the line
-      breaks.push({ at: l.at, rot: l.rot, w: 0.6 * h * text.length + h });
+      along(l.at, l.rot, -TAG / 2, text); // centred in the break: the baseline half its height below the line
+      breaks.push({ at: l.at, rot: l.rot, w: textWidth(text, h) + h });
     }
   }
   for (const it of c.cables) {
-    for (const { run, labelled } of shownPieces(it, win, 0.6 * h * it.text!.length)) {
+    for (const { run, labelled } of shownPieces(it, win, textWidth(it.text!, h))) {
       routes += clearOf(run.pts, breaks, h).map(([a, b]) => seg(a, b)).join('');
-      if (labelled) { const l = trayLabel(run); along(l.at, l.rot, 1.4, it.text!, 3); }
+      if (labelled) { const l = trayLabel(run); along(l.at, l.rot, 1.4, it.text!, LINE_FACTOR * TAG); }
     }
   }
   if (trays) out.push(`<path d="${trays}" fill="none" stroke="${inkOf(pen.trays)}" stroke-width="${w(pen.trays)}"/>`);

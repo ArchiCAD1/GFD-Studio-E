@@ -15,6 +15,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.145', date: '2026-11-14',
+    items: [
+      { title: 'Design CAD: your own text at its real height', text: 'Text, notes, dimensions and tray, cable and fitting labels drawn in Design CAD now have their capitals at the height you set, as other CAD programs show them in the DXF or DWG you save. Before, their capitals came out at about 0.7 of it, so text already in a drawing now shows about 1.4 times taller: check for labels that run into something.', action: 'cad' },
+      { title: 'Plan sheets: text at its real height', text: 'On the plan sheets and their PDF, text 2.5 mm high prints with capitals 2.5 mm high, as the ISO text heights mean. Tray and cable labels print with 2.5 mm capitals too, and stacked cable tags are spaced to match.' }
+    ]
+  },
+  {
     version: '2.144', date: '2026-11-14',
     items: [
       { title: 'Design CAD: typed shortcuts as in other CAD programs', text: 'TR is now Trim and LA opens the layer palette; Trace a room is TRACE and the side Layers list is LAYERS. AL or ALIGN moves, turns and, if you choose, scales the drawn objects picked by one or two pairs of points (lining up devices is ALIGNH, ALIGNV and SPACE). MA matches a device, or the properties of a drawn object clicked first. New short names: PT, RC, N, SA, OR, SN, EXP, AE, AT, BC, BS, -B, -I, ISOLATE and UNISOLATE; PR or CH open the properties palette, PP or PRINT plot, OP opens the Drafting settings and UN its Units tab, and RE or REGEN are accepted.', action: 'cad', actionLabel: 'Open Design CAD' }

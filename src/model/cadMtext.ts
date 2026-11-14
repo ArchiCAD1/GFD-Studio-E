@@ -29,7 +29,7 @@ export const attachOf = (it: Pick<SketchItem, 'just'>): NoteAttach => (it.just &
 export const LINE_FACTOR = 5 / 3;
 
 /** The width of a run on the drawing: a function of its words, height and weight (the sheets print Arial; the app
- * takes the same 0.6 × height per letter everywhere, so the canvas, the sheets and the DXF wrap alike). */
+ * takes the same CHAR_W × height per letter everywhere, so the canvas, the sheets and the DXF wrap alike). */
 export type Measure = (s: string, h: number, bold: boolean) => number;
 export const noteMeasure: Measure = (s, h) => textWidth(s, h);
 

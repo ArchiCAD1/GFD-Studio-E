@@ -1,5 +1,6 @@
 import type { CadText, CadView, FileLayout } from '../engines/cad/cadEngine';
 import { paperOf, viewportMap } from '../model/fileLayouts';
+import { EM_PER_CAP } from '../model/cadText';
 
 /** A layout of the drawing (the file's own, or one made in Design CAD with +) as it plots: its paper with what is drawn
  * on it and the model through each viewport that is on, clipped to its frame, black on white — what the paper view
@@ -11,8 +12,6 @@ type Pt = [number, number];
 export const MODEL_LINE_MM = 0.18, PAPER_LINE_MM = 0.25;
 /** Text lower than this on the paper (mm) is left out: it cannot be read and only makes the file larger. */
 const MIN_TEXT_MM = 0.3;
-/** A drawing gives a text's height as the height of its capitals; a font's size is its em. Arial's capitals are 0.716 em. */
-const EM_PER_CAP = 1 / 0.716;
 const PATH_SEGMENTS = 4000; // segments per <path>, to keep each attribute a size a browser prints quickly
 
 /** Text for the page: without the control characters XML does not take, its markup characters escaped. */
