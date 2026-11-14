@@ -23,6 +23,8 @@ import { safeFileName, saveBinary } from '../../util/files';
  * the project and the other Electrical tools follow (docs/notes/Future development, Sheets proposal). */
 
 const LATER = 'Comes in a later stage';
+/** With more sheets than this the tab row also gets a list to jump to a sheet. */
+const MANY_SHEETS = 8;
 const CSS = `
 .shx { display: flex; flex-direction: column; gap: 12px; color: var(--tx); min-width: 0; }
 .shx h3 { margin: 0; font-size: 18px; }
@@ -72,8 +74,10 @@ const CSS = `
 .shx-grid th .shx-lkname { display: block; font-size: 10px; font-weight: 400; color: var(--res-cur); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shx-grid th .shx-lkname.shx-lkown { color: var(--res-pf); }
 .shx-grid td input { box-sizing: border-box; width: 100%; height: 22px; border: 0; outline: 0; padding: 0; background: var(--bg); color: var(--tx); font: inherit; }
-.shx-sheets { display: flex; flex-wrap: wrap; gap: 4px; }
-.shx-sheet { height: 36px; padding: 0 16px; border: 1px solid var(--line); border-radius: 0 0 6px 6px; background: var(--bg); color: var(--mut); font: inherit; cursor: pointer; }
+.shx-sheetbar { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.shx-sheetbar select { flex: none; box-sizing: border-box; height: 36px; max-width: 170px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--p2); color: var(--tx); font: inherit; font-size: 12.5px; }
+.shx-sheets { display: flex; gap: 4px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.shx-sheet { flex: none; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; height: 36px; padding: 0 16px; border: 1px solid var(--line); border-radius: 0 0 6px 6px; background: var(--bg); color: var(--mut); font: inherit; cursor: pointer; }
 .shx-sheet[aria-selected="true"] { background: var(--panel); color: var(--tx); font-weight: 600; border-top: 2px solid var(--acc); }
 .shx-note { font-size: 12px; color: var(--mut); margin: 0; }
 `;
@@ -115,6 +119,7 @@ export default function SheetsPage({ project, onChange, onStatus, onUndo, openSh
   /** Set when Enter, Tab or Escape ended an edit, so the input's blur does not save it a second time. */
   const ended = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const tabStrip = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
 
   const values = useMemo(() => sheetValues(sheet), [sheet]);
@@ -125,6 +130,8 @@ export default function SheetsPage({ project, onChange, onStatus, onUndo, openSh
 
   const editing = edit !== null;
   useEffect(() => { if (editing) editInput.current?.focus(); }, [editing]);
+  // The sheet tabs stay on one row; the shown sheet's tab is kept in view.
+  useEffect(() => { tabStrip.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); }, [sheetId, book.sheets.length]);
 
   const save = (next: Sheet, more: Partial<SheetBook> = {}) =>
     onChange({ ...project, sheets: { ...book, ...more, sheets: (more.sheets ?? book.sheets).map((s) => (s.id === next.id ? next : s)) } }, true);
@@ -173,6 +180,7 @@ export default function SheetsPage({ project, onChange, onStatus, onUndo, openSh
     if (!extend) setAnchor(to);
     wrap.current?.querySelector(`[data-cell="${cellName(to.c, to.r)}"]`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   };
+  const openSheet = (id: string) => { setSheetId(id); setEdit(null); move(1, 1); };
   /** A step from the active cell; from a merged area's first cell it goes on past the area. */
   const step = (dr: number, dc: number, extend = false) => { const m = mergeAt(sheet, act.r, act.c); move(dr > 0 && m ? m.r1 + 1 : act.r + dr, dc > 0 && m ? m.c1 + 1 : act.c + dc, extend); };
   const commit = (v: string, dr = 0, dc = 0) => {
@@ -458,12 +466,15 @@ export default function SheetsPage({ project, onChange, onStatus, onUndo, openSh
       </div>
       {waiting > 0 && <p className="shx-note">{waiting} typed {waiting === 1 ? 'value waits' : 'values wait'} for Apply to project.</p>}
 
-      <div className="shx-sheets" role="tablist" aria-label="Sheets">
+      <div className="shx-sheetbar">
+      {book.sheets.length > MANY_SHEETS && <select aria-label="Go to sheet" value={sheet.id} onChange={(e) => openSheet(e.target.value)}>{book.sheets.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+      <div className="shx-sheets" role="tablist" aria-label="Sheets" ref={tabStrip}>
         {book.sheets.map((s) => (renaming !== null && s.id === sheet.id
           ? <input key={s.id} aria-label="Sheet name" autoFocus defaultValue={renaming} style={{ height: 36, padding: '0 10px' }}
               onKeyDown={(e) => { if (e.key === 'Enter') rename(e.currentTarget.value); else if (e.key === 'Escape') setRenaming(null); }} onBlur={(e) => rename(e.currentTarget.value)} />
-          : <button key={s.id} type="button" role="tab" className="shx-sheet" aria-selected={s.id === sheet.id} onClick={() => { setSheetId(s.id); setEdit(null); move(1, 1); }} onDoubleClick={() => setRenaming(s.name)}>{s.name}</button>))}
-        <button type="button" className="shx-sheet" onClick={addSheet} aria-label="New sheet">+</button>
+          : <button key={s.id} type="button" role="tab" className="shx-sheet" aria-selected={s.id === sheet.id} title={s.name} onClick={() => openSheet(s.id)} onDoubleClick={() => setRenaming(s.name)}>{s.name}</button>))}
+      </div>
+      <button type="button" className="shx-sheet" onClick={addSheet} aria-label="New sheet">+</button>
       </div>
       <p className="shx-note">Type to enter, Enter and Tab to move on, F2 or double-click to edit, Shift with the arrows or a click to select an area, Ctrl/⌘ C, X, V, B, I, U, and Ctrl/⌘ D to fill down. Greyed tools come in later stages.</p>
     </div>

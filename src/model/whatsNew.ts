@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.138', date: '2026-11-14',
+    items: [
+      { title: 'Sheets: the sheet tabs stay on one row', text: 'With many sheets the row of sheet names under the grid no longer grows line after line: it stays one row that scrolls sideways and keeps the shown sheet in view, a long name is shortened, and with more than eight sheets a list beside it jumps straight to one.', action: 'sheets', actionLabel: 'Open Sheets' }
+    ]
+  },
+  {
     version: '2.137', date: '2026-11-14',
     items: [
       { title: 'Sheets: your own schedules for MDB, SMDB and MCC', text: 'Link columns now asks whether a sheet is a DB schedule or a panel schedule. A panel schedule has one row per outgoing feeder: name, device, rating, cable, load per phase, TCL and MDL fill from the project, and what you type — or a new feeder row — goes back with Apply to project. My formats keeps panel layouts too, and a project can use a different format for its DBs, SMDBs, MDBs and MCCs, chosen with the new project or in My formats. Export → Open in my format works on a panel\'s form as well.', action: 'sheets', actionLabel: 'Open Sheets' }
