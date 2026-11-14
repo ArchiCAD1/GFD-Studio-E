@@ -13,6 +13,7 @@ const { htmlToPdf, htmlToPrinter, printerList, pdfSession, SHEETS } = require('.
 const cadFile = require('./cadFile.cjs');
 const errorLog = require('./errorLog.cjs');
 const folderTemplates = require('./folderTemplates.cjs');
+const betaUpdate = require('./betaUpdate.cjs');
 
 // `lvds` (the command line) exports drawings and PDFs through this app with --lvds-headless-export:
 // no window and none of the app's start-up, only the export (headlessExport.cjs).
@@ -142,6 +143,13 @@ app.whenReady().then(() => {
     trust.permissionCheckOk({ wc, win, permission, requestingOrigin, allowed, isAppOrigin }));
   ensureProjectsFolder();
   createWindow();
+  betaUpdate.startBetaUpdateChecks({
+    isPackaged: app.isPackaged,
+    currentVersion: app.getVersion(),
+    getWindow: () => win,
+    showMessageBox: (window, options) => dialog.showMessageBox(window, options),
+    openExternal: (url) => shell.openExternal(url)
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

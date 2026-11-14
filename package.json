@@ -4,13 +4,13 @@
   "version": "2.146.0",
   "license": "(MIT OR Apache-2.0)",
   "description": "Open-source offline low-voltage electrical design and calculation desktop app",
-  "homepage": "https://pdhruv15.github.io/LV-Design-Studio/",
+  "homepage": "https://pdhruv15.github.io/LV-Design-Suit/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Pdhruv15/LV-Design-Studio.git"
+    "url": "git+https://github.com/Pdhruv15/LV-Design-Suit.git"
   },
   "bugs": {
-    "url": "https://github.com/Pdhruv15/LV-Design-Studio/issues"
+    "url": "https://github.com/Pdhruv15/LV-Design-Suit/issues"
   },
   "keywords": [
     "electrical-engineering",
@@ -33,12 +33,14 @@
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac dmg:arm64",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0 && npm run check:manual",
+    "lint": "eslint . --max-warnings 0 && npm run check:manual && npm run check:public-site",
     "test": "vitest run",
     "test:watch": "vitest",
     "update-app": "bash scripts/update-app.sh",
     "check:privacy": "node scripts/check-privacy.mjs",
     "check:manual": "node scripts/check-manual.mjs",
+    "check:public-site": "node scripts/public-site.mjs check",
+    "sync:public-site": "node scripts/public-site.mjs sync-readme",
     "manual:capture": "npm run build && electron scripts/capture-manual.cjs",
     "manual:setup": "python3 -m pip install -r scripts/requirements-manual.txt",
     "manual:build": "python3 scripts/create_visual_user_manuals.py",

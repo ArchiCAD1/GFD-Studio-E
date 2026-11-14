@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://pdhruv15.github.io/LV-Design-Studio/</loc>
+    <loc>https://pdhruv15.github.io/LV-Design-Suit/</loc>
   </url>
   <url>
-    <loc>https://pdhruv15.github.io/LV-Design-Studio/about/</loc>
+    <loc>https://pdhruv15.github.io/LV-Design-Suit/about/</loc>
   </url>
   <url>
-    <loc>https://pdhruv15.github.io/LV-Design-Studio/architecture/</loc>
+    <loc>https://pdhruv15.github.io/LV-Design-Suit/download/</loc>
+  </url>
+  <url>
+    <loc>https://pdhruv15.github.io/LV-Design-Suit/architecture/</loc>
   </url>
 </urlset>
