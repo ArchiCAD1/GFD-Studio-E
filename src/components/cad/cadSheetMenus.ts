@@ -74,16 +74,29 @@ export function paperMenu(s: { status?: string }): CtxEntry[] {
 }
 
 /** Right-click on a layout of the drawing (its own, from the file, or one made here with +): the model through a
- * viewport, its scale (one made here), the layout itself, and the Model tab. The file's own layouts are shown as saved:
- * their viewports are not changed here. */
-export function drawingPaperMenu(s: { inside: boolean; editable: boolean; scale?: number; scales?: number[] }): CtxEntry[] {
+ * viewport, its scale, display lock and frame (one made here), the layout itself, and the Model tab. The file's own
+ * layouts are still shown as saved: their viewports are not changed here; layouts made here are. */
+export function drawingPaperMenu(s: { inside: boolean; editable: boolean; scale?: number; scales?: number[]; locked?: boolean; frame?: boolean }): CtxEntry[] {
   const scales = s.scales ?? VP_SCALES;
   const fp = (label: string, action: string, value?: string, key?: string, off?: boolean) => item('fpaper', label, action, value, key, off);
-  return tidy([
-    ...(s.inside ? [fp('Show on the Model tab', 'max'),
-      ...(s.editable ? [{ label: 'Viewport scale', sub: (s.scale && !scales.includes(s.scale) ? [...scales, s.scale].sort((a, b) => a - b) : scales).map((k) => fp(`1:${k}`, 'scale', String(k), s.scale === k ? 'now' : undefined, s.scale === k)) }] : []), '-' as const] : []),
-    fp('New layout', 'cmd', 'LAYOUT', 'LAYOUT'),
-    ...(s.editable ? [{ label: 'Arrange viewports', sub: VP_ARRANGEMENTS.map((a) => fp(a.label, 'cmd', `VPORTS ${a.id}`)) }, fp('Page setup…', 'cmd', 'PAGESETUP', 'PAGESETUP'), fp('Rename layout…', 'rename'), fp('Copy layout', 'copy'), fp('Delete layout', 'delete')] : []), '-',
-    fp('Model tab', 'cmd', 'MODEL', 'MODEL')
-  ]);
+  if (s.inside && s.editable) {
+    return tidy([
+      fp('Activate (model space)', 'ms', undefined, 'Dbl-click'), fp('Show on the Model tab', 'max'), '-',
+      { label: 'Viewport scale', sub: (s.scale && !scales.includes(s.scale) ? [...scales, s.scale].sort((a, b) => a - b) : scales).map((k) => fp(`1:${k}`, 'scale', String(k), s.scale === k ? 'now' : undefined, s.scale === k)) },
+      fp(s.locked ? 'Unlock display' : 'Lock display', 'lock', undefined, 'VPLOCK'),
+      fp(s.frame ? 'Frame does not print' : 'Frame prints', 'frame'), '-',
+      fp('Erase viewport', 'erase'), '-',
+      fp('Plot this layout…', 'cmd', 'PLOT', 'PLOT'), fp('Page setup…', 'cmd', 'PAGESETUP')
+    ]);
+  }
+  if (s.inside) return tidy([fp('Show on the Model tab', 'max'), '-', fp('Plot this layout…', 'cmd', 'PLOT', 'PLOT'), '-', fp('New layout', 'cmd', 'LAYOUT', 'LAYOUT'), fp('Model tab', 'cmd', 'MODEL', 'MODEL')]);
+  if (s.editable) {
+    return tidy([
+      fp('New viewport', 'cmd', 'MV', 'MV'), { label: 'Arrange viewports', sub: VP_ARRANGEMENTS.map((a) => fp(a.label, 'cmd', `VPORTS ${a.id}`)) }, '-',
+      fp('Plot this layout…', 'cmd', 'PLOT', 'PLOT'), fp('Page setup…', 'cmd', 'PAGESETUP', 'PAGESETUP'), '-',
+      fp('New layout', 'cmd', 'LAYOUT', 'LAYOUT'), fp('From another drawing…', 'cmd', 'LAYOUT I'), fp('Rename layout…', 'rename'), fp('Copy layout', 'copy'), fp('Delete layout', 'delete'), '-',
+      fp('Model tab', 'cmd', 'MODEL', 'MODEL')
+    ]);
+  }
+  return tidy([fp('Plot this layout…', 'cmd', 'PLOT', 'PLOT'), '-', fp('New layout', 'cmd', 'LAYOUT', 'LAYOUT'), fp('From another drawing…', 'cmd', 'LAYOUT I'), '-', fp('Model tab', 'cmd', 'MODEL', 'MODEL')]);
 }

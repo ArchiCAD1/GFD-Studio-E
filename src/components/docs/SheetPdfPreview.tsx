@@ -10,9 +10,17 @@ import { renderDrawingSetPdf } from './sheetRender';
 export const canPreviewSheetPdf = () => !!window.lvds?.files?.pdfBytes;
 const CSS_PIXELS_PER_POINT = 96 / 72;
 
+type ToBytes = NonNullable<Window['lvds']['files']['pdfBytes']>;
+
 export function SheetPdfPreview(props: { project: Project; sheet: DrawingSheet; run?: CalcRun; onClose: () => void }) {
   const [{ project, sheet, run }] = useState(() => ({ project: props.project, sheet: props.sheet, run: props.run }));
-  const { onClose } = props;
+  const load = (toBytes: ToBytes) => renderDrawingSetPdf(project, setOf(project), run, toBytes, [sheet.id]);
+  return <PdfPreview title={`${sheet.number} · ${sheet.title}`} load={load} onClose={props.onClose} />;
+}
+
+/** A PDF made on opening (`load`, given the app's html-to-pdf function) shown page by page, to save. */
+export function PdfPreview({ title, load, onClose }: { title: string; load: (toBytes: ToBytes) => Promise<{ bytes: Uint8Array; name: string }>; onClose: () => void }) {
+  const loadRef = useRef(load);
   const [pdf, setPdf] = useState<{ document: PDFDocumentProxy; bytes: Uint8Array; name: string }>();
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(0);
@@ -31,7 +39,7 @@ export function SheetPdfPreview(props: { project: Project; sheet: DrawingSheet; 
         const [pdfjs, worker, file] = await Promise.all([
           import('pdfjs-dist'),
           import('pdfjs-dist/build/pdf.worker.min.mjs?url&no-inline'),
-          renderDrawingSetPdf(project, setOf(project), run, toBytes, [sheet.id])
+          loadRef.current(toBytes)
         ]);
         if (closed) return;
         pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
@@ -50,7 +58,7 @@ export function SheetPdfPreview(props: { project: Project; sheet: DrawingSheet; 
       clearTimeout(timer);
       void task?.destroy().catch(() => {});
     };
-  }, [project, run, sheet.id]);
+  }, []);
 
   useEffect(() => {
     if (!pdf) return;
@@ -90,7 +98,7 @@ export function SheetPdfPreview(props: { project: Project; sheet: DrawingSheet; 
 
   return (
     <Modal onClose={onClose} className="modal" style={{ maxWidth: 1120 }} label="PDF preview">
-      <h3>PDF preview <span className="m">{sheet.number} · {sheet.title}</span></h3>
+      <h3>PDF preview <span className="m">{title}</span></h3>
       {error ? <p role="alert">PDF preview failed: {error}</p> : !pdf ? <p role="status">Preparing PDF…</p> : <>
         <div className="modal-actions">
           {pdf.document.numPages > 1 && <>

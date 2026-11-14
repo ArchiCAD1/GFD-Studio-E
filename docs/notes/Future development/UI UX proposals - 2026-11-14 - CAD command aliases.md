@@ -16,8 +16,8 @@ C waits for the user's go-ahead, one step at a time.
     (a drawn object clicked first goes to the properties match) · `AL` `ALIGN` → the new Align tool, the device row is
     `ALIGNH` · `T` unchanged.
   - Skipped as rarely used or outdated: `OF` (everyone types `O`; as an alias it would stop Tab completing OF to OFFSET), `AX` `DM` `LS` `TEDIT` `TX` `MO` `PRCLOSE` `R` `REDRAW`, the 12 old names, `GR`
-    `PREFERENCES` `XB` `SSM`. `PRE` / `PREVIEW` wait: the Plot dialog's Preview button already does it, and opening
-    it directly touches the layout plot work in progress.
+    `PREFERENCES` `XB` `SSM`. `PRE` / `PREVIEW` wait: the Plot dialog's Preview button already does it; opening the
+    preview directly can follow now that the layout plot work (PR 589) is in.
 - C trimmed the same way (see the C table): dropped `DOUGHNUT` `DDCOLOR` `DDLTYPE` `DDUNITS` `DDRENAME` `VL` `ATI`
   `DJL` `DCE` `CM` `CL` `DOV` `QC`; C10 (scripts and command-line versions) only if scripts are wanted.
 

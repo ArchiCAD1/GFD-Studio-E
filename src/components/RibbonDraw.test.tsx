@@ -155,8 +155,8 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
     const layout = tool('New layout');
     expect(layout.getAttribute('aria-haspopup')).toBe('menu');
     click(layout);
-    expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.querySelector('span')?.textContent ?? b.textContent)).toEqual(['New layout', 'From template…', 'Lighting layout', 'Power layout', 'ELV layout', 'Containment layout']);
-    for (const [label, cmd] of [['New layout', 'LAYOUT'], ['From template…', 'LAYOUT T'], ['Power layout', 'LAYOUT POWER']]) {
+    expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.querySelector('span')?.textContent ?? b.textContent)).toEqual(['New layout', 'From template…', 'From another drawing…', 'Lighting layout', 'Power layout', 'ELV layout', 'Containment layout']);
+    for (const [label, cmd] of [['New layout', 'LAYOUT'], ['From template…', 'LAYOUT T'], ['From another drawing…', 'LAYOUT I'], ['Power layout', 'LAYOUT POWER']]) {
       if (label !== 'New layout') click(tool('New layout'));
       click(item(label));
       expect(cad.onLayoutCmd, label).toHaveBeenLastCalledWith(cmd);
@@ -444,7 +444,7 @@ describe('Design CAD ribbon: sheets and layouts', () => {
     expect(document.querySelector('#ribbon-tip')!.textContent).toBe('Layout viewportsIts tools: Viewport, Arrange, Legend, Notes, Scale, Lock, Fit, Copy, Align, Maximise, Frame prints');
     // A tool that only opens a list is there as its list.
     click(tool('Layout: its tools'));
-    expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent)).toEqual(['New layout: New layout', 'New layout: From template…', 'New layout: Lighting layout', 'New layout: Power layout', 'New layout: ELV layout', 'New layout: Containment layout', 'Page setup', 'Save as template']);
+    expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent)).toEqual(['New layout: New layout', 'New layout: From template…', 'New layout: From another drawing…', 'New layout: Lighting layout', 'New layout: Power layout', 'New layout: ELV layout', 'New layout: Containment layout', 'Page setup', 'Save as template']);
     click(item('New layout: Power layout'));
     expect(cad.onLayoutCmd).toHaveBeenLastCalledWith('LAYOUT POWER');
     wide = 1500;

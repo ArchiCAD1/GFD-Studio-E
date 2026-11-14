@@ -8,8 +8,9 @@ import { arrangeBoxes, keyScale, type VpArrangement } from './planViewports';
  * (CadFilePaper), and is not a project sheet: plan sheets of a level are made from a tab's right-click menu. */
 
 /** A viewport on the paper: its frame in mm from the paper's lower left corner, the model point at its centre and the
- * model height it shows (drawing units). */
-export interface DrawingViewport { x: number; y: number; w: number; h: number; cx: number; cy: number; vh: number }
+ * model height it shows (drawing units). `locked`: pan and zoom inside it leave its view alone (default: they move it).
+ * `frame`: its frame prints (default: on screen only). */
+export interface DrawingViewport { x: number; y: number; w: number; h: number; cx: number; cy: number; vh: number; locked?: boolean; frame?: boolean }
 export interface DrawingLayout { name: string; paper: [number, number]; viewports: DrawingViewport[] }
 
 /** Space left round a new layout's viewport (mm from each paper edge). */
@@ -19,6 +20,7 @@ const SCALES = [1, 2, 5, 10, 20, 25, 50, 75, 100, 125, 150, 200, 250, 500, 1000,
 
 /** The tab id of a drawing layout; never the id of a project sheet or of the file's own layout. */
 export const drawingLayoutId = (name: string) => `dwg:${name}`;
+export const isDrawingLayoutId = (id: string | null | undefined): id is string => !!id && id.startsWith('dwg:');
 const key = (file: string) => file.toLowerCase();
 export const drawingLayoutsOf = (p: Project, file: string | undefined): DrawingLayout[] => (file ? p.cadLayouts?.[key(file)] ?? [] : []);
 export const drawingLayoutOf = (list: DrawingLayout[], id: string | null | undefined): DrawingLayout | undefined =>
@@ -61,7 +63,7 @@ export function asFileLayout(l: DrawingLayout, tab: number): FileLayout {
   const e = DEFAULT_EDGE_MM;
   return {
     name: l.name, tab, paper: l.paper, margins: [e, e, e, e], at: [0, 0], mm_per_unit: 1,
-    viewports: l.viewports.map((v) => ({ ...v, locked: false, on: true })),
+    viewports: l.viewports.map((v) => ({ ...v, locked: !!v.locked, on: true })),
     origin: [0, 0], segs: new Float32Array(0), segColors: new Uint32Array(0), segLayers: new Uint16Array(0), texts: [], layers: []
   };
 }
@@ -98,10 +100,87 @@ export function arrangeDrawingViewports(l: DrawingLayout, a: VpArrangement, ext:
   });
   return { ...l, viewports };
 }
-/** Every viewport showing the whole drawing, centred, at the standard scale it fits. */
-export function fitDrawingViewports(l: DrawingLayout, ext: [number, number, number, number], mmPerUnit: number): DrawingLayout {
+/** Every viewport (or the one at `only`) showing the whole drawing, centred, at the standard scale it fits. */
+export function fitDrawingViewports(l: DrawingLayout, ext: [number, number, number, number], mmPerUnit: number, only = -1): DrawingLayout {
   const mpu = mmPerUnit > 0 ? mmPerUnit : 1, ok = Number.isFinite(ext[0]) && ext[2] >= ext[0];
-  return { ...l, viewports: l.viewports.map((v) => ({ ...v, cx: ok ? (ext[0] + ext[2]) / 2 : v.cx, cy: ok ? (ext[1] + ext[3]) / 2 : v.cy, vh: (v.h * fitScale(ext, v.w, v.h, mmPerUnit)) / mpu })) };
+  return { ...l, viewports: l.viewports.map((v, i) => (only >= 0 && i !== only ? v : { ...v, cx: ok ? (ext[0] + ext[2]) / 2 : v.cx, cy: ok ? (ext[1] + ext[3]) / 2 : v.cy, vh: (v.h * fitScale(ext, v.w, v.h, mmPerUnit)) / mpu })) };
 }
 /** A viewport's scale 1:n (rounded), from its frame and the model height it shows. */
 export const viewportScaleN = (v: DrawingViewport, mmPerUnit: number) => (v.h > 0 ? Math.round((v.vh * mmPerUnit) / v.h) : 0);
+
+/** Viewports picked, moved, resized, added and worked in on a layout made here (the file's own layouts stay as saved). A
+ * viewport is named by its place in the layout's list: Viewport 1, 2 … */
+
+type Box = [number, number, number, number];
+/** A viewport's id for the pick and the one worked in (MS); never a plan sheet viewport's id (vpN). */
+export const dvId = (i: number) => `dv${i}`;
+/** The place of the viewport an id names in the layout, or -1. */
+export function dvIndex(l: Pick<DrawingLayout, 'viewports'> | undefined, id: string | null | undefined): number {
+  const m = /^dv(\d+)$/.exec(id ?? ''), i = m ? Number(m[1]) : -1;
+  return l && i >= 0 && i < l.viewports.length ? i : -1;
+}
+/** Drawing units shown per paper mm. */
+const perMm = (v: DrawingViewport) => (v.h > 0 ? v.vh / v.h : 0);
+/** The model window a viewport shows (drawing units): x0, y0, x1, y1. */
+export function viewportWindow(v: DrawingViewport): Box {
+  const hw = (perMm(v) * v.w) / 2, hh = v.vh / 2;
+  return [v.cx - hw, v.cy - hh, v.cx + hw, v.cy + hh];
+}
+/** The topmost viewport whose frame holds a paper point (mm from the paper's lower left corner), or -1. */
+export function viewportAt(l: Pick<DrawingLayout, 'viewports'>, [x, y]: [number, number]): number {
+  for (let i = l.viewports.length - 1; i >= 0; i--) { const v = l.viewports[i]; if (x >= v.x && x <= v.x + v.w && y >= v.y && y <= v.y + v.h) return i; }
+  return -1;
+}
+const change = (l: DrawingLayout, i: number, f: (v: DrawingViewport) => DrawingViewport): DrawingLayout => ({ ...l, viewports: l.viewports.map((v, k) => (k === i ? f(v) : v)) });
+/** A viewport changed; `undefined` in the patch clears a field. */
+export function patchDrawingViewport(l: DrawingLayout, i: number, patch: Partial<DrawingViewport>): DrawingLayout {
+  return change(l, i, (v) => {
+    const next = { ...v, ...patch } as DrawingViewport & Record<string, unknown>;
+    for (const k of Object.keys(patch)) if ((patch as Record<string, unknown>)[k] === undefined) delete next[k];
+    return next;
+  });
+}
+/** A viewport's frame moved (its view goes with it) or resized (the model stays where it is on the paper, at the same
+ * scale). The frame: its lower left corner, width and height (mm). */
+export function withViewportBox(l: DrawingLayout, i: number, [x, y, w, h]: Box, how: 'move' | 'resize'): DrawingLayout {
+  return change(l, i, (v) => {
+    if (how === 'move') return { ...v, x: r1(x), y: r1(y) };
+    const s = perMm(v), b = { x: r1(x), y: r1(y), w: r1(w), h: r1(h) };
+    return { ...v, ...b, cx: v.cx + (b.x + b.w / 2 - (v.x + v.w / 2)) * s, cy: v.cy + (b.y + b.h / 2 - (v.y + v.h / 2)) * s, vh: s * b.h };
+  });
+}
+/** A new viewport in a frame picked on the paper (MV): the whole drawing in it, centred, at the standard scale it fits. It goes last. */
+export function addDrawingViewport(l: DrawingLayout, [x, y, w, h]: Box, ext: [number, number, number, number], mmPerUnit: number): DrawingLayout {
+  const mpu = mmPerUnit > 0 ? mmPerUnit : 1, ok = Number.isFinite(ext[0]) && ext[2] >= ext[0], b = { x: r1(x), y: r1(y), w: r1(w), h: r1(h) };
+  return { ...l, viewports: [...l.viewports, { ...b, cx: ok ? (ext[0] + ext[2]) / 2 : 0, cy: ok ? (ext[1] + ext[3]) / 2 : 0, vh: (b.h * fitScale(ext, b.w, b.h, mmPerUnit)) / mpu }] };
+}
+export const removeDrawingViewport = (l: DrawingLayout, i: number): DrawingLayout => ({ ...l, viewports: l.viewports.filter((_, k) => k !== i) });
+/** A copy of a viewport, 10 mm right and down, kept on the paper. It goes last. */
+export function copyDrawingViewport(l: DrawingLayout, i: number): DrawingLayout {
+  const v = l.viewports[i];
+  if (!v) return l;
+  const x = Math.max(0, Math.min(v.x + 10, l.paper[0] - v.w)), y = Math.max(0, Math.min(v.y - 10, l.paper[1] - v.h));
+  return { ...l, viewports: [...l.viewports, { ...v, x: r1(x), y: r1(y) }] };
+}
+/** A viewport at 1:n. */
+export const scaleDrawingViewport = (l: DrawingLayout, i: number, n: number, mmPerUnit: number): DrawingLayout =>
+  change(l, i, (v) => ({ ...v, vh: (v.h * n) / (mmPerUnit > 0 ? mmPerUnit : 1) }));
+/** A viewport's view lined up with the first viewport's: 'h' (side by side: the same model height on one paper line) or
+ * 'v' (stacked: the same model x on one paper column). */
+export function alignDrawingView(l: DrawingLayout, i: number, dir: 'h' | 'v'): DrawingLayout {
+  const b = l.viewports[0], v = l.viewports[i];
+  if (!b || !v || i === 0) return l;
+  const s = perMm(v);
+  return change(l, i, (q) => (dir === 'h' ? { ...q, cy: b.cy + (v.y + v.h / 2 - (b.y + b.h / 2)) * s } : { ...q, cx: b.cx + (v.x + v.w / 2 - (b.x + b.w / 2)) * s }));
+}
+/** A viewport's view zoomed by a factor (above 1: closer) about a paper point (mm), which keeps its model point. */
+export function zoomDrawingView(v: DrawingViewport, f: number, [px, py]: [number, number]): Pick<DrawingViewport, 'cx' | 'cy' | 'vh'> {
+  if (!(f > 0)) return { cx: v.cx, cy: v.cy, vh: v.vh };
+  const s = perMm(v), dx = px - (v.x + v.w / 2), dy = py - (v.y + v.h / 2);
+  return { cx: v.cx + dx * s - (dx * s) / f, cy: v.cy + dy * s - (dy * s) / f, vh: v.vh / f };
+}
+/** A viewport's view dragged by a distance on the paper (mm, y up): the model follows the pointer. */
+export function panDrawingView(v: DrawingViewport, dx: number, dy: number): Pick<DrawingViewport, 'cx' | 'cy'> {
+  const s = perMm(v);
+  return { cx: v.cx - dx * s, cy: v.cy - dy * s };
+}

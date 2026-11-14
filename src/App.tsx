@@ -161,6 +161,8 @@ import { cadFileMenu, planLevel } from './components/cad/cadFileMenu';
 import { plansOf } from './model/cadPlans';
 import { chooseDrawing, openDrawing } from './engines/cad/cadEngine';
 import { openTitleBlockInCad } from './model/titleBlockCad';
+import { isDrawingLayoutId } from './model/drawingLayouts';
+import { isFileLayoutId } from './model/fileLayouts';
 import { onDemand } from './util/onDemand';
 import { currentRevision, revisionStamp } from './model/revisions';
 import { useSheetUi } from './components/sld/sheetUi';
@@ -1369,7 +1371,7 @@ export default function App() {
               const here = planLevel(project, cadS.view?.file).floor;
               return view === 'cad' && here ? plansOf(project).filter((x) => x.floor.key !== here.key).map((x) => ({ label: x.label, title: `Copy to ${x.label}`, onClick: () => cadDo((a) => a.copyTo(x.floor.key)) })) : [];
             })() },
-          output: { onPlot: () => setOutputDlg('plot'), onSetups: () => setOutputDlg('setups'), onPrinters: () => setOutputDlg('printers'), onPens: () => setOutputDlg('pens'), onBatch: () => setOutputDlg('batch'), onRegister: () => setOutputDlg('register') },
+          output: { onPlot: () => { if (view === 'cad' && (isDrawingLayoutId(cadS.layout) || isFileLayoutId(cadS.layout))) cadDo((x) => x.layoutCmd('PLOT')); else setOutputDlg('plot'); }, onSetups: () => setOutputDlg('setups'), onPrinters: () => setOutputDlg('printers'), onPens: () => setOutputDlg('pens'), onBatch: () => setOutputDlg('batch'), onRegister: () => setOutputDlg('register') },
           onProfile: () => setShowPrefs(true),
           onChooseFolder: chooseFolder,
           folderLabel: hasBridge ? `Folder: ${projectsFolder.split(/[\\/]/).pop() || 'choose…'}` : 'This browser',
