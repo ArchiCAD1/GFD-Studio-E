@@ -86,6 +86,34 @@ describe('Load schedule page and the ribbon', () => {
     expect(published!.sheetFormat).toBe(true);
   });
 
+  it('exports the panel as a PDF in the project\'s format, one panel or all, and says when there is no format', async () => {
+    const run = async (kind: 'myPdf' | 'myPdfAll') => { await act(async () => { published!.onExport(kind); await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); }); };
+    mount();
+    expect(published!.sheetFormats).toBe(false);
+    await run('myPdf');
+    expect(status).toHaveBeenLastCalledWith('Choose a format for this panel in Sheets → My formats first.');
+    await run('myPdfAll');
+    expect(status).toHaveBeenLastCalledWith('No panel of this project has a format yet: choose them in Sheets → My formats.');
+    expect(savePdf).not.toHaveBeenCalled();
+    act(() => root.unmount());
+    root = createRoot(document.body.appendChild(document.createElement('div')));
+    const sheet: Sheet = { ...newSheet(), cells: { A1: 'Ref' }, link: { category: 'db', cells: {}, firstRow: 2, rows: [], columns: { A: 'row.ref' } } };
+    start = withProjectFormat(sampleProject, 'db', { id: 'f', name: 'F', category: 'db', sheet, updatedAt: '2026-11-14' });
+    mount();
+    expect(published!.sheetFormats).toBe(true);
+    const first = 'R1'; // the first circuit of the sample DB
+    await run('myPdf');
+    expect(savePdf).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(savePdf).mock.calls[0][0]).toBe(`${BOARD}-schedule-my-format.pdf`);
+    expect(vi.mocked(savePdf).mock.calls[0][1]).toContain(`>${first}</td>`);
+    expect(vi.mocked(savePdf).mock.calls[0][2]).toEqual({ pageSize: 'A4', landscape: true, cssPages: true });
+    expect(status).toHaveBeenLastCalledWith('Saved');
+    await run('myPdfAll');
+    expect(vi.mocked(savePdf).mock.calls[1][0]).toBe(`${safeFileName(sampleProject.name)}-schedules-my-format.pdf`);
+    expect(vi.mocked(savePdf).mock.calls[1][1]).toContain(`>${first}</td>`);
+    expect(String(status.mock.calls[status.mock.calls.length - 1][0])).toMatch(/^Saved — \d+ panels$/);
+  });
+
   it('publishes Open in my format on a panel\'s form for the format of its category, and not the TCL summary\'s', () => {
     const panel = (sheet: Sheet) => ({ id: 'p', name: 'P', category: 'md' as const, sheet: { ...sheet, link: { ...sheet.link!, category: 'md' as const } }, updatedAt: '2026-11-14' });
     const base = { ...newSheet(), link: { category: 'db' as const, cells: {}, firstRow: 5, rows: [], columns: {} } };
