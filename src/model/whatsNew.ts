@@ -22,6 +22,12 @@ export const RELEASES: Release[] = [
     ]
   },
   {
+    version: '2.144', date: '2026-11-14',
+    items: [
+      { title: 'Design CAD: typed shortcuts as in other CAD programs', text: 'TR is now Trim and LA opens the layer palette; Trace a room is TRACE and the side Layers list is LAYERS. AL or ALIGN moves, turns and, if you choose, scales the drawn objects picked by one or two pairs of points (lining up devices is ALIGNH, ALIGNV and SPACE). MA matches a device, or the properties of a drawn object clicked first. New short names: PT, RC, N, SA, OR, SN, EXP, AE, AT, BC, BS, -B, -I, ISOLATE and UNISOLATE; PR or CH open the properties palette, PP or PRINT plot, OP opens the Drafting settings and UN its Units tab, and RE or REGEN are accepted.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.143', date: '2026-11-14',
     items: [
       { title: 'Design CAD: viewports on a layout made with +', text: 'On a layout made with +, a viewport is picked by its frame: drag the frame to move it, drag a corner to resize it. Viewport (MV) makes a new one from two corners; Esc stops it. A double-click inside works in it: the wheel and a drag then move its view, and a double-click outside goes back to the paper (MS and PS, or the PAPER / MODEL button on the status bar). Scale, Lock, Fit, Copy, Align, Maximise and Frame prints act on the viewport picked; its properties show in the palette, and the same entries are on its right-click menu.', action: 'cad' },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, join, mirrored, offset, pathLength,
+  aligned, alignOf, arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, join, mirrored, offset, pathLength,
   scaled, sketchInWindow, stretched, trim, type Seg
 } from './cadEdit';
 import type { SketchItem } from '../types';
@@ -204,5 +204,40 @@ describe('hatches keep their islands and pattern through mirror, scale and stret
     expect(s.hatch!.origin).toEqual([2, 1]);
     // A window with no outline corner in it takes nothing.
     expect(stretched(hatch, [4, 4], [6, 6], 1, 1)).toBeNull();
+  });
+});
+
+describe('Align', () => {
+  const near = (a: Pt[], b: Pt[]) => a.forEach((q, i) => { expect(q[0]).toBeCloseTo(b[i][0], 9); expect(q[1]).toBeCloseTo(b[i][1], 9); });
+  it('one pair of points only moves', () => {
+    const t = alignOf([1, 1], [4, 5])!;
+    expect(t).toEqual({ a: 0, k: 1, dx: 3, dy: 4 });
+    expect(aligned(line('a', [1, 1], [3, 1]), [1, 1], t).pts).toEqual([[4, 5], [6, 5]]);
+  });
+  it('two pairs turn a line by 90° onto the destination', () => {
+    const t = alignOf([0, 0], [10, 10], [4, 0], [10, 14])!;
+    expect(t.a).toBeCloseTo(Math.PI / 2, 9);
+    expect(t.k).toBe(1);
+    near(aligned(line('a', [0, 0], [4, 0]), [0, 0], t).pts, [[10, 10], [10, 14]]);
+  });
+  it('scale on makes the line as long as the destination; off keeps its length', () => {
+    const on = alignOf([0, 0], [0, 0], [4, 0], [0, 2], true)!;
+    expect(on.k).toBeCloseTo(0.5, 9);
+    near(aligned(line('a', [0, 0], [4, 0]), [0, 0], on).pts, [[0, 0], [0, 2]]);
+    const off = alignOf([0, 0], [0, 0], [4, 0], [0, 2])!;
+    expect(off.k).toBe(1);
+    near(aligned(line('a', [0, 0], [4, 0]), [0, 0], off).pts, [[0, 0], [0, 4]]);
+  });
+  it('is null when the two source points, or the two destination points, are the same', () => {
+    expect(alignOf([1, 1], [5, 5], [1, 1], [8, 9])).toBeNull();
+    expect(alignOf([1, 1], [5, 5], [3, 1], [5, 5], true)).toBeNull();
+  });
+  it('turns a text\'s rot and an arc\'s angles with it', () => {
+    const t = alignOf([0, 0], [0, 0], [1, 0], [0, 1])!;
+    const text = aligned({ id: 't', kind: 'text', layer: 'L', pts: [[2, 0]], text: 'x', rot: 0.5 }, [0, 0], t);
+    expect(text.rot).toBeCloseTo(0.5 + Math.PI / 2, 9);
+    const arc = aligned({ id: 'r', kind: 'arc', layer: 'L', pts: [[0, 0]], r: 1, a0: 0, a1: 1 }, [0, 0], t);
+    expect(arc.a0).toBeCloseTo(Math.PI / 2, 9);
+    expect(arc.a1).toBeCloseTo(1 + Math.PI / 2, 9);
   });
 });

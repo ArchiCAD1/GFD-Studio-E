@@ -763,7 +763,7 @@ describe('CAD view', () => {
     const text = (s: string) => state.view!.info.texts.find((t) => t.s.trim() === s)!;
     const onText = async (s: string) => { const t = text(s); await clickAt(t.x + t.h * 0.1, t.y + t.h * 0.3); };
     const k = text('KITCHEN');
-    await command('TR');
+    await command('TRACE');
     for (const [dx, dy] of [[-1500, -1500], [1500, -1500], [1500, 1500], [-1500, 1500]]) await clickAt(k.x + dx, k.y + dy);
     await command('');
     expect(result()).toMatch(/Room area 9\.00 m²/);

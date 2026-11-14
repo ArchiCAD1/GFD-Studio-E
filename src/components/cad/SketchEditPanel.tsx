@@ -17,7 +17,7 @@ export type SketchEdit = 'filter' | 'trim' | 'extend' | 'offset' | 'break' | 'fi
   | 'blkreplace' | 'blkreset' | 'blkexplode' | 'blkcount'
   | 'find' | 'txjust' | 'txheight' | 'txcase' | 'txframe' | 'txmask' | 'dimstyle' | 'dimprec' | 'dimpos' | 'dimreset' | 'hscale' | 'hangle' | 'hboundary' | 'hedit' | 'horigin' | 'hislands'
   | 'plclose' | 'explode1' | 'roomfrom' | 'tocable' | 'jointool' | 'chamfer' | 'props' | 'repeat' | 'bedit' | 'refedit';
-export type EditTool = 'trim' | 'extend' | 'offset' | 'fillet' | 'chamfer' | 'break' | 'join' | 'explode' | 'mirror' | 'scale' | 'stretch' | 'array' | 'tjust' | 'th' | 'talign' | 'tcase' | 'tprefix' | 'tsuffix' | 'torient' | 'tcen' | 'tcopy' | 'tframe' | 'tmask' | 'draworder' | 'texttofront';
+export type EditTool = 'trim' | 'extend' | 'offset' | 'fillet' | 'chamfer' | 'break' | 'join' | 'explode' | 'mirror' | 'scale' | 'align' | 'stretch' | 'array' | 'tjust' | 'th' | 'talign' | 'tcase' | 'tprefix' | 'tsuffix' | 'torient' | 'tcen' | 'tcopy' | 'tframe' | 'tmask' | 'draworder' | 'texttofront';
 /** Offset `through` a point (the copy passes through it), `erase` the source, the copies on the `source` layer or the
  * `current` one; Fillet and Chamfer `trim` the lines to the corner (else they stay and the arc or line is added); a
  * polar array can `rotate` its copies (else they keep the original's direction). */
@@ -164,7 +164,7 @@ export function DrawnSelectionPanel({ items, devices, onEdit }: { items: SketchI
 
 export const EDIT_TITLE: Record<EditTool, string> = {
   trim: 'Trim', extend: 'Extend', offset: 'Offset', fillet: 'Fillet', chamfer: 'Chamfer', break: 'Break', join: 'Join', explode: 'Explode',
-  mirror: 'Mirror', scale: 'Scale', stretch: 'Stretch', array: 'Array', tjust: 'Justify text', th: 'Text height',
+  mirror: 'Mirror', scale: 'Scale', align: 'Align', stretch: 'Stretch', array: 'Array', tjust: 'Justify text', th: 'Text height',
   talign: 'Align text', tcase: 'Text case', tprefix: 'Text prefix', tsuffix: 'Text suffix', torient: 'Orient text', tcen: 'Centre text', tcopy: 'Copy words', tframe: 'Frame text', tmask: 'Mask text', draworder: 'Draw order', texttofront: 'Text to front'
 };
 export const EDIT_HELP: Record<EditTool, string> = {
@@ -178,6 +178,7 @@ export const EDIT_HELP: Record<EditTool, string> = {
   explode: 'Click a polyline or rectangle: it becomes separate lines.',
   mirror: 'Pick the objects (click them, then Enter), then two points of the mirror line.',
   scale: 'Pick the objects (click them, then Enter), then the base point.',
+  align: 'Pick the objects (click them, then Enter), then a source and a destination point. A second pair turns them onto it; Yes to the last question also scales them.',
   stretch: 'Drag a window round the points to move (right to left), then the base point and the second point. A tray end moves, its far end stays.',
   array: 'Pick the objects (click them, then Enter), then Rectangular or Polar on the command line: rectangular copies are made at once, polar ones round the centre clicked.',
   tjust: 'Pick the texts (click them, then Enter), then the justification on the command line (Left, Centre, Right, or TL … BR): each text stays where it is; only its anchor point moves on it.',
@@ -224,7 +225,7 @@ export function EditToolPanel({ tool, settings, onSettings, step, picked, onAppl
         )}
         <span className="m">{EDIT_HELP[tool]}</span>
         {step && <span className="m">{step}</span>}
-        {(tool === 'join' || tool === 'mirror' || tool === 'scale' || tool === 'array') && <span className="m">{picked} object{picked === 1 ? '' : 's'} picked</span>}
+        {(tool === 'join' || tool === 'mirror' || tool === 'scale' || tool === 'align' || tool === 'array') && <span className="m">{picked} object{picked === 1 ? '' : 's'} picked</span>}
         {onApply && <div className="cad-devbtns"><button className="chip primary" disabled={!picked} onClick={onApply}>{tool === 'join' ? 'Join' : 'Apply'}</button></div>}
       </div>
     </>
