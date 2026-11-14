@@ -1,13 +1,13 @@
 # UI / UX proposal — Design CAD typed command aliases (2026-11-14)
 
-Status: **A and B approved by the user on 2026-11-14** ("build it"), built in v2.142 (`feat/cad-command-aliases`).
+Status: **A and B approved by the user on 2026-11-14** ("build it"), built in v2.144 (`feat/cad-command-aliases`).
 C waits for the user's go-ahead, one step at a time.
 
 ## Decision (2026-11-14)
 
 - Build only what people use today: names that are outdated or rarely typed are skipped, not built.
 - Nothing 3D, ever: the app is 2D only.
-- Built in v2.142: A without its rarely used names, and B as proposed. Typed only; no ribbon or menu entry was added.
+- Built in v2.144: A without its rarely used names, and B as proposed. Typed only; no ribbon or menu entry was added.
   - A: `PT` `RC` `N` `SA` `OR` `SN` `EXP` `AE` `AT` `BC` `BS` `-B` `-I` `ISOLATE` `UNISOLATE`; `PLOT` `PP` `PRINT`
     (the Plot dialog on a layout or sheet; on Model, a PDF of the view); `PR` `PROPS` `PROPERTIES` `CH` (the
     properties palette); `OP` `OPTIONS` (Drafting settings, Cursor tab); `RE` `REGEN` `REA` `REGENALL` (accepted: the
@@ -128,8 +128,8 @@ Each step is one PR. Everything drawn saves to DXF / DWG; sheets and PDFs stay b
 | C2 | `G` → GROUP (and `UNGROUP`) | keep a board and its label, or a set of riser symbols, together without making a block; saved as groups (a change in the Rust writer) | medium |
 | C3 | `LAS` → LAYERSTATE, and layers frozen per layout viewport | one base plan with saved layer states for power, lighting, small power and ELV; a layer off in one viewport only | medium |
 | C4 | `COL`, `COLOUR` → COLOR · `LT`, `LTYPE` → LINETYPE · `LTS` → LTSCALE · `LW`, `LINEWEIGHT` → LWEIGHT | current colour, linetype and lineweight for new objects (By layer by default); a linetype list that loads .lin files; the linetype scale, fixed at 1:100 today | medium |
-| C5 | `BA` → BASE · `REN` → RENAME (`UN`, `UNITS` built in v2.142: the Units tab) | the base point used when the drawing is inserted or attached; one rename dialog for layers, blocks, styles and layouts | small to medium |
-| C6 | `MEA` → MEASUREGEOM · `OO` → OOPS (`AL`, `ALIGN` built in v2.142) | one measure command (Distance, Radius, Angle, Area; uses DI and AREA); the last objects erased brought back after other commands | small |
+| C5 | `BA` → BASE · `REN` → RENAME (`UN`, `UNITS` built in v2.144: the Units tab) | the base point used when the drawing is inserted or attached; one rename dialog for layers, blocks, styles and layouts | small to medium |
+| C6 | `MEA` → MEASUREGEOM · `OO` → OOPS (`AL`, `ALIGN` built in v2.144) | one measure command (Distance, Radius, Angle, Area; uses DI and AREA); the last objects erased brought back after other commands | small |
 | C7 | `AD` → ATTDISP | block attributes shown or hidden on the plan (double-click already edits a block's attributes) | small |
 | C8 | `DAR` → DIMARC · `DOR` → DIMORDINATE · `DED` → DIMEDIT · `JOG`, `DJO` → DIMJOGGED | arc length on curved runs, ordinate set-out, text angle and oblique, jogged radius | medium |
 | C9 | `SP` → SPELL | the spelling of texts, notes and attributes checked offline | medium |

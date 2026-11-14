@@ -15,9 +15,16 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.142', date: '2026-11-14',
+    version: '2.144', date: '2026-11-14',
     items: [
       { title: 'Design CAD: typed shortcuts as in other CAD programs', text: 'TR is now Trim and LA opens the layer palette; Trace a room is TRACE and the side Layers list is LAYERS. AL or ALIGN moves, turns and, if you choose, scales the drawn objects picked by one or two pairs of points (lining up devices is ALIGNH, ALIGNV and SPACE). MA matches a device, or the properties of a drawn object clicked first. New short names: PT, RC, N, SA, OR, SN, EXP, AE, AT, BC, BS, -B, -I, ISOLATE and UNISOLATE; PR or CH open the properties palette, PP or PRINT plot, OP opens the Drafting settings and UN its Units tab, and RE or REGEN are accepted.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.142', date: '2026-11-14',
+    items: [
+      { title: 'Design CAD: text at its real height', text: 'Text in an opened drawing is drawn with its capitals at the height the drawing gives, as other CAD programs show it. Text fitted to a width, as in drawings exported from the SLD, no longer looks squashed, and it keeps its shape when you zoom in close.' },
+      { title: 'Design CAD: text stays visible zoomed out', text: 'Text too small to read when you zoom out shows as a faint bar where its words are, as in other CAD programs, instead of disappearing. This covers the opened drawing, your own text and notes, and a file\'s layouts.' }
     ]
   },
   {
