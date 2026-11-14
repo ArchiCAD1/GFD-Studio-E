@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.140', date: '2026-11-14',
+    items: [
+      { title: 'Sheets: push an existing schedule to the load schedule', text: 'Open an existing Excel DB schedule in Sheets and link its columns: Link columns then says how many rows of its own the sheet has and offers Push to load schedule. Push makes the panel under its Fed from board (and that board too, when it is not in the project) and one circuit for each row, so the Load schedule tab and the SLD follow. A circuit number such as R1 or Y2 sets the phase and way; a size left blank is sized by the rules and a typed one is kept; pushing the same schedule again updates its circuits. Use as a template only keeps just the layout.', action: 'sheets', actionLabel: 'Open Sheets' }
+    ]
+  },
+  {
     version: '2.139', date: '2026-11-14',
     items: [
       { title: 'Load schedule: PDF in your own format', text: 'Export on the Load schedule tab has PDF: my format for the panel on screen, and PDF: my format, all panels for every panel that has a format of yours, one page each in one file. The page is your template as you laid it out, filled from the project, in black and white with its own borders and merged headings, on A4 landscape fitted to the page width.', action: 'sheets', actionLabel: 'Open Sheets' }
