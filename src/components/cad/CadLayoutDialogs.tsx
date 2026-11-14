@@ -1,11 +1,15 @@
 import { useRef, useState } from 'react';
 import { Modal } from '../ui';
+import { PrinterSelect } from '../docs/OutputDialogs';
+import { canPreviewSheetPdf, PdfPreview } from '../docs/SheetPdfPreview';
+import { printerPaper } from '../../docs/layoutPlot';
 import { PLAN_LABEL, PLAN_TYPES } from '../../docs/planLayout';
 import { LAYOUT_PAPERS, paperName, type DrawingLayout } from '../../model/drawingLayouts';
 import type { PlanType } from '../../model/drawingSet';
 import { loadLayoutTemplates, parseLayoutTemplate, saveLayoutTemplates, withLayoutTemplate, type LayoutTemplate } from '../../model/layoutTemplates';
 import { MORE_SCALES, VP_SCALES } from '../../model/planViewports';
-import { safeFileName, saveText } from '../../util/files';
+import { safeFileName, saveBinary, savePdf, saveText } from '../../util/files';
+import { canPrint, plotPrinter, usePrinters } from '../../util/printers';
 
 /** Design CAD → Output → Layout: the layout templates (save, new from one, import, export, delete), a layout's paper and
  * the project's scale list for viewports. */
@@ -78,6 +82,93 @@ export function LayoutTemplatesDialog({ current, canSheet, onNew, onStatus, onCl
       </div>
     </Modal>
   );
+}
+
+/** Layouts of another drawing: the ones ticked are added to this drawing (their paper and viewport frames at their scales,
+ * showing this drawing), and can be kept as templates too. */
+export function ImportLayoutsDialog({ file, list, onImport, onClose }: { file: string; list: LayoutTemplate[]; onImport: (ticked: LayoutTemplate[], keep: boolean) => void; onClose: () => void }) {
+  const [ticked, setTicked] = useState(() => new Set(list.map((_, i) => i)));
+  const [keep, setKeep] = useState(false);
+  const flip = (i: number, on: boolean) => { const n = new Set(ticked); if (on) n.add(i); else n.delete(i); setTicked(n); };
+  const chosen = list.filter((_, i) => ticked.has(i));
+  return (
+    <Modal onClose={onClose} className="modal" style={{ maxWidth: 640 }} label="Layouts from another drawing">
+      <h3>Layouts from another drawing <span className="m">{file}</span></h3>
+      <table className="sched" aria-label="Layouts of that drawing">
+        <thead><tr><th /><th>Name</th><th>Paper</th><th>Viewports</th></tr></thead>
+        <tbody>{list.map((x, i) => (
+          <tr key={i}>
+            <td><input type="checkbox" aria-label={`Import ${x.name}`} checked={ticked.has(i)} onChange={(e) => flip(i, e.target.checked)} /></td>
+            <td>{x.name}</td><td>{paperName(x.paper)}</td><td>{scalesText(x)}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+      <div className="cad-devform">
+        <label><input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Also keep them as layout templates (your library)</label>
+        <span className="m">Each comes with its paper and its viewport frames at their scales. The viewports show this drawing.</span>
+      </div>
+      <div className="modal-actions">
+        <button className="chip" onClick={onClose}>Cancel</button>
+        <span className="sp" />
+        <button className="chip primary" disabled={!chosen.length} onClick={() => { onImport(chosen, keep); onClose(); }}>Import {chosen.length} layout{chosen.length === 1 ? '' : 's'}</button>
+      </div>
+    </Modal>
+  );
+}
+
+/** Plot a layout of the drawing (the file's own or one made here) to PDF or a printer, black-and-white, on its own paper. */
+export function LayoutPlotDialog({ name, about, paper, html, fileName, onStatus, onClose }: {
+  name: string;
+  /** The layout's paper and viewports in a line (shown beside the printer). */
+  about: string;
+  /** The paper (mm). */
+  paper: [number, number];
+  /** The page to plot; called only when plotting or previewing. */
+  html: () => string;
+  fileName: string;
+  onStatus: (m: string) => void;
+  onClose: () => void;
+}) {
+  const printers = usePrinters();
+  const [printer, setPrinter] = useState(plotPrinter());
+  const [copies, setCopies] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const pp = printerPaper(paper[0], paper[1]);
+  async function go() {
+    setBusy(true);
+    try {
+      if (printer) {
+        await window.lvds.files.printHtml!({ html: html(), deviceName: printer, copies, ...pp });
+        onStatus(`Sent ${name} to ${printer}${copies > 1 ? `, ${copies} copies` : ''}`);
+      } else {
+        const toBytes = window.lvds?.files?.pdfBytes;
+        const m = toBytes ? await saveBinary(fileName, await toBytes({ html: html(), cssPages: true }), 'PDF', 'pdf', 'application/pdf') : await savePdf(fileName, html(), { cssPages: true });
+        if (m) onStatus(m);
+      }
+      onClose();
+    } catch (e) {
+      onStatus(`${printer ? 'Printing' : 'Plot'} failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally { setBusy(false); }
+  }
+  return (<>
+    <Modal onClose={onClose} className="modal" style={{ maxWidth: 520 }} label="Plot">
+      <h3>Plot <span className="m">{name}</span></h3>
+      <div className="cad-devform">
+        <PrinterSelect value={printer} onChange={setPrinter} list={printers.list} />
+        <span className="m">{about}</span>
+        {printer && <label>Copies<input aria-label="Copies" type="number" min={1} max={99} value={copies} onChange={(e) => setCopies(Math.min(99, Math.max(1, Math.round(Number(e.target.value)) || 1)))} /></label>}
+        <span className="m">Printing is always black-and-white.{printer && !canPrint() ? ' Printers need the desktop app.' : ''}{printer && !pp ? ' A printer takes A4 to A1 here: this paper plots to PDF.' : ''}</span>
+      </div>
+      <div className="modal-actions">
+        <button className="chip" onClick={onClose}>Cancel</button>
+        {canPreviewSheetPdf() && <button className="chip" onClick={() => setPreview(true)}>Preview</button>}
+        <span className="sp" />
+        <button className="chip primary" disabled={busy || (!!printer && (!canPrint() || !pp))} onClick={() => void go()}>{busy ? 'Plotting…' : printer ? 'Print' : 'Plot PDF'}</button>
+      </div>
+    </Modal>
+    {preview && <PdfPreview title={name} load={async (toBytes) => ({ bytes: await toBytes({ html: html(), cssPages: true }), name: fileName })} onClose={() => setPreview(false)} />}
+  </>);
 }
 
 /** A layout's paper: the size and orientation; its viewports keep their place and scale. */

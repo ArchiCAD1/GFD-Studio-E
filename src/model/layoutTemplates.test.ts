@@ -8,7 +8,7 @@ import { arrangementOf, arrangeViewports } from './planViewports';
 import { newDrawingLayout } from './drawingLayouts';
 import { setOf, type DrawingSheet } from './drawingSet';
 import {
-  drawingLayoutFromTemplate, LAYOUT_TEMPLATES_KEY, loadLayoutTemplates, parseLayoutTemplate, saveLayoutTemplates, sheetWithTemplate, sizeOfPaper, templateFromPaper, templateFromSheet, withLayoutTemplate, type LayoutTemplate
+  drawingLayoutFromTemplate, LAYOUT_TEMPLATES_KEY, layoutsFromTemplates, loadLayoutTemplates, parseLayoutTemplate, saveLayoutTemplates, sheetWithTemplate, sizeOfPaper, templateFromFileLayout, templateFromPaper, templateFromSheet, withLayoutTemplate, type LayoutTemplate
 } from './layoutTemplates';
 import { withSetup } from './plotSetup';
 import type { Project } from '../types';
@@ -71,6 +71,34 @@ describe('layout templates', () => {
     expect(viewportScaleN(n.viewports[0], 1)).toBe(viewportScaleN(l.viewports[0], 1));
     const fit = drawingLayoutFromTemplate({ ...t, viewports: [{ box: t.viewports[0].box }] }, 'L', [0, 0, 60000, 40000], 1);
     expect(viewportScaleN(fit.viewports[0], 1)).toBe(150);
+  });
+
+  it('a frame that prints is kept by the template and by the layout made from it', () => {
+    const t = templateFromPaper('F', [420, 297], [{ x: 10, y: 10, w: 200, h: 277, scale: 100, frame: true }, { x: 215, y: 10, w: 195, h: 277, scale: 100 }]);
+    expect(t.viewports.map((v) => v.frame)).toEqual([true, undefined]);
+    expect(drawingLayoutFromTemplate(t, 'L', [0, 0, 30000, 20000], 1).viewports.map((v) => v.frame)).toEqual([true, undefined]);
+  });
+
+  it('layouts of another drawing: paper, frames and scales come over; a name taken here becomes the next LayoutN', () => {
+    const file = (name: string, paper: [number, number], viewports: { x: number; y: number; w: number; h: number; cx: number; cy: number; vh: number; locked: boolean; on: boolean }[]) =>
+      ({ name, tab: 1, paper, margins: [0, 0, 0, 0] as [number, number, number, number], at: [0, 0] as [number, number], mm_per_unit: 1, viewports, origin: [0, 0] as [number, number], segs: new Float32Array(0), segColors: new Uint32Array(0), segLayers: new Uint16Array(0), texts: [], layers: [] });
+    // A1 with a plan at 1:100 (a drawing in metres: 5.74 m of model in 574 mm) and a viewport that is off.
+    const a1 = templateFromFileLayout('A1 Lighting', file('A1 Lighting', [841, 594], [
+      { x: 20, y: 10, w: 600, h: 574, cx: 0, cy: 0, vh: 57.4, locked: true, on: true }, { x: 700, y: 10, w: 100, h: 100, cx: 0, cy: 0, vh: 10, locked: false, on: false }
+    ]), 1000);
+    expect(a1).toMatchObject({ name: 'A1 Lighting', paper: [841, 594], size: 'A1' });
+    expect(a1.viewports).toHaveLength(1);
+    expect(a1.viewports[0].scale).toBe(100);
+    // A layout the file gives no paper for: A3, as it is shown.
+    const blank = templateFromFileLayout('Layout1', file('Layout1', [0, 0], []), 1000);
+    expect(blank).toMatchObject({ paper: [420, 297], viewports: [] });
+    // Brought into a drawing in millimetres that already has a Layout1.
+    const made = layoutsFromTemplates([a1, blank, { ...blank, name: 'a1 lighting' }], ['Layout1', 'Layout2'], [0, 0, 30000, 20000], 1);
+    expect(made.map((l) => l.name)).toEqual(['A1 Lighting', 'Layout3', 'Layout4']);
+    expect(made[0].paper).toEqual([841, 594]);
+    expect(made[0].viewports[0]).toMatchObject({ x: 20, y: 10, w: 600, h: 574, cx: 15000, cy: 10000 });
+    expect(viewportScaleN(made[0].viewports[0], 1)).toBe(100);
+    expect(made[1].viewports).toEqual([]);
   });
 
   it('a plan sheet template on a layout of the drawing stays inside the margin', () => {

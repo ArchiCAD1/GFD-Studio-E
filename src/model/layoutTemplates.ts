@@ -2,7 +2,9 @@ import { pushLibrary } from '../database/librarySync';
 import { drawingAreaMm, layoutExtent, layoutPaper, layoutViewports, planScale } from '../docs/planLayout';
 import { SHEET_MM } from '../docs/sldSheet';
 import type { Project } from '../types';
-import { fitScale, VIEWPORT_INSET_MM, type DrawingLayout } from './drawingLayouts';
+import type { FileLayout } from '../engines/cad/cadEngine';
+import { fitScale, nextLayoutName, VIEWPORT_INSET_MM, type DrawingLayout } from './drawingLayouts';
+import { paperOf } from './fileLayouts';
 import type { DrawingSheet, PlanType, SheetSize } from './drawingSet';
 import type { PlanViewport } from './planViewports';
 import { setupsOf, sheetWithSetup } from './plotSetup';
@@ -104,12 +106,21 @@ export function templateFromSheet(p: Project, s: DrawingSheet, name: string, now
 }
 
 /** A layout of the drawing (made with +, or the file's own) as a template: frames in mm from the paper's lower left corner, with their scales. */
-export function templateFromPaper(name: string, paper: [number, number], vps: { x: number; y: number; w: number; h: number; scale?: number }[], now = new Date()): LayoutTemplate {
+export function templateFromPaper(name: string, paper: [number, number], vps: { x: number; y: number; w: number; h: number; scale?: number; frame?: boolean }[], now = new Date()): LayoutTemplate {
   const [pw, ph] = paper, I = VIEWPORT_INSET_MM, aw = pw - 2 * I, ah = ph - 2 * I;
   return {
     id: newId(now), name: name.trim(), savedAt: now.toISOString(), paper, size: sizeOfPaper(paper),
-    viewports: vps.map((v) => ({ box: [r4((v.x - I) / aw), r4((ph - (v.y + v.h) - I) / ah), r4(v.w / aw), r4(v.h / ah)] as [number, number, number, number], ...(v.scale && v.scale > 0 ? { scale: v.scale } : {}) }))
+    viewports: vps.map((v) => ({ box: [r4((v.x - I) / aw), r4((ph - (v.y + v.h) - I) / ah), r4(v.w / aw), r4(v.h / ah)] as [number, number, number, number], ...(v.scale && v.scale > 0 ? { scale: v.scale } : {}), ...(v.frame ? { frame: true } : {}) }))
   };
+}
+
+/** A drawing file's own layout as a template: its paper (A3 when the file does not say), the frames of its viewports that are on and their scales (mmPerDrawingUnit: model mm per drawing unit of that file). */
+export function templateFromFileLayout(name: string, l: FileLayout, mmPerDrawingUnit: number, now = new Date()): LayoutTemplate {
+  const g = paperOf(l), k = l.mm_per_unit > 0 ? l.mm_per_unit : 1;
+  return templateFromPaper(name, [g.w, g.h], l.viewports.filter((v) => v.on && v.w > 0 && v.h > 0).map((v) => {
+    const [x, y] = g.mm(v.x, v.y), sc = Math.round((v.vh * mmPerDrawingUnit) / (v.h * k));
+    return { x, y, w: v.w * k, h: v.h * k, scale: sc > 0 ? sc : undefined };
+  }), now);
 }
 
 /** A new layout of the drawing from a template: its paper and frames; each viewport centred on the drawing at the template's scale, or the scale the drawing fits at. */
@@ -121,9 +132,19 @@ export function drawingLayoutFromTemplate(t: LayoutTemplate, name: string, ext: 
     viewports: t.viewports.map((v) => {
       const w = r1(v.box[2] * aw), h = r1(v.box[3] * ah), x = r1(I + v.box[0] * aw), y = r1(ph - I - (v.box[1] + v.box[3]) * ah);
       const n = v.scale && v.scale > 0 ? v.scale : fitScale(ext, w, h, mmPerUnit);
-      return { x, y, w, h, cx: ok ? (ext[0] + ext[2]) / 2 : 0, cy: ok ? (ext[1] + ext[3]) / 2 : 0, vh: (h * n) / mpu };
+      return { x, y, w, h, cx: ok ? (ext[0] + ext[2]) / 2 : 0, cy: ok ? (ext[1] + ext[3]) / 2 : 0, vh: (h * n) / mpu, ...(v.frame ? { frame: true } : {}) };
     })
   };
+}
+
+/** Layouts brought in from another drawing (each as a template, named as it is there) for this drawing: a name already taken here (any case) becomes the next free LayoutN. */
+export function layoutsFromTemplates(list: LayoutTemplate[], taken: string[], ext: [number, number, number, number], mmPerUnit: number): DrawingLayout[] {
+  const names = [...taken];
+  return list.map((t) => {
+    const want = t.name.trim(), name = want && !names.some((n) => n.toLowerCase() === want.toLowerCase()) ? want : nextLayoutName(names);
+    names.push(name);
+    return drawingLayoutFromTemplate(t, name, ext, mmPerUnit);
+  });
 }
 
 /** A plan sheet (already in the project) given a template: its size, viewports (centred on the level, at the template's scales, the first one's as the sheet's scale) and tables. With a page setup of the template's name in the project, the sheet follows it. */
