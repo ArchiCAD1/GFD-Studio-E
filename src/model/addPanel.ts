@@ -5,8 +5,7 @@ import type { Board, BoardKind, Feeder, Project } from '../types';
 
 /** Adding a panel with a chosen id: the core of the add_panel tool (headless/editTools.ts) and of Push to load schedule (sheets). */
 
-/** Busbar / main device rating by panel kind, A. */
-/** Board ratings for a new panel, as the diagram palette gives them (src/model/sldEdit.ts). */
+/** Board ratings for a new panel, A, as the diagram palette gives them (src/model/sldEdit.ts). */
 export const BOARD_RATING: Record<BoardKind, number> = { MC: 400, 'LV-ACB': 1600, MDB: 1600, 'LV-MDB': 1600, SMDB: 250, DB: 63, EDB: 63, MCC: 400, EMCC: 400, EMDB: 250, 'LV-EMDB': 800, FP: 250, UPS: 32 };
 
 export interface NewPanel { name?: string; ratedA?: number; lengthM?: number; location?: string; transformerKva?: number; impedancePct?: number }
