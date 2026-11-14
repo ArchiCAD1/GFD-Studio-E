@@ -15,10 +15,34 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.139', date: '2026-11-14',
+    version: '2.142', date: '2026-11-14',
     items: [
       { title: 'Design CAD: text at its real height', text: 'Text in an opened drawing is drawn with its capitals at the height the drawing gives, as other CAD programs show it. Text fitted to a width, as in drawings exported from the SLD, no longer looks squashed, and it keeps its shape when you zoom in close.' },
       { title: 'Design CAD: text stays visible zoomed out', text: 'Text too small to read when you zoom out shows as a faint bar where its words are, as in other CAD programs, instead of disappearing. This covers the opened drawing, your own text and notes, and a file\'s layouts.' }
+    ]
+  },
+  {
+    version: '2.140', date: '2026-11-14',
+    items: [
+      { title: 'Sheets: push an existing schedule to the load schedule', text: 'Open an existing Excel DB schedule in Sheets and link its columns: Link columns then says how many rows of its own the sheet has and offers Push to load schedule. Push makes the panel under its Fed from board (and that board too, when it is not in the project) and one circuit for each row, so the Load schedule tab and the SLD follow. A circuit number such as R1 or Y2 sets the phase and way; a size left blank is sized by the rules and a typed one is kept; pushing the same schedule again updates its circuits. Use as a template only keeps just the layout.', action: 'sheets', actionLabel: 'Open Sheets' }
+    ]
+  },
+  {
+    version: '2.139', date: '2026-11-14',
+    items: [
+      { title: 'Load schedule: PDF in your own format', text: 'Export on the Load schedule tab has PDF: my format for the panel on screen, and PDF: my format, all panels for every panel that has a format of yours, one page each in one file. The page is your template as you laid it out, filled from the project, in black and white with its own borders and merged headings, on A4 landscape fitted to the page width.', action: 'sheets', actionLabel: 'Open Sheets' }
+    ]
+  },
+  {
+    version: '2.138', date: '2026-11-14',
+    items: [
+      { title: 'Sheets: the sheet tabs stay on one row', text: 'With many sheets the row of sheet names under the grid no longer grows line after line: it stays one row that scrolls sideways and keeps the shown sheet in view, a long name is shortened, and with more than eight sheets a list beside it jumps straight to one.', action: 'sheets', actionLabel: 'Open Sheets' }
+    ]
+  },
+  {
+    version: '2.137', date: '2026-11-14',
+    items: [
+      { title: 'Sheets: your own schedules for MDB, SMDB and MCC', text: 'Link columns now asks whether a sheet is a DB schedule or a panel schedule. A panel schedule has one row per outgoing feeder: name, device, rating, cable, load per phase, TCL and MDL fill from the project, and what you type — or a new feeder row — goes back with Apply to project. My formats keeps panel layouts too, and a project can use a different format for its DBs, SMDBs, MDBs and MCCs, chosen with the new project or in My formats. Export → Open in my format works on a panel\'s form as well.', action: 'sheets', actionLabel: 'Open Sheets' }
     ]
   },
   {

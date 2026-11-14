@@ -12,7 +12,7 @@ const noop = () => {};
 const scheduleActions = (over: Partial<Schedule> = {}): Schedule => ({
   form: 'db', grid: true, board: true, prevBoard: 'MDB-1', nextBoard: 'SMDB-FF', onBoardStep: vi.fn(), fails: 0, warns: 0, onCheck: vi.fn(), onDuplicate: vi.fn(),
   onAddCircuit: vi.fn(), onAddSpare: vi.fn(), onAddTransformer: vi.fn(), onFormDetails: vi.fn(), row: undefined, onFillDown: vi.fn(), onEditRow: vi.fn(), onDeleteRow: vi.fn(),
-  canBalance: true, imbalancePct: 12, onBalance: vi.fn(), onCopy: vi.fn(), onPaste: vi.fn(), exporting: false, onExport: vi.fn(), sheetFormat: false, onOpenSheet: vi.fn(), ...over
+  canBalance: true, imbalancePct: 12, onBalance: vi.fn(), onCopy: vi.fn(), onPaste: vi.fn(), exporting: false, onExport: vi.fn(), sheetFormat: false, sheetFormats: false, onOpenSheet: vi.fn(), ...over
 });
 const actions = (over: Partial<RibbonActions> = {}): RibbonActions => ({
   view: 'load-schedule', onView: noop, tool: 'select', onTool: noop, boardId: 'DB-GF1', selectedFeederId: null, selection: { kind: 'board', id: 'DB-GF1' },
@@ -226,7 +226,7 @@ describe('the Load schedule tab', () => {
     click(tool('Export'));
     expect(s.onExport).toHaveBeenLastCalledWith('excel');
     click(arrow('Export'));
-    expect(items().map((b) => b.textContent)).toEqual(['Excel: this form', 'PDF: this form', 'CSV', 'Submission pack (Excel)', 'My Excel template…', 'Open in my format', 'Form details…']);
+    expect(items().map((b) => b.textContent)).toEqual(['Excel: this form', 'PDF: this form', 'CSV', 'Submission pack (Excel)', 'My Excel template…', 'Open in my format', 'PDF: my format', 'PDF: my format, all panels', 'Form details…']);
     expect(item('Submission pack (Excel)').previousElementSibling?.tagName).toBe('HR');
     for (const [label, kind] of [['Excel: this form', 'excel'], ['PDF: this form', 'pdf'], ['CSV', 'csv'], ['Submission pack (Excel)', 'pack'], ['My Excel template…', 'template']] as const) {
       if (!items().length) click(arrow('Export'));
@@ -237,23 +237,67 @@ describe('the Load schedule tab', () => {
     expect(item('Form details…') ?? null).toBeNull(); // the panel closed after the last pick
   });
 
-  it('Open in my format needs the DB form and a format, then opens the DB as a sheet', () => {
+  it('Open in my format needs a board\'s form and a format, then opens the board as a sheet', () => {
     let s = show();
     click(arrow('Export'));
     expect(item('Open in my format').disabled).toBe(true);
-    expect(item('Open in my format').title).toBe('Choose a DB format in Sheets → My formats first');
+    expect(item('Open in my format').title).toBe('Choose a format for this panel in Sheets → My formats first');
     click(arrow('Export'));
     s = show({ grid: false, form: 'riser' });
     click(arrow('Export'));
-    expect(item('Open in my format').title).toBe('On the DB load schedule form');
+    expect(item('Open in my format').title).toBe('On a board\'s form');
     click(arrow('Export'));
     s = show({ sheetFormat: true });
     click(arrow('Export'));
     expect(item('Open in my format').disabled).toBe(false);
-    expect(item('Open in my format').title).toBe('This DB as a sheet in your own format, in Sheets');
+    expect(item('Open in my format').title).toBe('This panel as a sheet in your own format, in Sheets');
     click(item('Open in my format'));
     expect(s.onOpenSheet).toHaveBeenCalledTimes(1);
     expect(s.onExport).not.toHaveBeenCalled();
+  });
+
+  it('PDF: my format follows Open in my format, PDF: my format, all panels needs a panel with a format, and each exports its kind', () => {
+    let s = show({ sheetFormat: false, sheetFormats: false });
+    click(arrow('Export'));
+    expect(item('PDF: my format').disabled).toBe(true);
+    expect(item('PDF: my format').title).toBe('Choose a format for this panel in Sheets → My formats first');
+    expect(item('PDF: my format, all panels').disabled).toBe(true);
+    expect(item('PDF: my format, all panels').title).toBe('Every panel that has a format of yours, one page each, in one PDF');
+    click(arrow('Export'));
+    s = show({ sheetFormat: false, sheetFormats: true });
+    click(arrow('Export'));
+    expect(item('PDF: my format').disabled).toBe(true);
+    expect(item('PDF: my format, all panels').disabled).toBe(false);
+    click(item('PDF: my format, all panels'));
+    expect(s.onExport).toHaveBeenLastCalledWith('myPdfAll');
+    s = show({ sheetFormat: true, sheetFormats: true });
+    click(arrow('Export'));
+    expect(item('PDF: my format').disabled).toBe(false);
+    expect(item('PDF: my format').title).toBe('This panel as a PDF in your own format');
+    click(item('PDF: my format'));
+    expect(s.onExport).toHaveBeenLastCalledWith('myPdf');
+    s = show({ grid: false, form: 'tx', sheetFormat: true, sheetFormats: true });
+    click(arrow('Export'));
+    expect(item('PDF: my format').disabled).toBe(true);
+    expect(item('PDF: my format').title).toBe('On a board\'s form');
+  });
+
+  it('Open in my format works on a panel\'s form with a format, and is off on the TCL summary', () => {
+    let s = show({ grid: false, form: 'md' });
+    click(arrow('Export'));
+    expect(item('Open in my format').disabled).toBe(true);
+    expect(item('Open in my format').title).toBe('Choose a format for this panel in Sheets → My formats first');
+    click(arrow('Export'));
+    s = show({ grid: false, form: 'md', sheetFormat: true });
+    click(arrow('Export'));
+    expect(item('Open in my format').disabled).toBe(false);
+    expect(item('Open in my format').title).toBe('This panel as a sheet in your own format, in Sheets');
+    click(item('Open in my format'));
+    expect(s.onOpenSheet).toHaveBeenCalledTimes(1);
+    s = show({ grid: false, form: 'tx', sheetFormat: true });
+    click(arrow('Export'));
+    expect(item('Open in my format').disabled).toBe(true);
+    expect(item('Open in my format').title).toBe('On a board\'s form');
   });
 
   it('says Exporting… and greys Export while one runs', () => {

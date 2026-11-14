@@ -4,7 +4,7 @@ import { sampleProject } from '../data/sampleProject';
 import { addSpareWay, isDbBoard } from '../model/spareWays';
 import { newSheet, withCells, withStyle, mergeArea, area, type Sheet, type SheetLink } from '../model/sheets';
 import type { Project } from '../types';
-import { fillLinked, linkAt, linkBoards, linkFromPlaceholders, linkNeeds, linkToBoard, LINK_FIELDS, removeLink, setFirstRow, setLinkCell, setLinkColumn, sheetsForBoards, startLink, suggestLink, addCircuitRow, discardPending, pendingCount, typeLinked, typeRefusal, templateOf, sheetFromFormat, boardSheet, linkFields, linkLabel } from './sheetLink';
+import { fillLinked, linkAt, linkBoards, linkFromPlaceholders, linkNeeds, linkToBoard, LINK_FIELDS, removeLink, setFirstRow, setLinkCell, setLinkColumn, sheetsForBoards, startLink, suggestLink, addCircuitRow, discardPending, pendingCount, typeLinked, typeRefusal, templateOf, sheetFromFormat, boardSheet, linkFields, linkLabel, panelCategoryOf, ownRows, asTemplate, pushTarget } from './sheetLink';
 import { withProjectFormat } from '../model/scheduleFormats';
 import { deleteOutgoingFeeder } from '../model/mdFeeders';
 import { panelData, panelRowKeys } from './panelFields';
@@ -428,12 +428,12 @@ describe('boardSheet', () => {
   it('finds the first sheet of the book linked to the board', () => {
     const linked = { ...layout(), id: 'S7', name: 'Mine' };
     const p: Project = { ...project, sheets: { sheets: [newSheet(), linked, { ...linked, id: 'S8', name: 'Other' }] } };
-    const r = boardSheet(withProjectFormat(p, format), 'DB-GF1')!;
+    const r = boardSheet(withProjectFormat(p, 'db', format), 'DB-GF1')!;
     expect(r.sheetId).toBe('S7');
     expect(r.project.sheets!.sheets).toHaveLength(3);
   });
   it('makes a sheet from the project\'s format when there is none, and it holds that board\'s circuits', () => {
-    const p = withProjectFormat(project, format);
+    const p = withProjectFormat(project, 'db', format);
     const r = boardSheet(p, 'DB-GF1')!;
     expect(r.project.sheets!.sheets).toHaveLength(1);
     const made = r.project.sheets!.sheets[0];
@@ -564,9 +564,28 @@ describe('panel schedules (category md)', () => {
     expect(ff.link!.rows).toEqual(panelRowKeys(sampleProject, 'SMDB-FF'));
   });
 
+  it('panelCategoryOf: a DB, an MDB (kWh metering), an SMDB and an MCC', () => {
+    const of = (id: string) => panelCategoryOf(sampleProject, sampleProject.boards.find((b) => b.id === id)!);
+    expect(['DB-GF1', 'MDB-1', 'SMDB-GF', 'SMDB-FF', 'MCC-1'].map(of)).toEqual(['db', 'mdb', 'smdb', 'smdb', 'mcc']);
+    expect(panelCategoryOf(sampleProject, { ...sampleProject.boards[0], id: 'GONE' })).toBeUndefined();
+  });
+
+  it('boardSheet makes a panel sheet from the project\'s format for its category, and not from another category\'s', () => {
+    const tpl = templateOf(mdFill())!, panel = { id: 'f2', name: 'Office panel', category: 'md' as const, sheet: tpl, updatedAt: '2026-11-14' };
+    const dbFormat = { id: 'f1', name: 'Office DB', category: 'db' as const, sheet: templateOf(fillLinked(project, sums(), AT))!, updatedAt: '2026-11-14' };
+    const p = withProjectFormat(withProjectFormat(sampleProject, 'db', dbFormat), 'smdb', panel);
+    const r = boardSheet(p, 'SMDB-GF')!, made = r.project.sheets!.sheets[0];
+    expect([made.link!.category, made.link!.boardId, made.name]).toEqual(['md', 'SMDB-GF', 'SMDB-GF']);
+    expect(fillLinked(r.project, made, AT).link!.rows).toEqual(panelRowKeys(sampleProject, 'SMDB-GF'));
+    expect(boardSheet(p, 'MDB-1')).toBeUndefined();
+    expect(boardSheet(p, 'MCC-1')).toBeUndefined();
+    expect(boardSheet(p, 'DB-GF1')!.project.sheets!.sheets[0].link!.category).toBe('db');
+    expect(boardSheet(withProjectFormat(sampleProject, 'smdb', panel), 'DB-GF1')).toBeUndefined();
+  });
+
   it('boardSheet does not put the project\'s DB format on a panel, but finds a panel sheet', () => {
     const dbFormat = { id: 'f1', name: 'Office DB', category: 'db' as const, sheet: templateOf(fillLinked(project, sums(), AT))!, updatedAt: '2026-11-14' };
-    const p = withProjectFormat(sampleProject, dbFormat);
+    const p = withProjectFormat(sampleProject, 'db', dbFormat);
     expect(boardSheet(p, 'SMDB-GF')).toBeUndefined();
     expect(boardSheet(p, 'DB-GF1')).toBeDefined();
     const linked = { ...mdSheet(), id: 'S9', name: 'Panel' };
@@ -576,3 +595,50 @@ describe('panel schedules (category md)', () => {
 
 /** Column letters of a 0-based index below 26. */
 const colLetters = (i: number) => String.fromCharCode(65 + i);
+
+describe('rows an opened schedule already holds', () => {
+  /** An office layout with three typed rows, linked by hand: the panel number and the Fed from in the header. */
+  const opened = (extra: Record<string, string> = {}): Sheet => suggestLink(sheet({
+    A1: 'PANEL SCHEDULE', A2: 'PANEL', B2: 'DB-NEW', C2: 'FED FROM: SMDB-GF',
+    A5: 'CKT', B5: 'PH', C5: 'DESCRIPTION', D5: 'LOAD (W)', E5: 'MCB (A)', F5: 'CABLE (mm²)', J5: 'REMARKS',
+    A6: 'R1', C6: 'Hall lights', D6: '1200', E6: '10', A7: 'Y1', C7: 'Hall sockets', D7: '2400', A8: 'B1', C8: 'Store', D8: '600', ...extra
+  }))!;
+
+  it('ownRows counts the rows with text in a linked column, and stops at a blank row or a TOTAL row', () => {
+    expect(ownRows(opened())).toBe(3);
+    expect(ownRows(opened({ A9: 'R2', C9: 'After the gap' }))).toBe(4);
+    expect(ownRows(opened({ C8: '', D8: '', A8: '', A9: 'R2', C9: 'Past the gap' }))).toBe(2);
+    expect(ownRows(opened({ A8: 'TOTAL', C8: '', D8: '4200' }))).toBe(2);
+    expect(ownRows(opened({ F8: 'total load' }))).toBe(2);
+    expect(ownRows(opened({ K6: 'note' }))).toBe(3); // text outside the linked columns does not count
+  });
+
+  it('ownRows is 0 without a link, once filled, and for a blank pattern row', () => {
+    expect(ownRows(sheet({ A1: 'x' }))).toBe(0);
+    expect(ownRows(fillLinked(project, linkToBoard(opened(), 'DB-GF1'), AT))).toBe(0);
+    expect(ownRows(suggestLink(sheet({ A5: 'CKT', B5: 'PH', C5: 'DESCRIPTION', D5: 'LOAD (W)' }))!)).toBe(0);
+    const own = setLinkColumn(opened(), 'K', 'own');
+    expect(ownRows(withCells(own, { C6: '', D6: '', E6: '', A6: '', C7: '', D7: '', A7: '', C8: '', D8: '', A8: '', K6: 'only own' }))).toBe(0);
+  });
+
+  it('pushTarget reads the panel number and the board above from the linked cells', () => {
+    const s = opened();
+    expect(s.cells.C2).toBe('FED FROM: SMDB-GF'); // a sheet with rows of its own keeps the values it is linked over
+    expect(pushTarget(project, s)).toEqual({ id: 'DB-NEW', exists: false, fedFrom: 'SMDB-GF', parentExists: true });
+    expect(pushTarget(project, withCells(s, { B2: ' db-gf1 ', C2: 'FED FROM: NOPE-9' }))).toEqual({ id: 'db-gf1', exists: true, fedFrom: 'NOPE-9', parentExists: false });
+    expect(pushTarget(project, withCells(s, { C2: 'FED FROM: ' }))).toEqual({ id: 'DB-NEW', exists: false, fedFrom: '', parentExists: false });
+    expect(pushTarget(project, withCells(s, { B2: '' }))).toBeUndefined();
+    expect(pushTarget(project, sheet({ B2: 'DB-X' }))).toBeUndefined();
+    expect(pushTarget(project, setLinkCell(s, 'B2', undefined))).toBeUndefined();
+  });
+
+  it('asTemplate removes the own rows, blanks the pattern row and the linked cells, and keeps the id, name and source', () => {
+    const s = { ...opened(), id: 'S5', name: 'Mine', source: 'office.xlsx' }, t = asTemplate(s);
+    expect([t.id, t.name, t.source]).toEqual(['S5', 'Mine', 'office.xlsx']);
+    expect(t.link).toEqual({ ...s.link!, rows: [], boardId: undefined, cells: { ...s.link!.cells } });
+    expect(t.cells).toEqual({ A1: 'PANEL SCHEDULE', A2: 'PANEL', C2: 'FED FROM: ', A5: 'CKT', B5: 'PH', C5: 'DESCRIPTION', D5: 'LOAD (W)', E5: 'MCB (A)', F5: 'CABLE (mm²)', J5: 'REMARKS' });
+    expect(ownRows(t)).toBe(0);
+    expect(fillLinked(project, linkToBoard(t, 'DB-GF1'), AT).link!.rows).toEqual(scheduleRowKeys(project, 'DB-GF1'));
+    expect(asTemplate(s).link!.firstRow).toBe(6);
+  });
+});

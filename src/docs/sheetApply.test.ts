@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import { addSpareWay } from '../model/spareWays';
-import { newSheet, type Sheet } from '../model/sheets';
+import { newSheet, withCells, type Sheet } from '../model/sheets';
 import type { Project } from '../types';
-import { applyLinked, pendingMarks } from './sheetApply';
-import { addCircuitRow, fillLinked, typeLinked } from './sheetLink';
+import { applyLinked, pendingMarks, pushRows } from './sheetApply';
+import { addCircuitRow, fillLinked, ownRows, setLinkColumn, suggestLink, typeLinked } from './sheetLink';
 import { panelData, panelRowKeys } from './panelFields';
 import { scheduleRowKeys, templateData } from './scheduleFields';
 
@@ -223,5 +223,109 @@ describe('applyLinked — panel schedules', () => {
   it('pendingMarks gives pending, and refused with the reason', () => {
     const s = typed(sampleProject, shown(sampleProject, panel('MCC-1')), { L6: 'ok', H7: '3' });
     expect(pendingMarks(sampleProject, s)).toEqual({ L6: { kind: 'pending', text: 'Typed, not applied yet' }, H7: { kind: 'refused', text: '"3" is not a cable size from the cable table' } });
+  });
+});
+
+describe('pushRows', () => {
+  /** An opened schedule: panel number in B2, Fed from in C2, headings in row 5, rows from 6; column G is your own. */
+  const opened = (panelId: string, fed: string, rows: string[][], extra: Record<string, string> = {}): Sheet => {
+    const cells: Record<string, string> = { A1: 'PANEL SCHEDULE', A2: 'PANEL', B2: panelId, C2: `FED FROM: ${fed}`, A5: 'CKT', B5: 'DESCRIPTION', C5: 'LOAD (W)', D5: 'MCB (A)', E5: 'CABLE (mm²)', F5: 'REMARKS', ...extra };
+    rows.forEach((r, i) => r.forEach((t, c) => { if (t) cells[`${'ABCDEF'[c]}${6 + i}`] = t; }));
+    return setLinkColumn(suggestLink(withCells(newSheet(), cells))!, 'G', 'own');
+  };
+  const on = (p: Project, id: string) => p.feeders.filter((f) => f.boardId === id && f.phase);
+
+  it('rows into an existing DB: a free way is added, a way that is a circuit is updated, and the counts say so', () => {
+    const W = Math.max(...sampleProject.feeders.filter((f) => f.boardId === 'DB-GF1' && f.way).map((f) => f.way!)) + 1;
+    const s = opened('DB-GF1', 'SMDB-GF', [['R1', 'Hall (new text)', '', '', '', 'checked'], [`R${W}`, 'Roof lights', '900', '10'], [`Y${W}`, 'Roof sockets', '1500', '20', '4']]);
+    expect(ownRows(s)).toBe(3);
+    const r = pushRows(sampleProject, s);
+    expect(r).toMatchObject({ added: 2, updated: 1, made: [], rejected: [] });
+    expect(feeder(r.project, 'DB-GF1-R1')).toMatchObject({ room: 'Hall (new text)', remarks: 'checked' });
+    expect(feeder(r.project, `DB-GF1-R${W}`)).toMatchObject({ room: 'Roof lights', breakerRatingA: 10, manualSize: true });
+    expect(feeder(r.project, `DB-GF1-Y${W}`)).toMatchObject({ room: 'Roof sockets', cableCsaMm2: 4 });
+    expect(r.project.boards).toBe(sampleProject.boards);
+    expect(r.sheet.link!.boardId).toBe('DB-GF1');
+    expect(r.sheet.link!.rows).toEqual(['DB-GF1-R1', `DB-GF1-R${W}`, `DB-GF1-Y${W}`]);
+  });
+
+  it('a new panel id under an existing SMDB: the panel and its incomer exist, and the schedule holds the pushed circuits', () => {
+    const s = opened('DB-NEW', 'SMDB-GF', [['R1', 'Lights', '1200'], ['Y1', 'Sockets', '2400'], ['B1', 'Store', '600']]);
+    const r = pushRows(sampleProject, s);
+    expect(r).toMatchObject({ added: 3, updated: 0, made: ['DB-NEW'], rejected: [] });
+    expect(r.project.boards.find((b) => b.id === 'DB-NEW')).toMatchObject({ kind: 'DB', upstreamId: 'SMDB-GF' });
+    expect(r.project.feeders.find((f) => f.feedsBoardId === 'DB-NEW')).toMatchObject({ boardId: 'SMDB-GF' });
+    expect(scheduleRowKeys(r.project, 'DB-NEW')).toEqual(['DB-NEW-R1', 'DB-NEW-Y1', 'DB-NEW-B1']);
+    expect(templateData(r.project, 'DB-NEW').rows.map((x) => x['row.watts'])).toEqual([1200, 2400, 600]);
+    expect(sampleProject.boards.some((b) => b.id === 'DB-NEW')).toBe(false);
+  });
+
+  it('a Fed from that is not in the project is made first, as a supply of the kind its name says', () => {
+    const r = pushRows(sampleProject, opened('DB-N2', 'SMDB-X', [['R1', 'Lights', '1200']]));
+    expect(r.made).toEqual(['SMDB-X', 'DB-N2']);
+    expect(r.project.boards.find((b) => b.id === 'SMDB-X')).toMatchObject({ kind: 'SMDB' });
+    expect(r.project.boards.find((b) => b.id === 'SMDB-X')!.upstreamId).toBeUndefined();
+    expect(r.project.boards.find((b) => b.id === 'DB-N2')!.upstreamId).toBe('SMDB-X');
+    expect(pushRows(sampleProject, opened('DB-N3', 'MCC-9', [['R1', 'Lights', '1200']])).project.boards.find((b) => b.id === 'MCC-9')!.kind).toBe('MCC');
+    expect(pushRows(sampleProject, opened('DB-N3', 'MDB-9', [['R1', 'Lights', '1200']])).project.boards.find((b) => b.id === 'MDB-9')!.kind).toBe('MDB');
+    expect(pushRows(sampleProject, opened('DB-N3', 'MC-9', [['R1', 'Lights', '1200']])).project.boards.find((b) => b.id === 'MC-9')!.kind).toBe('MC');
+    const none = pushRows(sampleProject, opened('DB-N4', '', [['R1', 'Lights', '1200']]));
+    expect(none.made).toEqual(['DB-N4']);
+    expect(none.project.boards.find((b) => b.id === 'DB-N4')!.upstreamId).toBeUndefined();
+  });
+
+  it('a row with no description and no load is rejected and kept as an added row; the others are pushed', () => {
+    const s = opened('DB-NEW', 'SMDB-GF', [['R1', 'Lights', '1200'], ['Y1', '', '', '16', '', 'orphan'], ['B1', 'Store', '600']], { G7: 'my note' });
+    const r = pushRows(sampleProject, s);
+    expect(r).toMatchObject({ added: 2, updated: 0, rejected: ['Row 7: give a description or a load'] });
+    expect(r.sheet.link!.rows).toEqual(['DB-NEW-R1', 'DB-NEW-B1', 'new:0']);
+    expect(r.sheet.link!.added).toEqual([{ D: '16', F: 'orphan' }]);
+    const f = fillLinked(r.project, r.sheet);
+    expect(f.link!.rows).toEqual(['DB-NEW-R1', 'DB-NEW-B1', 'new:0']);
+    expect([f.cells.D8, f.cells.F8, f.cells.G8]).toEqual(['16', 'orphan', 'my note']);
+    expect(pendingMarks(r.project, f)).toMatchObject({ D8: { kind: 'refused' }, F8: { kind: 'refused' } });
+  });
+
+  it('a value the table refuses stops its row and gives the cell; a blank MCB and cable are sized, typed ones kept', () => {
+    const r = pushRows(sampleProject, opened('DB-NEW', 'SMDB-GF', [['R1', 'Lights', '1200', '', ''], ['Y1', 'Sockets', '2400', '25', '6'], ['B1', 'Bad cable', '300', '', '3']]));
+    expect(r).toMatchObject({ added: 2, rejected: ['E8: "3" is not a valid cable size'] });
+    const [a, b] = [feeder(r.project, 'DB-NEW-R1'), feeder(r.project, 'DB-NEW-Y1')];
+    expect(a.manualSize).toBeFalsy();
+    expect(a.breakerRatingA).toBeGreaterThan(0);
+    expect(b).toMatchObject({ breakerRatingA: 25, cableCsaMm2: 6, manualSize: true });
+    expect(r.project.feeders.some((f) => f.id === 'DB-NEW-B1')).toBe(false);
+    expect(r.sheet.link!.added).toEqual([{ B: 'Bad cable', C: '300', E: '3' }]);
+  });
+
+  it('after the push the next fill shows one row per circuit of the panel, and your own text stays beside its circuit', () => {
+    const s = opened('DB-NEW', 'SMDB-GF', [['Y1', 'Sockets', '2400'], ['R1', 'Lights', '1200']], { G6: 'sockets note', G7: 'lights note' });
+    const r = pushRows(sampleProject, s), f = fillLinked(r.project, r.sheet);
+    expect(f.link!.rows).toEqual(scheduleRowKeys(r.project, 'DB-NEW'));
+    expect(f.link!.rows).toEqual(['DB-NEW-R1', 'DB-NEW-Y1']);
+    expect([f.cells.B6, f.cells.G6, f.cells.B7, f.cells.G7]).toEqual(['Lights', 'lights note', 'Sockets', 'sockets note']);
+    expect(f.cells.B2).toBe('DB-NEW');
+  });
+
+  it('pushing the same sheet again adds nothing and updates the same circuits; rows without a reference match by description', () => {
+    const s = opened('DB-NEW', 'SMDB-GF', [['R1', 'Lights', '1200'], ['Y1', 'Sockets', '2400']]);
+    const first = pushRows(sampleProject, s), again = pushRows(first.project, s);
+    expect(again).toMatchObject({ added: 0, updated: 2, made: [], rejected: [] });
+    expect(again.project.feeders.map((f) => f.id)).toEqual(first.project.feeders.map((f) => f.id));
+    const bare = opened('DB-N5', 'SMDB-GF', [['', 'Corridor', '500'], ['', 'Stair', '700'], ['', 'Stair', '800']]);
+    const one = pushRows(sampleProject, bare);
+    expect(one).toMatchObject({ added: 3, updated: 0 });
+    expect(on(one.project, 'DB-N5').map((f) => f.room)).toEqual(['Corridor', 'Stair', 'Stair']);
+    const two = pushRows(one.project, bare);
+    expect([two.added, two.updated]).toEqual([2, 1]); // two circuits are called Stair, so neither Stair row is told from them and each adds one
+  });
+
+  it('a way that is taken by another phase is rejected, and no panel number changes nothing', () => {
+    const r = pushRows(sampleProject, opened('DB-NEW', 'SMDB-GF', [['R1', 'Lights', '1200'], ['RYB1', 'Three-phase', '3000']]));
+    expect(r).toMatchObject({ added: 1, rejected: ['Row 7: RYB1 is already used on DB-NEW'] });
+    const noId = opened('DB-NEW', 'SMDB-GF', [['R1', 'Lights', '1200']]);
+    const bad = pushRows(sampleProject, withCells(noId, { B2: '' }));
+    expect(bad).toMatchObject({ added: 0, updated: 0, made: [], rejected: ['Link the cell that holds the panel number first.'] });
+    expect([bad.project, bad.sheet]).toEqual([sampleProject, withCells(noId, { B2: '' })]);
+    expect(bad.project).toBe(sampleProject);
   });
 });

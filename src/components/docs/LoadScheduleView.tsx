@@ -1,4 +1,5 @@
 import { ask } from '../ConfirmDialog';
+import { panelCategoryOf } from '../../docs/sheetLink';
 import { projectFormat } from '../../model/scheduleFormats';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supplyChain } from '../../model/transformers';
@@ -16,6 +17,7 @@ import { isFail, isProblem, nextProblemBoard, problemRows, rowFixes, rowReasons,
 import { saveBinary, saveCsv, savePdf, safeFileName } from '../../util/files';
 import { buildFormWorkbook, workbookBytes, type WorkbookScope } from '../../docs/formWorkbook';
 import { workbookHtml } from '../../docs/sheetPdf';
+import { formatSheetOf, formatSheetsOf, sheetsHtml } from '../../docs/sheetPrint';
 import { Page, STATUS_LABEL } from '../ui';
 import { applySheetEdits, buildDbSheet } from '../../docs/dbSheet';
 import { cellKey, type Pos } from '../grid/excelGrid';
@@ -62,7 +64,7 @@ export default function LoadScheduleView({
   onSettings: () => void;
   /** Tells the ribbon what the Load schedule tab's tools can do now (undefined when this page goes away). */
   onSchedule?: (s: RibbonActions['schedule']) => void;
-  /** Shows a board as a sheet in the project's DB format (Sheets); the ribbon's Open in my format. */
+  /** Shows a board as a sheet in the project's format for its panel category (Sheets); the ribbon's Open in my format. */
   onOpenSheet?: (boardId: string) => void;
 }) {
   const board = project.boards.find((b) => b.id === boardId) ?? project.boards[0];
@@ -241,7 +243,14 @@ export default function LoadScheduleView({
       onStatus(told);
     }
   };
-  const exportKind = async (kind: 'excel' | 'pdf' | 'csv' | 'pack' | 'template') => {
+  const exportKind = async (kind: 'excel' | 'pdf' | 'csv' | 'pack' | 'template' | 'myPdf' | 'myPdfAll') => {
+    if (kind === 'myPdf' || kind === 'myPdfAll') {
+      const one = kind === 'myPdf', mine = one ? formatSheetOf(project, board.id) : undefined, sheets = one ? (mine ? [mine] : []) : formatSheetsOf(project);
+      if (!sheets.length) { onStatus(one ? 'Choose a format for this panel in Sheets → My formats first.' : 'No panel of this project has a format yet: choose them in Sheets → My formats.'); return; }
+      const m = await savePdf(one ? `${safeFileName(board.id)}-schedule-my-format.pdf` : `${safeFileName(project.name)}-schedules-my-format.pdf`, sheetsHtml(sheets, one ? `${project.name} — ${board.id}` : project.name), { pageSize: 'A4', landscape: true, cssPages: true });
+      if (m) onStatus(one ? m : `${m} — ${sheets.length} panels`);
+      return;
+    }
     if (kind === 'excel') await exportExcel(...formScope());
     else if (kind === 'pack') await exportExcel({}, `${project.name} submission forms`);
     else if (kind === 'template') setTemplateOpen(true);
@@ -269,7 +278,7 @@ export default function LoadScheduleView({
   const substation = form === 'tx' ? txShown.substation : undefined;
   const imbalancePct = data.rows.length ? Math.round(data.imbalance) : undefined, canBalance = data.rows.length >= 2;
   const fails = onGrid ? problems.filter(isFail).length : 0, warns = onGrid ? problems.length - fails : 0;
-  const sheetFormat = !!projectFormat(project) || !!project.sheets?.sheets.some((s) => s.link?.boardId === board.id);
+  const category = panelCategoryOf(project, board), sheetFormat = !!(category && projectFormat(project, category)) || !!project.sheets?.sheets.some((s) => s.link?.boardId === board.id), sheetFormats = !!project.sheets?.sheets.some((s) => s.link?.boardId) || Object.keys(project.scheduleFormats ?? {}).length > 0;
   useEffect(() => {
     publish.current?.({
       form, grid: onGrid, row: rowRef, rowBlock, dupBlock, substation, canBalance, imbalancePct, exporting, board: onBoardForm, prevBoard, nextBoard, fails, warns,
@@ -278,9 +287,9 @@ export default function LoadScheduleView({
       onAddTransformer: (n) => tools.current.addTransformer(n), onFormDetails: () => tools.current.formDetails(),
       onFillDown: () => tools.current.fill(), onEditRow: () => tools.current.edit(), onDeleteRow: () => tools.current.remove(),
       onBalance: () => tools.current.balance(), onCopy: () => tools.current.copy(), onPaste: () => void tools.current.paste(),
-      onExport: (k) => void tools.current.exportKind(k), sheetFormat, onOpenSheet: () => tools.current.openSheet()
+      onExport: (k) => void tools.current.exportKind(k), sheetFormat, sheetFormats, onOpenSheet: () => tools.current.openSheet()
     });
-  }, [sheetFormat, form, onGrid, rowRef, rowBlock, dupBlock, substation, canBalance, imbalancePct, exporting, onBoardForm, prevBoard, nextBoard, fails, warns]);
+  }, [sheetFormat, sheetFormats, form, onGrid, rowRef, rowBlock, dupBlock, substation, canBalance, imbalancePct, exporting, onBoardForm, prevBoard, nextBoard, fails, warns]);
   useEffect(() => () => publish.current?.(undefined), []);
 
   return (
