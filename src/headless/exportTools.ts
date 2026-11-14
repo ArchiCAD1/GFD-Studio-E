@@ -23,7 +23,7 @@ import { estimateElv } from '../elv/estimate';
 import { elvLoadsPackage } from '../elv/package';
 import { elvInput, elvSettingsFor } from './elvTools';
 import type { Project } from '../types';
-import { openProject } from './project';
+import { openProject, PROJECT_FILE } from './project';
 import type { Tool, ToolContext } from './tools';
 import { realAgentDir } from './write';
 import { findFile, openToAppend, readFileWithin, realDirs, writeNewFile } from './safeFiles';
@@ -72,7 +72,7 @@ async function runExport(args: Record<string, unknown>, ctx: ToolContext, tool: 
   const planned = Array.isArray(made) ? undefined : made;
   const files = Array.isArray(made) ? made : made.files;
   if (!files.length) throw new Error('Nothing to export from this project.');
-  const stem = path.basename(file).replace(/\.json$/i, '');
+  const stem = path.basename(file).replace(PROJECT_FILE, '');
   const sub = ['Exports', safeFileName(stem), new Date().toISOString().slice(0, 10)];
   const dir = path.join(ctx.folder, ...sub);
   const problems = [
@@ -280,6 +280,14 @@ export const EXPORT_TOOLS: Tool[] = [
         return pages.map((pg) => ({ name: `${base}${pg.count > 1 ? `-${pg.index}` : ''}.dxf`, data: pg.data, about: `DXF, ${size}${pg.continuation ? ', continuation sheet' : ''}${pg.warnings.length ? ` — ${pg.warnings.join('; ')}` : ''}` }));
       }).flat();
     })
+  },
+  {
+    name: 'export_project_json',
+    title: 'Export the project as JSON',
+    description: 'The whole project as a plain .json file: the same data as the .lvds project file, for scripts and other programs (the app opens it too). Preview first; exporting needs approvedBy.',
+    input: { project, approvedBy, exportAnyway, mode },
+    usesProject: true, writes: true,
+    run: (a, ctx) => runExport(a, ctx, 'export_project_json', (p) => [{ name: `${safeFileName(p.name || 'project')}.json`, data: JSON.stringify(p, null, 2), about: `project data, ${p.boards.length} boards, ${p.feeders.length} circuits` }])
   },
   {
     name: 'export_rooms_package',

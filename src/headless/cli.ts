@@ -18,7 +18,7 @@ const ALIASES: Record<string, string> = {
   'delete-panel': 'delete_panel', 'delete-circuit': 'delete_circuit', 'add-building': 'add_building', 'add-level': 'add_level',
   'exchange-check': 'exchange_check', 'exchange-review': 'exchange_review', 'exchange-apply': 'exchange_apply', 'rooms-package': 'export_rooms_package', elv: 'elv_estimate', 'elv-package': 'export_elv_loads_package', 'elv-place': 'elv_place_loads', 'elv-devices': 'elv_devices', 'elv-place-devices': 'elv_place_devices', 'elv-schedules': 'elv_schedules',
   'cad-plan': 'cad_plan', 'rooms-from-cad': 'rooms_from_cad',
-  exports: 'list_exports', report: 'export_report', 'forms-xlsx': 'export_forms_xlsx', 'boq-xlsx': 'export_boq_xlsx', 'schedule-xlsx': 'export_schedule_template', dxf: 'export_dxf'
+  exports: 'list_exports', 'project-json': 'export_project_json', report: 'export_report', 'forms-xlsx': 'export_forms_xlsx', 'boq-xlsx': 'export_boq_xlsx', 'schedule-xlsx': 'export_schedule_template', dxf: 'export_dxf'
 };
 
 /** Flags that never take a value. */
@@ -123,7 +123,7 @@ function help(version: string): string {
     '',
     'Options: --json (JSON output), --folder <path> (projects folder; default: the app\'s, or LVDS_PROJECTS)',
     'Lists (--changes, --renames) are given as JSON, e.g. --renames \'[{"from":"DB-1","to":"DB-L1-01"}]\'',
-    'A <project> is a file name in the projects folder, or a path to a project .json file.'
+    'A <project> is a file name in the projects folder, or a path to a project file (.lvds, or an older .json).'
   ].join('\n');
 }
 

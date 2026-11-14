@@ -94,6 +94,17 @@ describe('exports', () => {
     expect(log[0]).toMatchObject({ file: 'Villa.json', tool: 'export_forms_xlsx', approvedBy: 'A. Engineer', exportedAnyway: false });
     expect(read('Villa')).toBe(JSON.stringify(villa, null, 2)); // the project itself is untouched
   });
+  it('exports a .lvds project as plain JSON that opens as the same project', async () => {
+    fs.writeFileSync(path.join(folder, 'Tower.lvds'), JSON.stringify({ format: 'lvds.project', ...villa, name: 'Tower' }, null, 2));
+    const preview = await run('export_project_json', { project: 'Tower' });
+    expect(exported()).toEqual([]);
+    expect(JSON.stringify(preview)).toContain('Tower.json');
+    const done = await run('export_project_json', { project: 'Tower', mode: 'export', approvedBy: 'A. Engineer' });
+    expect(done.files[0]).toMatch(/Exports[\\/]Tower[\\/].*Tower\.json$/);
+    const back = parseProject(fs.readFileSync(done.files[0], 'utf-8'), 'Tower.json');
+    expect(back).toMatchObject({ id: villa.id, name: 'Tower' });
+    expect(back.feeders).toHaveLength(villa.feeders.length);
+  });
   it('reports come from the app catalogue as HTML', async () => {
     const r = await run('export_report', { project: 'Villa', report: 'calc-report', mode: 'export', approvedBy: 'A. Engineer' });
     const html = fs.readFileSync(r.files[0], 'utf-8');

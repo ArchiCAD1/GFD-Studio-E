@@ -44,6 +44,18 @@ describe('project files', () => {
     expect(resolveProject({ ref: 'Villa', folder, anywhere: false })).toBe(path.join(folder, 'Villa.json'));
     expect(resolveProject({ ref: 'Villa.json', folder, anywhere: false })).toBe(path.join(folder, 'Villa.json'));
   });
+  it('lists and opens native .lvds projects, before an older .json of the same name', () => {
+    const native = path.join(folder, 'Tower.lvds'), twin = path.join(folder, 'Villa.lvds');
+    fs.writeFileSync(native, JSON.stringify({ format: 'lvds.project', ...sampleProject, name: 'Tower' }));
+    try {
+      expect(listProjects(folder).find((p) => p.file === 'Tower.lvds')).toMatchObject({ name: 'Tower' });
+      expect(resolveProject({ ref: 'Tower', folder, anywhere: false })).toBe(native);
+      expect(resolveProject({ ref: 'Tower.lvds', folder, anywhere: false })).toBe(native);
+      fs.writeFileSync(twin, JSON.stringify(sampleProject));
+      expect(resolveProject({ ref: 'Villa', folder, anywhere: false })).toBe(twin);
+      expect(resolveProject({ ref: 'Villa.json', folder, anywhere: false })).toBe(path.join(folder, 'Villa.json'));
+    } finally { fs.rmSync(native, { force: true }); fs.rmSync(twin, { force: true }); }
+  });
   it('MCP / API cannot open files outside the projects folder', () => {
     expect(() => resolveProject({ ref: outside, folder, anywhere: false })).toThrow(/inside the projects folder/);
     expect(() => resolveProject({ ref: '../x', folder, anywhere: false })).toThrow();

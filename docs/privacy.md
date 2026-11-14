@@ -8,7 +8,7 @@ computer secure on their own.
 
 | What | Where |
 | --- | --- |
-| Project files (`.json`) | The projects folder you chose (default `LV Design Studio Projects` in your home folder) |
+| Project files (`.lvds`; older ones `.json`) | The projects folder you chose (default `LV Design Studio Projects` in your home folder) |
 | Unsaved work (recovery copies) | The app's data folder, `recovery/` (macOS `~/Library/Application Support/LV Design Studio`, Windows `%APPDATA%\LV Design Studio`, Linux `~/.config/LV Design Studio`) |
 | Backups and the log of changes made by `lvds` / MCP / the API | `<projects folder>/.lvds-agent/` |
 | Your profile (name, company, logo), preferences | The app's data folder (desktop); this browser's storage (web version) |

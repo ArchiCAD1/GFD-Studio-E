@@ -186,7 +186,7 @@ handle('settings:chooseDatabaseFolder', async (evt, reset) => {
   return settings;
 });
 
-// ---- IPC: projects (plain JSON files, one per project) ----
+// ---- IPC: projects (one .lvds file per project; older ones are .json, see projectFiles.cjs) ----
 const projectsIndexPath = path.join(app.getPath('userData'), 'projects-index.json');
 let trashPurged = false;
 handle('projects:list', () => {
@@ -195,10 +195,10 @@ handle('projects:list', () => {
   return projectFiles.listProjectsMeta(folder, projectsIndexPath).list;
 });
 
-/** A project file inside the projects folder: a plain .json name, never a
+/** A project file inside the projects folder: a plain .lvds (or older .json) name, never a
  * path that leads outside it (e.g. "../x"). */
 function projectPath(folder, file) {
-  if (typeof file !== 'string' || !/^[^\\/:*?"<>|]+\.json$/i.test(file) || file.startsWith('.')) throw new Error(`Not a project file name: ${file}`);
+  if (typeof file !== 'string' || !/^[^\\/:*?"<>|]+\.(lvds|json)$/i.test(file) || file.startsWith('.')) throw new Error(`Not a project file name: ${file}`);
   const full = path.resolve(folder, file);
   if (path.dirname(full) !== path.resolve(folder)) throw new Error(`Outside the projects folder: ${file}`);
   safeFs.assertNotLink(full, file); // a link in the projects folder is never opened, saved over or deleted
@@ -234,7 +234,8 @@ handle('projects:stat', (_evt, file) => projectFiles.stampOf(projectPath(ensureP
 
 /** Saves a project. `expected` is what the file was when this app opened or last saved it; when the file
  * now holds something else (another computer, a sync tool, another program) nothing is written and the
- * answer is a conflict — unless `force`, which keeps the other version as name.json.theirs-….bak. */
+ * answer is a conflict — unless `force`, which keeps the other version as name.lvds.theirs-….bak.
+ * An older name.json is saved as name.lvds, and the .json stays as its backup (name.lvds.bak). */
 handle('projects:save', (_evt, args) => {
   const { file, data, expected, force } = check.projectSaveArgs(args);
   const folder = ensureProjectsFolder();
@@ -249,23 +250,36 @@ handle('projects:save', (_evt, args) => {
       conflicted = true;
     }
   }
-  const stamp = projectFiles.writeFileSafe(full, JSON.stringify(data, null, 2), { keepTheirs: conflicted, verifyJson: true });
-  return { file: safeFile, stamp };
+  const native = projectFiles.nativeFileName(folder, safeFile);
+  const stamp = projectFiles.writeFileSafe(projectPath(folder, native), projectFiles.projectText(data), { keepTheirs: conflicted, verifyJson: true });
+  projectFiles.retireOldFile(folder, safeFile, native);
+  return { file: native, stamp };
 });
 
-/** Open project…: pick a .json project anywhere. Inside the projects folder
- * it opens as that file; elsewhere its content opens as a new, unsaved
- * project (Save then keeps it in the projects folder). */
+/** Open project…: pick a .lvds (or older .json) project anywhere (projectFiles.pickedProject). */
 handle('projects:pick', async (evt) => {
   const folder = ensureProjectsFolder();
-  const result = await dialog.showOpenDialog(ownerOf(evt), { title: 'Open project', defaultPath: folder, filters: [{ name: 'LV Design Studio project', extensions: ['json'] }], properties: ['openFile'] });
+  const result = await dialog.showOpenDialog(ownerOf(evt), { title: 'Open project', defaultPath: folder, filters: [{ name: 'LV Design Studio project', extensions: ['lvds', 'json'] }], properties: ['openFile'] });
   if (result.canceled || result.filePaths.length === 0) return null;
-  const full = result.filePaths[0];
-  if (path.dirname(path.resolve(full)) === path.resolve(folder)) return { file: path.basename(full) };
-  let data;
-  try { data = readJsonLimited(full, LIMITS.projectBytes, path.basename(full), { follow: true }); } catch (e) { throw new Error(`${path.basename(full)} could not be read as a project (${e.message}).`); }
-  if (!data || typeof data !== 'object' || !Array.isArray(data.boards) || !Array.isArray(data.feeders)) throw new Error(`${path.basename(full)} is not an LV Design Studio project.`);
-  return { data, from: full };
+  return projectFiles.pickedProject(folder, result.filePaths[0]);
+});
+
+// Projects opened from Finder / Explorer (a .lvds double-clicked, or dropped on the app icon) wait here until the
+// window takes them, like drawings below (planOpened).
+const pendingProjects = [];
+const isProjectArg = (file) => typeof file === 'string' && path.isAbsolute(file) && file.toLowerCase().endsWith(projectFiles.PROJECT_EXT);
+function projectOpened(file) {
+  pendingProjects.push(file);
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) win.restore();
+    win.focus();
+    win.webContents.send('projects:pending');
+  }
+}
+if (!headless) for (const arg of process.argv.slice(1)) if (isProjectArg(arg)) pendingProjects.push(arg);
+handle('projects:takePending', () => {
+  const file = pendingProjects.shift();
+  return file ? projectFiles.pickedProject(ensureProjectsFolder(), file) : null;
 });
 
 /** Delete moves the project to the trash folder (kept 30 days, restorable). */
@@ -339,7 +353,7 @@ function planOpened(file) {
     win.webContents.send('cad:pending');
   }
 }
-app.on('open-file', (event, file) => { event.preventDefault(); planOpened(file); });
+app.on('open-file', (event, file) => { event.preventDefault(); if (isProjectArg(file)) projectOpened(file); else planOpened(file); });
 if (!headless) for (const arg of process.argv.slice(1)) if (isPlanFile(arg)) pendingPlans.push(arg);
 handle('cad:takePending', async () => {
   const file = pendingPlans.shift();

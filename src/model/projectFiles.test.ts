@@ -12,6 +12,10 @@ const pf = createRequire(import.meta.url)('../../electron/projectFiles.cjs') as 
   decideSave: (e: unknown, d: unknown) => 'write' | 'conflict';
   writeFileSafe: (f: string, t: string, o?: Record<string, boolean>) => { hash: string };
   uniqueFileName: (dir: string, base: string) => string;
+  nativeFileName: (dir: string, file: string) => string;
+  retireOldFile: (dir: string, file: string, native: string) => void;
+  projectText: (data: unknown) => string;
+  pickedProject: (folder: string, full: string) => { file?: string; data?: { name: string }; from?: string };
   conflictSiblings: (files: string[]) => Record<string, string>;
   writeRecovery: (dir: string, r: Record<string, unknown>) => boolean;
   clearRecovery: (dir: string, id: string) => boolean;
@@ -65,8 +69,54 @@ describe('safe writing', () => {
   it('never reuses a file name', () => {
     writeFileSync(join(dir, 'villa.json'), '{}');
     writeFileSync(join(dir, 'villa-2.json'), '{}');
-    expect(pf.uniqueFileName(dir, 'villa')).toBe('villa-3.json');
-    expect(pf.uniqueFileName(dir, 'tower')).toBe('tower.json');
+    expect(pf.uniqueFileName(dir, 'villa')).toBe('villa-3.lvds');
+    expect(pf.uniqueFileName(dir, 'tower')).toBe('tower.lvds');
+    writeFileSync(join(dir, 'villa-3.lvds'), '{}');
+    expect(pf.uniqueFileName(dir, 'villa')).toBe('villa-4.lvds');
+  });
+});
+
+describe('the native project file (.lvds)', () => {
+  it('is the project as JSON text, with the format name first', () => {
+    const p = newProject('Villa');
+    const text = pf.projectText({ ...p, format: 'something else' });
+    expect(text.startsWith('{\n  "format": "lvds.project",')).toBe(true);
+    expect(JSON.parse(text)).toEqual({ ...p, format: 'lvds.project' });
+  });
+  it('an older .json project is saved as .lvds, and the .json becomes its backup', () => {
+    writeFileSync(join(dir, 'villa.json'), JSON.stringify(newProject('Before')));
+    expect(pf.nativeFileName(dir, 'villa.lvds')).toBe('villa.lvds');
+    const native = pf.nativeFileName(dir, 'villa.json');
+    expect(native).toBe('villa.lvds');
+    pf.writeFileSafe(join(dir, native), pf.projectText(newProject('After')), { verifyJson: true });
+    pf.retireOldFile(dir, 'villa.json', native);
+    expect(readdirSync(dir).sort()).toEqual(['villa.lvds', 'villa.lvds.bak']);
+    expect(JSON.parse(readFileSync(join(dir, 'villa.lvds'), 'utf-8')).name).toBe('After');
+    expect(JSON.parse(readFileSync(join(dir, 'villa.lvds.bak'), 'utf-8')).name).toBe('Before');
+    pf.retireOldFile(dir, native, native); // a .lvds saved again: nothing is moved
+    expect(readdirSync(dir).sort()).toEqual(['villa.lvds', 'villa.lvds.bak']);
+  });
+  it('never takes the name of another project when converting', () => {
+    writeFileSync(join(dir, 'villa.json'), '{}');
+    writeFileSync(join(dir, 'villa.lvds'), '{}');
+    expect(pf.nativeFileName(dir, 'villa.json')).toBe('villa-2.lvds');
+  });
+  it('a chosen or double-clicked file: by name inside the projects folder, by content from elsewhere', () => {
+    const folder = join(dir, 'projects'), away = join(dir, 'away');
+    mkdirSync(folder); mkdirSync(away);
+    save(folder, 'villa.lvds', newProject('Villa')); save(away, 'tower.lvds', newProject('Tower'));
+    writeFileSync(join(away, 'notes.lvds'), JSON.stringify({ hello: 'not a project' })); writeFileSync(join(away, 'broken.lvds'), '{nope');
+    expect(pf.pickedProject(folder, join(folder, 'villa.lvds'))).toEqual({ file: 'villa.lvds' });
+    expect(pf.pickedProject(folder, join(away, 'tower.lvds'))).toMatchObject({ data: { name: 'Tower' }, from: join(away, 'tower.lvds') });
+    expect(() => pf.pickedProject(folder, join(away, 'notes.lvds'))).toThrow('notes.lvds is not an LV Design Studio project.');
+    expect(() => pf.pickedProject(folder, join(away, 'broken.lvds'))).toThrow(/broken\.lvds could not be read as a project/);
+  });
+  it('lists .lvds and older .json projects together', () => {
+    const cache = join(dir, 'index.json'), folder = join(dir, 'both');
+    mkdirSync(folder);
+    save(folder, 'new.lvds', newProject('New')); save(folder, 'old.json', newProject('Old'));
+    writeFileSync(join(folder, 'new.lvds.bak'), '{}'); writeFileSync(join(folder, 'notes.txt'), 'x');
+    expect(pf.listProjectsMeta(folder, cache).list.map((m) => m.file).sort()).toEqual(['new.lvds', 'old.json']);
   });
 });
 
@@ -75,6 +125,7 @@ describe('sync conflict copies', () => {
     const files = ['villa.json', "villa (John's conflicted copy 2026-10-05).json", 'villa (1).json', 'villa.sync-conflict-20261005-101010-ABC.json', 'tower (2).json', 'office-1a2b3c4d.json'];
     const m = pf.conflictSiblings(files);
     expect(m).toEqual({ "villa (John's conflicted copy 2026-10-05).json": 'villa.json', 'villa (1).json': 'villa.json', 'villa.sync-conflict-20261005-101010-ABC.json': 'villa.json' });
+    expect(pf.conflictSiblings(['tower.lvds', 'tower (1).lvds', 'office (1).json', 'office.lvds', 'shop (1).lvds'])).toEqual({ 'tower (1).lvds': 'tower.lvds', 'office (1).json': 'office.lvds' });
   });
 });
 
@@ -162,11 +213,17 @@ describe('trash', () => {
     expect(readFileSync(join(dir, 'villa.json.bak'), 'utf-8')).toBe('old');
     expect(pf.listTrash(dir)).toEqual([]);
   });
+  it('a deleted .lvds project is listed and restored like a .json one', () => {
+    save(dir, 'tower.lvds', newProject('Tower'));
+    const t = pf.moveToTrash(dir, 'tower.lvds', 5);
+    expect(pf.listTrash(dir, 5)).toMatchObject([{ file: 'tower.lvds', name: 'Tower' }]);
+    expect(pf.restoreFromTrash(dir, t)).toBe('tower.lvds');
+  });
   it('restores under a new name when the old one is taken, and never overwrites', () => {
     save(dir, 'villa.json', newProject('First'));
     const t = pf.moveToTrash(dir, 'villa.json', 1);
     save(dir, 'villa.json', newProject('Second'));
-    expect(pf.restoreFromTrash(dir, t)).toBe('villa-2.json');
+    expect(pf.restoreFromTrash(dir, t)).toBe('villa-2.lvds');
     expect(JSON.parse(readFileSync(join(dir, 'villa.json'), 'utf-8')).name).toBe('Second');
   });
   it('removes only what has been there more than 30 days, or everything when emptied', () => {

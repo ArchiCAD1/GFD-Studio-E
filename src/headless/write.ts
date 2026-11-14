@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Project } from '../types';
 import { withUids } from '../model/stableIds';
-import { unsavedCopyInApp } from './project';
+import { PROJECT_FILE, unsavedCopyInApp } from './project';
 import { areRealDirs, MAX_PROJECT_BYTES, openToAppend, readFileLimited, realDirs } from './safeFiles';
 
 /** Writing a project file from outside the app (Stage 2), safely:
@@ -21,7 +21,7 @@ export const agentDir = (folder: string) => path.join(folder, AGENT);
 /** .lvds-agent, or a folder in it, made when missing; each must be a real folder, not a link. */
 export const realAgentDir = (folder: string, ...sub: string[]) => realDirs(folder, AGENT, ...sub);
 const logFile = (folder: string) => path.join(agentDir(folder), 'log.jsonl');
-const stemOf = (name: string) => name.replace(/\.json$/i, '');
+const stemOf = (name: string) => name.replace(PROJECT_FILE, '');
 /** Where a change to the project file `name` keeps the version from before it. */
 const backupPath = (folder: string, name: string, id: string) => path.join(agentDir(folder), 'backups', stemOf(name), `${id}.json`);
 /** Backups kept per project file (the oldest go first). */

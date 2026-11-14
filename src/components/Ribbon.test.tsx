@@ -28,6 +28,10 @@ describe('Ribbon', () => {
     expect(render('schedule')).toContain('Add load');
   });
 
+  it('Project tab: Export JSON sits between Save as and Share sample', () => {
+    expect(render('home')).toMatch(/>Save as<.*>Export JSON<.*>Share sample</s);
+  });
+
   it('shows the four stages as sub-tabs of Stages, numbered in order, and no others', () => {
     const subTabs = (html: string) => [...(/role="tablist" aria-label="Stages">(.*?)<\/div>/s.exec(html)?.[1] ?? '').matchAll(/id="ribbon-tab-(\w+)"/g)].map((m) => m[1]);
     for (const stage of ['concept', 'schematic', 'detailed', 'issue'] as const) {

@@ -17,7 +17,13 @@ contextBridge.exposeInMainWorld('lvds', {
     trashList: () => ipcRenderer.invoke('projects:trashList'),
     restore: (trashFile) => ipcRenderer.invoke('projects:restore', trashFile),
     emptyTrash: () => ipcRenderer.invoke('projects:emptyTrash'),
-    pick: () => ipcRenderer.invoke('projects:pick')
+    pick: () => ipcRenderer.invoke('projects:pick'),
+    takePending: () => ipcRenderer.invoke('projects:takePending'),
+    onPending: (cb) => {
+      const listener = () => cb();
+      ipcRenderer.on('projects:pending', listener);
+      return () => ipcRenderer.removeListener('projects:pending', listener);
+    }
   },
   recovery: {
     write: (r) => ipcRenderer.invoke('recovery:write', r),

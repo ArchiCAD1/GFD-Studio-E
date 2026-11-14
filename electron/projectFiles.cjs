@@ -11,6 +11,20 @@ const crypto = require('node:crypto');
 
 const sha = (text) => crypto.createHash('sha256').update(text).digest('hex');
 
+// ---- The project file: name.lvds ------------------------------------------------
+// The native format is the project as JSON text with "format": "lvds.project" first (schemaVersion is its
+// version). Projects saved before it are name.json with the same content: still listed and opened, and saved
+// as name.lvds from then on.
+const PROJECT_EXT = '.lvds';
+const PROJECT_FORMAT = 'lvds.project';
+const PROJECT_FILE = /\.(lvds|json)$/i;
+const isProjectFile = (file) => PROJECT_FILE.test(file);
+const stemOf = (file) => file.replace(PROJECT_FILE, '');
+/** The text of a project file. */
+const projectText = (data) => JSON.stringify(Object.assign({ format: PROJECT_FORMAT }, data, { format: PROJECT_FORMAT }), null, 2);
+/** Whether a project file of either kind has this name (without extension) in the folder. */
+const stemTaken = (folder, stem) => lexists(path.join(folder, `${stem}${PROJECT_EXT}`)) || lexists(path.join(folder, `${stem}.json`));
+
 /** A step that may fail without stopping the operation it belongs to (a backup copy, a cache, a
  * cleanup). A file that is not there is expected and stays quiet; any other failure is logged with
  * what was being done, never swallowed. Returns the step's result, or undefined when it failed. */
@@ -44,7 +58,7 @@ function decideSave(expected, disk) {
 
 /** Writes a file safely: to a temporary file first, flushed to disk, then renamed over the old one (a
  * crash or a sync mid-write never leaves a half-written file). The previous version is kept as
- * name.json.bak. With keepTheirs the previous version is also kept under its own timestamped name (an
+ * name.lvds.bak. With keepTheirs the previous version is also kept under its own timestamped name (an
  * overwrite after a conflict). The result is read back and checked before it is reported as saved. */
 function writeFileSafe(full, text, opts = {}) {
   const { keepBackup = true, keepTheirs = false, verifyJson = false, mode = 'public' } = opts;
@@ -57,7 +71,7 @@ function writeFileSafe(full, text, opts = {}) {
   try {
     if (finalMode !== PRIVATE_FILE) fs.chmodSync(tmp, finalMode);
     if (lexists(full)) {
-      // Backups are new files renamed into place: a link at name.json.bak is replaced, never written through.
+      // Backups are new files renamed into place: a link at name.lvds.bak is replaced, never written through.
       if (keepBackup) bestEffort(`backup copy of ${path.basename(full)}`, () => copyFileNoFollow(full, `${full}.bak`, LIMITS.projectBytes));
       if (keepTheirs) bestEffort(`copy of the other version of ${path.basename(full)}`, () => copyFileNoFollow(full, `${full}.theirs-${Date.now()}.bak`, LIMITS.projectBytes));
     }
@@ -72,25 +86,53 @@ function writeFileSafe(full, text, opts = {}) {
   return stampOf(full);
 }
 
-/** name.json, or name-2.json, name-3.json … when that is taken. */
+/** name.lvds, or name-2.lvds, name-3.lvds … when that name is taken (by a .lvds or an older .json). */
 function uniqueFileName(folder, base) {
-  let file = `${base}.json`, n = 2;
-  while (lexists(path.join(folder, file))) file = `${base}-${n++}.json`;
-  return file;
+  let stem = base, n = 2;
+  while (stemTaken(folder, stem)) stem = `${base}-${n++}`;
+  return `${stem}${PROJECT_EXT}`;
+}
+
+/** The name a project file is saved under: its own when it is a .lvds, else the .lvds that takes its place. */
+function nativeFileName(folder, file) {
+  if (file.toLowerCase().endsWith(PROJECT_EXT)) return file;
+  const stem = stemOf(file);
+  return lexists(path.join(folder, `${stem}${PROJECT_EXT}`)) ? uniqueFileName(folder, stem) : `${stem}${PROJECT_EXT}`;
+}
+
+/** A project file chosen anywhere (Open project…, or opened from Explorer / Finder): inside the projects folder
+ * it opens as that file; elsewhere its content opens as a new, unsaved project (Save then keeps it in the
+ * projects folder). */
+function pickedProject(folder, full) {
+  const name = path.basename(full);
+  if (path.dirname(path.resolve(full)) === path.resolve(folder)) return { file: name };
+  let data;
+  try { data = readJsonLimited(full, LIMITS.projectBytes, name, { follow: true }); } catch (e) { throw new Error(`${name} could not be read as a project (${e.message}).`); }
+  if (!data || typeof data !== 'object' || !Array.isArray(data.boards) || !Array.isArray(data.feeders)) throw new Error(`${name} is not an LV Design Studio project.`);
+  return { data, from: full };
+}
+
+/** After an older name.json was saved as `native`: the .json becomes the backup of the new file (never a
+ * second project in the list). */
+function retireOldFile(folder, file, native) {
+  if (file === native) return;
+  assertNotLink(path.join(folder, file), file);
+  bestEffort(`keep ${file} as the backup of ${native}`, () => fs.renameSync(path.join(folder, file), path.join(folder, `${native}.bak`)));
 }
 
 /** Files that look like a sync tool's conflicted copy of another project file in the same list
- * ("x (John's conflicted copy 2026-10-05).json", "x (1).json", "x.sync-conflict-….json").
+ * ("x (John's conflicted copy 2026-10-05).lvds", "x (1).lvds", "x.sync-conflict-….lvds"; .json alike).
  * Maps each such file to the file it conflicts with (which must exist). */
 function conflictSiblings(files) {
   const have = new Set(files.map((f) => f.toLowerCase()));
   const out = {};
   const patterns = [/^(.+?) \([^)]*conflicted copy[^)]*\)$/i, /^(.+?)\.sync-conflict-[\w-]+$/i, /^(.+?) \(\d+\)$/];
   for (const f of files) {
-    const name = f.replace(/\.json$/i, '');
+    const name = stemOf(f), ext = f.slice(name.length);
     for (const re of patterns) {
       const m = name.match(re);
-      if (m && have.has(`${m[1]}.json`.toLowerCase()) && `${m[1]}.json`.toLowerCase() !== f.toLowerCase()) { out[f] = `${m[1]}.json`; break; }
+      const of = m && [`${m[1]}${ext}`, `${m[1]}${PROJECT_EXT}`, `${m[1]}.json`].find((o) => have.has(o.toLowerCase()) && o.toLowerCase() !== f.toLowerCase());
+      if (of) { out[f] = of; break; }
     }
   }
   return out;
@@ -148,7 +190,7 @@ function metaFromProject(file, p, updatedAt) {
   return {
     file,
     id: p.id,
-    name: p.name || file.replace(/\.json$/i, ''),
+    name: p.name || stemOf(file),
     updatedAt,
     status: p.status,
     owner: p.info && p.info.owner,
@@ -171,7 +213,7 @@ function metaFromProject(file, p, updatedAt) {
 function listProjectsMeta(folder, cachePath) {
   let cache = {};
   cache = bestEffort('read the project list cache', () => readJsonLimited(cachePath, LIMITS.settingsBytes * 16, 'the project list cache')) || {};
-  const files = listFiles(folder, (f) => f.endsWith('.json')); // regular files only: links are not listed
+  const files = listFiles(folder, isProjectFile); // regular files only: links are not listed
   const next = {};
   let parsed = 0;
   const list = files.map((f) => {
@@ -181,7 +223,7 @@ function listProjectsMeta(folder, cachePath) {
     // A file that cannot be read is still listed, under its file name.
     let meta = bestEffort(`read ${f}`, () => metaFromProject(f, readJsonLimited(path.join(folder, f), LIMITS.projectBytes, f), st.mtimeMs));
     if (meta) parsed++;
-    else meta = { file: f, name: f.replace(/\.json$/i, ''), updatedAt: st.mtimeMs };
+    else meta = { file: f, name: stemOf(f), updatedAt: st.mtimeMs };
     next[f] = { mtimeMs: st.mtimeMs, size: st.size, meta };
     return { ...meta };
   });
@@ -213,12 +255,12 @@ function moveToTrash(folder, file, now = Date.now()) {
 function listTrash(folder, now = Date.now()) {
   let names = [];
   if (isLink(trashDir(folder))) return []; // not the app's trash folder
-  try { names = listFiles(trashDir(folder), (f) => f.endsWith('.json')); } catch { return []; }
+  try { names = listFiles(trashDir(folder), isProjectFile); } catch { return []; }
   const out = [];
   for (const n of names) {
     const parts = splitTrashName(n);
     if (!parts) continue;
-    let name = parts.file.replace(/\.json$/i, ''), id;
+    let name = stemOf(parts.file), id;
     const p = bestEffort(`read deleted project ${n}`, () => readJsonLimited(path.join(trashDir(folder), n), LIMITS.projectBytes, n));
     if (p) { if (p.name) name = p.name; id = p.id; }
     out.push({ trashFile: n, file: parts.file, name, id, deletedAt: parts.deletedAt, daysLeft: Math.max(0, Math.ceil(TRASH_DAYS - (now - parts.deletedAt) / 86400000)) });
@@ -234,7 +276,7 @@ function restoreFromTrash(folder, trashFile) {
   const src = path.join(trashDir(folder), path.basename(trashFile));
   assertNotLink(src, path.basename(trashFile));
   if (!lexists(src)) throw new Error(`Not a deleted project: ${trashFile}`);
-  const file = lexists(path.join(folder, parts.file)) ? uniqueFileName(folder, parts.file.replace(/\.json$/i, '')) : parts.file;
+  const file = stemTaken(folder, stemOf(parts.file)) ? uniqueFileName(folder, stemOf(parts.file)) : parts.file;
   fs.renameSync(src, path.join(folder, file));
   bestEffort(`restore ${file}.bak`, () => fs.renameSync(`${src}.bak`, path.join(folder, `${file}.bak`)));
   return file;
@@ -251,10 +293,10 @@ function purgeTrash(folder, days = TRASH_DAYS, now = Date.now()) {
     const parts = splitTrashName(f.replace(/\.bak$/, ''));
     if (!parts) continue;
     if (days === 0 || now - parts.deletedAt > days * 86400000) {
-      if (bestEffort(`remove ${f} from the trash`, () => { fs.unlinkSync(path.join(trashDir(folder), f)); return true; }) && f.endsWith('.json')) n++;
+      if (bestEffort(`remove ${f} from the trash`, () => { fs.unlinkSync(path.join(trashDir(folder), f)); return true; }) && isProjectFile(f)) n++;
     }
   }
   return n;
 }
 
-module.exports = { bestEffort, metaFromProject, listProjectsMeta, moveToTrash, listTrash, restoreFromTrash, purgeTrash, TRASH_DAYS, sha, stampOf, decideSave, writeFileSafe, uniqueFileName, conflictSiblings, writeRecovery, clearRecovery, readRecoveries, recoveryFile };
+module.exports = { bestEffort, metaFromProject, listProjectsMeta, moveToTrash, listTrash, restoreFromTrash, purgeTrash, TRASH_DAYS, sha, stampOf, decideSave, writeFileSafe, uniqueFileName, nativeFileName, retireOldFile, pickedProject, isProjectFile, stemOf, projectText, PROJECT_EXT, PROJECT_FORMAT, conflictSiblings, writeRecovery, clearRecovery, readRecoveries, recoveryFile };
