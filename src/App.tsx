@@ -785,13 +785,35 @@ export default function App() {
       return;
     }
     try {
-      const r = await pickProject();
-      if (!r) return;
-      if (r.file) return openProject(r.file);
-      if (r.data) guard('opening another project', () => { loadIntoApp(r.data!, undefined, `Opened ${r.data!.name} from ${r.from} — Save keeps it in the projects folder`); });
+      openPicked(await pickProject());
     } catch (e) {
       setStatus(`Could not open the project: ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
+
+  /** What Open project… chose, or a .lvds opened from Finder / Explorer: a file in the projects folder, or a project from elsewhere. */
+  function openPicked(r: { file?: string; data?: Project; from?: string } | null) {
+    if (!r) return;
+    if (r.file) return openProject(r.file);
+    if (r.data) guard('opening another project', () => { loadIntoApp(r.data!, undefined, `Opened ${r.data!.name} from ${r.from} — Save keeps it in the projects folder`); });
+  }
+  const openPickedRef = useRef(openPicked);
+  openPickedRef.current = openPicked;
+  useEffect(() => {
+    const projects = window.lvds?.projects;
+    if (!projects?.takePending) return;
+    const take = () => void projects.takePending!().then((r) => openPickedRef.current(r as { file?: string; data?: Project; from?: string } | null))
+      .catch((e: unknown) => setStatus(`Could not open the project: ${e instanceof Error ? e.message : String(e)}`));
+    take();
+    return projects.onPending?.(take);
+  }, []);
+
+  /** Export JSON…: a plain .json copy of the project as it is now. */
+  async function exportJson() {
+    try {
+      const m = await saveText(`${safeFileName(project.name || 'project')}.json`, JSON.stringify(project, null, 2), 'JSON', 'json');
+      if (m) setStatus(m);
+    } catch (e) { setStatus(e instanceof Error ? e.message : String(e)); }
   }
 
   function openProject(file: string) {
@@ -1041,6 +1063,7 @@ export default function App() {
     cmd('Run calculations', runNow, 'F5', 'network studies');
     cmd('Save', () => { void saveProject(); }, `${mod}S`);
     cmd('Save as…', () => saveAs(), `⇧${mod}S`);
+    cmd('Export JSON…', () => { void exportJson(); }, undefined, 'plain json copy scripts other programs');
     cmd('Export anonymized sample…', () => setShowAnonymized(true), undefined, 'share privacy anonymous issue report');
     cmd('Undo', () => history.undo(), `${mod}Z`);
     cmd('Redo', () => history.redo(), `⇧${mod}Z`);
@@ -1350,6 +1373,7 @@ export default function App() {
           onNew: startNewProject,
           onSave: () => saveProject(),
           onSaveAs: () => saveAs(),
+          onExportJson: () => { void exportJson(); },
           onAnonymizedSample: () => setShowAnonymized(true),
           cad: { tool: cadS.tool, onTool: (t) => { cadS.setTool(cadS.tool === t ? 'none' : t); setView('cad'); }, onOpen: () => void openCad(), onNew: () => cadDo((x) => x.newDrawing()), onSave: () => cadDo((x) => x.save()), onSaveDwg: () => cadDo((x) => x.saveDwg()), onClose: () => cadDo((x) => x.close()), onSaveAs: () => cadDo((x) => x.saveAs()), onCloseOthers: () => cadDo((x) => x.closeOthers()), onExport: (k) => cadDo((x) => x.exportAs(k)), onPublish: () => cadDo((x) => x.publish()), onSettings: () => cadDo((x) => x.settings()), onDelete: () => cadDo((x) => x.remove()), hasSelection: !!cadS.selected, onLayers: () => { cadS.setShowLayers(!cadS.showLayers); setView('cad'); }, onLayerManager: () => cadDo((x) => x.layerManager()), onRefs: () => cadDo((x) => x.refs()), inLayout: !!cadS.layout && view === 'cad', onLayoutCmd: (c) => cadDo((x) => x.layoutCmd(c)),
             onPaper: !!cadS.layout && view === 'cad' && !cadS.msVp, onCommand: (c) => cadDo((x) => x.command(c)),

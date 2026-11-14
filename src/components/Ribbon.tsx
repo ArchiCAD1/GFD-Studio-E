@@ -8,7 +8,7 @@ import { BringToFront, Frame, LayoutTemplate, Printer, Crop, Plus, ChevronRight,
 import { ListFilter, PenTool, FileCog, PaintBucket, MessageSquareText, Tag, Navigation, Layers2, PaintRoller, BoxSelect, Paintbrush, Scissors, FlipHorizontal2, Scaling, StretchHorizontal, CornerUpRight, Unlink2, Link2, Paperclip, Ungroup, Grid2x2, Rows2, CirclePlus, Move, Slash, Spline, RectangleHorizontal, Circle, Rainbow, RotateCw, Eraser, MoveHorizontal, Layers, MousePointerClick, PenLine, Type, Ruler, Maximize, Grid3x3, Copy, CircleDashed, ListChecks, Palette, ZoomIn, ZoomOut, Columns2, FileCode, BookImage, ALargeSmall, Plug, Tags, Workflow, Lightbulb, DoorOpen , SquareScissors } from 'lucide-react';
 import { ClipboardList, Package, Dot, Divide, Target, Pentagon, ArrowRightToLine, TriangleRight, Hexagon, CaseSensitive, LandPlot, ScanSearch, Expand, SlidersHorizontal, DraftingCompass } from 'lucide-react';
 import { VP_ARRANGEMENTS, VP_SCALES } from '../model/planViewports';
-import { LayoutPanelLeft, Maximize2, Square } from 'lucide-react';
+import { FileJson, LayoutPanelLeft, Maximize2, Square } from 'lucide-react';
 import { ArrowDownToLine, ArrowLeftRight, Check, ChevronLeft, ClipboardPaste, CopyPlus, ListPlus, LocateFixed, Scan, SquareDashed } from 'lucide-react';
 import type { CadExport, CadRibbonInfo, CadTool } from './cad/cadState';
 import { ColourPicker } from './cad/ColourPicker';
@@ -158,6 +158,8 @@ export interface RibbonActions {
   onNew: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  /** Export JSON…: a plain .json copy of the project. */
+  onExportJson?: () => void;
   /** Export anonymized sample (a copy without client, site or people, for sharing an issue). */
   onAnonymizedSample: () => void;
   /** Design CAD's tools (src/components/cad); `file`: the File menu's Plans, Level and Units (cadFileMenu.ts). */
@@ -730,6 +732,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
         view('projects', 'Open', FolderOpen, 'All projects: open, duplicate, status'),
         { label: 'Save', icon: Save, sub: a.dirty ? 'unsaved' : undefined, title: a.dirty ? 'Save (Ctrl+S / ⌘S) — there are unsaved changes' : 'Save (Ctrl+S / ⌘S)', onClick: a.onSave, stale: a.dirty },
         { label: 'Save as', icon: SaveAll, title: 'Save as a new project (Ctrl+Shift+S / ⇧⌘S)', onClick: a.onSaveAs },
+        { label: 'Export JSON', icon: FileJson, title: 'Export JSON: a plain .json copy of this project, for scripts and other programs', onClick: () => a.onExportJson?.() },
         { label: 'Share sample', icon: ShieldCheck, title: 'Export anonymized sample: a copy without the client, site or people, to share a technical issue', onClick: a.onAnonymizedSample }
       ],
       [

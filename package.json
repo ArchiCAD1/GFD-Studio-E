@@ -117,6 +117,12 @@
     "afterPack": "./scripts/mac-licences.cjs",
     "fileAssociations": [
       {
+        "ext": "lvds",
+        "name": "LV Design Studio project",
+        "description": "LV Design Studio project",
+        "role": "Editor"
+      },
+      {
         "ext": [
           "dwg",
           "dxf"

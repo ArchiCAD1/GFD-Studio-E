@@ -100,6 +100,18 @@ function nativeFileName(folder, file) {
   return lexists(path.join(folder, `${stem}${PROJECT_EXT}`)) ? uniqueFileName(folder, stem) : `${stem}${PROJECT_EXT}`;
 }
 
+/** A project file chosen anywhere (Open project…, or opened from Explorer / Finder): inside the projects folder
+ * it opens as that file; elsewhere its content opens as a new, unsaved project (Save then keeps it in the
+ * projects folder). */
+function pickedProject(folder, full) {
+  const name = path.basename(full);
+  if (path.dirname(path.resolve(full)) === path.resolve(folder)) return { file: name };
+  let data;
+  try { data = readJsonLimited(full, LIMITS.projectBytes, name, { follow: true }); } catch (e) { throw new Error(`${name} could not be read as a project (${e.message}).`); }
+  if (!data || typeof data !== 'object' || !Array.isArray(data.boards) || !Array.isArray(data.feeders)) throw new Error(`${name} is not an LV Design Studio project.`);
+  return { data, from: full };
+}
+
 /** After an older name.json was saved as `native`: the .json becomes the backup of the new file (never a
  * second project in the list). */
 function retireOldFile(folder, file, native) {
@@ -287,4 +299,4 @@ function purgeTrash(folder, days = TRASH_DAYS, now = Date.now()) {
   return n;
 }
 
-module.exports = { bestEffort, metaFromProject, listProjectsMeta, moveToTrash, listTrash, restoreFromTrash, purgeTrash, TRASH_DAYS, sha, stampOf, decideSave, writeFileSafe, uniqueFileName, nativeFileName, retireOldFile, isProjectFile, stemOf, projectText, PROJECT_EXT, PROJECT_FORMAT, conflictSiblings, writeRecovery, clearRecovery, readRecoveries, recoveryFile };
+module.exports = { bestEffort, metaFromProject, listProjectsMeta, moveToTrash, listTrash, restoreFromTrash, purgeTrash, TRASH_DAYS, sha, stampOf, decideSave, writeFileSafe, uniqueFileName, nativeFileName, retireOldFile, pickedProject, isProjectFile, stemOf, projectText, PROJECT_EXT, PROJECT_FORMAT, conflictSiblings, writeRecovery, clearRecovery, readRecoveries, recoveryFile };

@@ -1,22 +1,20 @@
 # UI/UX proposals - native project format (.lvds) - 2026-11-14
 
-Projects are now saved as `.lvds` files (see `docs/project-safety.md`, File format). Two things
-that would complete it need a decision, because they change what the app shows or how it opens.
+Projects are saved as `.lvds` files (see `docs/project-safety.md`, File format). Both proposals
+below were approved on 2026-11-15 and are implemented.
 
-## 1. "Export JSON" in the app
+## 1. "Export JSON" in the app (done)
 
-- Now: a plain `.json` copy is available from the command line / MCP only
-  (`lvds project-json <project>`, tool `export_project_json`).
-- Proposed: one entry beside the existing exports on the Project tab, "Export JSON…", which opens
-  the usual Export save dialog (filter "JSON", default name `<project>.json`) and writes the same
-  data as the `.lvds` file. No other change to the tab.
+Project tab, between Save as and Share sample: "Export JSON" opens the usual Export save dialog
+(filter "JSON", default name `<project>.json`) and writes the project as it is now. Also in the
+command list as "Export JSON…". The command line keeps `lvds project-json <project>`.
 
-## 2. Open a `.lvds` by double-click
+## 2. Open a `.lvds` by double-click (done)
 
-- Now: `.lvds` files open from the dashboard and from Open project…; Windows / macOS do not yet
-  start the app when one is double-clicked.
-- Proposed: register `.lvds` to LV Design Studio in the installer (`fileAssociations` in
-  `package.json`, as already done for DWG / DXF) and open the file when the app starts with one,
-  or when one is opened while it runs. With unsaved changes in the open project, the existing
-  "unsaved changes" question is shown first. A file outside the projects folder opens as a new,
-  unsaved project, as Open project… does today.
+The installer registers `.lvds` to LV Design Studio (`fileAssociations` in `package.json`). A file
+the app is started with, or (macOS) opened while it runs, opens like Open project…: by name inside
+the projects folder, as a new unsaved project from elsewhere, after the "unsaved changes" question.
+
+Left open: on Windows a `.lvds` double-clicked while the app is already running starts a second
+window of the app (as a DWG / DXF does today). Opening it in the running window needs a
+single-instance rule for the whole app, which also changes how drawings open - to decide separately.

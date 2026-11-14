@@ -13,7 +13,9 @@ key is `"format": "lvds.project"`, with `schemaVersion` as its version. A projec
 format is a `.json` file with the same content: it is still listed and opened, and its next save in the
 app writes `name.lvds` and keeps the `.json` as that file's backup (`name.lvds.bak`). The command line
 tools read both and write a project back under the name it has; `export_project_json`
-(`lvds project-json`) writes a plain `.json` copy to Exports.
+(`lvds project-json`) writes a plain `.json` copy to Exports, as Export JSON on the Project tab does
+through a save dialog. The installer registers `.lvds`, so a double-clicked file opens in the app
+(`projects:takePending` in `electron/main.cjs`).
 
 **One copy rule** (`src/model/projectMigrate.ts`, `copyProject`). Save as and Duplicate both
 make a new project with its own id, creation date and a "copied from" note, starting at status

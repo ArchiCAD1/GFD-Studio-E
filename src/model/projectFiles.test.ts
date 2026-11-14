@@ -15,6 +15,7 @@ const pf = createRequire(import.meta.url)('../../electron/projectFiles.cjs') as 
   nativeFileName: (dir: string, file: string) => string;
   retireOldFile: (dir: string, file: string, native: string) => void;
   projectText: (data: unknown) => string;
+  pickedProject: (folder: string, full: string) => { file?: string; data?: { name: string }; from?: string };
   conflictSiblings: (files: string[]) => Record<string, string>;
   writeRecovery: (dir: string, r: Record<string, unknown>) => boolean;
   clearRecovery: (dir: string, id: string) => boolean;
@@ -99,6 +100,16 @@ describe('the native project file (.lvds)', () => {
     writeFileSync(join(dir, 'villa.json'), '{}');
     writeFileSync(join(dir, 'villa.lvds'), '{}');
     expect(pf.nativeFileName(dir, 'villa.json')).toBe('villa-2.lvds');
+  });
+  it('a chosen or double-clicked file: by name inside the projects folder, by content from elsewhere', () => {
+    const folder = join(dir, 'projects'), away = join(dir, 'away');
+    mkdirSync(folder); mkdirSync(away);
+    save(folder, 'villa.lvds', newProject('Villa')); save(away, 'tower.lvds', newProject('Tower'));
+    writeFileSync(join(away, 'notes.lvds'), JSON.stringify({ hello: 'not a project' })); writeFileSync(join(away, 'broken.lvds'), '{nope');
+    expect(pf.pickedProject(folder, join(folder, 'villa.lvds'))).toEqual({ file: 'villa.lvds' });
+    expect(pf.pickedProject(folder, join(away, 'tower.lvds'))).toMatchObject({ data: { name: 'Tower' }, from: join(away, 'tower.lvds') });
+    expect(() => pf.pickedProject(folder, join(away, 'notes.lvds'))).toThrow('notes.lvds is not an LV Design Studio project.');
+    expect(() => pf.pickedProject(folder, join(away, 'broken.lvds'))).toThrow(/broken\.lvds could not be read as a project/);
   });
   it('lists .lvds and older .json projects together', () => {
     const cache = join(dir, 'index.json'), folder = join(dir, 'both');
