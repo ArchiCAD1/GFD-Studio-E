@@ -588,6 +588,100 @@ describe('Sheets page — panel schedules', () => {
   });
 });
 
+describe('Sheets page — Push to load schedule', () => {
+  const opened = (extra: Record<string, string> = {}) => book({
+    A1: 'PANEL SCHEDULE', A2: 'PANEL', B2: 'DB-NEW', C2: 'FED FROM: SMDB-GF',
+    A5: 'CKT', B5: 'DESCRIPTION', C5: 'LOAD (W)', D5: 'MCB (A)', E5: 'CABLE (mm²)', F5: 'REMARKS',
+    A6: 'R1', B6: 'Lights', C6: '1200', A7: 'Y1', B7: 'Sockets', C7: '2400', D7: '20', A8: 'B1', B8: 'Store', C8: '600', ...extra
+  });
+  const aside = () => document.querySelector<HTMLElement>('aside[aria-label="Link columns"]')!;
+  const button = (text: string) => [...aside().querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === text)!;
+  const boxText = () => aside().querySelector('[aria-label="Rows of this sheet"]')?.textContent;
+  const boardSelect = () => aside().querySelector('select[aria-label="Board"]');
+  const choose = (label: string, value: string) => act(() => { const sel = aside().querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!; sel.value = value; sel.dispatchEvent(new Event('change', { bubbles: true })); });
+  const suggest = (kind?: string) => { press('Electrical'); press('Link columns'); if (kind) choose('This sheet is a', kind); act(() => button('Suggest links from the headings').click()); };
+
+  it('a sheet with rows of its own shows the box with the count, the panel line and the buttons, and no Board select', () => {
+    render(opened());
+    suggest();
+    expect(boxText()).toContain('This sheet has 3 rows of its own');
+    expect(boxText()).toContain('Panel DB-NEW is new, under SMDB-GF.');
+    expect(boxText()).toContain('Push makes the panel and one circuit for each row. A size left blank is sized by the rules.');
+    expect(button('Push to load schedule').disabled).toBe(false);
+    expect(button('Push to load schedule').className).toContain('shl-go');
+    expect(boardSelect()).toBeNull();
+    expect(aside().textContent).not.toContain('Add a sheet for every other');
+    expect(td('B2').textContent).toBe('DB-NEW');
+  });
+
+  it('says which panel it is: in the project, new with a missing board above, or new with none', () => {
+    render(opened({ B2: 'DB-GF1' }));
+    suggest();
+    expect(boxText()).toContain('Panel DB-GF1 is in the project.');
+    render(opened({ C2: 'FED FROM: SMDB-X' }));
+    act(() => button('Suggest links from the headings').click());
+    expect(boxText()).toContain('Panel DB-NEW is new. SMDB-X is not in the project and is made too.');
+    render(opened({ C2: 'FED FROM: ' }));
+    act(() => button('Suggest links from the headings').click());
+    expect(boxText()).toContain('Panel DB-NEW is new, with no board above it.');
+  });
+
+  it('without a panel number the line says so and Push is off', () => {
+    render(opened({ B2: '' }));
+    suggest();
+    expect(boxText()).toContain('Link the cell that holds the panel number to push them.');
+    expect(button('Push to load schedule').disabled).toBe(true);
+  });
+
+  it('Push to load schedule changes the project once: the panel, its circuits and the status; the Board select comes back', () => {
+    render(opened());
+    suggest();
+    const before = changes;
+    act(() => button('Push to load schedule').click());
+    expect(changes).toBe(before + 1);
+    expect(last.boards.find((b) => b.id === 'DB-NEW')).toMatchObject({ upstreamId: 'SMDB-GF' });
+    expect(last.feeders.filter((f) => f.boardId === 'DB-NEW' && f.phase).map((f) => f.id)).toEqual(['DB-NEW-R1', 'DB-NEW-Y1', 'DB-NEW-B1']);
+    expect(status[status.length - 1]).toBe('Pushed to DB-NEW: 3 added, 0 updated. Made DB-NEW.');
+    expect(boxText()).toBeUndefined();
+    expect(aside().querySelector<HTMLSelectElement>('select[aria-label="Board"]')!.value).toBe('DB-NEW');
+    expect(td('B6').textContent).toBe('Lights');
+    expect(last.sheets!.sheets[0].link!.boardId).toBe('DB-NEW');
+  });
+
+  it('a row that fails is reported after the counts and stays', () => {
+    render(opened({ B7: '', C7: '', D7: '16' }));
+    suggest();
+    act(() => button('Push to load schedule').click());
+    expect(status[status.length - 1]).toBe('Pushed to DB-NEW: 2 added, 0 updated. Made DB-NEW. Not pushed: Row 7: give a description or a load');
+    expect(last.sheets!.sheets[0].link!.added).toEqual([{ D: '16' }]);
+  });
+
+  it('Use as a template only leaves the pattern row blank and brings the Board select back', () => {
+    render(opened());
+    suggest();
+    const projectBefore = last;
+    act(() => button('Use as a template only').click());
+    expect(boxText()).toBeUndefined();
+    expect(boardSelect()).not.toBeNull();
+    const cells = last.sheets!.sheets[0].cells;
+    expect([cells.A6, cells.B6, cells.C6, cells.A7, cells.B7, cells.A8]).toEqual([undefined, undefined, undefined, undefined, undefined, undefined]);
+    expect(cells.B5).toBe('DESCRIPTION');
+    expect(last.sheets!.sheets[0].link!.rows).toEqual([]);
+    expect(last.boards).toBe(projectBefore.boards);
+  });
+
+  it('a panel schedule shows only Use as a template only and its muted line', () => {
+    render(opened());
+    suggest('md');
+    expect(boxText()).toContain('This sheet has 3 rows of its own');
+    expect(boxText()).toContain("Pushing a panel schedule's rows comes later. Use the layout as a template, then choose the panel.");
+    expect(boxText()).not.toContain('Panel DB-NEW');
+    expect(button('Push to load schedule')).toBeUndefined();
+    expect(button('Use as a template only')).toBeDefined();
+    expect(boardSelect()).toBeNull();
+  });
+});
+
 describe('Sheets page — My formats', () => {
   const office = () => book({
     A1: 'AL NOOR CONSULTANTS', A2: 'PANEL', B2: 'DB-GF', C2: 'FED FROM: SMDB-1',

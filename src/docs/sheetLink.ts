@@ -199,6 +199,52 @@ export function linkToBoard(sheet: Sheet, boardId: string): Sheet {
   return { ...sheet, link: { ...rest, boardId, rows: sheet.link.rows.map(() => '') } };
 }
 
+// ---- rows of an opened schedule
+
+/** The rows a sheet already holds under its first row, before it was filled from a board: from firstRow down, rows with text in a
+ * linked column (not an own column), up to the first row with none or a cell that starts with TOTAL. 0 for a sheet that is not linked,
+ * is already filled (link.rows not empty), or has a blank pattern row. */
+export function ownRows(sheet: Sheet): number {
+  const link = sheet.link;
+  if (!link || link.rows.length) return 0;
+  const letters = Object.keys(link.columns).filter((l) => link.columns[l] !== 'own');
+  const byRow = new Map<number, string[]>();
+  for (const [k, t] of Object.entries(sheet.cells)) { const r = cellAt(k)!.row; byRow.set(r, [...(byRow.get(r) ?? []), t]); }
+  let n = 0;
+  for (let r = link.firstRow; r <= sheet.rows; r++) {
+    if ((byRow.get(r) ?? []).some((t) => /^\s*TOTAL/i.test(t)) || !letters.some((l) => (sheet.cells[`${l}${r}`] ?? '').trim() !== '')) break;
+    n++;
+  }
+  return n;
+}
+
+/** Use as a template only: the own rows go down to the pattern row, which is blanked in its linked and own cells; no board, nothing
+ * pushed. The sheet keeps its id, name and source. */
+export function asTemplate(sheet: Sheet): Sheet {
+  const n = ownRows(sheet), cut = n > 1 ? deleteRows(sheet, sheet.link!.firstRow + 1, n - 1) : sheet;
+  return { ...templateOf(cut)!, ...(sheet.source ? { source: sheet.source } : {}) };
+}
+
+/** The panel a sheet's own rows would go to, from its linked cells: the panel number and the board it is fed from (the cell text
+ * without the text before and after the value). Undefined without a panel number. */
+export function pushTarget(project: Project, sheet: Sheet): { id: string; exists: boolean; fedFrom: string; parentExists: boolean } | undefined {
+  const link = sheet.link;
+  if (!link) return undefined;
+  const text = (field: string) => {
+    const hit = Object.entries(link.cells).find(([, c]) => c.field === field);
+    if (!hit) return undefined;
+    let t = sheet.cells[hit[0]] ?? '';
+    const { before, after } = hit[1];
+    if (before && t.startsWith(before)) t = t.slice(before.length);
+    if (after && t.endsWith(after)) t = t.slice(0, t.length - after.length);
+    return t.trim();
+  };
+  const id = text('board.id'), fedFrom = text('board.fedFrom') ?? '';
+  if (!id) return undefined;
+  const has = (b: string) => project.boards.some((x) => x.id.toLowerCase() === b.toLowerCase());
+  return { id, exists: has(id), fedFrom, parentExists: !!fedFrom && has(fedFrom) };
+}
+
 // ---- choosing what is linked (the Link columns panel)
 
 /** The boards a sheet of this category can show: for a DB schedule, DBs and any board with schedule rows; for a panel schedule, boards with outgoing feeders and any board that is not a DB. */
@@ -238,7 +284,8 @@ export function setLinkCell(sheet: Sheet, cell: string, field: string | undefine
   if (linkFields(link.category).find((f) => f.key === field)?.kind !== 'cell') return sheet;
   if (now) return { ...sheet, link: { ...link, cells: { ...link.cells, [k]: { ...now, field } } } };
   const before = textBefore(sheet.cells[k] ?? ''), cells = { ...sheet.cells };
-  if (before) cells[k] = before; else delete cells[k];
+  if (ownRows(sheet) > 0) { /* a sheet with rows of its own keeps the value: Push to load schedule reads the panel number from it */ }
+  else if (before) cells[k] = before; else delete cells[k];
   return { ...sheet, cells, link: { ...link, cells: { ...link.cells, [k]: { field, ...(before && { before }) } } } };
 }
 
@@ -353,7 +400,7 @@ export function suggestLink(sheet: Sheet, category: Category = 'db'): Sheet | un
     else {
       const to = cellName(i.right + 1, i.row); // a label alone: the value goes in the next cell to its right
       const { [to]: _old, ...rest } = out.cells;
-      out = setLinkCell({ ...out, cells: rest }, to, hit[1]);
+      out = setLinkCell(ownRows(out) > 0 ? out : { ...out, cells: rest }, to, hit[1]);
     }
   }
   return out;
