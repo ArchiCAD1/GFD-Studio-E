@@ -40,7 +40,7 @@ async function plotTo(project: Project, run: CalcRun | undefined, ids: string[],
   else await exportDrawingSet(project, ordered, run, !!to.each, onStatus, ids, false);
 }
 
-function PrinterSelect({ value, onChange, list, label = 'Printer' }: { value: string; onChange: (v: string) => void; list: PrinterInfo[]; label?: string }) {
+export function PrinterSelect({ value, onChange, list, label = 'Printer' }: { value: string; onChange: (v: string) => void; list: PrinterInfo[]; label?: string }) {
   const known = !value || list.some((p) => p.name === value);
   return (
     <label>{label}<select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>

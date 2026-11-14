@@ -1820,7 +1820,7 @@ describe('file tabs', () => {
     expect(project.cadLayouts![key]).toHaveLength(1);
     expect(project.cadLayouts![key][0]).toMatchObject({ name: 'Layout2', paper: [420, 297] });
     expect(document.querySelector('.cad-filepaper')!.getAttribute('aria-label')).toBe('Layout Layout2: 420 × 297 mm paper, 1 viewport');
-    expect(document.querySelector('.cad-status')!.textContent).toMatch(/PAPERLayout2 · 420 × 297 mm · 1 viewport at 1:\d+/);
+    expect(document.querySelector('.cad-status')!.textContent).toMatch(/PAPERViewport 1 · 1:\d+Layout2 · 420 × 297 mm · 1 viewport at 1:\d+/);
     // LAYOUT alone makes the next one.
     await command('LAYOUT');
     expect(ltabs()).toEqual(['Model', 'Layout1', 'A1 Lighting', 'Layout2', 'Layout3']);
@@ -2033,7 +2033,7 @@ describe('file tabs', () => {
     await command('VPORTS');
     expect(hist()).toMatch(/^VPORTS {2}Type VPORTS and an arrangement/);
     await command('VPSCALE 50');
-    expect(lastMsg()).toBe('LAYOUT  Layout2: viewport at 1:50 · ⌘Z to undo');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 1 at 1:50 · ⌘Z to undo');
     const perMm = (q: { vh: number; h: number }) => Math.round((q.vh / q.h) * 1e6) / 1e6; // the scale: model height per paper mm
     const vhBefore = perMm(mine()[0].viewports[0]);
     await command('VPORTS 4');
@@ -2043,7 +2043,7 @@ describe('file tabs', () => {
     await command('VPFIT');
     expect(lastMsg()).toBe('LAYOUT  Layout2: the whole drawing in 4 viewports · ⌘Z to undo');
     await command('VPSCALE 50');
-    expect(hist()).toMatch(/^VPSCALE {2}Layout2 has 4 viewports: right-click inside one/);
+    expect(hist()).toBe('VPSCALE  Layout2 has 4 viewports: pick one first (click its frame), or right-click inside one.');
     // Page setup: A1 portrait; the viewports keep their scale.
     const scales = () => mine()[0].viewports.map((q) => Math.round(perMm(q) * 10) / 10); // the frame is kept to 0.1 mm
     const before = scales();
@@ -2080,9 +2080,200 @@ describe('file tabs', () => {
     await command('VPMIN');
     expect(state.layout).toBe('dwg:Layout2');
     expect(hist()).toBe('VPMIN  No viewport is maximised (VPMAX on a layout first).');
-    // What a layout of the drawing does not take yet says what it does take.
+    // A viewport command with several viewports and none picked asks for one.
     await command('VPCOPY');
-    expect(hist()).toBe('VPCOPY  Layout2 is a layout of the drawing: its viewports take Arrange (VPORTS), Fit (VPFIT), a scale and Page setup. VPCOPY works on the project\'s plan sheets (right-click a tab).');
+    expect(hist()).toBe('VPCOPY  Pick a viewport first (click its frame).');
+  });
+
+  it('Layouts made with +: MV (Esc stops it), VPCOPY, VPLOCK, VPFRAME, VPALIGN, VPSCALE on the viewport picked, MS / PS and the MODEL / PAPER button, the Viewport properties panel, the right-click menu, PLOT', async () => {
+    act(() => root.render(<Host start={{ ...villa, building: undefined }} />));
+    await flush();
+    const v = await openDrawing('paper-layouts.dxf', bytes('tests/fixtures/cad/paper-layouts.dxf'));
+    act(() => state.open(v));
+    await flush();
+    const hist = () => document.querySelector('.cad-hist')!.textContent;
+    const mine = () => project.cadLayouts![v.file.toLowerCase()][0];
+    const status = () => document.querySelector('.cad-status')!.textContent;
+    const panel = () => document.querySelector('[aria-label="Viewport properties"]');
+    await command('LAYOUT');
+    expect(state.layout).toBe('dwg:Layout2');
+    // Where a point of the paper is on screen (mm from its lower left corner): from the first frame, A3 with a 10 mm margin.
+    const f1 = document.querySelector<HTMLElement>('.cad-vp[aria-label="Viewport 1"]')!;
+    const k = parseFloat(f1.style.width) / 400, left = parseFloat(f1.style.left) - 10 * k, bottom = parseFloat(f1.style.top) + 287 * k;
+    const px = (mx: number, my: number) => ({ clientX: left + mx * k, clientY: bottom - my * k });
+    const press = (mx: number, my: number) => act(() => { document.querySelector('.cad-vps')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, ...px(mx, my) })); });
+    const rightAt = (mx: number, my: number) => act(async () => { document.querySelector('.cad-filepaper')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...px(mx, my) })); });
+    const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
+    const labels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => b.firstElementChild?.textContent ?? b.textContent);
+    // MV: Esc stops it; typed again, two presses make Viewport 2 and pick it.
+    await command('MV');
+    expect(hist()).toBe('MVIEW  Click two corners of the new viewport on the paper:');
+    expect(document.querySelector('.cad-vps.mv')).not.toBeNull();
+    await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect(hist()).toBe('MVIEW  Cancelled.');
+    expect(document.querySelector('.cad-vps.mv')).toBeNull();
+    await command('MV');
+    press(20, 20);
+    press(120, 100);
+    expect(mine().viewports).toHaveLength(2);
+    expect(mine().viewports[1]).toMatchObject({ x: 20, y: 20, w: 100, h: 80 });
+    expect(lastMsg()).toMatch(/^LAYOUT {2}Layout2: Viewport 2 added at 1:\d+ · ⌘Z to undo$/);
+    expect(state.vpSel).toBe('dv1');
+    expect(document.querySelector('.cad-vps.mv')).toBeNull();
+    expect(panel()!.textContent).toMatch(/^Viewport 2 Layout2Scale/);
+    // VPCOPY, VPLOCK, VPFRAME act on the one picked.
+    await command('VPCOPY');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 2 copied as Viewport 3 · ⌘Z to undo');
+    expect(mine().viewports).toHaveLength(3);
+    expect(state.vpSel).toBe('dv2');
+    await command('VPLOCK');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 3: locked · ⌘Z to undo');
+    expect(mine().viewports[2].locked).toBe(true);
+    expect(status()).toMatch(/Viewport 3 · 1:\d+ · locked/);
+    await command('VPLOCK');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 3: unlocked: the wheel and a drag inside it move its view · ⌘Z to undo');
+    expect('locked' in mine().viewports[2]).toBe(false);
+    await command('VPFRAME');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 3: frame prints · ⌘Z to undo');
+    expect(mine().viewports[2].frame).toBe(true);
+    expect((panel()!.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(true);
+    await command('VPFRAME');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 3: frame on screen only · ⌘Z to undo');
+    // VPALIGN lines the picked viewport up with Viewport 1.
+    await command('VPALIGN');
+    expect(hist()).toBe('VPALIGN  Type VPALIGN H (side by side) or VPALIGN V (stacked).');
+    await command('VPALIGN H');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 3 lined up with Viewport 1 (side by side) · ⌘Z to undo');
+    act(() => state.setVpSel('dv0'));
+    await command('VPALIGN V');
+    expect(hist()).toBe('VPALIGN  Pick another viewport: the others line up with Viewport 1.');
+    // VPSCALE: the picked one; none picked with several: asks for one.
+    act(() => state.setVpSel('dv2'));
+    await command('VPSCALE 50');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 3 at 1:50 · ⌘Z to undo');
+    act(() => state.setVpSel(null));
+    await command('VPSCALE 50');
+    expect(hist()).toBe('VPSCALE  Layout2 has 3 viewports: pick one first (click its frame), or right-click inside one.');
+    await command('VPLOCK');
+    expect(hist()).toBe('VPLOCK  Pick a viewport first (click its frame).');
+    // MS works in the one picked; the status bar button (MODEL / PAPER) goes back and forth; PS returns.
+    act(() => state.setVpSel('dv2'));
+    await command('MS');
+    expect(state.msVp).toBe('dv2');
+    expect(hist()).toBe('MSPACE  In Viewport 3 (1:50): the wheel and a drag move its view. PS or a double-click outside returns to the paper.');
+    const toggle = () => document.querySelector<HTMLButtonElement>('.cad-status button[aria-label="Model space in a viewport"], .cad-status button[aria-label="Paper space"]')!;
+    expect(toggle().getAttribute('aria-label')).toBe('Model space in a viewport');
+    expect(toggle().textContent).toBe('MODEL');
+    act(() => toggle().click());
+    expect(state.msVp).toBeNull();
+    expect(hist()).toBe('PSPACE  On the paper.');
+    expect(toggle().textContent).toBe('PAPER');
+    act(() => toggle().click());
+    expect(state.msVp).toBe('dv2');
+    await command('PS');
+    expect(state.msVp).toBeNull();
+    // The Viewport properties panel: scale, Locked, Delete viewport.
+    setField('Viewport scale', '100');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 3 at 1:100 · ⌘Z to undo');
+    act(() => button('Locked').click());
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 3: locked · ⌘Z to undo');
+    act(() => button('Delete viewport').click());
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 3 deleted · ⌘Z to undo');
+    expect(mine().viewports).toHaveLength(2);
+    expect(panel()).toBeNull();
+    // Right-click inside Viewport 2 picks it; Lock display, then Erase viewport.
+    await rightAt(70, 60);
+    expect(state.vpSel).toBe('dv1');
+    expect(labels()).toEqual(['Activate (model space)', 'Show on the Model tab', 'Viewport scale', 'Lock display', 'Frame prints', 'Erase viewport', 'Plot this layout…', 'Page setup…']);
+    await act(async () => { entry('Lock display').click(); });
+    expect(mine().viewports[1].locked).toBe(true);
+    await rightAt(70, 60);
+    expect(labels()).toContain('Unlock display');
+    await act(async () => { entry('Erase viewport').click(); });
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 2 deleted · ⌘Z to undo');
+    expect(mine().viewports).toHaveLength(1);
+    expect(state.vpSel).toBeNull();
+    // LEGEND and NOTES belong to the plan sheets; PLOT opens the Plot dialog.
+    await command('LEGEND');
+    expect(hist()).toBe("LEGEND  Legend and notes tables go on the project's plan sheets (right-click a tab for a new plan sheet of the level).");
+    await command('PLOT');
+    expect(document.querySelector('[aria-label="Plot"]')!.textContent).toMatch(/^Plot Layout2/);
+    act(() => button('Cancel').click());
+    expect(document.querySelector('[aria-label="Plot"]')).toBeNull();
+  });
+
+  it('LAYOUT I: the layouts of another drawing, picked in a dialog, are added to this one; a name taken becomes the next LayoutN; the other drawing is closed', async () => {
+    localStorage.removeItem('lvds.layoutTemplates');
+    act(() => root.render(<Host start={{ ...villa, building: undefined }} />));
+    await flush();
+    const cadFile = (window as unknown as { lvds: { cadFile: { openBytes: ReturnType<typeof vi.fn> } } }).lvds.cadFile;
+    const other = () => cadFile.openBytes.mockResolvedValueOnce({ file: 'paper-layouts.dxf', path: '/jobs/paper-layouts.dxf', bytes: bytes('tests/fixtures/cad/paper-layouts.dxf') });
+    const key = state.view!.file.toLowerCase(), mine = () => project.cadLayouts![key];
+    const ltabs = () => [...document.querySelectorAll('[aria-label="Model and layouts"] [role="tab"]')].map((t) => t.textContent);
+    const dlg = () => document.querySelector('[aria-label="Layouts from another drawing"]');
+    const box = (name: string) => document.querySelector<HTMLInputElement>(`[aria-label="Import ${name}"]`)!;
+    expect(ltabs()).toEqual(['Model', 'Layout1']);
+    other();
+    await command('LAYOUT I');
+    await until(() => !!dlg());
+    expect(dlg()!.querySelector('h3')!.textContent).toBe('Layouts from another drawing paper-layouts.dxf');
+    const rows = [...document.querySelectorAll('[aria-label="Layouts of that drawing"] tbody tr')].map((r) => [...r.querySelectorAll('td')].slice(1).map((c) => c.textContent));
+    expect(rows[0].slice(0, 2)).toEqual(['Layout1', 'A3 landscape']);
+    expect(rows[0][2]).toMatch(/^1 · /);
+    expect(rows[1]).toEqual(['A1 Lighting', 'A1 landscape', '0']);
+    expect(box('Layout1').checked).toBe(true);
+    expect(box('A1 Lighting').checked).toBe(true);
+    expect(button('Import 2 layouts')).toBeDefined();
+    act(() => box('A1 Lighting').click());
+    expect(button('Import 1 layout')).toBeDefined();
+    act(() => button('Import 1 layout').click());
+    expect(dlg()).toBeNull();
+    // Layout1 is taken here, so it comes in as Layout2; the viewport shows this drawing.
+    expect(ltabs()).toEqual(['Model', 'Layout1', 'Layout2']);
+    expect(mine()).toHaveLength(1);
+    expect(mine()[0]).toMatchObject({ name: 'Layout2', paper: [420, 297] });
+    expect(mine()[0].viewports).toHaveLength(1);
+    expect(lastMsg()).toBe('LAYOUT  1 layout from paper-layouts.dxf: Layout2 · ⌘Z to undo');
+    expect(state.layout).toBe('dwg:Layout2');
+    expect(localStorage.getItem('lvds.layoutTemplates')).toBeNull(); // not kept as a template
+    // Again, both, and kept as templates too.
+    other();
+    await command('LAYOUT I');
+    await until(() => !!dlg());
+    act(() => document.querySelector<HTMLInputElement>('[aria-label="Layouts from another drawing"] .cad-devform input[type="checkbox"]')!.click());
+    act(() => button('Import 2 layouts').click());
+    expect(ltabs()).toEqual(['Model', 'Layout1', 'Layout2', 'Layout3', 'A1 Lighting']);
+    expect(lastMsg()).toBe('LAYOUT  2 layouts from paper-layouts.dxf: Layout3, A1 Lighting · ⌘Z to undo');
+    expect(mine()[2]).toMatchObject({ name: 'A1 Lighting', paper: [841, 594] });
+    expect(JSON.parse(localStorage.getItem('lvds.layoutTemplates')!).map((t: { name: string }) => t.name).sort()).toEqual(['A1 Lighting', 'Layout1']);
+    // The tab menu and the paper's menu offer it too.
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('.cad-ltab')].find((b) => b.textContent === 'Model')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 50, clientY: 500 })));
+    expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.firstChild?.textContent?.trim()).slice(0, 3)).toEqual(['New layout', 'From template…', 'From another drawing…']);
+  });
+
+  it("The drawing file's own layouts: PLOT opens the Plot dialog, PAGESETUP says the paper is the file's, the viewport commands say to make a layout with +", async () => {
+    act(() => root.render(<Host start={{ ...villa, building: undefined }} />));
+    await flush();
+    const v = await openDrawing('paper-layouts.dxf', bytes('tests/fixtures/cad/paper-layouts.dxf'));
+    act(() => state.open(v));
+    await flush();
+    const hist = () => document.querySelector('.cad-hist')!.textContent;
+    const tab = (name: string) => [...document.querySelectorAll<HTMLButtonElement>('.cad-ltab')].find((b) => b.textContent === name)!;
+    act(() => tab('Layout1').click());
+    expect(state.layout).toBe('file:Layout1');
+    await command('PAGESETUP');
+    expect(hist()).toBe("PAGESETUP  Layout1 is the drawing file's own layout: its paper (A3 landscape) is as the file has it. A layout made with + takes its own paper.");
+    await command('VPCOPY');
+    expect(hist()).toBe("VPCOPY  Layout1 is the drawing file's own layout, shown as it was saved. To change its viewports, save it as a template (LAYOUT S) and make a layout from it, or make one with +.");
+    await command('PLOT');
+    expect(document.querySelector('[aria-label="Plot"]')!.textContent).toMatch(/^Plot Layout1/);
+    expect(document.querySelector('[aria-label="Plot"]')!.textContent).toContain('420 × 297 mm');
+    act(() => button('Cancel').click());
+    // Its tab's menu: the top block, Save as template…, Plot….
+    act(() => tab('Layout1').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 50, clientY: 500 })));
+    expect(document.querySelector('[role="menu"]')!.getAttribute('aria-label')).toBe('Layout Layout1');
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')].find((b) => b.textContent?.startsWith('Plot…'))!.click());
+    expect(document.querySelector('[aria-label="Plot"]')).not.toBeNull();
   });
 });
 
@@ -4386,12 +4577,12 @@ describe('right-click menus: fixes from the audit of 2026-11-11', () => {
     const paperRight = (x: number, y: number) => act(async () => { document.querySelector('.cad-filepaper')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y })); });
     // jsdom lays the pane out at 0 × 0: the paper is fitted round (0, 0), its viewport over that point.
     await paperRight(0, 0);
-    expect(labels()).toEqual(['Show on the Model tab', 'Viewport scale', 'New layout', 'Arrange viewports', 'Page setup…', 'Rename layout…', 'Copy layout', 'Delete layout', 'Model tab']);
+    expect(labels()).toEqual(['Activate (model space)', 'Show on the Model tab', 'Viewport scale', 'Lock display', 'Frame prints', 'Erase viewport', 'Plot this layout…', 'Page setup…']);
     await pickEntry('Viewport scale', '1:50');
     const v = drawingLayoutsOf(project, F)[0].viewports[0];
     expect(v.vh).toBeCloseTo(v.h * 50, 6); // mm drawing: vh = h × 50 drawing units
     await paperRight(40, 0);
-    expect(labels()).toEqual(['New layout', 'Arrange viewports', 'Page setup…', 'Rename layout…', 'Copy layout', 'Delete layout', 'Model tab']);
+    expect(labels()).toEqual(['New viewport', 'Arrange viewports', 'Plot this layout…', 'Page setup…', 'New layout', 'From another drawing…', 'Rename layout…', 'Copy layout', 'Delete layout', 'Model tab']);
     await esc();
     await paperRight(0, 0);
     await pickEntry('Show on the Model tab');

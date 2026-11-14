@@ -47,11 +47,11 @@ export function moveLayout(set: DrawingSet, id: string, dir: -1 | 1): DrawingSet
 
 /** A layout made in Design CAD on the drawing (Layout2…): its tab id, name and tooltip. */
 export interface DrawingTab { id: string; name: string; title: string }
-type TabMenu = { s?: DrawingSheet; d?: DrawingTab; x: number; y: number };
+type TabMenu = { s?: DrawingSheet; d?: DrawingTab; f?: DrawingTab; x: number; y: number };
 
 /** The tabs under the drawing: Model, the drawing file's own layouts, the layouts made on it here, then the level's plan
  * sheets. + makes a layout of the drawing; a tab's right-click menu has its own commands and New plan sheet. */
-export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick, onNew, onNewSheet, onDrawing, onRename, onCopy, onMove, onDelete, onPageSetup, onPlot, onTemplates, onSaveTemplate }: {
+export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick, onNew, onNewSheet, onDrawing, onRename, onCopy, onMove, onDelete, onPageSetup, onPlot, onTemplates, onImport, onPlotLayout, onSaveTemplate }: {
   /** The drawing file's own layouts (paper space), first, as in the file: their tab id, name and tooltip. */
   files?: { id: string; name: string; title: string }[];
   /** Layouts made on the drawing here (+), after the file's own. */
@@ -73,6 +73,10 @@ export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick,
   onPlot?: (s: DrawingSheet) => void;
   /** A new layout from a template (the tab menu's From template…); absent: not offered. */
   onTemplates?: () => void;
+  /** Layouts of another drawing added to this one (the tab menu's From another drawing…); absent: not offered. */
+  onImport?: () => void;
+  /** Plot a layout of the drawing (the file's own or one made here; its tab's menu); absent: not offered. */
+  onPlotLayout?: (id: string) => void;
   /** Save a layout (a plan sheet's or a layout of the drawing's tab id) as a template; absent: not offered. */
   onSaveTemplate?: (id: string) => void;
 }) {
@@ -86,19 +90,19 @@ export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick,
   const pick = (f: () => void) => { setMenu(null); f(); };
   const ctx = (m: Omit<TabMenu, 'x' | 'y'>) => (e: ReactMouseEvent) => {
     e.preventDefault();
-    if (m.s || m.d || onNewSheet || onNew) setMenu({ ...m, x: e.clientX, y: e.clientY });
+    if (m.s || m.d || m.f || onNewSheet || onNew) setMenu({ ...m, x: e.clientX, y: e.clientY });
   };
   const sheetTypes = onNewSheet ? <>
-    {(menu?.s || menu?.d) && <hr />}
+    {(menu?.s || menu?.d || menu?.f) && <hr />}
     <div className="cad-tab-menu-h">New plan sheet of the level</div>
-    {PLAN_TYPES.map((t, i) => <button key={t} role="menuitem" autoFocus={!menu?.s && !menu?.d && i === 0} onClick={() => pick(() => onNewSheet(t))}>{PLAN_LABEL[t]} <span className="m">{PLAN_PREFIX[t]}</span></button>)}
+    {PLAN_TYPES.map((t, i) => <button key={t} role="menuitem" autoFocus={!menu?.s && !menu?.d && !menu?.f && i === 0} onClick={() => pick(() => onNewSheet(t))}>{PLAN_LABEL[t]} <span className="m">{PLAN_PREFIX[t]}</span></button>)}
   </> : null;
   return (
     <>
       <div className="cad-ltabs" role="tablist" aria-label="Model and layouts">
         <button role="tab" aria-selected={!active} className={`cad-ltab${!active ? ' on' : ''}`} title="Model: the plan at real size (drawing units)" onClick={() => onPick(null)} onContextMenu={ctx({})}>Model</button>
         {files.map((f) => (
-          <button key={f.id} role="tab" aria-selected={active === f.id} className={`cad-ltab${active === f.id ? ' on' : ''}`} title={f.title} onClick={() => onPick(f.id)} onContextMenu={ctx({})}>{f.name}</button>
+          <button key={f.id} role="tab" aria-selected={active === f.id} className={`cad-ltab${active === f.id ? ' on' : ''}`} title={f.title} onClick={() => onPick(f.id)} onContextMenu={ctx({ f })}>{f.name}</button>
         ))}
         {drawings.map((d) => (
           <button key={d.id} role="tab" aria-selected={active === d.id} className={`cad-ltab${active === d.id ? ' on' : ''}`} title={`${d.title} · right-click for more`} onClick={() => onPick(d.id)} onContextMenu={ctx({ d })}>{d.name}</button>
@@ -112,8 +116,12 @@ export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick,
       {menu && (
         <>
           <div className="st-cover" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null); }} />
-          <div className="dw-menu st-ctx cad-tab-menu up" role="menu" aria-label={menu.s ? `Layout ${menu.s.number}` : menu.d ? `Layout ${menu.d.name}` : 'New plan sheet'} style={{ left: Math.max(8, Math.min(menu.x, window.innerWidth - 236)), top: menu.y }}>
-            {onNew && <><button role="menuitem" autoFocus onClick={() => pick(onNew)}>New layout <span className="m">LAYOUT</span></button>{onTemplates && <button role="menuitem" onClick={() => pick(onTemplates)}>From template…</button>}{(menu.s || menu.d) && <hr />}</>}
+          <div className="dw-menu st-ctx cad-tab-menu up" role="menu" aria-label={menu.s ? `Layout ${menu.s.number}` : menu.d ? `Layout ${menu.d.name}` : menu.f ? `Layout ${menu.f.name}` : 'New plan sheet'} style={{ left: Math.max(8, Math.min(menu.x, window.innerWidth - 236)), top: menu.y }}>
+            {onNew && <><button role="menuitem" autoFocus onClick={() => pick(onNew)}>New layout <span className="m">LAYOUT</span></button>{onTemplates && <button role="menuitem" onClick={() => pick(onTemplates)}>From template…</button>}{onImport && <button role="menuitem" onClick={() => pick(onImport)}>From another drawing…</button>}{(menu.s || menu.d || menu.f) && <hr />}</>}
+            {menu.f && <>
+              {onSaveTemplate && <button role="menuitem" autoFocus={!onNew} onClick={() => pick(() => onSaveTemplate(menu.f!.id))}>Save as template…</button>}
+              {onPlotLayout && <button role="menuitem" autoFocus={!onNew && !onSaveTemplate} onClick={() => pick(() => onPlotLayout(menu.f!.id))}>Plot… <span className="m">PLOT</span></button>}
+            </>}
             {menu.s && <>
               <button role="menuitem" autoFocus={!onNew} onClick={() => pick(() => onRename(menu.s!))}>Rename…</button>
               <button role="menuitem" onClick={() => pick(() => onCopy(menu.s!))}>Copy</button>
@@ -131,6 +139,7 @@ export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick,
               <button role="menuitem" onClick={() => pick(() => onDrawing.move(menu.d!, -1))}>Move left</button>
               <button role="menuitem" onClick={() => pick(() => onDrawing.move(menu.d!, 1))}>Move right</button>
               <button role="menuitem" onClick={() => pick(() => onDrawing.pageSetup(menu.d!))}>Page setup…</button>
+              {onPlotLayout && <button role="menuitem" onClick={() => pick(() => onPlotLayout(menu.d!.id))}>Plot… <span className="m">PLOT</span></button>}
               <button role="menuitem" onClick={() => pick(() => onDrawing.remove(menu.d!))}>Delete</button>
             </>}
             {sheetTypes}
@@ -374,6 +383,42 @@ export function ViewportPanel({ project, sheet, vp, refs, onChange, onDelete, on
       })}</div>}
       <label><input type="checkbox" checked={!!vp.frame} onChange={() => onChange({ frame: vp.frame ? undefined : true }, vp.frame ? 'frame not printed' : 'frame printed')} /> Frame prints</label>
       <div className="cad-devbtns"><button className="chip" onClick={onLayers}>Layers in this viewport…</button><button className="chip" onClick={onDelete}>Delete viewport</button></div>
+    </div>
+  );
+}
+
+/** Viewport properties of a layout made here (its frame picked): scale, lock, frame printed, delete. */
+export function DrawingViewportPanel({ name, index, scale, scales, locked, frame, onScale, onLocked, onFrame, onDelete }: {
+  name: string;
+  /** The viewport's place in the layout (0 is Viewport 1). */
+  index: number;
+  scale: number;
+  scales: number[];
+  locked: boolean;
+  frame: boolean;
+  onScale: (n: number) => void;
+  onLocked: (locked: boolean) => void;
+  onFrame: (on: boolean) => void;
+  onDelete: () => void;
+}) {
+  const [custom, setCustom] = useState('');
+  return (
+    <div className="cad-devform cad-vpform" aria-label="Viewport properties">
+      <b>Viewport {index + 1} <span className="m">{name}</span></b>
+      <label>Scale
+        <select aria-label="Viewport scale" value={scales.includes(scale) ? scale : 'custom'} onChange={(e) => e.target.value !== 'custom' && onScale(Number(e.target.value))}>
+          {scales.map((k) => <option key={k} value={k}>1:{k}</option>)}
+          <option value="custom">{scales.includes(scale) ? 'Custom…' : `1:${scale}`}</option>
+        </select>
+      </label>
+      <label>Custom 1:<input aria-label="Custom scale" inputMode="numeric" value={custom} placeholder={String(scale)} onChange={(e) => setCustom(e.target.value)}
+        onBlur={() => { const k = Math.round(Number(custom)); if (k > 0 && k !== scale) onScale(k); setCustom(''); }} /></label>
+      <div className="seg" role="group" aria-label="Locked">
+        <button className={locked ? 'on' : ''} onClick={() => !locked && onLocked(true)}>Locked</button>
+        <button className={!locked ? 'on' : ''} onClick={() => locked && onLocked(false)}>Unlocked</button>
+      </div>
+      <label><input type="checkbox" checked={frame} onChange={() => onFrame(!frame)} /> Frame prints</label>
+      <div className="cad-devbtns"><button className="chip" onClick={onDelete}>Delete viewport</button></div>
     </div>
   );
 }
