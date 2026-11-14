@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
-import { addSketch, arcStartCentreEnd, arcThrough, bulgeArc, circle2P, cloudLobes, dimensionLines, ellipseOf, ellipsePoints, itemAt, moved, polygonPts, rectangle, removeSketch, rotated, segmentsOf, shapesOut, sketchOf, snapPoints, trayLabel, trayLength, trayLine, typedPoint, updateSketch } from './cadSketch';
+import { addSketch, arcStartCentreEnd, arcThrough, bulgeArc, circle2P, cloudLobes, dimensionLines, dimOf, ellipseOf, ellipsePoints, itemAt, moved, polygonPts, rectangle, removeSketch, rotated, segmentsOf, shapesOut, sketchOf, snapPoints, trayLabel, trayLength, trayLine, typedPoint, updateSketch } from './cadSketch';
 import { CHAR_W } from './cadText';
 import type { SketchItem } from '../types';
 
@@ -63,6 +63,22 @@ describe('drawing in the CAD view', () => {
     const out = shapesOut(items, 0.001);
     expect(out.filter((s) => s.layer === 'LV-ANNO' && s.kind === 'text')[0].text).toBe('4.00');
     expect(out.filter((s) => s.layer === 'LV-ANNO' && s.kind === 'line').length).toBe(5);
+  });
+
+  it('writes every kind of dimension\'s text centred on the middle of its baseline, where it is drawn', () => {
+    const look = { arrow: 'closed' as const, size: 90, off: 20, ext: 50, unit: 'mm' as const, decimals: 0 };
+    const dims: SketchItem[] = [
+      { id: 'old', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], text: '4.00' }, // drawn before styles
+      { id: 'up', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [0, 3000], [-600, 1500]], h: 100, look: { ...look, textPos: 'above' }, dir: Math.PI / 2 },
+      { id: 'radius', kind: 'dim', dimKind: 'radius', layer: 'LV-ANNO', pts: [[1000, 1000], [1500, 1000], [1200, 1300]], h: 90, look },
+      { id: 'diameter', kind: 'dim', dimKind: 'diameter', layer: 'LV-ANNO', pts: [[1000, 1000], [1500, 1000], [1800, 1000]], h: 90, look },
+      { id: 'angular', kind: 'dim', dimKind: 'angular', layer: 'LV-ANNO', pts: [[3000, 3000], [4000, 3000], [3000, 4000], [3300, 3300]], h: 90, look }
+    ];
+    for (const it of dims) {
+      const d = dimOf(it, 0.001), text = shapesOut([it], 0.001).filter((s) => s.kind === 'text');
+      expect(text, it.id).toHaveLength(1);
+      expect(text[0], it.id).toMatchObject({ pts: [d.text], h: d.h, rot: d.angle, just: 'C' });
+    }
   });
 
   it('picks a justified text by its box, and writes its justification for the DXF', () => {

@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.146', date: '2026-11-14',
+    items: [
+      { title: 'Design CAD: dimension text centred in saved files', text: 'In a DXF or DWG saved from Design CAD, the text of a dimension you drew is now centred where the app and the sheets show it. Other CAD programs used to show it starting at that point, half its width to one side.' }
+    ]
+  },
+  {
     version: '2.145', date: '2026-11-14',
     items: [
       { title: 'Design CAD: your own text at its real height', text: 'Text, notes, dimensions and tray, cable and fitting labels drawn in Design CAD now have their capitals at the height you set, as other CAD programs show them in the DXF or DWG you save. Before, their capitals came out at about 0.7 of it, so text already in a drawing now shows about 1.4 times taller: check for labels that run into something.', action: 'cad' },
