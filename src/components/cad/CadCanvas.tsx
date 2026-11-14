@@ -11,6 +11,7 @@ import { attdefAsText, expandAll, type CadBlockDef } from '../../model/cadBlocks
 import type { PlanCells, PlanCover } from '../elv/elvOverlay';
 import { fittingLabel, trayFittings } from '../../model/cadTrayFittings';
 import { cssRgb, dashArray, hatchLines, patternLength, screenColour, tileOf } from '../../model/cadDraw';
+import { BAR_ALPHA, emPerCap, READ_PX, textBar, widthPerPx } from '../../model/cadTextScreen';
 import type { SketchItem } from '../../types';
 import { effective, styleOf, type LayerStyle } from '../../model/cadLayerStyle';
 import { colourCss } from '../../model/cadColours';
@@ -24,6 +25,8 @@ type Pt = [number, number];
 
 /** The canvas colour when the theme gives none; the cursor's outline is drawn in it. */
 const BG = '#15171A';
+/** The font texts are drawn in. */
+const FONT = 'system-ui, sans-serif';
 
 /** The status bar toggles; `dyn` (dynamic input at the cursor) is the page's, the drawing does not use it. */
 /** `polar` tracking (F10), object snap tracking `otrack` (F11) and lineweights shown (`lwt`) default to off, off, on. */
@@ -47,6 +50,8 @@ interface Landing { at: Pt; snap?: { p: Pt; kind: number }; guide?: { from: Pt[]
 export type ZoomReq = { n: number; do: { kind: 'window'; a: Pt; b: Pt } | { kind: 'scale'; k: number; relative: boolean } | { kind: 'previous' } };
 /** Where a drawing was zoomed or panned to: it stays there until Fit, also while its tab or the page is left. */
 const placeOf = new WeakMap<CadView, ViewT>();
+/** Each drawing's texts' widths per px of font, measured once (for the bars of texts too small to read). */
+const widthsOf = new WeakMap<CadView, Map<string, number>>();
 
 const hex = (rgb: number) => `#${rgb.toString(16).padStart(6, '0')}`;
 
@@ -459,6 +464,8 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     const skC = colour('--cad-sketch', '#7fd1ff'), selSk = colour('--cad-snap', '#37d67a');
     const trayH = TRAY_TEXT_MM * unitsPerMm, trayText = trayH * scale >= 4;
     const ltScale = 100 * unitsPerMm; // linetype dashes in paper mm at 1:100
+    const emK = emPerCap(ctx, FONT), widths = widthsOf.get(view) ?? new Map<string, number>();
+    widthsOf.set(view, widths);
     /** A drawn object's words, in screen space: a note's lines, a text (its mask under it), a dimension's or a tray's or
      * cable's label. Called in the object's turn, so the draw order holds for words too. */
     // Always back to drawing units afterwards, also when the object has no words to show (else what is drawn after it
@@ -470,16 +477,20 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     const drawWords = (it: SketchItem) => {
       if (it.kind === 'mtext') {
         // A note: its lines from the top left of its box, each piece in its weight, underlined ones with a rule; the box
-        // outlined while it is picked.
+        // outlined while it is picked. Too small to read: a faint bar where each piece is.
         const nef = effective(it, layerStyle);
         if (nef.hidden) return;
         const b = noteBox(it);
-        if (b.h * scale < 4) return;
+        if (!(b.h * scale > 0)) return;
         ctx.save();
         ctx.translate((b.tl[0] - o0 - ox) * scale, size.h - (b.tl[1] - o1 - oy) * scale);
         ctx.rotate(-(it.rot ?? 0));
         ctx.fillStyle = isSel(it.id) ? selSk : nef.color ?? skC; ctx.textAlign = 'left';
-        for (const line of b.lines) for (const seg of line.segs) {
+        if (b.h * scale < READ_PX * emK) {
+          ctx.save(); ctx.globalAlpha *= BAR_ALPHA; ctx.beginPath();
+          for (const line of b.lines) for (const seg of line.segs) textBar(ctx, seg.x * scale, line.y * scale, 0, (seg.h * scale) / emK, seg.w * scale, 0);
+          ctx.fill(); ctx.restore();
+        } else for (const line of b.lines) for (const seg of line.segs) {
           const sp = Math.min(seg.h * scale, 200);
           ctx.font = `${seg.b ? '700 ' : ''}${sp}px system-ui, sans-serif`;
           ctx.fillText(seg.s, seg.x * scale, line.y * scale);
@@ -498,7 +509,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         const lef = effective(it, layerStyle);
         if (lef.hidden) return;
         const px = label.h * scale;
-        if (px < 4) return;
+        if (!(px > 0) || (it.tray && !trayText)) return;
         ctx.save();
         ctx.translate((label.at[0] - o0 - ox) * scale, size.h - (label.at[1] - o1 - oy) * scale);
         ctx.rotate(-label.rot);
@@ -512,7 +523,12 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         ctx.textAlign = label.align;
         if (it.tray) ctx.textBaseline = 'middle'; // in the gap of the tray's line
         ctx.fillStyle = isSel(it.id) ? selSk : lef.color ?? skC;
-        ctx.fillText(label.s, 0, 0);
+        if (px < READ_PX * emK) {
+          // Too small to read: a faint bar where the words are.
+          ctx.globalAlpha *= BAR_ALPHA; ctx.beginPath();
+          textBar(ctx, 0, 0, 0, px / emK, widthPerPx(ctx, FONT, label.s, widths) * px, label.align === 'center' ? 1 : label.align === 'right' ? 2 : 0);
+          ctx.fill();
+        } else ctx.fillText(label.s, 0, 0);
         ctx.restore();
     };
     // What the engineer drew, in its draw order (later on top): lines and hatches in drawing units, each object's words in its turn.
@@ -624,28 +640,44 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
-    // Texts in screen space at their drawn height; too small to read: left out.
+    // Texts in screen space, their capitals at the drawn height (as CAD measures text); too small to read (capitals
+    // under READ_PX, or past 6000 words a draw): a faint bar where the words are, as CAD shows text zoomed out.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.textBaseline = 'alphabetic';
+    const bars = new Map<string, Path2D>();
     let drawn = 0;
     for (const tx of view.info.texts) {
       if (!layersOn[tx.layer] || (gone && tx.o !== undefined && gone.objects.has(tx.o))) continue;
-      const px = tx.h * scale;
-      if (px < 4 || drawn > 6000) continue;
+      const cap = tx.h * scale;
+      if (!(cap > 0)) continue;
       const sx = (tx.x - o0 - ox) * scale, sy = size.h - (tx.y - o1 - oy) * scale;
       if (sx < -2000 || sx > size.w + 2000 || sy < -200 || sy > size.h + 200) continue;
+      const em = cap * emK, fill = shade(tx.rgb);
+      if (cap < READ_PX || drawn >= 6000) {
+        let bar = bars.get(fill);
+        if (!bar) bars.set(fill, (bar = new Path2D()));
+        textBar(bar, sx, sy, tx.rot, cap, tx.w ? tx.w * scale : widthPerPx(ctx, FONT, tx.s, widths) * em, tx.align);
+        continue;
+      }
       ctx.save();
       ctx.translate(sx, sy);
       ctx.rotate(-tx.rot);
-      ctx.font = `${Math.min(px, 200)}px system-ui, sans-serif`;
+      // The font no bigger than 200 px, scaled up past that so the words keep their shape as the view zooms in.
+      const fpx = Math.min(em, 200), up = em / fpx;
+      ctx.font = `${fpx}px ${FONT}`;
       ctx.textAlign = tx.align === 1 ? 'center' : tx.align === 2 ? 'right' : 'left';
-      ctx.fillStyle = shade(tx.rgb);
+      ctx.fillStyle = fill;
       // Fitted between two points: squeezed or stretched to the width given.
-      if (tx.w) { const nat = ctx.measureText(tx.s).width; if (nat > 0) ctx.scale(tx.w * scale / nat, 1); }
+      let kx = up;
+      if (tx.w) { const nat = ctx.measureText(tx.s).width; if (nat > 0) kx = tx.w * scale / nat; }
+      if (kx !== 1 || up !== 1) ctx.scale(kx, up);
       ctx.fillText(tx.s, 0, 0);
       ctx.restore();
       drawn += 1;
     }
+    ctx.globalAlpha = BAR_ALPHA;
+    for (const [fill, bar] of bars) { ctx.fillStyle = fill; ctx.fill(bar); }
+    ctx.globalAlpha = 1;
     for (const d of devices) {
       const px = d.r * scale;
       if (px < 4) continue;

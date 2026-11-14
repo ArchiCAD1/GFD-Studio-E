@@ -15,6 +15,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.142', date: '2026-11-14',
+    items: [
+      { title: 'Design CAD: text at its real height', text: 'Text in an opened drawing is drawn with its capitals at the height the drawing gives, as other CAD programs show it. Text fitted to a width, as in drawings exported from the SLD, no longer looks squashed, and it keeps its shape when you zoom in close.' },
+      { title: 'Design CAD: text stays visible zoomed out', text: 'Text too small to read when you zoom out shows as a faint bar where its words are, as in other CAD programs, instead of disappearing. This covers the opened drawing, your own text and notes, and a file\'s layouts.' }
+    ]
+  },
+  {
     version: '2.140', date: '2026-11-14',
     items: [
       { title: 'Sheets: push an existing schedule to the load schedule', text: 'Open an existing Excel DB schedule in Sheets and link its columns: Link columns then says how many rows of its own the sheet has and offers Push to load schedule. Push makes the panel under its Fed from board (and that board too, when it is not in the project) and one circuit for each row, so the Load schedule tab and the SLD follow. A circuit number such as R1 or Y2 sets the phase and way; a size left blank is sized by the rules and a typed one is kept; pushing the same schedule again updates its circuits. Use as a template only keeps just the layout.', action: 'sheets', actionLabel: 'Open Sheets' }
