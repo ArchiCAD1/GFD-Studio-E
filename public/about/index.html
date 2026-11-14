@@ -55,6 +55,12 @@
     .card { min-height: 190px; padding: 28px; border-right: 1px solid #ddddda; border-bottom: 1px solid #ddddda; background: #fafaf8; }
     .card h3 { margin: 0 0 10px; font-size: 1.08rem; }
     .card p { margin: 0; color: #555550; }
+    .screenshots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+    .screenshot { margin: 0; min-width: 0; }
+    .screenshot a { display: block; border: 1px solid #ddddda; border-radius: 4px; overflow: hidden; }
+    .screenshot img { display: block; width: 100%; height: auto; }
+    .screenshot figcaption { margin-top: 12px; color: #555550; }
+    .download-note { margin: 14px 0 0; color: #555550; font-size: 0.93rem; }
     .two-column { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; }
     .two-column h2 { margin-bottom: 18px; }
     .two-column p { margin: 0 0 16px; color: #4b4b47; }
@@ -68,7 +74,7 @@
       .header-inner { align-items: flex-start; flex-direction: column; padding: 16px 0; }
       .hero { padding: 58px 0 54px; }
       .section { padding: 54px 0; }
-      .section-heading, .cards, .two-column { grid-template-columns: 1fr; }
+      .section-heading, .cards, .two-column, .screenshots { grid-template-columns: 1fr; }
       .section-heading { gap: 16px; }
       .two-column { gap: 38px; }
       .footer-inner { flex-direction: column; }
@@ -102,13 +108,86 @@
         <p class="lede">LV Design Studio brings single-line diagrams, load schedules, equipment sizing, calculations, drawings and reports together in an offline desktop and browser application.</p>
         <div class="actions">
           <a class="button button-primary" href="../">Open the browser app</a>
+          <a class="button button-secondary" href="https://github.com/Pdhruv15/LV-Design-Studio/releases" data-windows-beta-download>Download Windows beta installer</a>
           <a class="button button-secondary" href="https://github.com/Pdhruv15/LV-Design-Studio">View the source</a>
         </div>
+        <p class="download-note">Windows 64-bit · Beta release · <a href="https://github.com/Pdhruv15/LV-Design-Studio/releases">Release notes and downloads</a></p>
         <ul class="facts" aria-label="Project facts">
           <li>No sign-in required</li>
           <li>Projects remain under your control</li>
           <li>MIT or Apache-2.0 licence</li>
         </ul>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="screenshots-title">
+      <div class="shell">
+        <div class="section-heading">
+          <h2 id="screenshots-title">See the workspace</h2>
+          <p class="section-intro">Explore the same app screenshots shown on GitHub, using the built-in 415 V villa demonstration project. Select an image to see it at full size.</p>
+        </div>
+        <div class="screenshots">
+          <figure class="screenshot">
+            <a href="./screenshots/10-overview-design-stages.png" aria-label="View overview and design stages screenshot at full size">
+              <img src="./screenshots/10-overview-design-stages.png" alt="Project overview with design stages and readiness checks" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Overview and design stages</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <a href="./screenshots/01-single-line-diagram.png" aria-label="View single-line diagram screenshot at full size">
+              <img src="./screenshots/01-single-line-diagram.png" alt="Single-line diagram with panel hierarchy and board properties" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Single-line diagram</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <a href="./screenshots/02-load-schedule.png" aria-label="View load schedule screenshot at full size">
+              <img src="./screenshots/02-load-schedule.png" alt="Board load schedule showing connected load and maximum demand" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Load schedule</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <a href="./screenshots/03-transformer-generator.png" aria-label="View transformer and generator sizing screenshot at full size">
+              <img src="./screenshots/03-transformer-generator.png" alt="Transformer and generator sizing for the sample villa project" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Transformer and generator sizing</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <a href="./screenshots/04-power-factor-correction.png" aria-label="View power factor correction screenshot at full size">
+              <img src="./screenshots/04-power-factor-correction.png" alt="Power factor correction study with capacitor bank sizing" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Power factor correction</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <a href="./screenshots/05-earthing-with-panel-tree.png" aria-label="View earthing screenshot at full size">
+              <img src="./screenshots/05-earthing-with-panel-tree.png" alt="Earthing study filtered by the selected distribution board" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Earthing</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <a href="./screenshots/06-study-reports.png" aria-label="View study reports screenshot at full size">
+              <img src="./screenshots/06-study-reports.png" alt="Study report selection and document export options" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Study reports</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <a href="./screenshots/07-cable-tray-schedule.png" aria-label="View cable tray schedule screenshot at full size">
+              <img src="./screenshots/07-cable-tray-schedule.png" alt="Cable tray routes, sizing, cable grouping and bill of quantities" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Cable tray schedule</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <a href="./screenshots/08-quick-calculators.png" aria-label="View quick calculators screenshot at full size">
+              <img src="./screenshots/08-quick-calculators.png" alt="Quick electrical calculators for common design checks" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Quick calculators</figcaption>
+          </figure>
+          <figure class="screenshot">
+            <a href="./screenshots/09-projects-dashboard.png" aria-label="View projects dashboard screenshot at full size">
+              <img src="./screenshots/09-projects-dashboard.png" alt="Projects dashboard with recent projects and project status" loading="lazy" decoding="async" />
+            </a>
+            <figcaption>Projects dashboard</figcaption>
+          </figure>
+        </div>
       </div>
     </section>
 
