@@ -29,7 +29,7 @@ Phase 1 of the drafting and publishing list the user gave on 2026-11-06. Phase 2
      - one thin grey line (as today)
      - the lineweights stored in the DWG's layers
      - by colour, from a **CTB file**
-   - **Import…** reads a .ctb from the AutoCAD Plot Styles folder: 255 colours, each with a lineweight and screening (grey). STB (named plot styles) can follow later.
+   - **Import…** reads a .ctb from a desktop drafting program's Plot Styles folder: 255 colours, each with a lineweight and screening (grey). STB (named plot styles) can follow later.
    - The defaults match what the sheets print today, so nothing changes until the table is edited.
 3. **Publish** (the existing dialog, extended).
    - **Sheets:** this sheet, the sheets ticked, or all of them. The list can be narrowed by kind (SLD, Board sheets, Plans, Earthing) and shows each sheet's paper and scale.

@@ -6,7 +6,7 @@ tags: [cad-export, verification]
 
 # DXF export verification — 2026-10-04
 
-Checkout: `codex/dxf-export-quality`, based on `ac3774a`. Local commits `51a4bc9` and `bcb3afe` (LibreCAD SOLID-width correction). Local source build, not the installed production app. User requested local-only changes; nothing pushed and no PR created.
+Checkout: `codex/dxf-export-quality`, based on `ac3774a`. Local commits `51a4bc9` and `bcb3afe` (SOLID-width correction for an open-source drafting program). Local source build, not the installed production app. User requested local-only changes; nothing pushed and no PR created.
 
 ## Automated evidence
 
@@ -18,11 +18,11 @@ Checkout: `codex/dxf-export-quality`, based on `ac3774a`. Local commits `51a4bc9
 
 ## Native CAD check
 
-Installed and opened official ARM64 LibreCAD 2D build `v2.2.1.5-57-gb8f7efe12` at `/Applications/LibreCAD.app`, as requested. Installer SHA-256 and application signature verified.
+Installed and opened an official ARM64 build of an open-source 2D drafting program, as requested. Installer SHA-256 and application signature verified.
 
-The initial wide-POLYLINE sample still displayed a thin busbar in LibreCAD. The writer was corrected to emit filled R12 SOLID geometry. Opened `DXF-clearance-final.dxf` and used Auto Zoom: the red busbar now displays with visible thickness; adjacent cable/ECC labels, CT meter clearance, curved glands, RCD oval and socket curve are visible. Screenshot below records the result. A3 and other sheet scales were tested automatically; the final A3 file was generated but not separately inspected in native CAD.
+The initial wide-POLYLINE sample still displayed a thin busbar in that program. The writer was corrected to emit filled R12 SOLID geometry. Opened `DXF-clearance-final.dxf` and used Auto Zoom: the red busbar now displays with visible thickness; adjacent cable/ECC labels, CT meter clearance, curved glands, RCD oval and socket curve are visible. Screenshot below records the result. A3 and other sheet scales were tested automatically; the final A3 file was generated but not separately inspected in native CAD.
 
-AutoCAD was not used to verify the result. This is a native LibreCAD sample check, not verification of every possible project annotation.
+No commercial desktop drafting program was used to verify the result. This is a native open-source drafting program sample check, not verification of every possible project annotation.
 
 ## Test files
 
