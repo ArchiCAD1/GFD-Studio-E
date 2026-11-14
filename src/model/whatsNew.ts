@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.137', date: '2026-11-14',
+    items: [
+      { title: 'Sheets: your own schedules for MDB, SMDB and MCC', text: 'Link columns now asks whether a sheet is a DB schedule or a panel schedule. A panel schedule has one row per outgoing feeder: name, device, rating, cable, load per phase, TCL and MDL fill from the project, and what you type — or a new feeder row — goes back with Apply to project. My formats keeps panel layouts too, and a project can use a different format for its DBs, SMDBs, MDBs and MCCs, chosen with the new project or in My formats. Export → Open in my format works on a panel\'s form as well.', action: 'sheets', actionLabel: 'Open Sheets' }
+    ]
+  },
+  {
     version: '2.136', date: '2026-11-14',
     items: [
       { title: 'Design CAD: layout tools on Output', text: 'Output now reads Layout · Layout viewports · Plot · Publish · Export, with every tool named. New layout lists a layout of the drawing, one from a template, and the four plan sheets; Page setup and Save as template are beside it. The viewport tools show on a layout tab. With Show labels on, the two layout panels have a Layout sub-tab of their own beside Output.', action: 'cad', actionLabel: 'Open Design CAD' },
