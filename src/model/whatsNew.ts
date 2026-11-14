@@ -15,6 +15,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.145', date: '2026-11-14',
+    items: [
+      { title: 'Design CAD: your own text at its real height', text: 'Text, notes, dimensions and tray, cable and fitting labels drawn in Design CAD now have their capitals at the height you set, as other CAD programs show them in the DXF or DWG you save. Before, their capitals came out at about 0.7 of it, so text already in a drawing now shows about 1.4 times taller: check for labels that run into something.', action: 'cad' },
+      { title: 'Plan sheets: text at its real height', text: 'On the plan sheets and their PDF, text 2.5 mm high prints with capitals 2.5 mm high, as the ISO text heights mean. Tray and cable labels print with 2.5 mm capitals too, and stacked cable tags are spaced to match.' }
+    ]
+  },
+  {
     version: '2.143', date: '2026-11-14',
     items: [
       { title: 'Design CAD: viewports on a layout made with +', text: 'On a layout made with +, a viewport is picked by its frame: drag the frame to move it, drag a corner to resize it. Viewport (MV) makes a new one from two corners; Esc stops it. A double-click inside works in it: the wheel and a drag then move its view, and a double-click outside goes back to the paper (MS and PS, or the PAPER / MODEL button on the status bar). Scale, Lock, Fit, Copy, Align, Maximise and Frame prints act on the viewport picked; its properties show in the palette, and the same entries are on its right-click menu.', action: 'cad' },
