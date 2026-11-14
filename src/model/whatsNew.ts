@@ -15,6 +15,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.139', date: '2026-11-14',
+    items: [
+      { title: 'Design CAD: text at its real height', text: 'Text in an opened drawing is drawn with its capitals at the height the drawing gives, as other CAD programs show it. Text fitted to a width, as in drawings exported from the SLD, no longer looks squashed, and it keeps its shape when you zoom in close.' },
+      { title: 'Design CAD: text stays visible zoomed out', text: 'Text too small to read when you zoom out shows as a faint bar where its words are, as in other CAD programs, instead of disappearing. This covers the opened drawing, your own text and notes, and a file\'s layouts.' }
+    ]
+  },
+  {
     version: '2.136', date: '2026-11-14',
     items: [
       { title: 'Design CAD: layout tools on Output', text: 'Output now reads Layout · Layout viewports · Plot · Publish · Export, with every tool named. New layout lists a layout of the drawing, one from a template, and the four plan sheets; Page setup and Save as template are beside it. The viewport tools show on a layout tab. With Show labels on, the two layout panels have a Layout sub-tab of their own beside Output.', action: 'cad', actionLabel: 'Open Design CAD' },
