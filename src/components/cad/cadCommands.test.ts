@@ -8,7 +8,7 @@ const BEFORE: Record<string, string> = {
   'Z S': 'zoomscale', 'ZOOM S': 'zoomscale', 'ZOOM SCALE': 'zoomscale', QSELECT: '!qselect', QS: '!qselect', SELECTSIMILAR: 'selsim',
   DRA: 'dimrad', DIMRADIUS: 'dimrad', DDI: 'dimdia', DIMDIAMETER: 'dimdia', DAN: 'dimang', DIMANGULAR: 'dimang',
   DI: 'dist', DIST: 'dist', DISTANCE: 'dist', AREA: 'area', AA: 'area', RA: 'room', ROOM: 'room', ROOMAREA: 'room',
-  ROOMS: '!addRooms', ADDROOMS: '!addRooms', TR: 'trace', TRACE: 'trace', PN: 'name', NAME: 'name', LI: 'none', LIST: 'none',
+  ROOMS: '!addRooms', ADDROOMS: '!addRooms', TR: 'trim', TRACE: 'trace', PN: 'name', NAME: 'name', LI: 'none', LIST: 'none',
   DEV: 'dev', DEVICE: 'dev', INSERT: '!blocksPalette', I: '!blocksPalette', '-INSERT': 'insert', ATT: '!attDef', ATTDEF: '!attDef', ATE: 'attedit', ATTEDIT: 'attedit', EATTEDIT: 'attedit', ATTEXT: '!attExport', M: 'move', MOVE: 'move', CO: 'copy', CP: 'copy', COPY: 'copy',
   RO: 'rotate', ROTATE: 'rotate', L: 'line', LINE: 'line', PL: 'pline', PLINE: 'pline', POLYLINE: 'pline',
   CT: 'tray', TRAY: 'tray', CABLETRAY: 'tray', CR: 'cable', ROUTE: 'cable', CABLEROUTE: 'cable', LR: 'link', LINK: 'link',
@@ -21,16 +21,16 @@ const BEFORE: Record<string, string> = {
   RT: 'rtag', ROOMTAG: 'rtag', NORTH: 'north',
   XR: '!xref', XREF: '!xref', XREFS: '!xref', ER: '!xref', EXTERNALREFERENCES: '!xref', XA: '!xattach', XATTACH: '!xattach',
   XCLIP: '!xclip', XC: '!xclip', CROP: 'crop', BCROP: 'crop', LM: '!layerManager', LAYERMANAGER: '!layerManager', LAYMAN: '!layerManager',
-  // Since the layer palette: LAYER opens it (as in current industrial 2D drafting products); LA still shows the Layers panel.
+  // Since the layer palette: LAYER opens it (as in current industrial 2D drafting products); LA opens it too, LAYERS shows the Layers panel.
   LAYER: '!layerManager', 'LAYER N': '!newLayer', 'LAYER NEW': '!newLayer', '-LAYER N': '!newLayer', CLAYER: '!clayer', LAYISO: '!layiso', LAYUNISO: '!layuniso',
   POL: 'polygon', POLYGON: 'polygon', EL: 'ellipse', ELLIPSE: 'ellipse', REVCLOUD: 'revcloud',
   LAYOFF: '!layoff', LAYFRZ: '!layfrz', LAYLCK: '!laylck', LAYULK: '!layulk', LAYMCUR: '!laymcur', LAYON: '!layon', LAYTHW: '!laythw',
-  ALIGN: '!align', ALIGNV: '!align', SPACE: '!align', WC: '!wireAll', WIRE: '!wireAll', WIRECIRCUITS: '!wireAll', W1: 'wire', WIREONE: 'wire',
+  ALIGN: 'align', ALIGNV: '!alignDevices', SPACE: '!alignDevices', WC: '!wireAll', WIRE: '!wireAll', WIRECIRCUITS: '!wireAll', W1: 'wire', WIREONE: 'wire',
   TAGS: '!wireTags', COV: '!coverage', COVERAGE: '!coverage', REC: 'rect', RECTANG: 'rect', RECTANGLE: 'rect',
   C: 'circle', CIRCLE: 'circle', A: 'arc', ARC: 'arc', T: 'text', DT: 'text', TEXT: 'text', MT: 'mtext', MTEXT: 'mtext', DR: 'draworder', DRAWORDER: 'draworder', TEXTTOFRONT: 'texttofront', PO: 'point', POINT: 'point', DIV: 'divide', DIVIDE: 'divide', ME: 'measure', MEASURE: 'measure', PTYPE: '!pointStyle', DDPTYPE: '!pointStyle', B: '!blockDialog', BLOCK: '!blockDialog', '-BLOCK': 'block', ED: 'textedit', TEXTEDIT: 'textedit', DDEDIT: 'textedit',
   DIM: 'dim', DIMALIGNED: 'dim', DAL: 'dim', DLI: 'dimlin', E: '!erase', ERASE: '!erase', DEL: '!erase', DELETE: '!erase', RESTOREDWG: '!restoreDwg',
   SAVE: '!save', SAVEDWG: '!saveDwg', DWGOUT: '!saveDwg',
-  LA: '!layers', LAYERS: '!layers', OSNAP: '!osnap', GRID: '!grid', ORTHO: '!ortho', SNAP: '!snap',
+  LA: '!layerManager', LAYERS: '!layers', OSNAP: '!osnap', GRID: '!grid', ORTHO: '!ortho', SNAP: '!snap',
   HELP: '!help', '?': '!help'
 };
 // Added since: the text and dimension styles (STYLE, DIMSTYLE).
@@ -52,7 +52,12 @@ const ADDED: Record<string, string> = { ST: '!textStyle', STYLE: '!textStyle', D
   TJ: 'tjust', TJUST: 'tjust', JUSTIFYTEXT: 'tjust', TH: 'th', TXTHEIGHT: 'th', TEXTHEIGHT: 'th',
   TA: 'talign', TALIGN: 'talign', TC: 'tcase', TCASE: 'tcase', TPREFIX: 'tprefix', TPRE: 'tprefix', TSUFFIX: 'tsuffix', TSUF: 'tsuffix',
   TORIENT: 'torient', TOR: 'torient', TCEN: 'tcen', TCENTRE: 'tcen', TCENTER: 'tcen', TCOPY: 'tcopy', TCP: 'tcopy', RTALL: 'rtall', ROOMTAGALL: 'rtall',
-  TFRAME: 'tframe', TMASK: 'tmask', TCOUNT: 'tcount', TNUM: 'tcount', KN: 'keynote', KEYNOTE: 'keynote' };
+  TFRAME: 'tframe', TMASK: 'tmask', TCOUNT: 'tcount', TNUM: 'tcount', KN: 'keynote', KEYNOTE: 'keynote',
+  // Command aliases (2026-11-14): A and B of the proposal.
+  N: '!new', AT: '!attDef', AE: 'attedit', '-I': 'insert', ISOLATE: '!isolateObjects', UNISOLATE: '!unisolateObjects', PT: 'point', RC: 'revcloud',
+  BS: '!bsave', BC: '!bclose', '-B': 'block', SA: '!save', EXP: '!export', OR: '!ortho', SN: '!snap', AL: 'align', ALIGNH: '!alignDevices',
+  PLOT: '!plot', PP: '!plot', PRINT: '!plot', OP: '!options', OPTIONS: '!options', UN: '!unitsTab', UNITS: '!unitsTab',
+  PR: '!properties', PROPS: '!properties', PROPERTIES: '!properties', CH: '!properties', RE: '!regen', REGEN: '!regen', REA: '!regen', REGENALL: '!regen' };
 const outcome = (c: string) => { const x = cadCommand(c); return x && ('tool' in x ? x.tool : `!${x.action}`); };
 
 describe('Design CAD typed commands', () => {
@@ -73,7 +78,7 @@ describe('Design CAD typed commands', () => {
   });
 
   it('shows the same alias beside each edit tool as before', () => {
-    const shown = { trim: 'TRIM', extend: 'EX', offset: 'O', fillet: 'F', chamfer: 'CHA', break: 'BR', join: 'J', explode: 'X', mirror: 'MI', scale: 'SC', stretch: 'S', array: 'AR' } as const;
+    const shown = { trim: 'TRIM', extend: 'EX', offset: 'O', fillet: 'F', chamfer: 'CHA', break: 'BR', join: 'J', explode: 'X', mirror: 'MI', scale: 'SC', stretch: 'S', array: 'AR', align: 'AL' } as const;
     for (const [tool, a] of Object.entries(shown)) expect(toolAlias(tool as keyof typeof shown), tool).toBe(a);
   });
 });

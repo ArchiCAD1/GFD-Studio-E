@@ -1,6 +1,25 @@
 # UI / UX proposal — Design CAD typed command aliases (2026-11-14)
 
-Status: **proposal, waiting for the user's decision. Nothing is built.**
+Status: **A and B approved by the user on 2026-11-14** ("build it"), built in v2.144 (`feat/cad-command-aliases`).
+C waits for the user's go-ahead, one step at a time.
+
+## Decision (2026-11-14)
+
+- Build only what people use today: names that are outdated or rarely typed are skipped, not built.
+- Nothing 3D, ever: the app is 2D only.
+- Built in v2.144: A without its rarely used names, and B as proposed. Typed only; no ribbon or menu entry was added.
+  - A: `PT` `RC` `N` `SA` `OR` `SN` `EXP` `AE` `AT` `BC` `BS` `-B` `-I` `ISOLATE` `UNISOLATE`; `PLOT` `PP` `PRINT`
+    (the Plot dialog on a layout or sheet; on Model, a PDF of the view); `PR` `PROPS` `PROPERTIES` `CH` (the
+    properties palette); `OP` `OPTIONS` (Drafting settings, Cursor tab); `RE` `REGEN` `REA` `REGENALL` (accepted: the
+    view redraws by itself). Found while building: Drafting settings already has a Units tab, so `UN` `UNITS` open it.
+  - B: `TR` → Trim (Trace a room is `TRACE`) · `LA` → the layer palette (the side list is `LAYERS`) · `MA` → one Match
+    (a drawn object clicked first goes to the properties match) · `AL` `ALIGN` → the new Align tool, the device row is
+    `ALIGNH` · `T` unchanged.
+  - Skipped as rarely used or outdated: `OF` (everyone types `O`; as an alias it would stop Tab completing OF to OFFSET), `AX` `DM` `LS` `TEDIT` `TX` `MO` `PRCLOSE` `R` `REDRAW`, the 12 old names, `GR`
+    `PREFERENCES` `XB` `SSM`. `PRE` / `PREVIEW` wait: the Plot dialog's Preview button already does it; opening the
+    preview directly can follow now that the layout plot work (PR 589) is in.
+- C trimmed the same way (see the C table): dropped `DOUGHNUT` `DDCOLOR` `DDLTYPE` `DDUNITS` `DDRENAME` `VL` `ATI`
+  `DJL` `DCE` `CM` `CL` `DOV` `QC`; C10 (scripts and command-line versions) only if scripts are wanted.
 
 The user sent the alias list of a current industrial 2D drafting product (316 typed names) and asked what the app
 already has, what clashes, and what could be added. The list is not copied into the repo. This note names only typed
@@ -105,22 +124,22 @@ Each step is one PR. Everything drawn saves to DXF / DWG; sheets and PDFs stay b
 
 | Step | Typed | For LV drawings | Size |
 | --- | --- | --- | --- |
-| C1 | `DO`, `DOUGHNUT` → DONUT · `XL` → XLINE (and `RAY`) | junction dots on wiring, earth points; construction lines to set out grids and tray runs | small |
+| C1 | `DO` → DONUT · `XL` → XLINE (and `RAY`) | junction dots on wiring, earth points; construction lines to set out grids and tray runs | small |
 | C2 | `G` → GROUP (and `UNGROUP`) | keep a board and its label, or a set of riser symbols, together without making a block; saved as groups (a change in the Rust writer) | medium |
-| C3 | `LAS` → LAYERSTATE · `VL` → VPLAYER · `-LA` → the -LAYER options | one base plan with saved layer states for power, lighting, small power and ELV; layers frozen per layout viewport | medium |
-| C4 | `COL`, `COLOUR`, `DDCOLOR` → COLOR · `LT`, `LTYPE`, `DDLTYPE`, `-LT`, `-LTYPE` → LINETYPE · `LTS` → LTSCALE · `LW`, `LINEWEIGHT` → LWEIGHT | current colour, linetype and lineweight for new objects (By layer by default); a linetype list that loads .lin files; the linetype scale, fixed at 1:100 today | medium |
-| C5 | `UN`, `-UN`, `DDUNITS` → UNITS · `BA` → BASE · `REN`, `-REN`, `DDRENAME` → RENAME | drawing units and precision; the base point used when the drawing is inserted or attached; one rename dialog for layers, blocks, styles and layouts | small to medium |
-| C6 | `MEA` → MEASUREGEOM · `OO` → OOPS · `AL`, `ALIGN` (if B is approved) | one measure command (Distance, Radius, Angle, Area; uses DI and AREA); the last objects erased brought back after other commands; Align by point pairs | small |
-| C7 | `AD` → ATTDISP · `ATI` → ATTIPEDIT | block attributes shown or hidden on the plan; one attribute value edited in place | small |
-| C8 | `DAR` → DIMARC · `DOR` → DIMORDINATE · `DED` → DIMEDIT · `JOG`, `DJO` → DIMJOGGED · `DJL` → DIMJOGLINE · `DCE` → DIMCENTER · `CM` → CENTERMARK · `CL` → CENTERLINE · `DOV` → DIMOVERRIDE | arc length on curved runs, ordinate set-out, text angle and oblique, jogged radius, centre marks | medium |
-| C9 | `SP` → SPELL · `QC` → a calculator (shown as Calculator) | the spelling of texts, notes and attributes checked offline; a small calculator beside the command line | medium |
-| C10 | `SCR` → SCRIPT, and the command-line versions `-AR` `-AT` `-ATT` `-ATE` `ATTE` `-BO` `-H` `-MT` `-T` `-OS` `-P` `-W` `-XR` `-XB` `-CH` | a text file of commands run in order (also useful with the headless CLI); prompts only, no dialog | medium |
+| C3 | `LAS` → LAYERSTATE, and layers frozen per layout viewport | one base plan with saved layer states for power, lighting, small power and ELV; a layer off in one viewport only | medium |
+| C4 | `COL`, `COLOUR` → COLOR · `LT`, `LTYPE` → LINETYPE · `LTS` → LTSCALE · `LW`, `LINEWEIGHT` → LWEIGHT | current colour, linetype and lineweight for new objects (By layer by default); a linetype list that loads .lin files; the linetype scale, fixed at 1:100 today | medium |
+| C5 | `BA` → BASE · `REN` → RENAME (`UN`, `UNITS` built in v2.144: the Units tab) | the base point used when the drawing is inserted or attached; one rename dialog for layers, blocks, styles and layouts | small to medium |
+| C6 | `MEA` → MEASUREGEOM · `OO` → OOPS (`AL`, `ALIGN` built in v2.144) | one measure command (Distance, Radius, Angle, Area; uses DI and AREA); the last objects erased brought back after other commands | small |
+| C7 | `AD` → ATTDISP | block attributes shown or hidden on the plan (double-click already edits a block's attributes) | small |
+| C8 | `DAR` → DIMARC · `DOR` → DIMORDINATE · `DED` → DIMEDIT · `JOG`, `DJO` → DIMJOGGED | arc length on curved runs, ordinate set-out, text angle and oblique, jogged radius | medium |
+| C9 | `SP` → SPELL | the spelling of texts, notes and attributes checked offline | medium |
+| C10 | Only if scripts are wanted: `SCR` → SCRIPT, and the command-line versions `-AR` `-AT` `-ATT` `-ATE` `ATTE` `-BO` `-H` `-MT` `-T` `-OS` `-P` `-W` `-XR` `-XB` `-CH` `-LA` `-LT` `-UN` `-REN` | a text file of commands run in order (also useful with the headless CLI); prompts only, no dialog | medium |
 | Later | `DL`, `DLU` → DATALINK | a table linked to a Sheets / Excel range, after S13 | — |
 
 Not in the list (they are full commands, not aliases) but expected: `U` (undo one step) and `ID` (the coordinates of a
 point). Both are small and could join A.
 
-Suggested order: A and B in one PR, then C6, C1, C5, C4, C3, C2, C7, C8, C9, C10.
+Suggested order now that A and B are built: C6, C1, C5, C4, C3, C2, C7, C8, C9, then C10 only if scripts are wanted.
 
 ## Skip (96)
 

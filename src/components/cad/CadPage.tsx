@@ -107,7 +107,7 @@ import { drawnLayers, effective, layerStylesOf, LINETYPES, matchedProps, styleOf
 import { colourCss, colourLabel } from '../../model/cadColours';
 import { applyLayerPatch, archOnOf, currentLayerOf, extentsOf, isolate, layerFileOf, layersToChange, newLayerName, newPropsOf, renameLayer, restoreState, unisolate, withCurrentLayer, withNewLayer, withNewProps, withoutLayer, withoutState, withSavedState, type LayerPatch } from '../../model/cadLayerState';
 import { DrawnSelectionPanel, ED_START, EditToolPanel, kindOf, SketchToolbar, type EditSettings, type EditTool, type SketchEdit } from './SketchEditPanel';
-import { arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, isPath, join, mirrored, offset, scaled, sketchInWindow, stretched, throughDistance, trim, type Edit } from '../../model/cadEdit';
+import { arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, isPath, join, aligned, alignOf, mirrored, offset, scaled, sketchInWindow, stretched, throughDistance, trim, type Edit } from '../../model/cadEdit';
 import { ArrayPanel, ARL_START, MatchPanel, MATCH_START, SelectionPanel, type ArlSettings, type MatchSettings } from './DeviceEditPanel';
 import { alongLine, arranged, circuitAfter, copyDevices, deleteDevices, editsFor, inWindow, matchDevice, moveDevices, onBoard, placeAlong, renameBoard, replaceDevices, replacements, toCircuit, typeOf, type DeviceEdit } from '../../model/deviceEdit';
 
@@ -124,7 +124,7 @@ const hex = (rgb: number) => (rgb === 0xff000007 ? 'var(--cad-ink)' : `#${rgb.to
 const DOCK_W = 280, DOCK_MIN = 220, DOCK_MAX = 480, DOCK_KEY = 'lvds.cad.dock';
 /** Tools whose next point has a length and angle from the last one: the boxes of dynamic input. */
 const POINT_TOOLS: CadTool[] = ['line', 'pline', 'tray', 'cable', 'dim', 'dimlin', 'move', 'copy', 'dist', 'area', 'trace', 'leader'];
-const HELP = 'Commands: OPEN · CLOSE · CLOSEALL · SAVE (DXF) · SAVEDWG · ROOMS (add found rooms) · RA (click inside a room) · TR (trace a room) · PN (pick its name) · CT (cable tray run) · CR (cable route) · LR (link a line as a cable route) · SCHED (update schedules) · WC (wire circuits) · W1 (wire one) · TAGS · FILL (fill a room with an ELV device) · LUX (light a room by the lumen method) · EM (emergency lighting) · SEL (select devices: Shift-click, or a window) · QS (quick select) · SELECTSIMILAR · ARL (array on line) · MA (match) · ALIGN / ALIGNV / SPACE (the devices selected) · TRIM (TM) · EX (extend) · O (offset) · F (fillet) · CHA (chamfer) · BR (break) · J (join) · X (explode) · B (block from drawn objects: the dialog; -BLOCK on the command line) · I (the Blocks palette: this drawing, Recent, Library; -INSERT by name) · ATT (attribute definition for a block) · ATE (edit a block\'s attributes; or double-click it) · ATTEXT (the attributes as a table) · PO (point) · DIV (points at the divisions of an object) · ME (points every length along it) · PTYPE (point style) · DR (draw order: Front, Back, Above or Under an object) · TEXTTOFRONT (texts, dimensions, leaders over the rest) · MI (mirror) · SC (scale) · S (stretch) · AR (array) · CROP (BCROP, cut a block along an outline) · MP (match properties) · H (hatch) · HE (edit a hatch: pattern, spacing, angle, origin, islands; or double-click it) · BO (boundary: a closed polyline round an area) · LE (leader) · RT (room tag) · NORTH · LM (layer palette) · CLAYER (current layer) · LAYISO / LAYUNISO · RESTOREDWG (erased drawing objects back) · COV (coverage) · L (line) · PL (polyline, C closes) · REC · C (circle) · A (arc, 3 points) · T (text) · MT (notes in a box, lines wrapped to its width) · ED (edit a text or dimension in place, or double-click it) · TJ (justify texts) · TH (text height) · TA (align or space texts) · TC (text case) · TPREFIX / TSUFFIX · TOR (readable text) · TCEN (centre between two points) · TCOPY (words of another text) · TFRAME (circle, box or hexagon round texts) · TMASK (mask under texts) · TCOUNT (numbered texts) · KN (keynote with a legend) · RTALL (tag all rooms) · DIM · DRA (radius) · DDI (diameter) · DAN (angular) · ST (text style) · D (dimension style) · M (move) · CO (copy) · COPYCLIP (Ctrl+C) · COPYBASE (Ctrl+Shift+C) · PASTECLIP (Ctrl+V) · PASTEORIG · RO (rotate) · E (erase) · DI (distance) · AREA (O = object) · RA (room area) · DEV (add device) · M (move) · E (delete) · LI (inspect) · FIT (ZE) · Z (zoom: W window, P previous, S scale) · LA (layers panel) · OSNAP (F3) · GRID (F7) · ORTHO (F8) · SNAP (F9) · POLAR (F10) · OTRACK (F11) · DYN (F12) · LWT · DS (drafting settings) · LEGEND (LG) / NOTES (a legend or notes table on a layout, moved by its frame) · SAVEAS · EXPORT · PUBLISH · F2 history · Esc cancels, Enter or Space ends a step or repeats the last command.';
+const HELP = 'Commands: OPEN · CLOSE · CLOSEALL · SAVE (DXF) · SAVEDWG · ROOMS (add found rooms) · RA (click inside a room) · TRACE (trace a room) · PN (pick its name) · CT (cable tray run) · CR (cable route) · LR (link a line as a cable route) · SCHED (update schedules) · WC (wire circuits) · W1 (wire one) · TAGS · FILL (fill a room with an ELV device) · LUX (light a room by the lumen method) · EM (emergency lighting) · SEL (select devices: Shift-click, or a window) · QS (quick select) · SELECTSIMILAR · ARL (array on line) · MA (match) · ALIGNH / ALIGNV / SPACE (the devices selected) · AL (align objects by points) · TR (trim) · EX (extend) · O (offset) · F (fillet) · CHA (chamfer) · BR (break) · J (join) · X (explode) · B (block from drawn objects: the dialog; -BLOCK on the command line) · I (the Blocks palette: this drawing, Recent, Library; -INSERT by name) · ATT (attribute definition for a block) · ATE (edit a block\'s attributes; or double-click it) · ATTEXT (the attributes as a table) · PO (point) · DIV (points at the divisions of an object) · ME (points every length along it) · PTYPE (point style) · DR (draw order: Front, Back, Above or Under an object) · TEXTTOFRONT (texts, dimensions, leaders over the rest) · MI (mirror) · SC (scale) · S (stretch) · AR (array) · CROP (BCROP, cut a block along an outline) · MP (match properties) · H (hatch) · HE (edit a hatch: pattern, spacing, angle, origin, islands; or double-click it) · BO (boundary: a closed polyline round an area) · LE (leader) · RT (room tag) · NORTH · LA (layer palette) · CLAYER (current layer) · LAYISO / LAYUNISO · RESTOREDWG (erased drawing objects back) · COV (coverage) · L (line) · PL (polyline, C closes) · REC · C (circle) · A (arc, 3 points) · T (text) · MT (notes in a box, lines wrapped to its width) · ED (edit a text or dimension in place, or double-click it) · TJ (justify texts) · TH (text height) · TA (align or space texts) · TC (text case) · TPREFIX / TSUFFIX · TOR (readable text) · TCEN (centre between two points) · TCOPY (words of another text) · TFRAME (circle, box or hexagon round texts) · TMASK (mask under texts) · TCOUNT (numbered texts) · KN (keynote with a legend) · RTALL (tag all rooms) · DIM · DRA (radius) · DDI (diameter) · DAN (angular) · ST (text style) · D (dimension style) · M (move) · CO (copy) · COPYCLIP (Ctrl+C) · COPYBASE (Ctrl+Shift+C) · PASTECLIP (Ctrl+V) · PASTEORIG · RO (rotate) · E (erase) · DI (distance) · AREA (O = object) · RA (room area) · DEV (add device) · M (move) · E (delete) · LI (inspect) · FIT (ZE) · Z (zoom: W window, P previous, S scale) · LAYERS (layers panel) · OSNAP (F3) · GRID (F7) · ORTHO (F8) · SNAP (F9) · POLAR (F10) · OTRACK (F11) · DYN (F12) · LWT · DS (drafting settings) · LEGEND (LG) / NOTES (a legend or notes table on a layout, moved by its frame) · SAVEAS · EXPORT · PUBLISH · F2 history · Esc cancels, Enter or Space ends a step or repeats the last command.';
 /** Device symbol size on the plan (radius, metres). */
 const DEVICE_R_M = 0.2;
 /** Bind's count in the Save line: reference lines, texts and hatches. */
@@ -148,7 +148,7 @@ const PROMPT: Record<CadTool, string> = {
   lux: 'LUX  Point at a room to see its lights by the lumen method, click to keep them:',
   em: 'EM  Escape route: click its points from the far end to the exit, Enter to finish:',
   arl: 'ARL  Array on line: click the start of the line:',
-  match: 'MA  Match: click the device to copy from:',
+  match: 'MA  Match: click the device (or drawn object) to copy from:',
   matchprop: 'MATCHPROP  Select the source object:',
   hatch: 'HATCH  Pick an internal point (inside a closed object or a room):',
   hatchedit: 'HATCHEDIT  Select a hatch:',
@@ -183,6 +183,7 @@ const PROMPT: Record<CadTool, string> = {
   rotate: 'ROTATE  Select object, then specify base point:',
   mirror: 'MIRROR  Select objects (click them), then Enter:',
   scale: 'SCALE  Select objects (click them), then Enter:',
+  align: 'ALIGN  Select objects:',
   stretch: 'STRETCH  Drag a window (right to left) round the points to move:',
   trim: 'TRIM  Click the part to cut away (Shift-click extends):',
   extend: 'EXTEND  Click near the end to lengthen (Shift-click trims):',
@@ -244,6 +245,8 @@ const NO_PARTS: ErasedParts = { objects: [], ranges: [] };
 type CropTarget = { handle: string; label: string } | { items: string[]; label: string };
 type CropState = { step: 'pick' | 'confirm' | 'outline' | 'centre' | 'radius' | 'object' | 'side'; target?: CropTarget; centre?: Pt; outline?: CropBoundary };
 const arrayType = (s: EditSettings) => `ARRAY  Enter array type [Rectangular/Polar] <${s.polar ? 'Polar' : 'Rectangular'}>:`;
+const ALIGN_SAY = ['ALIGN  Specify first source point:', 'ALIGN  Specify first destination point:', 'ALIGN  Specify second source point or <continue>:', 'ALIGN  Specify second destination point:'];
+const ALIGN_ASK = 'ALIGN  Scale objects to the alignment points? [Yes/No] <No>:';
 const mirrorAsk = (s: EditSettings) => `MIRROR  Erase source objects? [Yes/No] <${s.keep ? 'No' : 'Yes'}>:`;
 /** Layer of the cable routes drawn or linked in the app. */
 const CABLE_LAYER = 'E-CABLE';
@@ -260,8 +263,8 @@ const DRAW_LAYER = 'LV-SKETCH', ANNO_LAYER = 'LV-ANNO';
 const WIRING_LAYER = 'E-LV-WIRING', TAG_LAYER = 'E-LV-TAGS';
 /** The edit tools on what was drawn (Draw → Edit, Mirror / Scale / Stretch in Modify), and those that work on objects
  * picked first. */
-const EDIT_TOOLS: CadTool[] = ['draworder', 'texttofront', 'trim', 'extend', 'offset', 'fillet', 'chamfer', 'break', 'join', 'explode', 'mirror', 'scale', 'stretch', 'array', 'tjust', 'th', 'talign', 'tcase', 'tprefix', 'tsuffix', 'torient', 'tcen', 'tcopy', 'tframe', 'tmask'];
-const PICK_FIRST: CadTool[] = ['draworder', 'join', 'mirror', 'scale', 'array', 'tjust', 'th', 'talign', 'tcase', 'tprefix', 'tsuffix', 'torient', 'tcen', 'tcopy', 'tframe', 'tmask'];
+const EDIT_TOOLS: CadTool[] = ['draworder', 'texttofront', 'trim', 'extend', 'offset', 'fillet', 'chamfer', 'break', 'join', 'explode', 'mirror', 'scale', 'align', 'stretch', 'array', 'tjust', 'th', 'talign', 'tcase', 'tprefix', 'tsuffix', 'torient', 'tcen', 'tcopy', 'tframe', 'tmask'];
+const PICK_FIRST: CadTool[] = ['draworder', 'join', 'mirror', 'scale', 'align', 'array', 'tjust', 'th', 'talign', 'tcase', 'tprefix', 'tsuffix', 'torient', 'tcen', 'tcopy', 'tframe', 'tmask'];
 /** The text tools: on the texts picked first, then a value on the command line (TCEN and TCOPY: points or a text clicked). */
 const TEXT_TOOLS: CadTool[] = ['tjust', 'th', 'talign', 'tcase', 'tprefix', 'tsuffix', 'torient', 'tcen', 'tcopy', 'tframe', 'tmask'];
 const MTEXT_CORNER = 'MTEXT  Opposite corner or [Height/Justify/Width]:';
@@ -389,7 +392,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   // The command line: the question an edit tool asks (a distance, a radius, Yes / No…), the height and rotation TEXT
   // asks after its point, the commands typed before (Up / Down), the recent commands (Enter with no tool repeats the
   // first), the taller history (F2) or the command list (F1), and the right-click menu of the prompt.
-  const [edAsk, setEdAsk] = useState<'offset' | 'radius' | 'd1' | 'd2' | 'erase' | 'factor' | 'type' | null>(null);
+  const [edAsk, setEdAsk] = useState<'offset' | 'radius' | 'd1' | 'd2' | 'erase' | 'factor' | 'type' | 'ascale' | null>(null);
   const [textAsk, setTextAsk] = useState<{ step: 'height' | 'rot' | null; mm: number; rot: number } | null>(null);
   /** MTEXT (S6 of the 2D gap plan): the note being typed in its box (a new one, not drawn yet, has no id), what the
    * second prompt asks (or Width… from the right-click menu), and the height and justification chosen for new notes. */
@@ -469,6 +472,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   // HATCHEDIT: the hatches being edited and what is asked of a click (the pattern's origin, islands to add or remove).
   const [heIds, setHeIds] = useState<string[]>([]);
   const [hePhase, setHePhase] = useState<null | 'origin' | 'add' | 'remove'>(null);
+  const mpNext = useRef<string | null>(null);
   const heNext = useRef<{ ids: string[]; phase: 'origin' | 'add' | 'remove' | null } | null>(null);
   // BOUNDARY: whether islands get their own polylines.
   const [boundIsl, setBoundIsl] = useState(true);
@@ -565,7 +569,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const pre = preset.current;
     setPoints(pointsNext.current ?? []); pointsNext.current = null; setObjectMode(false); setLuxRoom(luxNext.current); luxNext.current = null; setMenuAt(null); if (tool !== 'match') setMatchFrom(null); cad.setTextAt(null);
     setCloudPoly(false); setEllAxis(false); setCircleDia(false);
-    setEdStep(pre); preset.current = null; setStretchBox(null); setMpFrom(null);
+    setEdStep(pre); preset.current = null; setStretchBox(null); const mp = mpNext.current; mpNext.current = null; setMpFrom(mp);
     const first = picked.some((k) => k.startsWith('sk:')) || !!cad.selected?.startsWith('sk:');
     setEdPhase(first ? 'points' : 'pick');
     setEdAsk(tool === 'offset' && !pre ? 'offset' : tool === 'array' && first ? 'type' : null); setTextAsk(null); setTAsk(null); setPromptMenu(null); setMtAsk(null); setEdNote(null); setSnapOnce(null);
@@ -579,7 +583,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const he = heNext.current; heNext.current = null;
     const preHatches = tool === 'hatchedit' ? (pickedSk.length ? pickedSk : selSketch ? [selSketch] : []).filter((x) => x.hatch).map((x) => x.id) : [];
     setHeIds(he ? he.ids : preHatches); setHePhase(he?.phase ?? null); setBoundIsl(true);
-    cad.say(`Command: ${PICK_FIRST.includes(tool) && first ? (tool === 'draworder' ? (drMode === 'above' || drMode === 'under' ? DR_REF : DR_OPTIONS) : tool === 'array' ? arrayType(edSet) : TEXT_TOOLS.includes(tool) ? textToolPrompt(tool) : `${tool.toUpperCase()}  ${tool === 'mirror' ? 'Specify first point of the mirror line:' : tool === 'scale' ? 'Specify base point:' : 'Enter to join them:'}`) : pre && tool === 'offset' ? OFFSET_SIDE : tool === 'insert' && !insBlock ? 'INSERT  Block name:' : tool === 'attpick' ? PROMPT.attpick : tool === 'blockpick' && blockDlg?.picking === 'objects' ? 'BLOCK  Select objects — Enter when done:' : editPrompt(tool, edSet)}`);
+    cad.say(`Command: ${PICK_FIRST.includes(tool) && first ? (tool === 'draworder' ? (drMode === 'above' || drMode === 'under' ? DR_REF : DR_OPTIONS) : tool === 'array' ? arrayType(edSet) : TEXT_TOOLS.includes(tool) ? textToolPrompt(tool) : `${tool.toUpperCase()}  ${tool === 'mirror' ? 'Specify first point of the mirror line:' : tool === 'scale' ? 'Specify base point:' : tool === 'align' ? ALIGN_SAY[0].slice(7) : 'Enter to join them:'}`) : tool === 'matchprop' && mp ? 'MATCHPROP  Select destination object(s):' : pre && tool === 'offset' ? OFFSET_SIDE : tool === 'insert' && !insBlock ? 'INSERT  Block name:' : tool === 'attpick' ? PROMPT.attpick : tool === 'blockpick' && blockDlg?.picking === 'objects' ? 'BLOCK  Select objects — Enter when done:' : editPrompt(tool, edSet)}`);
     if (tool === 'hatchedit' && preHatches.length && !he) cad.say(hatchEditSay(null, preHatches.length));
     // CROP with drawn items picked first: they are what is cut.
     if (tool === 'crop' && first) { const ids = picked.length ? picked.filter((k) => k.startsWith('sk:')).map((k) => k.slice(3)) : [cad.selected!.slice(3)]; setCrop({ step: 'outline', target: { items: ids, label: `${ids.length} drawn object${ids.length === 1 ? '' : 's'}` } }); cad.say(CROP_OUTLINE); }
@@ -2270,6 +2274,15 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     setEdSet({ ...edSet, factor }); setEdAsk(null);
     setPoints([]); pick([], []); cad.setTool('none');
   }
+  /** Align: the drawn objects picked moved by the first pair of points and, with a second pair, turned (and, if asked, scaled) onto it. */
+  function applyAlign(p: Pt[], scale: boolean) {
+    const t = alignOf(p[0], p[1], p[2], p[3], scale);
+    if (!t) { cad.say('ALIGN  The two source points, or the two destination points, are the same.'); return; }
+    const r2 = (x: number) => String(Math.round(x * 100) / 100 || 0), n = pickedSk.length;
+    const deg = ((((t.a * 180) / Math.PI + 180) % 360) + 360) % 360 - 180;
+    change(pickedSk.reduce((q, it) => updateSketch(q, fileOf(), aligned(it, p[0], t)), project), `ALIGN  ${n} object${n === 1 ? '' : 's'} aligned${p.length < 4 ? ' (moved)' : `, turned ${r2(deg === -180 ? 180 : deg)}°${scale ? `, scaled ${r2(t.k)}` : ''}`} · ⌘Z to undo`);
+    setEdAsk(null); setPoints([]); pick([], []); cad.setTool('none');
+  }
   /** A click with an edit tool (drawing units). */
   function editClick(at: Pt, pixel: number, shiftKey: boolean) {
     const sk = hitAt(pickable, at, pickR * pixel), f = units.factor, num = (s: string) => Number(s);
@@ -2359,6 +2372,16 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (edAsk === 'factor' && points.length) { applyScale(points[0], edSet.factor); return; }
       setPoints([at]); setEdAsk('factor'); cad.say(`SCALE  Specify scale factor <${edSet.factor}>:`); return;
     }
+    if (tool === 'align') {
+      if (edAsk === 'ascale') { applyAlign(points, false); return; }
+      const same = (q: Pt) => Math.hypot(at[0] - q[0], at[1] - q[1]) < 1e-9;
+      if (points.length === 2 && same(points[0])) { cad.say('ALIGN  The source points are the same: specify the second source point again:'); return; }
+      if (points.length === 3 && same(points[1])) { cad.say('ALIGN  The destination points are the same: specify the second destination point again:'); return; }
+      const next = [...points, at];
+      setPoints(next);
+      if (next.length === 4) { setEdAsk('ascale'); cad.say(ALIGN_ASK); } else cad.say(ALIGN_SAY[next.length]);
+      return;
+    }
     if (tool === 'array') {
       if (edAsk === 'type') { cad.say(arrayType(edSet)); return; }
       if (edSet.polar) applyArray(at, true); else { setEdAsk('type'); cad.say(arrayType(edSet)); }
@@ -2387,7 +2410,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (e === 'filter' && arg) { const keep = items.filter((d) => typeOf(project, d) === arg); pick(keep); cad.say(`SEL  ${keep.length} × ${keep[0]?.label ?? arg} kept`); }
       else if (e === 'row' || e === 'column' || e === 'space') {
         const to = arranged(items, e);
-        change(moveDevices(project, items, to, floor.ref), `${e === 'space' ? `SPACE  ${items.length} devices spaced equally` : `ALIGN  ${items.length} devices in a ${e}`} · ⌘Z to undo`);
+        change(moveDevices(project, items, to, floor.ref), `${e === 'space' ? `SPACE  ${items.length} devices spaced equally` : `${e === 'row' ? 'ALIGNH' : 'ALIGNV'}  ${items.length} devices in a ${e}`} · ⌘Z to undo`);
       } else if (e === 'array') {
         const d = (project.lvPoints ?? []).find((x) => x.id === items[0].id);
         setArlSet((s) => ({ ...s, device: typeOf(project, items[0]) }));
@@ -2739,6 +2762,10 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (tool === 'match') {
       const d = deviceAt(at, pixel);
       const from = placed.find((x) => x.key === matchFrom);
+      if (!d && !from) {
+        const sk = hitAt(pickable, at, pickR * pixel);
+        if (sk) { mpNext.current = sk.id; cad.setTool('matchprop'); return; }
+      }
       if (!d) { cad.say(from ? 'MA  Click a device to change:' : PROMPT.match); return; }
       if (!from || d.key === from.key) { setMatchFrom(d.key); cad.say(`MA  From ${d.label}${d.detail ? ` · ${d.detail.split(' · ')[0]}` : ''}: click each device to change.`); return; }
       const next = matchDevice(project, from, d, matchSet);
@@ -3182,6 +3209,10 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (c && !num) return false;
       applyScale(points[0], num ?? edSet.factor); return true;
     }
+    if (tool === 'align' && edPhase === 'points') {
+      if (edAsk === 'ascale') { if (c && c !== 'Y' && c !== 'YES' && c !== 'N' && c !== 'NO') return false; applyAlign(points, c === 'Y' || c === 'YES'); return true; }
+      if (!c) { if (points.length === 2) applyAlign(points, false); else cad.say(ALIGN_SAY[points.length]); return true; }
+    }
     if (tool === 'array' && edAsk === 'type') {
       if (c === 'R' || (!c && !edSet.polar)) { setEdSet({ ...edSet, polar: false }); applyArray(undefined, false); return true; }
       if (c === 'P' || !c) { setEdSet({ ...edSet, polar: true }); setEdAsk(null); cad.say('ARRAY  Specify center point of array:'); return true; }
@@ -3205,7 +3236,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       // TXTHEIGHT with nothing picked asks the height for new text.
       if (!pickedSk.length && tool !== 'th') { cad.say(`${CMD}  Pick the ${tool === 'tjust' ? 'texts' : 'objects'} first.`); return true; }
       setEdPhase('points');
-      if (tool === 'array') { setEdAsk('type'); cad.say(arrayType(edSet)); } else if (TEXT_TOOLS.includes(tool)) cad.say(textToolPrompt(tool)); else if (tool === 'draworder') { if (drMode === 'front' || drMode === 'back') applyDrawOrder(drMode); else cad.say(drMode ? DR_REF : DR_OPTIONS); } else cad.say(tool === 'mirror' ? 'MIRROR  Specify first point of the mirror line:' : 'SCALE  Specify base point:');
+      if (tool === 'array') { setEdAsk('type'); cad.say(arrayType(edSet)); } else if (TEXT_TOOLS.includes(tool)) cad.say(textToolPrompt(tool)); else if (tool === 'draworder') { if (drMode === 'front' || drMode === 'back') applyDrawOrder(drMode); else cad.say(drMode ? DR_REF : DR_OPTIONS); } else cad.say(tool === 'mirror' ? 'MIRROR  Specify first point of the mirror line:' : tool === 'align' ? ALIGN_SAY[0] : 'SCALE  Specify base point:');
       return true;
     }
     if (tool === 'array' && !edSet.polar && pickedSk.length) { applyArray(); return true; }
@@ -3217,13 +3248,15 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const promptNow = (s: EditSettings): string | undefined => (tool === 'offset' ? (edStep ? undefined : edAsk === 'offset' ? editPrompt(tool, s) : PROMPT.offset)
     : tool === 'fillet' || tool === 'chamfer' ? (edStep ? undefined : edAsk === 'radius' ? `FILLET  Specify fillet radius <${f2(s.radius)}>:` : edAsk === 'd1' ? `CHAMFER  Specify first chamfer distance <${f2(s.d1)}>:`
       : edAsk === 'd2' ? `CHAMFER  Specify second chamfer distance <${f2(s.d2)}>:` : editPrompt(tool, s))
-    : tool === 'mirror' && edAsk === 'erase' ? mirrorAsk(s) : tool === 'scale' && edAsk === 'factor' ? `SCALE  Specify scale factor <${s.factor}>:` : tool === 'array' && edAsk === 'type' ? arrayType(s) : undefined);
+    : tool === 'mirror' && edAsk === 'erase' ? mirrorAsk(s) : tool === 'scale' && edAsk === 'factor' ? `SCALE  Specify scale factor <${s.factor}>:` : tool === 'align' && edAsk === 'ascale' ? ALIGN_ASK : tool === 'array' && edAsk === 'type' ? arrayType(s) : undefined);
   /** Runs a recent command again (Enter or Space with no tool, Repeat in the right-click menu). */
   const repeat = (x: { tool?: CadTool; text?: string }) => { if (x.tool) cad.setTool(x.tool); else if (x.text) run(x.text); };
 
   function run(text: string) {
     const raw = text.trim();
-    const c = raw.toUpperCase().replace(/\s+/g, ' ');
+    const typedC = raw.toUpperCase().replace(/\s+/g, ' ');
+    // PP and PRINT are PLOT everywhere, on layouts and sheets too.
+    const c = typedC === 'PP' || typedC === 'PRINT' ? 'PLOT' : typedC;
     setPromptMenu(null);
     if (tool === 'pan' && !c) { cad.setTool('none'); cad.say('PAN  Ended.'); return; }
     // A value typed at a prompt (a number, a point, a distance) is kept for Recent input ▸ on the command menu.
@@ -3503,7 +3536,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     }
     // A number typed with Scale (before its base point) sets the factor.
     if (tool === 'scale' && isNumber(c) && !c.startsWith('-')) { const k = String(Number(c)); setEdSet({ ...edSet, factor: k }); cad.say(`SCALE  Factor ${k}`); return; }
-    if (DRAW_TOOLS.includes(tool) || tool === 'copybase' || tool === 'paste' || tool === 'dist' || tool === 'area' || tool === 'trace' || tool === 'zoomwin' || tool === 'dimrad' || tool === 'dimdia' || tool === 'dimang' || (tool === 'tcen' && edPhase === 'points') || (tool === 'talign' && tAsk?.step === 'ref')) {
+    if (DRAW_TOOLS.includes(tool) || tool === 'copybase' || tool === 'paste' || tool === 'dist' || tool === 'area' || tool === 'trace' || tool === 'zoomwin' || tool === 'dimrad' || tool === 'dimdia' || tool === 'dimang' || (tool === 'tcen' && edPhase === 'points') || (tool === 'talign' && tAsk?.step === 'ref') || (tool === 'align' && edPhase === 'points' && edAsk !== 'ascale')) {
       const p = typedPoint(raw, points[points.length - 1], cursor.at);
       if (p) { cad.say(`  ${raw}`); click(p, 1e-9); return; }
     }
@@ -3539,7 +3572,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       },
       layon: () => allLayers('LAYON', { on: true }, 'on'),
       laythw: () => allLayers('LAYTHW', { freeze: false }, 'thawed'),
-      align: () => { if (pickedItems.length < 2) cad.say(`${c}  Select two or more devices first.`); else editDevices(c === 'ALIGN' ? 'row' : c === 'ALIGNV' ? 'column' : 'space'); },
+      alignDevices: () => { if (pickedItems.length < 2) cad.say(`${c}  Select two or more devices first.`); else editDevices(c === 'ALIGNV' ? 'column' : c === 'SPACE' ? 'space' : 'row'); },
       wireAll: () => wireAll(),
       wireTags: () => cad.setWireTags(!cad.wireTags),
       coverage: () => cad.setCoverage(!cad.coverage),
@@ -3560,6 +3593,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       wblock: () => void exportAs('wblock'),
       publish: () => setPublishing(true),
       dsettings: () => setDsTab('snap'),
+      options: () => setDsTab('cursor'),
+      unitsTab: () => setDsTab('units'),
+      plot: () => { if (!view) cad.say('PLOT  Open a drawing first.'); else if (cad.layout) cad.say('PLOT  Use Output → Plot for this layout.'); else void exportAs('pdfView'); },
+      properties: () => { if (!view) cad.say('PROPERTIES  Open a drawing first.'); else { setShowProps(true); cad.say('PROPERTIES  The properties palette is open (Ctrl/Cmd+1 folds it).'); } },
+      regen: () => cad.say(`${c}  Nothing to regenerate: the view redraws by itself.`),
       osnapSettings: () => setDsTab('osnap'),
       polar: () => cad.toggle('polar'),
       otrack: () => cad.toggle('otrack'),
