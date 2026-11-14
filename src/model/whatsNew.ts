@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.142', date: '2026-11-14',
+    items: [
+      { title: 'Design CAD: typed shortcuts as in other CAD programs', text: 'TR is now Trim and LA opens the layer palette; Trace a room is TRACE and the side Layers list is LAYERS. AL or ALIGN moves, turns and, if you choose, scales the drawn objects picked by one or two pairs of points (lining up devices is ALIGNH, ALIGNV and SPACE). MA matches a device, or the properties of a drawn object clicked first. New short names: PT, RC, N, SA, OR, SN, EXP, AE, AT, BC, BS, -B, -I, ISOLATE and UNISOLATE; PR or CH open the properties palette, PP or PRINT plot, OP opens the Drafting settings and UN its Units tab, and RE or REGEN are accepted.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.140', date: '2026-11-14',
     items: [
       { title: 'Sheets: push an existing schedule to the load schedule', text: 'Open an existing Excel DB schedule in Sheets and link its columns: Link columns then says how many rows of its own the sheet has and offers Push to load schedule. Push makes the panel under its Fed from board (and that board too, when it is not in the project) and one circuit for each row, so the Load schedule tab and the SLD follow. A circuit number such as R1 or Y2 sets the phase and way; a size left blank is sized by the rules and a typed one is kept; pushing the same schedule again updates its circuits. Use as a template only keeps just the layout.', action: 'sheets', actionLabel: 'Open Sheets' }

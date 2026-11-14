@@ -1,4 +1,4 @@
-import { rotated, scaleLook, segmentsOf } from './cadSketch';
+import { moved, rotated, scaleLook, segmentsOf } from './cadSketch';
 import type { SketchItem } from '../types';
 import { explodeNote, noteBox, noteCorners, noteWithWidth } from './cadMtext';
 import { explodeInsert, type CadBlockDef } from './cadBlocks';
@@ -288,6 +288,20 @@ export function scaled(it: SketchItem, base: Pt, k: number): SketchItem {
     ...(it.ax ? { ax: mul(it.ax, k) } : {}), ...(it.cloud !== undefined ? { cloud: it.cloud * k } : {}),
     ...(it.look ? { look: scaleLook(it.look, k) } : {})
   };
+}
+/** Align: the turn (radians), scale and move that take s1 to d1 and the direction s1→s2 to d1→d2 (one pair: a move); null when the two source points, or the two destination points, are the same. */
+export function alignOf(s1: Pt, d1: Pt, s2?: Pt, d2?: Pt, scale = false): { a: number; k: number; dx: number; dy: number } | null {
+  const [dx, dy] = [d1[0] - s1[0], d1[1] - s1[1]];
+  if (!s2 || !d2) return { a: 0, k: 1, dx, dy };
+  const [sx, sy, tx, ty] = [s2[0] - s1[0], s2[1] - s1[1], d2[0] - d1[0], d2[1] - d1[1]];
+  const sl = Math.hypot(sx, sy), tl = Math.hypot(tx, ty);
+  if (sl < 1e-12 || tl < 1e-12) return null;
+  return { a: Math.atan2(ty, tx) - Math.atan2(sy, sx), k: scale ? tl / sl : 1, dx, dy };
+}
+/** The item turned and scaled about s1, then moved by (dx, dy). */
+export function aligned(it: SketchItem, s1: Pt, t: { a: number; k: number; dx: number; dy: number }): SketchItem {
+  const turned = t.a ? rotated(it, s1, t.a) : it;
+  return moved(t.k !== 1 ? scaled(turned, s1, t.k) : turned, t.dx, t.dy);
 }
 /** Stretch: the points inside the window move by (dx, dy); a circle, arc or text moves when its point is inside. */
 export function stretched(it: SketchItem, a: Pt, b: Pt, dx: number, dy: number): SketchItem | null {

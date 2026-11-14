@@ -897,7 +897,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
         sm(cadCmd('Make current', CircleCheck, 'LAYMCUR', 'Make current (LAYMCUR): pick an object first; its layer becomes the current one')),
         { label: 'Layer roles', icon: Layers3, title: 'Layer roles: what each layer is — wall, room outline, room name, tray, route… (used to find rooms and walls)', onClick: () => a.cad?.onRoles(), active: a.cad?.rolesOn, disabled: !a.cad?.hasDrawing, more: true },
         { ...cadCmd('New layer', Plus, 'LAYER N', 'New layer (LAYER N): a new drawn layer in the layer palette, to rename'), more: true },
-        { label: 'Layers panel', icon: Layers, cmd: 'LA', title: 'Layers panel (LA): show or hide the list of the architect\'s layers', onClick: () => a.cad?.onLayers(), active: a.cad?.layersOn, more: true }
+        { label: 'Layers panel', icon: Layers, cmd: 'LAYERS', title: 'Layers panel (LAYERS): show or hide the list of the architect\'s layers', onClick: () => a.cad?.onLayers(), active: a.cad?.layersOn, more: true }
       ],
       // Properties: Match, with the colour, linetype and lineweight lists beside it (PANEL); ↘ shows the palette.
       [cadTool('matchprop', 'Match properties', PaintRoller, 'Match properties (MP): click the drawn object to copy from, then each to change: layer, colour, linetype, lineweight')],
@@ -934,7 +934,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
       [
         { label: 'Add found', icon: LayoutGrid, cmd: 'ROOMS', title: 'Add every room the plan outlines (closed outlines on the Room outline layers, named by the text inside) to Building information on this level — one undo step (ROOMS)', onClick: () => a.cad?.onAddFound(), disabled: !a.cad?.hasDrawing },
         cadTool('room', 'Click inside', MousePointerClick, 'Click inside a room: its outline from the walls (doors closed), its area — then Add (RA)'),
-        sm(cadTool('trace', 'Trace', PenLine, 'Click the corners of a room, Enter to close — then Add (TR)')),
+        sm(cadTool('trace', 'Trace', PenLine, 'Click the corners of a room, Enter to close — then Add (TRACE)')),
         sm(cadTool('name', 'Pick name', Type, 'Click the room name on the drawing: it names the room found, or renames the room it is in (PN)'))
       ],
       [
@@ -955,7 +955,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
       [
         sm(cadTool('none', 'Select', BoxSelect, 'Select devices (SEL): click one, Shift-click to add or remove, or drag a window — left to right picks what is inside, right to left also what it crosses; a toolbar beside them has the edits that suit them', 'SEL')),
         sm(cadTool('arl', 'Array on line', Ellipsis, 'Array on line (ARL): click the start and the end of a line; N devices evenly along it, by number or spacing, on a circuit')),
-        sm(cadTool('match', 'Match', Paintbrush, 'Match (MA): click the device to copy from, then each device to change: its circuit, and its type if chosen'))
+        sm(cadTool('match', 'Match', Paintbrush, 'Match (MA): click the device to copy from, then each device to change: its circuit, and its type if chosen. Click a drawn object first to copy its properties instead (as MP)'))
       ],
       [
         { label: 'Wire circuits', icon: Workflow, cmd: 'WC', sub: 'all on this level', title: 'Wire every circuit with devices on this level: arcs between its devices in circuit order and a home run to its DB, tagged with the circuit, cable and length; Update schedules gives the cable schedule the lengths (WC)', onClick: () => a.cad?.onWireAll(), disabled: !a.cad?.hasDrawing },
