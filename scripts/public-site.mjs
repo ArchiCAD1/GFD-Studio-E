@@ -11,8 +11,8 @@ const SCREENSHOTS_DIR = join(ROOT, 'docs/screenshots');
 const README_FILE = join(ROOT, 'README.md');
 export const README_START = '<!-- PUBLIC-PRODUCT:START — generated from docs/public-site/product.json by scripts/public-site.mjs -->';
 export const README_END = '<!-- PUBLIC-PRODUCT:END -->';
-const REPOSITORY = 'https://github.com/Pdhruv15/LV-Design-Suit';
-const SITE = 'https://pdhruv15.github.io/LV-Design-Suit';
+const REPOSITORY = 'https://github.com/Pdhruv15/LV-Design-Studio';
+const SITE = 'https://pdhruv15.github.io/LV-Design-Studio';
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const text = (value, name, max = 500) => {

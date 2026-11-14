@@ -1,8 +1,8 @@
 // Notification-only beta updates. This module never downloads or runs an installer. It is kept free of
 // Electron imports so the trust boundary, manifest parser and network limits can be unit tested.
 
-const BETA_MANIFEST_URL = 'https://pdhruv15.github.io/LV-Design-Suit/download/beta.json';
-const BETA_DOWNLOAD_URL = 'https://pdhruv15.github.io/LV-Design-Suit/download/';
+const BETA_MANIFEST_URL = 'https://pdhruv15.github.io/LV-Design-Studio/download/beta.json';
+const BETA_DOWNLOAD_URL = 'https://pdhruv15.github.io/LV-Design-Studio/download/';
 const MANIFEST_BYTES = 16 * 1024;
 const REQUEST_TIMEOUT_MS = 5_000;
 const STARTUP_DELAY_MS = 10_000;

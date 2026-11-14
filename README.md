@@ -3,9 +3,9 @@
 
 An open-source, offline-first workspace for single-line diagrams, load schedules, electrical calculations, drawings and reports. Projects remain under the engineer's control as local files.
 
-[Try the browser app](https://pdhruv15.github.io/LV-Design-Suit/)
-· [About the project](https://pdhruv15.github.io/LV-Design-Suit/about/)
-· [Download an unsigned beta](https://pdhruv15.github.io/LV-Design-Suit/download/)
+[Try the browser app](https://pdhruv15.github.io/LV-Design-Studio/)
+· [About the project](https://pdhruv15.github.io/LV-Design-Studio/about/)
+· [Download an unsigned beta](https://pdhruv15.github.io/LV-Design-Studio/download/)
 · [Calculation methods and limits](docs/engineering/calculation-methods.md)
 · [Privacy and project data](docs/privacy.md)
 
@@ -122,7 +122,7 @@ The README's marked public section is generated from the same reviewed content;
 `docs/screenshots` files rather than maintaining a second set.
 
 The architecture page
-(for this repository, https://pdhruv15.github.io/LV-Design-Suit/architecture/). It shows every
+(for this repository, https://pdhruv15.github.io/LV-Design-Studio/architecture/). It shows every
 module, its main files and how the modules pass data to each other. The page and its Markdown
 sources are in [`docs/architecture/`](docs/architecture/00-index.md); open
 `docs/architecture/navigator.html` in a browser to use it offline.

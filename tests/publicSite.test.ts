@@ -44,8 +44,8 @@ describe('public website source', () => {
 
   it('constructs installer links from fixed repository paths, not release-provided URLs or text', () => {
     const html = renderDownload(readProduct(), { ...beta, releaseNotes: '<img src=x onerror=alert(1)>', arbitraryUrl: 'https://example.test/evil.exe' });
-    expect(html).toContain(`https://github.com/Pdhruv15/LV-Design-Suit/releases/download/v${version}/${names.windows}`);
-    expect(html).toContain(`https://github.com/Pdhruv15/LV-Design-Suit/releases/download/v${version}/${names.macos}`);
+    expect(html).toContain(`https://github.com/Pdhruv15/LV-Design-Studio/releases/download/v${version}/${names.windows}`);
+    expect(html).toContain(`https://github.com/Pdhruv15/LV-Design-Studio/releases/download/v${version}/${names.macos}`);
     expect(html).not.toContain('example.test');
     expect(html).not.toContain('onerror');
     expect(html).toContain('Do not use the beta for production issue work.');

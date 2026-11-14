@@ -25,7 +25,7 @@ Every Pages deployment performs that lookup, so a later deployment from `main` r
 
 ## Installing the first beta
 
-1. Open the project's [beta download page](https://pdhruv15.github.io/LV-Design-Suit/download/).
+1. Open the project's [beta download page](https://pdhruv15.github.io/LV-Design-Studio/download/).
 2. Back up existing LV Design Studio project JSON files.
 3. Download the package for Windows x64 or Apple silicon.
 4. Compare its SHA-256 value with the page or `SHA256SUMS.txt` in the same GitHub prerelease.

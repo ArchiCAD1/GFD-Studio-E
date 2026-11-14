@@ -61,7 +61,7 @@ describe('beta update manifest', () => {
     expect(fetcher).toHaveBeenCalledWith(updates.BETA_MANIFEST_URL, expect.objectContaining({
       method: 'GET', redirect: 'error', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer'
     }));
-    expect(updates.BETA_MANIFEST_URL).toBe('https://pdhruv15.github.io/LV-Design-Suit/download/beta.json');
+    expect(updates.BETA_MANIFEST_URL).toBe('https://pdhruv15.github.io/LV-Design-Studio/download/beta.json');
   });
 
   it('rejects a redirected origin, wrong content type and oversized response', async () => {
@@ -114,7 +114,7 @@ describe('beta notification decision', () => {
     scheduler?.stop();
     expect(showMessageBox).toHaveBeenCalledTimes(1);
     expect(openExternal).toHaveBeenCalledWith(updates.BETA_DOWNLOAD_URL);
-    expect(updates.BETA_DOWNLOAD_URL).toBe('https://pdhruv15.github.io/LV-Design-Suit/download/');
+    expect(updates.BETA_DOWNLOAD_URL).toBe('https://pdhruv15.github.io/LV-Design-Studio/download/');
   });
 
   it('does not schedule anything for development or stable builds', () => {

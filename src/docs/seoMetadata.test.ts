@@ -4,7 +4,7 @@ import pkg from '../../package.json';
 // @ts-expect-error — plain ESM site generator without type declarations
 import { readProduct, renderAbout, renderDownload } from '../../scripts/public-site.mjs';
 
-const siteUrl = 'https://pdhruv15.github.io/LV-Design-Suit/';
+const siteUrl = 'https://pdhruv15.github.io/LV-Design-Studio/';
 const index = readFileSync('index.html', 'utf8');
 const about = renderAbout(readProduct());
 const download = renderDownload(readProduct());
@@ -23,7 +23,7 @@ describe('public site discovery metadata', () => {
     expect(index).toContain(`rel="canonical" href="${siteUrl}"`);
     expect(index).toContain(`property="og:url" content="${siteUrl}"`);
     expect(pkg.homepage).toBe(siteUrl);
-    expect(pkg.repository.url).toBe('git+https://github.com/Pdhruv15/LV-Design-Suit.git');
+    expect(pkg.repository.url).toBe('git+https://github.com/Pdhruv15/LV-Design-Studio.git');
   });
 
   it('publishes a sitemap that robots.txt advertises', () => {
