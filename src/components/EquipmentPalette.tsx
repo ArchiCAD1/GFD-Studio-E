@@ -1,8 +1,8 @@
 import { ask } from './ConfirmDialog';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  Activity, CircleDot, Link2, ShieldAlert, ToggleLeft, ZapOff, BatteryCharging, BatteryFull, Star, Cable, Car, Cog, Cpu, Database, Fan, Flame, Gauge, Lightbulb, PanelLeftClose, PanelLeftOpen, Power, ShieldCheck, Snowflake, Sun, Waves, Zap,
-  Bookmark, Box, Layers, Pencil, Copy, Download, Upload, Plus, Plug, Heater, PanelTop, Info, X, type LucideIcon
+  Activity, CircleDot, Link2, ShieldAlert, ToggleLeft, ZapOff, BatteryCharging, BatteryFull, Star, Cable, Car, Cog, Cpu, Database, Fan, Flame, Gauge, Lightbulb, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Power, ShieldCheck, Snowflake, Sun, Waves, Zap,
+  Bookmark, Box, Layers, Pencil, Copy, Download, Upload, Plus, Plug, Heater, PanelTop, Info, X, Search, ArrowLeftRight, Pin, PinOff, type LucideIcon
 } from 'lucide-react';
 import { armHint, dropHint, dropsOn, itemKey, PALETTE, type DropTarget, type PaletteEntry, type PaletteItem } from '../model/sldEdit';
 import { BUILT_IN_PRESETS, presetCard, presetParts, type FeederPreset } from '../model/presets';
@@ -29,7 +29,7 @@ const iconOf = (i: PaletteItem): LucideIcon => (i.kind === 'preset' ? presetIcon
 
 const presetEntry = (p: FeederPreset): PaletteEntry => ({ item: { kind: 'preset', preset: p }, label: p.name, title: `${presetParts(p)} — drop on a busbar; breaker and cable are sized` });
 
-/** This viewer's palette preferences (open category, favourites, recent). */
+/** This viewer's palette preferences (side, pin, favourites, recent). */
 function useStored<T>(key: string, initial: T): [T, (v: T) => void] {
   const [v, setV] = useState<T>(() => {
     try { const s = localStorage.getItem(key); return s ? (JSON.parse(s) as T) : initial; } catch { return initial; }
@@ -37,7 +37,7 @@ function useStored<T>(key: string, initial: T): [T, (v: T) => void] {
   return [v, (next: T) => { setV(next); try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* preference only */ } }];
 }
 
-/** Palette categories: one open at a time, each one or more PALETTE groups. */
+/** Palette categories: one list open at a time, each one or more PALETTE groups. */
 const CATS: { id: string; label: string; groups: string[]; sym?: string; icon?: LucideIcon }[] = [
   { id: 'supply', label: 'Supply', groups: ['Supply'], sym: 'transformer' },
   { id: 'boards', label: 'Boards', groups: ['Distribution boards', 'Package panels'], sym: 'board:MDB' },
@@ -54,16 +54,18 @@ const CATS: { id: string; label: string; groups: string[]; sym?: string; icon?: 
 const WHERE: Record<DropTarget['type'], string> = { bus: 'Busbar', feeder: 'Feeder', canvas: 'Canvas' };
 const STRIP = 8;
 
-/** Equipment library for building the SLD, laid out like a CAD ribbon:
- * category tiles, then the open category's items as icon tiles. Drag an
- * item onto a busbar, a feeder or the empty canvas, or click it and then
- * click the drawing. Where it goes decides how it connects, and along a
- * busbar, where the new way goes. Search, favourites ★ and recently used
- * (pinned strip), × qty on the armed item; the user's own presets can be
- * edited, duplicated, exported and imported. */
-export default function EquipmentPalette({ docked, onHint, library = [], presets = [], components = [], onEditComponent, onDeleteComponent, qty = 1, onQty, onDeletePreset, onEditPreset, onExportPresets, onImportPresets }: {
-  /** Inside the side panel's Equipment tab: no own frame, hide button or resize handle. */
-  docked?: boolean;
+/** Equipment library for building the SLD, a thin strip beside the
+ * drawing: search, favourites ★ and recently used, then one symbol per
+ * category. A category opens its list beside the strip. Drag an item onto a
+ * busbar, a feeder or the empty canvas, or click it and then click the
+ * drawing; the list closes after a pick unless pinned. Where it goes decides
+ * how it connects, and along a busbar, where the new way goes. × qty on the
+ * armed item; the user's own presets can be edited, duplicated, exported
+ * and imported. */
+export default function EquipmentPalette({ accepts, onHint, library = [], presets = [], components = [], onEditComponent, onDeleteComponent, qty = 1, onQty, onDeletePreset, onEditPreset, onExportPresets, onImportPresets }: {
+  /** The Board tab: only items that board can take are listed; a category with none leaves the strip,
+   * except My presets and Components, which keep their + buttons. */
+  accepts?: (item: PaletteItem) => boolean;
   /** Your own components (as presets with id cmp-<id>). */
   components?: FeederPreset[];
   onEditComponent?: (id: string | null) => void;
@@ -84,25 +86,23 @@ export default function EquipmentPalette({ docked, onHint, library = [], presets
   const [open, setOpen] = useState(() => {
     try { return localStorage.getItem('palette') !== 'closed'; } catch { return true; }
   });
-  const toggle = () => {
+  const showHide = () => {
     setOpen(!open);
     try { localStorage.setItem('palette', open ? 'closed' : 'open'); } catch { /* preference only */ }
   };
   const [query, setQuery] = useState('');
-  const [cat, setCat] = useStored('palette.cat', 'loads');
+  const [side, setSide] = useStored<'left' | 'right'>('palette.side', 'left');
+  const [pin, setPin] = useStored('palette.pin', false);
+  /** The open list: a category id, 'search' or none. */
+  const [list, setList] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [catTip, setCatTip] = useState<{ label: string; n: number; x: number; y: number } | null>(null);
+  const asideRef = useRef<HTMLElement>(null);
   const [favs, setFavs] = useStored<string[]>('palette.favs', []);
   const [recent, setRecent] = useStored<string[]>('palette.recent', []);
   const fileRef = useRef<HTMLInputElement>(null);
   const [details, setDetails] = useState<string | null>(null);
   const [tip, setTip] = useState<{ entry: PaletteEntry; x: number; y: number } | null>(null);
-  const [width, setWidth] = useStored('palette.width', 210);
-  const startResize = (e: React.PointerEvent) => {
-    const x0 = e.clientX, w0 = width;
-    const move = (ev: PointerEvent) => setWidth(Math.max(156, Math.min(320, w0 + ev.clientX - x0)));
-    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  };
 
   // Armed item: the next click on the drawing places it. Esc, a second
   // click on the tile, or placing it disarms; the quantity goes back to 1.
@@ -125,20 +125,23 @@ export default function EquipmentPalette({ docked, onHint, library = [], presets
     { group: 'My components', entries: components.map((p) => ({ item: { kind: 'preset' as const, preset: p }, label: p.name, title: `${p.name} — your component: drop on a busbar; breaker and cable are sized` })) },
     ...PALETTE,
     ...(library.length ? [{ group: 'My equipment', entries: library }] : [])
-  ], [presets, library, components]);
-  const cats = CATS.filter((c) => c.groups.some((g) => groups.some((x) => x.group === g)));
-  const openCat = cats.find((c) => c.id === cat) ?? cats[0];
+  ].map((g) => (accepts ? { ...g, entries: g.entries.filter((e) => accepts(e.item)) } : g)), [presets, library, components, accepts]);
+  const cats = CATS.filter((c) => c.groups.some((g) => groups.some((x) => x.group === g && (!accepts || x.entries.length > 0 || c.id === 'mine' || c.id === 'components'))));
+  // A list whose category left the strip (another board) is closed.
+  const openList = list === 'search' || cats.some((c) => c.id === list) ? list : null;
+  const openCat = cats.find((c) => c.id === openList) ?? cats[0];
   const entriesOf = (c: (typeof CATS)[number]) => groups.filter((g) => c.groups.includes(g.group)).flatMap((g) => g.entries);
   const byKey = useMemo(() => new Map(groups.flatMap((g) => g.entries.map((e) => [itemKey(e.item), e] as const))), [groups]);
   const pick = (keys: string[]) => keys.map((k) => byKey.get(k)).filter((e): e is PaletteEntry => !!e);
   const strip = pick([...favs, ...recent.filter((k) => !favs.includes(k))]).slice(0, STRIP);
   const q = query.trim().toLowerCase();
-  const results = q
+  const results = openList === 'search' && q
     ? groups.flatMap((g) => g.entries).filter((e) => `${e.label} ${e.title}${e.item.kind === 'preset' ? ` ${(c => `${c.title} ${c.value ?? ''} ${c.parts.join(' ')}`)(presetCard(e.item.preset))}` : ''}`.replace(/\u00a0/g, ' ').toLowerCase().includes(q)).filter((e, i, a) => a.findIndex((x) => itemKey(x.item) === itemKey(e.item)) === i)
     : null;
-  const shown = results ?? entriesOf(openCat);
-  const isMine = !q && openCat.id === 'mine';
-  const isComp = !q && openCat.id === 'components';
+  const shown = openList === 'search' ? results ?? [] : entriesOf(openCat);
+  const isMine = openList === 'mine';
+  const isComp = openList === 'components';
+  const wide = isMine || isComp || openList === 'presets';
 
   const arm = (e: React.MouseEvent | React.KeyboardEvent, { item, label }: PaletteEntry) => {
     const key = itemKey(item);
@@ -147,13 +150,34 @@ export default function EquipmentPalette({ docked, onHint, library = [], presets
     onQty?.(e.shiftKey ? 3 : 1);
     setRecent([key, ...recent.filter((k) => k !== key)].slice(0, 6));
     onHint(armHint(item, label));
+    setTip(null);
+    if (!pin) setList(null);
   };
+  const left = side === 'left';
+  // Hover cards open over the drawing: right of a strip on the left, left of one on the right.
+  const tipX = (r: DOMRect) => ((left ? r.right + 236 < window.innerWidth : r.left < 242) ? r.right + 6 : r.left - 236);
   const showTip = (entry: PaletteEntry) => (e: React.MouseEvent) => {
     const r = e.currentTarget.getBoundingClientRect();
-    const right = r.right + 236 < window.innerWidth;
-    setTip({ entry, x: right ? r.right + 6 : r.left - 236, y: r.top });
+    setTip({ entry, x: tipX(r), y: r.top });
   };
-  /** Drag, click-to-arm, keyboard and hover behaviour shared by tiles and cards. */
+  const catHover = (label: string, n: number) => (e: React.MouseEvent) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setCatTip({ label, n, x: tipX(r), y: r.top });
+  };
+  const toggle = (id: string) => { setList(openList === id ? null : id); setCatTip(null); };
+  // An unpinned list closes on a click outside the strip.
+  useEffect(() => {
+    if (!openList || pin) return;
+    const down = (e: PointerEvent) => { if (!asideRef.current?.contains(e.target as Node)) setList(null); };
+    document.addEventListener('pointerdown', down);
+    return () => document.removeEventListener('pointerdown', down);
+  }, [openList, pin]);
+  const listKeys = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || !openList) return;
+    e.stopPropagation();
+    if (query) setQuery(''); else setList(null);
+  };
+  /** Drag, click-to-arm, keyboard and hover behaviour shared by rows, cards and minis. */
   const handlers = (entry: PaletteEntry) => {
     const { item } = entry;
     const key = itemKey(item);
@@ -165,6 +189,7 @@ export default function EquipmentPalette({ docked, onHint, library = [], presets
       'aria-label': `${entry.label} — ${entry.title}`,
       onDragStart: (e: React.DragEvent) => {
         setTip(null);
+        setDragging(true);
         if (armedKey && armedKey !== key) setArmedItem(null);
         setDragItem(item);
         e.dataTransfer.setData('text/plain', key);
@@ -177,6 +202,8 @@ export default function EquipmentPalette({ docked, onHint, library = [], presets
         const missed = getDragItem() !== null;
         setDragItem(null);
         if (armedKey === key) setArmedItem(null);
+        setDragging(false);
+        if (!pin) setList(null);
         if (missed) onHint(dropHint(item));
       },
       onClick: (e: React.MouseEvent) => arm(e, entry),
@@ -210,23 +237,23 @@ export default function EquipmentPalette({ docked, onHint, library = [], presets
     return <Icon size={size ?? 20} strokeWidth={1.6} className="palette-ic" aria-hidden />;
   };
 
-  const tile = (entry: PaletteEntry) => {
+  const row = (entry: PaletteEntry) => {
     const { item, label } = entry;
     const key = itemKey(item);
     const on = armedKey === key;
     return (
-      <div key={key} className={`palette-tile${on ? ' armed' : ''}${favs.includes(key) ? ' is-fav' : ''}`} {...handlers(entry)}>
-        {dots(item)}
-        {favBtn(key)}
-        {symbol(item)}
-        <span className="palette-tname">{label}</span>
+      <div key={key} className={`eq-row${on ? ' armed' : ''}${favs.includes(key) ? ' is-fav' : ''}`} {...handlers(entry)}>
+        {symbol(item, 18)}
+        <span className="eq-rname">{label}</span>
         {on && qtyStep}
+        {favBtn(key)}
+        {dots(item)}
       </div>
     );
   };
   const card = (entry: PaletteEntry) => {
     const { item, label } = entry;
-    if (item.kind !== 'preset') return tile(entry);
+    if (item.kind !== 'preset') return row(entry);
     const key = itemKey(item);
     const on = armedKey === key;
     const fav = favs.includes(key);
@@ -268,78 +295,97 @@ export default function EquipmentPalette({ docked, onHint, library = [], presets
     );
   };
 
-  if (!open && !docked) {
+  if (!open) {
     return (
-      <aside className="palette closed">
-        <button className="chip" onClick={toggle} title="Show the equipment library"><PanelLeftOpen size={16} /></button>
+      <aside className={`eq-strip closed${side === 'right' ? ' right' : ''}`} aria-label="Equipment library">
+        <button type="button" className="chip" title="Show the equipment strip" aria-label="Show the equipment strip" onClick={showHide}>{left ? <PanelLeftOpen size={16} /> : <PanelRightOpen size={16} />}</button>
       </aside>
     );
   }
   return (
-    <aside className={`palette${docked ? ' docked' : ''}`} aria-label="Equipment library" style={docked ? undefined : { width }}>
-      {!docked && <>
-        <div className="palette-resize" onPointerDown={startResize} onDoubleClick={() => setWidth(210)} title="Drag to resize (double-click: default width)" />
-        <div className="palette-head">
-          <b>Equipment</b>
-          <button className="icon-btn" onClick={toggle} title="Hide the library"><PanelLeftClose size={15} /></button>
-        </div>
-      </>}
-      <input className="palette-search" type="search" aria-label="Search the equipment library" placeholder="Search… (AHU, RCD, SMDB)" value={query} onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Escape' && query) { e.stopPropagation(); setQuery(''); } }} />
-      {strip.length > 0 && (
-        <div className="palette-strip" aria-label="Favourites and recently used">
-          {strip.map((entry) => {
-            const key = itemKey(entry.item);
-            return (
-              <div key={key} className={`palette-mini${armedKey === key ? ' armed' : ''}`} {...handlers(entry)}>
-                {favs.includes(key) && <span className="palette-mini-fav" aria-hidden>★</span>}
-                {symbol(entry.item, 18)}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {!q && (
-        <div className="palette-cats" role="tablist" aria-label="Equipment categories">
+    <aside ref={asideRef} className={`eq-strip${side === 'right' ? ' right' : ''}`} aria-label="Equipment library" data-doc-id="sld-equipment" onKeyDown={listKeys}>
+      <div className="eq-rail">
+        <button type="button" className={`eq-btn${openList === 'search' ? ' open' : ''}`} aria-label="Search the equipment library" title="Search the equipment library" aria-expanded={openList === 'search'} onClick={() => toggle('search')}><Search size={18} strokeWidth={1.6} aria-hidden /></button>
+        <span className="eq-dv" />
+        {strip.length > 0 && <>
+          <div className="eq-recent" aria-label="Favourites and recently used">
+            {strip.map((entry) => {
+              const key = itemKey(entry.item);
+              return (
+                <div key={key} className={`eq-mini${armedKey === key ? ' armed' : ''}`} {...handlers(entry)}>
+                  {favs.includes(key) && <span className="eq-mini-fav" aria-hidden>★</span>}
+                  {symbol(entry.item, 18)}
+                </div>
+              );
+            })}
+          </div>
+          <span className="eq-dv" />
+        </>}
+        <div className="eq-cats" role="group" aria-label="Equipment categories">
           {cats.map((c) => {
             const Icon = c.icon;
+            const n = entriesOf(c).length;
             return (
-              <button key={c.id} type="button" role="tab" aria-selected={c.id === openCat.id} className={`palette-cat${c.id === openCat.id ? ' on' : ''}`} title={`${c.label} (${entriesOf(c).length})`} onClick={() => setCat(c.id)}>
-                {c.sym ? <PaletteSymbol k={c.sym} size={18} /> : Icon && <Icon size={18} strokeWidth={1.6} className="palette-ic" aria-hidden />}
-                <span>{c.label}</span>
+              <button key={c.id} type="button" className={`eq-btn eq-cat${openList === c.id ? ' open' : ''}`} aria-label={`${c.label} (${n})`} aria-expanded={openList === c.id} onClick={() => toggle(c.id)} onMouseEnter={catHover(c.label, n)} onMouseLeave={() => setCatTip(null)}>
+                {c.sym ? <PaletteSymbol k={c.sym} size={20} /> : Icon && <Icon size={20} strokeWidth={1.6} className="palette-ic" aria-hidden />}
+                <svg className="eq-tri" viewBox="0 0 4 4" aria-hidden><path d="M4 0v4H0z" /></svg>
               </button>
             );
           })}
         </div>
+        <span className="eq-sp" />
+        <button type="button" className="eq-btn eq-foot" title={left ? 'Move the strip to the right of the drawing' : 'Move the strip to the left of the drawing'} aria-label={left ? 'Move the strip to the right of the drawing' : 'Move the strip to the left of the drawing'} onClick={() => setSide(left ? 'right' : 'left')}><ArrowLeftRight size={16} aria-hidden /></button>
+        <button type="button" className="eq-btn eq-foot" title="Hide the equipment strip" aria-label="Hide the equipment strip" onClick={showHide}>{left ? <PanelLeftClose size={16} /> : <PanelRightClose size={16} />}</button>
+      </div>
+      {openList && (
+        <div className={`eq-list${wide ? ' wide' : ''}${dragging ? ' dragging' : ''}`} role="group" aria-label={openList === 'search' ? 'Search results' : `${openCat.label} list`}>
+          <div className="eq-lhead">
+            {openList === 'search'
+              ? <input className="palette-search" type="search" autoFocus aria-label="Search the equipment library" placeholder="Search… (AHU, RCD, SMDB)" value={query} onChange={(e) => setQuery(e.target.value)} />
+              : <><span className="eq-ltitle">{openCat.label}</span><span className="m palette-count">{shown.length}</span></>}
+            {isComp && onEditComponent && <button className="icon-btn" title="New component" onClick={() => onEditComponent(null)}><Plus size={13} /></button>}
+            {isMine && <>
+              {onEditPreset && <button className="icon-btn" title="New preset" onClick={() => onEditPreset(null, 'edit')}><Plus size={13} /></button>}
+              {onExportPresets && presets.length > 0 && <button className="icon-btn" title="Export my presets to a file (share with the team)" onClick={onExportPresets}><Download size={13} /></button>}
+              {onImportPresets && <button className="icon-btn" title="Import presets from a file" onClick={() => fileRef.current?.click()}><Upload size={13} /></button>}
+              <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (f && onImportPresets) onImportPresets(await f.text());
+                e.target.value = '';
+              }} />
+            </>}
+            <button type="button" className={`icon-btn${pin ? ' on' : ''}`} aria-pressed={pin} title={pin ? 'Unpin: the list closes after a pick' : 'Pin: keep the list open after a pick'} onClick={() => setPin(!pin)}>{pin ? <PinOff size={13} /> : <Pin size={13} />}</button>
+            <button type="button" className="icon-btn" title="Close the list (Esc)" aria-label="Close the list" onClick={() => setList(null)}><X size={13} aria-hidden /></button>
+          </div>
+          {openList === 'search' && q && <div className="eq-ghead">Results for “{query.trim()}” · {shown.length}</div>}
+          {openList === 'search' && !q && <p className="m palette-tip">Type to search every category.</p>}
+          {isComp && !shown.length && <p className="m palette-tip">Click + to make your own equipment with inputs, formulas and an SLD label.</p>}
+          {isMine && !shown.length && <p className="m palette-tip">Select a feeder and “Save as preset”, click + or import a file.</p>}
+          {openList === 'search' && q && !shown.length && <p className="m palette-tip">Nothing matches.</p>}
+          <div className="eq-rows">{shown.map((e) => (e.item.kind === 'preset' ? card(e) : row(e)))}</div>
+          <p className="m palette-legend"><span><i className="bus" />busbar</span><span><i className="feeder" />feeder</span><span><i className="canvas" />canvas</span><span className="sp">drag, or click then click</span></p>
+        </div>
       )}
-      <div className="palette-ghead">
-        <span>{q ? `Results for “${query.trim()}”` : openCat.label}</span>
-        <span className="m palette-count">{shown.length}</span>
-        {isComp && onEditComponent && <button className="icon-btn" title="New component" onClick={() => onEditComponent(null)}><Plus size={13} /></button>}
-        {isMine && <>
-          {onEditPreset && <button className="icon-btn" title="New preset" onClick={() => onEditPreset(null, 'edit')}><Plus size={13} /></button>}
-          {onExportPresets && presets.length > 0 && <button className="icon-btn" title="Export my presets to a file (share with the team)" onClick={onExportPresets}><Download size={13} /></button>}
-          {onImportPresets && <button className="icon-btn" title="Import presets from a file" onClick={() => fileRef.current?.click()}><Upload size={13} /></button>}
-          <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={async (e) => {
-            const f = e.target.files?.[0];
-            if (f && onImportPresets) onImportPresets(await f.text());
-            e.target.value = '';
-          }} />
-        </>}
-      </div>
-      {isComp && !shown.length && <p className="m palette-tip">Click + to make your own equipment with inputs, formulas and an SLD label.</p>}
-      {isMine && !shown.length && <p className="m palette-tip">Select a feeder and “Save as preset”, click + or import a file.</p>}
-      {q && !shown.length && <p className="m palette-tip">Nothing matches.</p>}
-      <div className="palette-tiles">
-        {shown.map((e) => (e.item.kind === 'preset' ? card(e) : tile(e)))}
-      </div>
-      <p className="m palette-legend"><span><i className="bus" />busbar</span><span><i className="feeder" />feeder</span><span><i className="canvas" />canvas</span><span className="sp">drag, or click then click</span></p>
+      {armed && !openList && (
+        <div className="eq-placing" role="status">
+          {symbol(armed, 16)}
+          <span>{byKey.get(itemKey(armed))?.label ?? 'Item'}</span>
+          {qtyStep}
+          <button type="button" className="icon-btn" title="Cancel (Esc)" onClick={() => { setArmedItem(null); onHint(''); }}>Esc</button>
+        </div>
+      )}
       {tip && (
         <div className="palette-tipcard" role="tooltip" style={{ left: tip.x, top: tip.y }}>
           <b>{tip.entry.label}</b>
           <span>{tip.entry.title}</span>
           <span className="palette-where">{(['bus', 'feeder', 'canvas'] as const).map((t) => <span key={t} className={dropsOn(tip.entry.item).includes(t) ? 'yes' : ''}>{WHERE[t]}</span>)}</span>
           <span className="m">Drag it there, or click it then click the drawing. Shift-click: × 3.</span>
+        </div>
+      )}
+      {catTip && (
+        <div className="palette-tipcard" role="tooltip" style={{ left: catTip.x, top: catTip.y }}>
+          <b>{catTip.label} · {catTip.n}</b>
+          <span className="m">Click to open the list</span>
         </div>
       )}
     </aside>

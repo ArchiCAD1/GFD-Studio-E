@@ -15,7 +15,7 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.156', date: '2026-11-15',
+    version: '2.159', date: '2026-11-15',
     items: [
       { title: 'Busbar riser: one maximum demand', text: 'The busway, its breaker and the Load schedule\'s Busbar riser form now use the same maximum demand: each tap-off board\'s MD from its MD form (TCL × DF). Risers whose floors are boards may get a bigger busway and breaker; check them.' },
       { title: 'Busbar riser: diversity you choose', text: 'Choose the riser diversity: same as the MD forms (1.0, the default when every floor is a board), IEC 61439 by tap-offs (the default for loads entered on the page), or typed. A diversity below 1.0 shows as its own row on the Busbar riser form.' },
@@ -23,6 +23,18 @@ export const RELEASES: Release[] = [
       { title: 'Busbar riser: tap-off unit at least its MCCB', text: 'A tap-off unit is never smaller than the breaker inside it.' },
       { title: 'Boards by level: busway breaker', text: 'The busway\'s breaker now shows the feeding breaker. It showed the busway rating.' },
       { title: 'G+10 mock-up: tap-off breakers', text: 'The mock-up\'s tap-off breakers are sized to each floor.' }
+    ]
+  },
+  {
+    version: '2.158', date: '2026-11-15',
+    items: [
+      { title: 'SLD: equipment on the Board tab', text: 'The equipment strip is now on the Board tab too. Drop an item on the board\'s busbar for a new way, where the marker shows, or on one of its ways for a breaker, meter, RCD, isolator, cable type or starter. The lists show only what that board can take, and the view stays on the board after a drop, also when you add a sub-board. Supply and Devices on the ribbon place on the Board tab as well.' }
+    ]
+  },
+  {
+    version: '2.157', date: '2026-11-15',
+    items: [
+      { title: 'SLD: the equipment library is a thin strip', text: 'The equipment library is now a thin strip at the edge of the drawing instead of the side panel\'s Equipment tab: search, your favourites and recent items, then one symbol per category. Click a symbol for its list, then click an item and click the drawing, or drag it. The list closes after a pick; its pin keeps it open. The button at the foot of the strip moves it to the other side. The side panel shows the panels again.' }
     ]
   },
   {

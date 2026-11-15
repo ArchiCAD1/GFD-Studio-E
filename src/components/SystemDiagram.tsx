@@ -34,7 +34,7 @@ import { boardRatio, COLOR_BY, earthRatio, feederRatio, heatColor, type ColorBy 
 import { evaluateEarthingAll } from '../calc/earthing';
 import { earthingLayout } from '../model/earthingPlan';
 import { INCOMER_DEVICES, incomerDeviceOf, type Board, type Feeder } from '../types';
-import { getArmedItem, getDragItem, setArmedItem, setDragItem, subscribeArmedItem } from '../diagram/dragItem';
+import { dropTargetAt, getArmedItem, getDragItem, setArmedItem, setDragItem, subscribeArmedItem } from '../diagram/dragItem';
 import { recordedKva, recordedText } from '../model/existing';
 import { fmtDate, fmtFixed, txt } from '../util/format';
 import { CO_GEN_REACH, ChangeoverIncomers } from '../diagram/ChangeoverSym';
@@ -757,14 +757,6 @@ export default function SystemDiagram({
     if (!onMoveItem || tool === 'pan' || e.button !== 0 || space.current) return;
     pick.current = { item, label, px: e.clientX, py: e.clientY };
   };
-  const targetAt = (x: number, y: number): { target: DropTarget; key: string } | undefined => {
-    const el = document.elementFromPoint(x, y)?.closest('[data-drop]');
-    const key = el?.getAttribute('data-drop');
-    if (!key) return undefined;
-    const id = key.slice(key.indexOf(':') + 1);
-    return { key, target: key.startsWith('bus:') ? { type: 'bus', boardId: id } : { type: 'feeder', feederId: id } };
-  };
-
   function onPointerDown(e: React.PointerEvent) {
     drag.current = { px: e.clientX, py: e.clientY, vb: view.current, moved: false };
   }
@@ -775,7 +767,7 @@ export default function SystemDiagram({
       if (!moving && Math.hypot(e.clientX - pk.px, e.clientY - pk.py) < 6) return;
       if (!moving) svg.setPointerCapture(e.pointerId);
       if (drag.current) drag.current.moved = true; // not a click
-      const t = targetAt(e.clientX, e.clientY);
+      const t = dropTargetAt(e.clientX, e.clientY);
       const ok = t && canMove(project, pk.item, t.target) ? t.key : null;
       if (ok !== hover) setHover(ok);
       const ol = !ok && pk.item.kind === 'board' && onMoveToSheet ? outlineAt(e.clientX, e.clientY) ?? null : null;
@@ -804,7 +796,7 @@ export default function SystemDiagram({
     const pk = pick.current;
     pick.current = null;
     if (pk && moving) {
-      const t = targetAt(e.clientX, e.clientY);
+      const t = dropTargetAt(e.clientX, e.clientY);
       setMoving(null);
       setHover(null);
       if (t && canMove(project, pk.item, t.target)) onMoveItem?.(pk.item, t.target);
@@ -872,7 +864,7 @@ export default function SystemDiagram({
   const armed = useSyncExternalStore(subscribeArmedItem, getArmedItem, getArmedItem);
   useEffect(() => subscribeArmedItem(() => { if (!getArmedItem()) { setHover(null); setInsertAt(null); } }), []);
   const armedAt = (item: PaletteItem, x: number, y: number) => {
-    const t = targetAt(x, y) ?? { key: 'canvas', target: { type: 'canvas' } as DropTarget };
+    const t = dropTargetAt(x, y) ?? { key: 'canvas', target: { type: 'canvas' } as DropTarget };
     if (!canDrop(project, item, t.target)) return null;
     const ins = t.target.type === 'bus' && addsWay(item) ? busInsert(t.target.boardId, x) : undefined;
     return { key: t.key, ins: ins ?? null, target: ins?.before && t.target.type === 'bus' ? { ...t.target, before: ins.before } : t.target };
