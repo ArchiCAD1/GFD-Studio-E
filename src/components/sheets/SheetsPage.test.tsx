@@ -670,15 +670,21 @@ describe('Sheets page — Push to load schedule', () => {
     expect(last.boards).toBe(projectBefore.boards);
   });
 
-  it('a panel schedule shows only Use as a template only and its muted line', () => {
+  it('a panel schedule shows the target line, Push to load schedule and its own hint', () => {
     render(opened());
     suggest('md');
     expect(boxText()).toContain('This sheet has 3 rows of its own');
-    expect(boxText()).toContain("Pushing a panel schedule's rows comes later. Use the layout as a template, then choose the panel.");
-    expect(boxText()).not.toContain('Panel DB-NEW');
-    expect(button('Push to load schedule')).toBeUndefined();
+    expect(boxText()).toContain('Push makes the panel and one feeder for each row. A row that names a panel (SMDB-1, DB-GF) makes that panel under it; its load comes from its own schedule. A size left blank is sized by the rules.');
+    expect(boxText()).toContain('Panel DB-NEW is new, under SMDB-GF.');
+    expect(button('Push to load schedule').disabled).toBe(false);
     expect(button('Use as a template only')).toBeDefined();
     expect(boardSelect()).toBeNull();
+  });
+
+  it('a panel schedule whose Fed from is not a panel says it is a main panel', () => {
+    render(opened({ C2: 'FED FROM: DEWA' }));
+    suggest('md');
+    expect(boxText()).toContain('Panel DB-NEW is new, a main panel. "DEWA" is not read as a panel.');
   });
 });
 

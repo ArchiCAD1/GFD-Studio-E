@@ -15,6 +15,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.152', date: '2026-11-15',
+    items: [
+      { title: 'Sheets: push a panel schedule to the load schedule', text: 'Push to load schedule now works for a panel schedule (MDB, SMDB, MCC) as well as a DB schedule. A row that names a panel (SMDB-1, DB-GF) makes that panel under it, other rows become feeders, and SPARE and SPACE rows become spares. An INCOMER row sets the panel\'s incomer. A panel\'s load comes from its own schedule, so push those sheets too.', action: 'sheets' },
+      { title: 'Sheets: SPARE and SPACE rows of a DB schedule', text: 'A row of a DB schedule that reads SPARE or SPACE and has no load now becomes a spare way or a space at its circuit reference, as in the DB\'s own schedule, not a circuit named SPARE. Pushing the sheet again updates it.', action: 'sheets' }
+    ]
+  },
+  {
     version: '2.149', date: '2026-11-15',
     items: [
       { title: 'Design CAD: Layout manager', text: 'Output → Layout → Layout manager (LAYOUTMANAGER) lists every layout of the drawing in one place: the drawing file\'s own, the ones made with + and the level\'s plan sheets, each with its paper, what it shows and its page setup. Tick layouts to copy or delete several at once, rename one, move it up or down, or give a named page setup to several plan sheets together. A double-click opens a layout. It is also on a layout tab\'s right-click menu.', action: 'cad' },
