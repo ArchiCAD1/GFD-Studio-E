@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { incomerDeviceOf, type Board, type Project } from '../types';
 import { loadSymbolOf, SwitchSym, switchKindOf, type SwitchKind } from '../diagram/IecSymbols';
 import { panelSymbolOf } from '../diagram/panelBox';
@@ -14,6 +15,8 @@ import { deviceKind, devicePoles } from '../diagram/deviceText';
 import { nextPhase, phaseTag } from '../model/phases';
 import { splitSld } from '../model/sldScope';
 import { fmtFixed } from '../util/format';
+import { addsWay, canDrop, type DropTarget, type PaletteItem } from '../model/sldEdit';
+import { dropTargetAt, getArmedItem, getDragItem, setArmedItem, setDragItem, subscribeArmedItem } from '../diagram/dragItem';
 
 const SPACING = 172; // horizontal slot per feeder
 const MARGIN = 80;
@@ -51,7 +54,8 @@ export default function SingleLineDiagram({
   onSelect,
   onPhase,
   summary,
-  allCircuits = false
+  allCircuits = false,
+  onDropItem
 }: {
   board: Board;
   voltageV?: number;
@@ -68,6 +72,8 @@ export default function SingleLineDiagram({
   /** Draw every final circuit. By default the SLD stops at final circuits: feeders to boards and major
    * equipment are drawn, the lighting and power circuits are one box referring to the DB load schedule. */
   allCircuits?: boolean;
+  /** The Board tab: drops and clicks with an armed library item. Without it nothing below is drawn, as on printed sheets. */
+  onDropItem?: (item: PaletteItem, target: DropTarget) => void;
 }) {
   const split = splitSld(results, (r) => r.feeder);
   const finals = allCircuits ? [] : split.final;
@@ -89,8 +95,93 @@ export default function SingleLineDiagram({
   const dev = incomerDeviceOf(board);
   const incKind: SwitchKind = dev === 'ISOL' ? 'isolator' : dev === 'ACB' ? 'acb' : dev === 'MCCB-NA' ? 'nonauto' : 'breaker';
 
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hover, setHover] = useState<string | null>(null);
+  // Where along the busbar a new way would go: `x` is the marker, `before` the way it goes in front of.
+  const [insertAt, setInsertAt] = useState<{ x: number; before?: string } | null>(null);
+  const armed = useSyncExternalStore(subscribeArmedItem, getArmedItem, getArmedItem);
+  useEffect(() => subscribeArmedItem(() => { if (!getArmedItem()) { setHover(null); setInsertAt(null); } }), []);
+  const busKey = `bus:${board.id}`;
+  const busTarget: DropTarget = { type: 'bus', boardId: board.id };
+  const takes = (item: PaletteItem, target: DropTarget) => !!project && canDrop(project, item, target);
+  const busInsert = (clientX: number) => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || !rect.width) return undefined;
+    const x = ((clientX - rect.left) * width) / rect.width;
+    const ways = drawn.map((r, i) => ({ id: r.feeder.id, x: xs[i] }));
+    const next = ways.find((w) => w.x > x);
+    const prev = [...ways].reverse().find((w) => w.x <= x);
+    const gx = next && prev ? (next.x + prev.x) / 2 : next ? next.x - SPACING / 2 : prev ? prev.x + SPACING / 2 : x;
+    return { x: gx, before: next?.id };
+  };
+  const setIns = (ins: { x: number; before?: string } | null) => {
+    if (ins?.before !== insertAt?.before || ins?.x !== insertAt?.x) setInsertAt(ins);
+  };
+  /** The key and target under the pointer that `item` can go on, with the insert position along the busbar. */
+  const armedAt = (item: PaletteItem, x: number, y: number) => {
+    const t = dropTargetAt(x, y);
+    if (!t || !takes(item, t.target)) return null;
+    const ins = t.target.type === 'bus' && addsWay(item) ? busInsert(x) ?? null : null;
+    return { key: t.key, ins, target: ins?.before && t.target.type === 'bus' ? { ...t.target, before: ins.before } : t.target };
+  };
+  const dnd = (target: DropTarget, key: string) =>
+    onDropItem
+      ? {
+          onDragOver: (e: React.DragEvent) => {
+            const item = getDragItem();
+            if (!item) return;
+            e.stopPropagation();
+            if (!takes(item, target)) {
+              if (hover) setHover(null);
+              return;
+            }
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            if (hover !== key) setHover(key);
+            setIns(target.type === 'bus' && addsWay(item) ? busInsert(e.clientX) ?? null : null);
+          },
+          onDrop: (e: React.DragEvent) => {
+            const item = getDragItem();
+            if (!item) return;
+            e.preventDefault();
+            e.stopPropagation();
+            setHover(null);
+            setDragItem(null);
+            const ins = target.type === 'bus' && addsWay(item) ? busInsert(e.clientX) : undefined;
+            setInsertAt(null);
+            onDropItem(item, ins?.before && target.type === 'bus' ? { ...target, before: ins.before } : target);
+          }
+        }
+      : {};
+  const armProps = onDropItem
+    ? {
+        className: `board-sld${armed ? ' armed' : ''}`,
+        onPointerMove: (e: React.PointerEvent) => {
+          if (!armed) return;
+          const a = armedAt(armed, e.clientX, e.clientY);
+          const key = a?.key ?? null;
+          if (key !== hover) setHover(key);
+          setIns(a?.ins ?? null);
+        },
+        onPointerLeave: () => { if (armed) { setHover(null); setInsertAt(null); } },
+        // Place the armed item; a click that can't place it selects as usual.
+        onClickCapture: (e: React.MouseEvent) => {
+          const item = getArmedItem();
+          if (!item) return;
+          const a = armedAt(item, e.clientX, e.clientY);
+          if (!a) return;
+          e.stopPropagation();
+          setHover(null);
+          setInsertAt(null);
+          if (!e.shiftKey) setArmedItem(null); // shift-click places another
+          onDropItem(item, a.target);
+        },
+        onDragLeave: (e: React.DragEvent) => { if (!svgRef.current?.contains(e.relatedTarget as Node)) { setHover(null); setInsertAt(null); } }
+      }
+    : {};
+
   return (
-    <svg viewBox={`0 0 ${width} ${H}`} style={{ minWidth, width: '100%', height: 'auto', display: 'block' }} role="img" aria-label={`Single line diagram of ${board.name}`}>
+    <svg ref={svgRef} {...armProps} viewBox={`0 0 ${width} ${H}`} style={{ minWidth, width: '100%', height: 'auto', display: 'block' }} role="img" aria-label={`Single line diagram of ${board.name}`}>
       {isMain ? (
         <>
           <line x1={cx} y1="0" x2={cx} y2="17" className="ln" />
@@ -137,7 +228,9 @@ export default function SingleLineDiagram({
       <text className="b" x={cx - 16} y="106" textAnchor="end" style={{ fill: 'var(--bus)' }}>
         {board.id} · {voltageV} V{board.ratedCurrentA ? ` · ${board.ratedCurrentA} A` : ''} busbar
       </text>
+      {onDropItem && hover === busKey && <line className="bus-glow" x1={busX1} y1="118" x2={busX2} y2="118" />}
       <line data-dxf-layer="BUSBAR" x1={busX1} y1="118" x2={busX2} y2="118" style={{ stroke: 'var(--bus)', strokeWidth: 4, strokeLinecap: 'round' }} />
+      {onDropItem && <line className="bus-hit" x1={busX1 - 20} y1="118" x2={busX2 + 20} y2="118" data-drop={busKey} {...dnd(busTarget, busKey)} />}
       {drawn.map((r, i) => {
         const x = xs[i];
         const f = r.feeder;
@@ -145,7 +238,8 @@ export default function SingleLineDiagram({
         const sel = selected === f.id;
         const fed = f.feedsBoardId ? project?.boards.find((b) => b.id === f.feedsBoardId) : undefined;
         return (
-          <g key={f.id} tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => onSelect(f.id)} onKeyDown={(e) => e.key === 'Enter' && onSelect(f.id)}>
+          <g key={f.id} tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => onSelect(f.id)} onKeyDown={(e) => e.key === 'Enter' && onSelect(f.id)}
+            {...(onDropItem ? { 'data-drop': `fd:${f.id}`, className: hover === `fd:${f.id}` ? 'drop-ok' : undefined, ...dnd({ type: 'feeder', feederId: f.id }, `fd:${f.id}`) } : {})}>
             <line x1={x} y1="118" x2={x} y2="152" className="ln" />
             <SwitchSym x={x} y={152} kind={switchKindOf(f)} />
             {/* The way ends in its symbol, below the cable text: the board's panel symbol for a way feeding a board, else its load. */}
@@ -239,6 +333,12 @@ export default function SingleLineDiagram({
           </g>
         );
       })()}
+      {onDropItem && insertAt && hover === busKey && (
+        <g className="insert-guide" pointerEvents="none">
+          <line x1={insertAt.x} y1={102} x2={insertAt.x} y2={214} />
+          <circle cx={insertAt.x} cy={118} r="4.5" />
+        </g>
+      )}
     </svg>
   );
 }

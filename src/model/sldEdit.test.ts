@@ -3,7 +3,7 @@ import { sampleProject } from '../data/sampleProject';
 import { evaluateFeeder } from '../calc/electrical';
 import { layoutSystem } from '../diagram/layout';
 import { newProject, type Project } from '../types';
-import { applyDrop, applyMove, armHint, canDrop, canMove, dropHint, type PaletteItem } from './sldEdit';
+import { applyDrop, applyMove, armHint, boardTakes, canDrop, canMove, dropHint, stayOnBoard, type PaletteItem } from './sldEdit';
 import { applyReference, BUILT_IN_REFERENCES } from './designReference';
 
 const bus = (boardId: string) => ({ type: 'bus' as const, boardId });
@@ -208,5 +208,34 @@ describe('changeover and PMU from the library', () => {
     expect(canDrop(sampleProject, pmu, { type: 'bus', boardId: emdb })).toBe(true);
     expect(canDrop(sampleProject, pmu, { type: 'feeder', feederId: sampleProject.feeders[0].id })).toBe(false);
     expect(applyDrop(sampleProject, pmu, { type: 'bus', boardId: emdb }).project.boards.find((x) => x.id === emdb)!.pmu).toBe(true);
+  });
+});
+
+describe('what a board takes on the Board tab', () => {
+  it('lists only items that fit a sub-main board: no transformer, meter cabinet or MDB', () => {
+    expect(boardTakes(sampleProject, { kind: 'transformer' }, 'SMDB-FF')).toBe(false);
+    expect(boardTakes(sampleProject, { kind: 'board', board: 'MC' }, 'SMDB-FF')).toBe(false);
+    expect(boardTakes(sampleProject, { kind: 'board', board: 'MDB' }, 'SMDB-FF')).toBe(false);
+    expect(boardTakes(sampleProject, { kind: 'load', preset: 'ahu' }, 'SMDB-FF')).toBe(true);
+    expect(boardTakes(sampleProject, { kind: 'generator' }, 'SMDB-FF')).toBe(true);
+    expect(boardTakes(sampleProject, { kind: 'accessory', accessory: 'rcd' }, 'SMDB-FF')).toBe(true);
+  });
+  it('takes an RCD only when the board has a way, a starter only when it has a motor way', () => {
+    const rcd: PaletteItem = { kind: 'accessory', accessory: 'rcd' };
+    const starter: PaletteItem = { kind: 'starter', starter: 'DOL' };
+    const bare: Project = { ...sampleProject, feeders: sampleProject.feeders.filter((f) => f.boardId !== 'SMDB-FF') };
+    expect(boardTakes(bare, rcd, 'SMDB-FF')).toBe(false);
+    expect(boardTakes(sampleProject, starter, 'SMDB-FF')).toBe(false);
+    expect(boardTakes(sampleProject, starter, 'MCC-1')).toBe(true);
+  });
+  it('stays on the board: a new board is shown by its way here; anything else is left alone', () => {
+    const r = applyDrop(sampleProject, { kind: 'board', board: 'DB' }, bus('SMDB-FF'));
+    expect(r.select).toEqual({ type: 'board', id: 'DB-1' });
+    const way = r.project.feeders.find((f) => f.boardId === 'SMDB-FF' && f.feedsBoardId === 'DB-1')!;
+    expect(stayOnBoard(r.project, r.select, 'SMDB-FF')).toEqual({ type: 'feeder', id: way.id });
+    expect(stayOnBoard(r.project, { type: 'board', id: 'SMDB-FF' }, 'SMDB-FF')).toEqual({ type: 'board', id: 'SMDB-FF' });
+    expect(stayOnBoard(r.project, r.select, 'MDB-1')).toEqual({ type: 'board', id: 'DB-1' }); // fed from another board
+    expect(stayOnBoard(r.project, { type: 'feeder', id: 'FF-OFF' }, 'SMDB-FF')).toEqual({ type: 'feeder', id: 'FF-OFF' });
+    expect(stayOnBoard(r.project, undefined, 'SMDB-FF')).toBeUndefined();
   });
 });

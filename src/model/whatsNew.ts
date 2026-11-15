@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.158', date: '2026-11-15',
+    items: [
+      { title: 'SLD: equipment on the Board tab', text: 'The equipment strip is now on the Board tab too. Drop an item on the board\'s busbar for a new way, where the marker shows, or on one of its ways for a breaker, meter, RCD, isolator, cable type or starter. The lists show only what that board can take, and the view stays on the board after a drop, also when you add a sub-board. Supply and Devices on the ribbon place on the Board tab as well.' }
+    ]
+  },
+  {
     version: '2.157', date: '2026-11-15',
     items: [
       { title: 'SLD: the equipment library is a thin strip', text: 'The equipment library is now a thin strip at the edge of the drawing instead of the side panel\'s Equipment tab: search, your favourites and recent items, then one symbol per category. Click a symbol for its list, then click an item and click the drawing, or drag it. The list closes after a pick; its pin keeps it open. The button at the foot of the strip moves it to the other side. The side panel shows the panels again.' }

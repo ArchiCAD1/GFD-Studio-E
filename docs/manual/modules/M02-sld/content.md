@@ -95,6 +95,7 @@ drop while editing.
 ## Edit and reconnect items
 
 - Drag equipment from the equipment strip at the edge of the drawing onto a valid busbar or feeder target, or click it and then click the target. A category symbol opens its list; the pin keeps the list open.
+- On the **Board** tab the same strip places items on that board: on its busbar for a new way, or on one of its ways. Its lists show only what the board can take.
 - Or choose it on the ribbon: **Supply** (transformer, meter cabinet, generator, bus
   coupler) and **Devices** (protection, metering, capacitor bank) pick the same
   library items. Then click the target on the drawing.
