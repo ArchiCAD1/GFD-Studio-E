@@ -78,3 +78,15 @@ Answered by the user on 2026-11-15.
 - `src/styles.css`: strip and list rules with the existing tokens only.
 - Tests: strip open, close, pin and arm; left / right side; search; Board tab drop on the busbar with `before` and on a way; hidden items and categories; decision 5; the ribbon arm on the Board tab; the existing library tests updated.
 - Manual: the SLD text and captures that show the side panel.
+
+## Built as
+
+- Step 1, v2.152, PR 606 (`feat/sld-equipment-strip`): the strip on the System diagram; the Equipment tab removed.
+- Step 2, v2.153, PR 607 (`feat/sld-board-equipment`, stacked on 606): the strip and drops on the Board tab, with the lists filtered to what the board can take; the view stays on the board.
+
+What differs from the mockup:
+
+- On the Board tab a way under a dragged or armed item lights in the accent colour, as on the System diagram, not in green as drawn in detail 4e.
+- On the Board tab the placing chip sits at the bottom of the strip's height, because the board's bar is at the top. On the System diagram it is at the drawing's top left, as drawn (top right below the drawing tools when the strip is on the right).
+- One strip serves both tabs, so an item armed on one tab is still armed on the other.
+- The manual's SLD capture was refreshed in step 1. The Board tab has no manual capture.
