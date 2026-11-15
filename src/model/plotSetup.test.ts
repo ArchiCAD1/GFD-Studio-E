@@ -6,7 +6,7 @@ import { buildSldSheetHtml } from '../docs/sldSheet';
 import { placeLvPoint } from './cadDevices';
 import { setOf, type DrawingSheet } from './drawingSet';
 import {
-  applySetup, DEFAULT_PENS, importSetups, loadSetupLibrary, readSetups, saveToSetupLibrary, SETUPS_LIBRARY_KEY, setupsFile, diagramPenCss, inkOf, newTableId, nextId, projectForBatch, setupUsers, withBatch, withoutBatch, withoutSetup, withSetup, parseCtb, pensFor, plotOf, plotStamp, tableFromCtb, tablesOf, withDefaults, withTable
+  applySetup, DEFAULT_PENS, importSetups, loadSetupLibrary, readSetups, saveToSetupLibrary, SETUPS_LIBRARY_KEY, setupsFile, diagramPenCss, inkOf, newTableId, nextId, projectForBatch, setupUsers, withBatch, withoutBatch, withoutSetup, withSetup, parseCtb, parseStb, plotStyleKind, tableFromStb, withStyle, pensFor, plotOf, plotStamp, tableFromCtb, tablesOf, withDefaults, withTable
 } from './plotSetup';
 import type { Project } from '../types';
 
@@ -15,20 +15,31 @@ const villa: Project = {
   ...sampleProject, lvPoints: undefined, cadWiring: undefined, cadSketch: undefined, elvDevices: undefined, drawingSet: undefined, plot: undefined,
   building: { buildings: [{ id: 'V', name: 'Villa', levels: [{ id: 'GF', name: 'Ground floor', kind: 'ground', heightM: 4 }] }], rooms: [{ id: 'r1', buildingId: 'V', levelId: 'GF', name: 'Hall', type: 'lobby', areaM2: 120, outline: [[0, 0], [12, 0], [12, 10], [0, 10]] }] }
 };
-/** A CTB file as CAD programs write it: a text header, then the plot styles compressed with zlib. */
-function ctbFile(styles: Record<number, { lw?: number; scr?: number }>): Uint8Array {
-  const body = Array.from({ length: 255 }, (_, i) => {
-    const c = styles[i + 1] ?? {};
-    return ` ${i}{\n  name="Color_${i + 1}\n  color=-1006632961\n  screening=${c.scr ?? 100}\n  lineweight=${c.lw ?? 255}\n }`;
-  }).join('\n');
-  const text = `description=\naci_table_available=TRUE\nplot_style{\n${body}\n}\ncustom_lineweight_table{\n 0=0.0\n 4=0.13\n 6=0.18\n 8=0.25\n 10=0.35\n 13=0.5\n 17=0.7\n}\n`;
-  const head = new TextEncoder().encode('PIAFILEVERSION_2.0,CTBVER1,compress\r\npmzlibcodec');
+/** A plot style table file as CAD programs write it: a 48-byte text header, 12 bytes of sizes, then the styles as text
+ * compressed with zlib. */
+function plotStyleFile(kind: 'CTB' | 'STB', text: string): Uint8Array {
+  const head = new TextEncoder().encode(`PIAFILEVERSION_2.0,${kind}VER1,compress\r\npmzlibcodec`);
   const pad = new Uint8Array(60);
   pad.set(head);
   const z = deflateSync(Buffer.from(text, 'latin1'));
   const out = new Uint8Array(60 + z.length);
   out.set(pad); out.set(z, 60);
   return out;
+}
+const WEIGHTS = 'custom_lineweight_table{\n 0=0.0\n 4=0.13\n 6=0.18\n 8=0.25\n 10=0.35\n 13=0.5\n 17=0.7\n}\n';
+/** A CTB file: 255 styles by colour. A colour's lineweight is a place in the table (0: the object's own); its screening is
+ * written as "screen" (`key`: "screening" and 255 for the object's own, as files written by this test before). */
+function ctbFile(styles: Record<number, { lw?: number; scr?: number }>, key: 'screen' | 'screening' = 'screen'): Uint8Array {
+  const body = Array.from({ length: 255 }, (_, i) => {
+    const c = styles[i + 1] ?? {};
+    return ` ${i}{\n  name="Color_${i + 1}\n  localized_name="Color_${i + 1}\n  color=-1006632961\n  ${key}=${c.scr ?? 100}\n  lineweight=${c.lw ?? (key === 'screen' ? 0 : 255)}\n }`;
+  }).join('\n');
+  return plotStyleFile('CTB', `description=\naci_table_available=TRUE\nplot_style{\n${body}\n}\n${WEIGHTS}`);
+}
+/** An STB file: named styles in the file's order, "Normal" first. */
+function stbFile(styles: { name: string; lw?: number; scr?: number }[]): Uint8Array {
+  const body = styles.map((s, i) => ` ${i}{\n  name="${s.name}\n  localized_name="${s.name} (shown)\n  description="\n  color=-1\n  screen=${s.scr ?? 100}\n  lineweight=${s.lw ?? 0}\n }`).join('\n');
+  return plotStyleFile('STB', `description="Office styles\naci_table_available=FALSE\nplot_style{\n${body}\n}\n${WEIGHTS}\0`);
 }
 
 describe('pen tables and page setup', () => {
@@ -112,9 +123,59 @@ describe('CTB import', () => {
     expect(t.pens.sld).toEqual({ w: 0.25, grey: 100 });
   });
 
+  it('reads the screening whether it is written "screen" or "screening", and 255 as the object\'s own lineweight too', async () => {
+    const old = await parseCtb(ctbFile({ 1: { lw: 17 }, 8: { lw: 4, scr: 50 } }, 'screening'));
+    expect([old.colours[1], old.colours[2], old.colours[8]]).toEqual([{ w: 0.7, grey: 100 }, { grey: 100 }, { w: 0.13, grey: 50 }]);
+    expect((await parseCtb(ctbFile({ 8: { lw: 4, scr: 50 } }))).colours[8]).toEqual({ w: 0.13, grey: 50 });
+  });
+
   it('a file that is not a CTB says so', async () => {
     await expect(parseCtb(new TextEncoder().encode('PIAFILEVERSION_2.0,STBVER1,compress'))).rejects.toThrow(/Not a CTB/);
     await expect(parseCtb(new TextEncoder().encode('hello'))).rejects.toThrow(/Not a CTB/);
+    await expect(parseCtb(stbFile([{ name: 'Normal' }]))).rejects.toThrow(/Not a CTB/);
+  });
+});
+
+describe('STB import (named plot styles)', () => {
+  const office = () => stbFile([{ name: 'Normal' }, { name: 'Thin' , lw: 4 }, { name: 'Heavy 0.7', lw: 17 }, { name: 'Half tone', lw: 6, scr: 50 }, { name: 'thin', lw: 8 }, { name: '' }]);
+
+  it('tells the two kinds of file apart by their header', () => {
+    expect([plotStyleKind(office()), plotStyleKind(ctbFile({})), plotStyleKind(new TextEncoder().encode('hello'))]).toEqual(['stb', 'ctb', undefined]);
+  });
+
+  it('reads the styles by name in the file\'s order: width (0: the object\'s own) and screening; a name twice or missing is left out', async () => {
+    expect((await parseStb(office())).styles).toEqual([{ name: 'Normal', w: 0, grey: 100 }, { name: 'Thin', w: 0.13, grey: 100 }, { name: 'Heavy 0.7', w: 0.7, grey: 100 }, { name: 'Half tone', w: 0.18, grey: 50 }]);
+    await expect(parseStb(ctbFile({}))).rejects.toThrow(/Not an STB/);
+    await expect(parseStb(stbFile([]))).rejects.toThrow(/no plot styles/);
+  });
+
+  it('makes a pen table with the default pens and the styles to give out; a kind of line given a style takes its width and screening', async () => {
+    const t = tableFromStb('pt1', 'Office', 'Office.stb', await parseStb(office()));
+    expect(t.pens).toEqual(DEFAULT_PENS.pens);
+    expect(t.pens.frame).not.toBe(DEFAULT_PENS.pens.frame);
+    expect(t.stb).toMatchObject({ file: 'Office.stb', by: {} });
+    expect(t.stb!.styles.map((s) => s.name)).toEqual(['Normal', 'Thin', 'Heavy 0.7', 'Half tone']);
+    const a = withStyle(withStyle(t, 'trays', 'Heavy 0.7'), 'arch', 'Half tone');
+    expect([a.pens.trays, a.pens.arch, a.stb!.by]).toEqual([{ w: 0.7, grey: 100 }, { w: 0.18, grey: 50 }, { trays: 'Heavy 0.7', arch: 'Half tone' }]);
+    expect(t.pens.trays).toEqual(DEFAULT_PENS.pens.trays); // the table it came from is not changed
+    // "Normal" uses the object's own lineweight: the default pen's width, its own screening.
+    expect(withStyle(a, 'trays', 'Normal').pens.trays).toEqual({ w: DEFAULT_PENS.pens.trays.w, grey: 100 });
+    // No style, or one the file does not have: back to the default pen.
+    const back = withStyle(a, 'arch', undefined);
+    expect([back.pens.arch, back.stb!.by]).toEqual([DEFAULT_PENS.pens.arch, { trays: 'Heavy 0.7' }]);
+    expect(withStyle(a, 'arch', 'Gone').stb!.by).toEqual({ trays: 'Heavy 0.7' });
+    expect(withStyle(DEFAULT_PENS, 'arch', 'Thin')).toBe(DEFAULT_PENS); // not an STB table
+  });
+
+  it('goes with the page setups to a file and back; styles that are not as they must be are left out', async () => {
+    const t = withStyle(tableFromStb('pt1', 'Office', 'Office.stb', await parseStb(office())), 'trays', 'Heavy 0.7');
+    const p: Project = { ...villa, plot: { tables: [t], setups: [{ id: 'ps1', name: 'A1 office', size: 'A1', plot: { pens: 'pt1' } }] } };
+    const file = JSON.parse(JSON.stringify(setupsFile(p)));
+    expect(readSetups(file)!.tables[0]).toEqual(t);
+    file.tables[0].stb = { file: 'x.stb', styles: [{ name: 'Thin', w: 0.13, grey: 100 }, { name: 7 }, 'bad'], by: { trays: 'Gone', arch: 'Thin', nope: 'Thin' } };
+    expect(readSetups(file)!.tables[0].stb).toEqual({ file: 'x.stb', styles: [{ name: 'Thin', w: 0.13, grey: 100 }], by: { arch: 'Thin' } });
+    file.tables[0].stb = { file: 'x.stb', styles: 'none' };
+    expect(readSetups(file)!.tables[0]).not.toHaveProperty('stb');
   });
 });
 

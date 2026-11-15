@@ -94,9 +94,9 @@ export function drawingPaperMenu(s: { inside: boolean; editable: boolean; scale?
     return tidy([
       fp('New viewport', 'cmd', 'MV', 'MV'), { label: 'Arrange viewports', sub: VP_ARRANGEMENTS.map((a) => fp(a.label, 'cmd', `VPORTS ${a.id}`)) }, '-',
       fp('Plot this layout…', 'cmd', 'PLOT', 'PLOT'), fp('Page setup…', 'cmd', 'PAGESETUP', 'PAGESETUP'), '-',
-      fp('New layout', 'cmd', 'LAYOUT', 'LAYOUT'), fp('From another drawing…', 'cmd', 'LAYOUT I'), fp('Rename layout…', 'rename'), fp('Copy layout', 'copy'), fp('Delete layout', 'delete'), '-',
+      fp('New layout', 'cmd', 'LAYOUT', 'LAYOUT'), fp('From another drawing…', 'cmd', 'LAYOUT I'), fp('Layout manager…', 'cmd', 'LAYOUTMANAGER'), fp('Rename layout…', 'rename'), fp('Copy layout', 'copy'), fp('Delete layout', 'delete'), '-',
       fp('Model tab', 'cmd', 'MODEL', 'MODEL')
     ]);
   }
-  return tidy([fp('Plot this layout…', 'cmd', 'PLOT', 'PLOT'), '-', fp('New layout', 'cmd', 'LAYOUT', 'LAYOUT'), fp('From another drawing…', 'cmd', 'LAYOUT I'), '-', fp('Model tab', 'cmd', 'MODEL', 'MODEL')]);
+  return tidy([fp('Plot this layout…', 'cmd', 'PLOT', 'PLOT'), '-', fp('New layout', 'cmd', 'LAYOUT', 'LAYOUT'), fp('From another drawing…', 'cmd', 'LAYOUT I'), fp('Layout manager…', 'cmd', 'LAYOUTMANAGER'), '-', fp('Model tab', 'cmd', 'MODEL', 'MODEL')]);
 }

@@ -51,7 +51,7 @@ type TabMenu = { s?: DrawingSheet; d?: DrawingTab; f?: DrawingTab; x: number; y:
 
 /** The tabs under the drawing: Model, the drawing file's own layouts, the layouts made on it here, then the level's plan
  * sheets. + makes a layout of the drawing; a tab's right-click menu has its own commands and New plan sheet. */
-export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick, onNew, onNewSheet, onDrawing, onRename, onCopy, onMove, onDelete, onPageSetup, onPlot, onTemplates, onImport, onPlotLayout, onSaveTemplate }: {
+export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick, onNew, onNewSheet, onDrawing, onRename, onCopy, onMove, onDelete, onPageSetup, onPlot, onTemplates, onImport, onManager, onPlotLayout, onSaveTemplate }: {
   /** The drawing file's own layouts (paper space), first, as in the file: their tab id, name and tooltip. */
   files?: { id: string; name: string; title: string }[];
   /** Layouts made on the drawing here (+), after the file's own. */
@@ -75,6 +75,8 @@ export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick,
   onTemplates?: () => void;
   /** Layouts of another drawing added to this one (the tab menu's From another drawing…); absent: not offered. */
   onImport?: () => void;
+  /** The Layout manager (every layout of the drawing in one list; the tab menu's Layout manager…); absent: not offered. */
+  onManager?: () => void;
   /** Plot a layout of the drawing (the file's own or one made here; its tab's menu); absent: not offered. */
   onPlotLayout?: (id: string) => void;
   /** Save a layout (a plan sheet's or a layout of the drawing's tab id) as a template; absent: not offered. */
@@ -117,7 +119,7 @@ export function LayoutTabs({ files = [], drawings = [], layouts, active, onPick,
         <>
           <div className="st-cover" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null); }} />
           <div className="dw-menu st-ctx cad-tab-menu up" role="menu" aria-label={menu.s ? `Layout ${menu.s.number}` : menu.d ? `Layout ${menu.d.name}` : menu.f ? `Layout ${menu.f.name}` : 'New plan sheet'} style={{ left: Math.max(8, Math.min(menu.x, window.innerWidth - 236)), top: menu.y }}>
-            {onNew && <><button role="menuitem" autoFocus onClick={() => pick(onNew)}>New layout <span className="m">LAYOUT</span></button>{onTemplates && <button role="menuitem" onClick={() => pick(onTemplates)}>From template…</button>}{onImport && <button role="menuitem" onClick={() => pick(onImport)}>From another drawing…</button>}{(menu.s || menu.d || menu.f) && <hr />}</>}
+            {onNew && <><button role="menuitem" autoFocus onClick={() => pick(onNew)}>New layout <span className="m">LAYOUT</span></button>{onTemplates && <button role="menuitem" onClick={() => pick(onTemplates)}>From template…</button>}{onImport && <button role="menuitem" onClick={() => pick(onImport)}>From another drawing…</button>}{onManager && <button role="menuitem" onClick={() => pick(onManager)}>Layout manager… <span className="m">LAYOUTMANAGER</span></button>}{(menu.s || menu.d || menu.f) && <hr />}</>}
             {menu.f && <>
               {onSaveTemplate && <button role="menuitem" autoFocus={!onNew} onClick={() => pick(() => onSaveTemplate(menu.f!.id))}>Save as template…</button>}
               {onPlotLayout && <button role="menuitem" autoFocus={!onNew && !onSaveTemplate} onClick={() => pick(() => onPlotLayout(menu.f!.id))}>Plot… <span className="m">PLOT</span></button>}
