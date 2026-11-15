@@ -134,8 +134,9 @@ describe('the design made in the app, through the viewports of a layout of the d
     const [d] = layoutDesign(villa(), 'GF.dwg', 4, plan());
     // The three lights (circles 1.8 mm in radius) at 6, 10 and 14 m across, 6 m up.
     expect(circles(d)).toEqual([[160, 187], [200, 187], [240, 187]]);
-    // The socket of the power circuit is there with them (a box 3.6 × 2.16 mm round 19, 1 m), and the DB with its name.
-    expect(d).toContain('<rect x="288.2" y="235.92" width="3.6" height="2.16"/>');
+    // The socket of the power circuit is there with them (its bar 4.8 mm wide at 19, 1 m, the stem below), and the DB with its name.
+    expect(d).toContain('<path d="M287.6 237L292.4 237" fill="none"/>');
+    expect(d).toContain('<path d="M290 238.75L290 240.25" fill="none"/>');
     expect(d).toContain('<rect x="107.5" y="235.75" width="5" height="2.5" fill="#fff"/>');
     expect(d).toMatch(/<text [^>]*font-weight="700" fill="#000">DB-GF1<\/text>/);
     // The lighting circuit's wiring and its home run to the DB.

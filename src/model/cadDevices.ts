@@ -39,14 +39,15 @@ export const EMERGENCY_ITEMS: Record<EmergencyKind, { label: string; symbol: { s
 
 /** The devices the CAD palette offers (ELV ones come from the ELV side with `kind: { elv }`). */
 export type CadDeviceKind = { lv: PointType } | { elv: string } | { board: true };
-export interface PaletteItem { id: string; label: string; kind: CadDeviceKind; symbol: { shape: string; text: string } }
+/** `plan`: the item's plan symbol (src/model/planSymbols.ts), drawn in place of the plain `shape`. */
+export interface PaletteItem { id: string; label: string; kind: CadDeviceKind; symbol: { shape: string; text: string; plan?: string } }
 
 export const LV_PALETTE: PaletteItem[] = [
   { id: 'ltg', label: 'Light', kind: { lv: 'ltg' }, symbol: { shape: 'cross', text: '' } },
-  { id: 's13', label: 'Socket 13 A', kind: { lv: 's13' }, symbol: { shape: 'rect', text: '' } },
-  { id: 's13t', label: 'Twin socket', kind: { lv: 's13t' }, symbol: { shape: 'twin', text: '' } },
+  { id: 's13', label: 'Socket 13 A', kind: { lv: 's13' }, symbol: { shape: 'rect', text: '', plan: 'socket' } },
+  { id: 's13t', label: 'Twin socket', kind: { lv: 's13t' }, symbol: { shape: 'twin', text: '', plan: 'socket-twin' } },
   { id: 'cfan', label: 'Ceiling fan', kind: { lv: 'cfan' }, symbol: { shape: 'circle', text: 'F' } },
-  { id: 'exfan', label: 'Exhaust fan', kind: { lv: 'exfan' }, symbol: { shape: 'circle', text: 'EF' } },
+  { id: 'exfan', label: 'Exhaust fan', kind: { lv: 'exfan' }, symbol: { shape: 'circle', text: 'EF', plan: 'exhaust-fan' } },
   { id: 'sac', label: 'Split A/C', kind: { lv: 'sac' }, symbol: { shape: 'square', text: 'AC' } },
   { id: 'wh', label: 'Water heater', kind: { lv: 'wh' }, symbol: { shape: 'square', text: 'WH' } },
   { id: 'db', label: 'DB', kind: { board: true }, symbol: { shape: 'rect', text: 'DB' } }
