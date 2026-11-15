@@ -117,4 +117,4 @@ flowchart LR
 | 3 | *"Fix all voltage-drop failures and prepare reports."* — waits for your OK. |
 | 4 | A real cost figure (tokens + $) for a G+10 test project. |
 
-**No paid services needed in the app itself** — the user brings their own Claude key, or runs a free local model.
+**No paid services needed in the app itself** — the user brings their own AI program (any MCP client), or runs a free local model. The app holds no account and no key.

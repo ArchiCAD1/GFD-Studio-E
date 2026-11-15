@@ -15,6 +15,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.151', date: '2026-11-15',
+    items: [
+      { title: 'Bring your own AI: the MCP connection comes with the installed app', text: 'The installed app now carries its command line (lvds) and its MCP server, so your own AI program (any MCP client, or a free local model through one) can read and check your projects on this computer. The app has no AI of its own and holds no account or key. To connect, run lvds mcp-config from the app\'s resources folder (the README gives the command for macOS and Windows) and paste what it prints into the MCP settings of your AI program. It is read only unless you add --write, and then every change is previewed first.' },
+      { title: 'Command line without Node', text: 'The lvds command of the installed app is run by the app itself, with no window: nothing else needs installing. Its PDF reports and drawing sheets are made by that same app, wherever you installed it.' }
+    ]
+  },
+  {
     version: '2.149', date: '2026-11-15',
     items: [
       { title: 'Design CAD: Layout manager', text: 'Output → Layout → Layout manager (LAYOUTMANAGER) lists every layout of the drawing in one place: the drawing file\'s own, the ones made with + and the level\'s plan sheets, each with its paper, what it shows and its page setup. Tick layouts to copy or delete several at once, rename one, move it up or down, or give a named page setup to several plan sheets together. A double-click opens a layout. It is also on a layout tab\'s right-click menu.', action: 'cad' },

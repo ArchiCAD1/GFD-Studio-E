@@ -1,7 +1,7 @@
 {
   "name": "lv-design-studio",
   "productName": "LV Design Studio",
-  "version": "2.149.0",
+  "version": "2.151.0",
   "license": "(MIT OR Apache-2.0)",
   "description": "Open-source offline low-voltage electrical design and calculation desktop app",
   "homepage": "https://pdhruv15.github.io/LV-Design-Studio/",
@@ -29,7 +29,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"vite --host 127.0.0.1 --port 5173 --strictPort\" \"wait-on http://127.0.0.1:5173 && electron .\"",
-    "build": "tsc -b && vite build && vite build -c vite.electron.config.ts",
+    "build": "tsc -b && vite build && vite build -c vite.electron.config.ts && vite build -c vite.cli.config.ts",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac dmg:arm64",
     "typecheck": "tsc --noEmit",
@@ -163,6 +163,18 @@
           "*.py",
           "requirements.txt"
         ]
+      },
+      {
+        "from": "dist-cli",
+        "to": "lvds",
+        "filter": [
+          "lvds.mjs",
+          "third-party-licences.md"
+        ]
+      },
+      {
+        "from": "build/lvds",
+        "to": "lvds"
       }
     ],
     "nsis": {
