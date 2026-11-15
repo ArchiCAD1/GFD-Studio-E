@@ -26,6 +26,19 @@ export const RELEASES: Release[] = [
     ]
   },
   {
+    version: '2.155', date: '2026-11-15',
+    items: [
+      { title: 'The authority stays with the project', text: 'The authority is chosen when a project starts. On Standards → Design references, a rule set of another authority now shows Change authority…: it names the authority the project is under and needs a tick before it is applied. Rule sets of the same authority apply as before.' }
+    ]
+  },
+  {
+    version: '2.154', date: '2026-11-15',
+    items: [
+      { title: 'Sheets: push a panel schedule to the load schedule', text: 'Push to load schedule now works for a panel schedule (MDB, SMDB, MCC) as well as a DB schedule. A row that names a panel (SMDB-1, DB-GF) makes that panel under it, other rows become feeders, and SPARE and SPACE rows become spares. An INCOMER row sets the panel\'s incomer. A panel\'s load comes from its own schedule, so push those sheets too.', action: 'sheets' },
+      { title: 'Sheets: SPARE and SPACE rows of a DB schedule', text: 'A row of a DB schedule that reads SPARE or SPACE and has no load now becomes a spare way or a space at its circuit reference, as in the DB\'s own schedule, not a circuit named SPARE. Pushing the sheet again updates it.', action: 'sheets' }
+    ]
+  },
+  {
     version: '2.151', date: '2026-11-15',
     items: [
       { title: 'Bring your own AI: the MCP connection comes with the installed app', text: 'The installed app now carries its command line (lvds) and its MCP server, so your own AI program (any MCP client, or a free local model through one) can read and check your projects on this computer. The app has no AI of its own and holds no account or key. To connect, run lvds mcp-config from the app\'s resources folder (the README gives the command for macOS and Windows) and paste what it prints into the MCP settings of your AI program. It is read only unless you add --write, and then every change is previewed first.' },

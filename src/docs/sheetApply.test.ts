@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
+import { addPanel } from '../model/addPanel';
 import { addSpareWay } from '../model/spareWays';
 import { newSheet, withCells, type Sheet } from '../model/sheets';
 import type { Project } from '../types';
-import { applyLinked, pendingMarks, pushRows } from './sheetApply';
+import { applyLinked, pendingMarks } from './sheetApply';
+import { pushRows } from './sheetPush';
 import { addCircuitRow, fillLinked, ownRows, setLinkColumn, suggestLink, typeLinked } from './sheetLink';
 import { panelData, panelRowKeys } from './panelFields';
 import { scheduleRowKeys, templateData } from './scheduleFields';
@@ -328,4 +330,133 @@ describe('pushRows', () => {
     expect([bad.project, bad.sheet]).toEqual([sampleProject, withCells(noId, { B2: '' })]);
     expect(bad.project).toBe(sampleProject);
   });
+  it('a SPARE or SPACE row is a spare way at its reference, not a circuit; pushing again updates it and adds nothing', () => {
+    const W = Math.max(...sampleProject.feeders.filter((f) => f.boardId === 'DB-GF1' && f.way).map((f) => f.way!)) + 1;
+    const s = opened('DB-GF1', 'SMDB-GF', [[`R${W}`, 'SPARE', '', '16'], [`Y${W}`, 'SPACE'], ['', 'Spare', '', '25']]);
+    const r = pushRows(sampleProject, s), ways = (p: Project) => p.boards.find((b) => b.id === 'DB-GF1')!.spareWays ?? [];
+    expect(r).toMatchObject({ added: 3, updated: 0, rejected: [], notes: [] });
+    expect(ways(r.project).filter((w) => w.way === W)).toMatchObject([{ kind: 'spare', phase: 'R', ratingA: 16 }, { kind: 'space', phase: 'Y' }]);
+    expect(ways(r.project).find((w) => w.way !== W && w.kind === 'spare')).toMatchObject({ ratingA: 25 });
+    expect(r.project.feeders.length).toBe(sampleProject.feeders.length);
+    expect(r.sheet.link!.rows.every((k) => k.startsWith('spare:'))).toBe(true);
+    const again = pushRows(r.project, s);
+    expect(again).toMatchObject({ added: 0, updated: 3, rejected: [] });
+    expect(ways(again.project)).toEqual(ways(r.project));
+    const used = pushRows(sampleProject, opened('DB-GF1', 'SMDB-GF', [['R1', 'SPARE']]));
+    expect(used).toMatchObject({ added: 0, rejected: ['Row 6: R1 is already used on DB-GF1'] });
+  });
+
+  it('a row that reads SPARE but has a load is still a circuit', () => {
+    const r = pushRows(sampleProject, opened('DB-NEW', 'SMDB-GF', [['R1', 'Spare socket', '300']]));
+    expect(on(r.project, 'DB-NEW').map((f) => f.room)).toEqual(['Spare socket']);
+    const lit = pushRows(sampleProject, opened('DB-NEW', 'SMDB-GF', [['R1', 'SPARE', '300']]));
+    expect(on(lit.project, 'DB-NEW')).toHaveLength(1);
+  });
 });
+
+describe('pushRows — panel schedules', () => {
+  const COLS: Record<string, string> = { A: 'row.sl', B: 'row.name', C: 'row.device', D: 'row.rating', E: 'row.fault', F: 'row.cores', G: 'row.cableType', H: 'row.size', I: 'row.ecc', J: 'row.length', K: 'row.tcl', L: 'row.remarks', M: 'own', N: 'row.to' };
+  /** An opened panel schedule: the panel number in B2, Fed from in C2, rows from 6 (cells by column letter). */
+  const mdOpen = (id: string, fed: string, rows: Record<string, string>[], extra: Record<string, string> = {}): Sheet => {
+    const cells: Record<string, string> = { A1: 'PANEL SCHEDULE', B2: id, C2: `FED FROM: ${fed}`, ...extra };
+    rows.forEach((r, i) => Object.entries(r).forEach(([c, t]) => { cells[`${c}${6 + i}`] = t; }));
+    return withCells({ ...newSheet(), link: { category: 'md', firstRow: 6, cells: { B2: { field: 'board.id' }, C2: { field: 'board.fedFrom', before: 'FED FROM: ' } }, rows: [], columns: COLS } }, cells);
+  };
+  const board = (p: Project, id: string) => p.boards.find((b) => b.id === id)!;
+  const fedBy = (p: Project, id: string) => p.feeders.filter((f) => f.feedsBoardId === id);
+  const big = (): Sheet => mdOpen('MDB-X', 'DEWA', [{ B: 'SMDB-A (GROUND FLOOR)', D: '250', H: '120' }, { B: 'SMDB-B', K: '30' }, { B: 'CHILLER 1', K: '45' }, { B: 'SPARE', D: '100' }, { B: 'SPACE' }]);
+
+  it('a new main panel fed from DEWA: panels, a load and spare ways go in, and no board is made from DEWA', () => {
+    const r = pushRows(sampleProject, big());
+    expect(r).toMatchObject({ added: 5, updated: 0, made: ['MDB-X', 'SMDB-A', 'SMDB-B'], rejected: [] });
+    expect(r.project.boards.some((b) => b.id === 'DEWA')).toBe(false);
+    expect(board(r.project, 'MDB-X')).toMatchObject({ kind: 'MDB' });
+    expect(board(r.project, 'MDB-X').upstreamId).toBeUndefined();
+    expect(board(r.project, 'SMDB-A')).toMatchObject({ kind: 'SMDB', upstreamId: 'MDB-X', name: 'GROUND FLOOR' });
+    expect(board(r.project, 'SMDB-B')).toMatchObject({ upstreamId: 'MDB-X', name: 'SMDB-B' });
+    expect(fedBy(r.project, 'SMDB-A')).toMatchObject([{ boardId: 'MDB-X', breakerRatingA: 250, cableCsaMm2: 120 }]);
+    expect(fedBy(r.project, 'SMDB-B')).toHaveLength(1);
+    expect(r.project.feeders.find((f) => f.boardId === 'MDB-X' && f.name === 'CHILLER 1')).toMatchObject({ loadKw: 45 });
+    expect(board(r.project, 'MDB-X').spareWays).toMatchObject([{ kind: 'spare', ratingA: 100 }, { kind: 'space' }]);
+    expect(r.notes).toEqual(['Load not taken for SMDB-B: a panel\'s load comes from its own schedule. Push those sheets too.']);
+    expect(fedBy(r.project, 'SMDB-B')[0].loadKw).toBe(0);
+    expect(sampleProject.boards.some((b) => b.id === 'MDB-X')).toBe(false);
+  });
+
+  it('an INCOMER row and an OUT GOING row are left out with a note, the incomer values reach the main panel, and the rows below move up', () => {
+    const s = mdOpen('MDB-X', 'DEWA', [{ B: 'INCOMER', C: 'ACB', D: '630', E: '50', F: '4', H: '300' }, { B: 'OUT GOING' }, { B: 'CHILLER 1', K: '45' }], { A9: 'TOTAL', B9: 'after' });
+    const r = pushRows(sampleProject, s);
+    expect(r).toMatchObject({ added: 1, rejected: [], notes: ["Row 6: read as the panel's incomer.", 'Row 7 (OUT GOING) is a heading: left out.'] });
+    expect(board(r.project, 'MDB-X').supply).toMatchObject({ device: 'ACB', ratingA: 630, faultKa: 50 });
+    expect(board(r.project, 'MDB-X').ratedCurrentA).toBe(630);
+    expect(r.sheet.cells).toMatchObject({ B6: 'CHILLER 1', A7: 'TOTAL', B7: 'after' });
+    expect([r.sheet.cells.B8, r.sheet.cells.A9]).toEqual([undefined, undefined]);
+    expect(r.sheet.link!.rows).toHaveLength(1);
+    // a panel fed from a panel: the rating is the incomer feeder's breaker, and a bad incomer value is listed but does not stop the push
+    const sub = pushRows(sampleProject, mdOpen('SMDB-N', 'MDB-1', [{ B: 'Incoming', D: '400', H: '37' }, { B: 'PUMP', K: '5' }]));
+    expect(sub).toMatchObject({ added: 1, made: ['SMDB-N'], rejected: ['Incomer: H6: "37" is not a cable size from the cable table'] });
+    expect(fedBy(sub.project, 'SMDB-N')[0]).toMatchObject({ boardId: 'MDB-1', breakerRatingA: 400 });
+    // the incomer from the linked cells when the block has no incomer row
+    const cells = pushRows(sampleProject, withCells({ ...mdOpen('MDB-Y', 'DEWA', [{ B: 'PUMP', K: '5' }]), link: { ...mdOpen('MDB-Y', 'DEWA', []).link!, cells: { B2: { field: 'board.id' }, C2: { field: 'board.fedFrom', before: 'FED FROM: ' }, E3: { field: 'incomer.rating' }, F3: { field: 'incomer.fault' } } } }, { E3: '800', F3: '36' }));
+    expect(board(cells.project, 'MDB-Y').supply).toMatchObject({ ratingA: 800, device: 'MCCB', faultKa: 36 });
+  });
+
+  it('a row naming a board already fed from the panel updates its feeder; pushing the sheet again adds nothing', () => {
+    const upd = pushRows(sampleProject, mdOpen('MDB-1', 'DEWA', [{ B: 'SMDB-GF (GROUND FLOOR SMDB)', D: '500', L: 'checked' }]));
+    expect(upd).toMatchObject({ added: 0, updated: 1, made: [], rejected: [] });
+    expect(fedBy(upd.project, 'SMDB-GF')).toMatchObject([{ id: 'INC-GF', breakerRatingA: 500, remarks: 'checked' }]);
+    const first = pushRows(sampleProject, big()), again = pushRows(first.project, big());
+    expect(again).toMatchObject({ added: 0, updated: 5, made: [], rejected: [] });
+    expect(again.project.feeders.length).toBe(first.project.feeders.length);
+    expect(again.project.boards.length).toBe(first.project.boards.length);
+    expect(board(again.project, 'MDB-X').spareWays).toHaveLength(2);
+  });
+
+  it('a main board with a default supply is connected under the panel; one fed elsewhere, one above, and the panel itself are refused', () => {
+    const main = addPanel(sampleProject, 'SMDB-M', 'SMDB');
+    const r = pushRows(main, mdOpen('MDB-1', 'DEWA', [{ B: 'SMDB-M', D: '160' }]));
+    expect(r).toMatchObject({ added: 0, updated: 1, rejected: [], notes: ['SMDB-M is now fed from MDB-1.'] });
+    expect(board(r.project, 'SMDB-M')).toMatchObject({ upstreamId: 'MDB-1' });
+    expect(board(r.project, 'SMDB-M').supply).toBeUndefined();
+    expect(fedBy(r.project, 'SMDB-M')).toMatchObject([{ boardId: 'MDB-1', breakerRatingA: 160 }]);
+    const no = pushRows(sampleProject, mdOpen('SMDB-GF', 'MDB-1', [{ B: 'SMDB-FF' }, { B: 'SMDB-GF' }, { B: 'MDB-1' }, { B: 'MDB-X' }]));
+    expect(no).toMatchObject({ added: 1, rejected: ['Row 6: SMDB-FF is fed from MDB-1 in the project', "Row 7: SMDB-GF is this sheet's own panel", 'Row 8: MDB-1 is above SMDB-GF in the project'] });
+    expect(no.sheet.link!.added).toEqual([{ B: 'SMDB-FF' }, { B: 'SMDB-GF' }, { B: 'MDB-1' }]);
+    const bad = pushRows(sampleProject, mdOpen('SMDB-GF', 'MDB-1', [{ B: 'MDB-1' }]));
+    expect(bad).toMatchObject({ added: 0, updated: 0 });
+    expect(bad.project).toBe(sampleProject);
+    expect(bad.sheet).toEqual(mdOpen('SMDB-GF', 'MDB-1', [{ B: 'MDB-1' }]));
+  });
+
+  it('a value the form refuses stops its row, names the cell, and the panel that row would have made is not kept', () => {
+    const r = pushRows(sampleProject, mdOpen('MDB-X', 'DEWA', [{ B: 'SMDB-C', H: '37' }, { B: 'CHILLER 1', K: '45' }]));
+    expect(r).toMatchObject({ added: 1, made: ['MDB-X'], rejected: ['H6: "37" is not a cable size from the cable table'] });
+    expect(r.project.boards.some((b) => b.id === 'SMDB-C')).toBe(false);
+    expect(r.project.feeders.some((f) => f.feedsBoardId === 'SMDB-C')).toBe(false);
+    expect(r.sheet.link!.rows).toEqual([keyOfName(r.project, 'CHILLER 1'), 'new:0']);
+    expect(r.sheet.link!.added).toEqual([{ B: 'SMDB-C', H: '37' }]);
+  });
+
+  it('after the push the next fill shows one row per feeder and spare way, and your own text stays beside its feeder', () => {
+    const s = mdOpen('MDB-X', 'DEWA', [{ B: 'SPARE', D: '100', M: 'spare note' }, { B: 'SMDB-A', M: 'a note' }, { B: 'CHILLER 1', K: '45', M: 'chiller note' }]);
+    const r = pushRows(sampleProject, s), f = fillLinked(r.project, r.sheet);
+    expect(f.link!.rows).toEqual(panelRowKeys(r.project, 'MDB-X'));
+    expect(f.link!.rows).toHaveLength(3);
+    const note = (name: string) => { for (let row = 6; row < 9; row++) if (f.cells[`B${row}`]?.startsWith(name)) return f.cells[`M${row}`]; };
+    expect([note('SPARE'), note('SMDB-A'), note('CHILLER')]).toEqual(['spare note', 'a note', 'chiller note']);
+    expect(f.cells.B2).toBe('MDB-X');
+  });
+
+  it('MCC ROOM AC and DB ROOM LIGHTING are loads; a Board it feeds cell always decides', () => {
+    const r = pushRows(sampleProject, mdOpen('MDB-X', 'DEWA', [{ B: 'MCC ROOM AC', K: '10' }, { B: 'DB ROOM LIGHTING', K: '5' }, { B: 'UPS 20 KVA', K: '16' }, { B: 'CHILLER 2', N: 'MCC-Z', D: '100' }, { B: 'DB-GF (LIGHTING)', K: '3' }, { B: 'MCC1' }]));
+    expect(r).toMatchObject({ added: 6, made: ['MDB-X', 'MCC-Z', 'DB-GF', 'MCC1'], rejected: [] });
+    expect(r.project.feeders.filter((f) => f.boardId === 'MDB-X' && !f.feedsBoardId).map((f) => f.name)).toEqual(['MCC ROOM AC', 'DB ROOM LIGHTING', 'UPS 20 KVA']);
+    expect(board(r.project, 'MCC-Z')).toMatchObject({ kind: 'MCC', name: 'MCC-Z' });
+    expect(board(r.project, 'DB-GF')).toMatchObject({ kind: 'DB', name: 'LIGHTING' });
+    const none = pushRows(sampleProject, mdOpen('MDB-X', 'DEWA', [{ D: '100', L: 'no name' }]));
+    expect(none).toMatchObject({ added: 0, rejected: ['Row 6: give a feeder name or a load'] });
+    expect(none.project).toBe(sampleProject);
+  });
+});
+
+const keyOfName = (p: Project, name: string) => { const f = p.feeders.find((x) => x.name === name)!; return f.uid ?? f.id; };
