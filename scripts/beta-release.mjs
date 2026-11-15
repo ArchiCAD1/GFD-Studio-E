@@ -47,6 +47,22 @@ export function selectLatestBeta(releases) {
     .sort((a, b) => compareBetaVersions(b.tagName.slice(1), a.tagName.slice(1)))[0];
 }
 
+export function hasBetaForCommit(releases, commit) {
+  if (!Array.isArray(releases)) throw new Error('Release list is invalid');
+  if (!COMMIT.test(commit)) throw new Error('Release commit is invalid');
+  return releases.some((release) => {
+    if (!release || typeof release !== 'object') return false;
+    const tag = release.tagName ?? release.tag_name;
+    const prerelease = release.isPrerelease ?? release.prerelease;
+    const target = release.targetCommitish ?? release.target_commitish;
+    return prerelease === true
+      && typeof tag === 'string'
+      && tag.startsWith('v')
+      && !!betaParts(tag.slice(1))
+      && target === commit;
+  });
+}
+
 export function parseChecksums(text) {
   if (typeof text !== 'string' || Buffer.byteLength(text, 'utf8') > 8_192) throw new Error('Checksum file is invalid');
   const entries = new Map();
@@ -136,7 +152,11 @@ async function main(args) {
     if (release) process.stdout.write(`${release.tagName}\n`);
     return;
   }
-  throw new Error(`Usage: ${basename(process.argv[1])} version <package.json> <run-number> | checksums <directory> <version> <output> | notes <version> <commit> <output> | select <releases.json>`);
+  if (command === 'published' && rest.length === 2) {
+    process.stdout.write(`${hasBetaForCommit(JSON.parse(readFileSync(rest[0], 'utf8')), rest[1])}\n`);
+    return;
+  }
+  throw new Error(`Usage: ${basename(process.argv[1])} version <package.json> <run-number> | checksums <directory> <version> <output> | notes <version> <commit> <output> | select <releases.json> | published <releases.json> <commit>`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

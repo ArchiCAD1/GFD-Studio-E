@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { displayVersion } from '../src/model/appVersion';
 // @ts-expect-error — plain ESM release helper without type declarations
-import { assetNames, deriveBetaVersion, parseChecksums, releaseMetadata, releaseNotes, selectLatestBeta } from '../scripts/beta-release.mjs';
+import { assetNames, deriveBetaVersion, hasBetaForCommit, parseChecksums, releaseMetadata, releaseNotes, selectLatestBeta } from '../scripts/beta-release.mjs';
 
 const version = '2.144.0-beta.123';
 const names = assetNames(version);
@@ -40,6 +40,22 @@ describe('beta release metadata', () => {
       { tagName: 'v2.144.0-beta.10', isPrerelease: true },
       { tagName: 'untrusted', isPrerelease: true }
     ])?.tagName).toBe('v2.144.0-beta.10');
+  });
+
+  it('detects only valid beta releases that target the exact source commit', () => {
+    const commit = 'a'.repeat(40);
+    expect(hasBetaForCommit([
+      { tag_name: 'v2.144.0-beta.10', prerelease: true, target_commitish: commit }
+    ], commit)).toBe(true);
+    expect(hasBetaForCommit([
+      { tagName: 'v2.144.0-beta.10', isPrerelease: true, targetCommitish: commit }
+    ], commit)).toBe(true);
+    expect(hasBetaForCommit([
+      { tag_name: 'windows-beta-source', prerelease: true, target_commitish: commit },
+      { tag_name: 'v2.144.0-beta.10', prerelease: false, target_commitish: commit },
+      { tag_name: 'v2.144.0-beta.11', prerelease: true, target_commitish: 'b'.repeat(40) }
+    ], commit)).toBe(false);
+    expect(() => hasBetaForCommit([], 'main')).toThrow('commit');
   });
 
   it('accepts only exact asset names, commit identity and two checksums', () => {
