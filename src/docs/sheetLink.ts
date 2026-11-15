@@ -1,4 +1,5 @@
 import { cellAt, cellName, colName, shiftFormula } from '../calc/sheetFormula';
+import { panelKindOf } from '../model/addPanel';
 import { projectFormat, type PanelCategory } from '../model/scheduleFormats';
 import { deleteRows, insertRows, MAX_ROWS, mergeAt, newSheet, sheetNameError, withCells, type Area, type Sheet, type SheetLink, type SheetStyle } from '../model/sheets';
 import { isDbBoard } from '../model/spareWays';
@@ -225,24 +226,28 @@ export function asTemplate(sheet: Sheet): Sheet {
   return { ...templateOf(cut)!, ...(sheet.source ? { source: sheet.source } : {}) };
 }
 
+/** The text of the cell linked to a field, without the text before and after the value; undefined when no cell is linked to it. */
+export function linkText(sheet: Sheet, field: string): string | undefined {
+  const hit = Object.entries(sheet.link?.cells ?? {}).find(([, c]) => c.field === field);
+  if (!hit) return undefined;
+  let t = sheet.cells[hit[0]] ?? '';
+  const { before, after } = hit[1];
+  if (before && t.startsWith(before)) t = t.slice(before.length);
+  if (after && t.endsWith(after)) t = t.slice(0, t.length - after.length);
+  return t.trim();
+}
+
 /** The panel a sheet's own rows would go to, from its linked cells: the panel number and the board it is fed from (the cell text
- * without the text before and after the value). Undefined without a panel number. */
-export function pushTarget(project: Project, sheet: Sheet): { id: string; exists: boolean; fedFrom: string; parentExists: boolean } | undefined {
+ * without the text before and after the value). Undefined without a panel number. `parentIsPanel`: the Fed from names a board to
+ * make or use as the panel's source: any text for a DB schedule; for a panel schedule a board in the project or a panel number
+ * (SMDB-1, MDB-2), not a text such as "DEWA". */
+export function pushTarget(project: Project, sheet: Sheet): { id: string; exists: boolean; fedFrom: string; parentExists: boolean; parentIsPanel: boolean } | undefined {
   const link = sheet.link;
   if (!link) return undefined;
-  const text = (field: string) => {
-    const hit = Object.entries(link.cells).find(([, c]) => c.field === field);
-    if (!hit) return undefined;
-    let t = sheet.cells[hit[0]] ?? '';
-    const { before, after } = hit[1];
-    if (before && t.startsWith(before)) t = t.slice(before.length);
-    if (after && t.endsWith(after)) t = t.slice(0, t.length - after.length);
-    return t.trim();
-  };
-  const id = text('board.id'), fedFrom = text('board.fedFrom') ?? '';
+  const id = linkText(sheet, 'board.id'), fedFrom = linkText(sheet, 'board.fedFrom') ?? '';
   if (!id) return undefined;
   const has = (b: string) => project.boards.some((x) => x.id.toLowerCase() === b.toLowerCase());
-  return { id, exists: has(id), fedFrom, parentExists: !!fedFrom && has(fedFrom) };
+  return { id, exists: has(id), fedFrom, parentExists: !!fedFrom && has(fedFrom), parentIsPanel: !!fedFrom && (link.category !== 'md' || has(fedFrom) || panelKindOf(fedFrom) !== undefined) };
 }
 
 // ---- choosing what is linked (the Link columns panel)
