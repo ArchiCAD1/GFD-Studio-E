@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.153', date: '2026-11-15',
+    items: [
+      { title: 'The authority stays with the project', text: 'The authority is chosen when a project starts. On Standards → Design references, a rule set of another authority now shows Change authority…: it names the authority the project is under and needs a tick before it is applied. Rule sets of the same authority apply as before.' }
+    ]
+  },
+  {
     version: '2.152', date: '2026-11-15',
     items: [
       { title: 'Sheets: push a panel schedule to the load schedule', text: 'Push to load schedule now works for a panel schedule (MDB, SMDB, MCC) as well as a DB schedule. A row that names a panel (SMDB-1, DB-GF) makes that panel under it, other rows become feeders, and SPARE and SPACE rows become spares. An INCOMER row sets the panel\'s incomer. A panel\'s load comes from its own schedule, so push those sheets too.', action: 'sheets' },
