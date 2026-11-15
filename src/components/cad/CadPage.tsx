@@ -35,7 +35,9 @@ import BlocksPalette, { INSERT_DEFAULTS, type InsertSettings, type LibraryFile }
 import { attachLabel, attachOf, noteAttached, noteBox, noteWithWidth, parseAttach, plainText, type NoteAttach, type NotePara } from '../../model/cadMtext';
 import { ATT_DRAFT, AttDefDialog, AttEditDialog, AttPromptDialog, BlockDialog, DIALOG_TOOLS, DimStyleDialog, EditDialog, PointStyleDialog, TextStyleDialog, type AttDraft, type BlockDraft } from './CadDialogs';
 import { currentDimStyle, currentTextStyle, dimLookOf, dimStandardAsBefore, dimStylesOf, dimStylesToStore, fullDimStyle, lookOf, textStylesOf, textStylesToStore } from '../../model/cadStyles';
-import { chooseDrawing, drawingWithDevices, explodeObjects, openDrawing, readRefGeometry, reopenDrawing, sampleDrawing, type CadObject, type CadView } from '../../engines/cad/cadEngine';
+import { chooseDrawing, drawingWithDevices, explodeObjects, openDrawing, readRefGeometry, reopenDrawing, sampleDrawing, type CadObject, type CadView, type DeviceOut } from '../../engines/cad/cadEngine';
+import { planSymbolShapes, symbolBox } from '../../model/planSymbols';
+import type { ShapeOut } from '../../model/cadSketch';
 import { newDrawingDxf, newDrawingName } from '../../model/cadNewDrawing';
 import { boundaryOfPiece, cropItems, cropNote, cropPieces, hatchLookup, type CropBoundary, type CropSide } from '../../model/cadCrop';
 import { builtInAsCustom, formatPat, parsePat, specWith, withPatterns, type CustomPattern } from '../../model/cadHatch';
@@ -97,7 +99,7 @@ import type { CadLayerMap, CadLayerRole, Project } from '../../types';
 import { fmtFixed, fmtUpTo } from '../../util/format';
 import DeviceToolbar from './DeviceToolbar';
 import { AnnoPanel, HatchPanel, type HatchOpts } from './AnnotatePanel';
-import { annoOf, centreOf, hatchArea, hatchItem, hatchOutline, hatchOutlinePts, islandsIn, HATCH_START, leaderItems, northArrowItems, roomTagItems, textUnits, unitsPerPaperMm, type HatchSpec } from '../../model/cadAnnotate';
+import { annoOf, centreOf, hatchArea, hatchItem, hatchOutline, hatchOutlinePts, islandsIn, HATCH_START, leaderItems, northArrowItems, roomTagItems, symbolUnits, SYMBOL_R_MM, textUnits, unitsPerPaperMm, type HatchSpec } from '../../model/cadAnnotate';
 import { alignedTo, alignEdge, cased, centredAt, ISO_TEXT_MM, justLabel, keynoteItems, legendNext, nextKeynote, numberText, oriented, padOf, parseFrame, parseJust, rejustified, spaced, textBox, textWidth, untaggedRooms, withTextHeight, type AlignMode, type CaseMode, type OrientMode } from '../../model/cadText';
 import { LayerPalette, layerRows, type LayerRow } from './CadLayerManager';
 import { PropertiesPalette } from './CadProperties';
@@ -127,8 +129,6 @@ const DOCK_W = 280, DOCK_MIN = 220, DOCK_MAX = 480, DOCK_KEY = 'lvds.cad.dock';
 /** Tools whose next point has a length and angle from the last one: the boxes of dynamic input. */
 const POINT_TOOLS: CadTool[] = ['line', 'pline', 'tray', 'cable', 'dim', 'dimlin', 'move', 'copy', 'dist', 'area', 'trace', 'leader'];
 const HELP = 'Commands: OPEN · CLOSE · CLOSEALL · SAVE (DXF) · SAVEDWG · ROOMS (add found rooms) · RA (click inside a room) · TRACE (trace a room) · PN (pick its name) · CT (cable tray run) · CR (cable route) · LR (link a line as a cable route) · SCHED (update schedules) · WC (wire circuits) · W1 (wire one) · TAGS · FILL (fill a room with an ELV device) · LUX (light a room by the lumen method) · EM (emergency lighting) · SEL (select devices: Shift-click, or a window) · QS (quick select) · SELECTSIMILAR · ARL (array on line) · MA (match) · ALIGNH / ALIGNV / SPACE (the devices selected) · AL (align objects by points) · TR (trim) · EX (extend) · O (offset) · F (fillet) · CHA (chamfer) · BR (break) · J (join) · X (explode) · B (block from drawn objects: the dialog; -BLOCK on the command line) · I (the Blocks palette: this drawing, Recent, Library; -INSERT by name) · ATT (attribute definition for a block) · ATE (edit a block\'s attributes; or double-click it) · ATTEXT (the attributes as a table) · PO (point) · DIV (points at the divisions of an object) · ME (points every length along it) · PTYPE (point style) · DR (draw order: Front, Back, Above or Under an object) · TEXTTOFRONT (texts, dimensions, leaders over the rest) · MI (mirror) · SC (scale) · S (stretch) · AR (array) · CROP (BCROP, cut a block along an outline) · MP (match properties) · H (hatch) · HE (edit a hatch: pattern, spacing, angle, origin, islands; or double-click it) · BO (boundary: a closed polyline round an area) · LE (leader) · RT (room tag) · NORTH · LA (layer palette) · CLAYER (current layer) · LAYISO / LAYUNISO · RESTOREDWG (erased drawing objects back) · COV (coverage) · L (line) · PL (polyline, C closes) · REC · C (circle) · A (arc, 3 points) · T (text) · MT (notes in a box, lines wrapped to its width) · ED (edit a text or dimension in place, or double-click it) · TJ (justify texts) · TH (text height) · TA (align or space texts) · TC (text case) · TPREFIX / TSUFFIX · TOR (readable text) · TCEN (centre between two points) · TCOPY (words of another text) · TFRAME (circle, box or hexagon round texts) · TMASK (mask under texts) · TCOUNT (numbered texts) · KN (keynote with a legend) · RTALL (tag all rooms) · DIM · DRA (radius) · DDI (diameter) · DAN (angular) · ST (text style) · D (dimension style) · M (move) · CO (copy) · COPYCLIP (Ctrl+C) · COPYBASE (Ctrl+Shift+C) · PASTECLIP (Ctrl+V) · PASTEORIG · RO (rotate) · E (erase) · DI (distance) · AREA (O = object) · RA (room area) · DEV (add device) · M (move) · E (delete) · LI (inspect) · FIT (ZE) · Z (zoom: W window, P previous, S scale) · LAYERS (layers panel) · OSNAP (F3) · GRID (F7) · ORTHO (F8) · SNAP (F9) · POLAR (F10) · OTRACK (F11) · DYN (F12) · LWT · DS (drafting settings) · LEGEND (LG) / NOTES (a legend or notes table on a layout, moved by its frame) · SAVEAS · EXPORT · PUBLISH · F2 history · Esc cancels, Enter or Space ends a step or repeats the last command.';
-/** Device symbol size on the plan (radius, metres). */
-const DEVICE_R_M = 0.2;
 /** Bind's count in the Save line: reference lines, texts and hatches. */
 const boundText = (shapes: { kind: string }[]) => {
   const n = (k: string) => shapes.filter((x) => x.kind === k).length, en = (v: number) => v.toLocaleString('en-GB');
@@ -693,7 +693,21 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   // Annotation text height: paper mm at the annotation scale (2.5 mm at 1:100 = 0.25 m), in drawing units.
   const anno = annoOf(project);
   const textH = textUnits(anno, units.factor);
-  const rUnits = DEVICE_R_M / units.factor;
+  // Device symbols are annotation too: the same size on paper at every scale (1.8 mm radius).
+  const rUnits = symbolUnits(anno, units.factor);
+  /** Devices as a saved drawing takes them: a plain symbol as its circle and letters, a plan symbol as its own lines
+   * with the label beside it. */
+  const devicesOut = (list: PlacedItem[]): { devs: DeviceOut[]; symbols: ShapeOut[] } => {
+    const devs: DeviceOut[] = [], symbols: ShapeOut[] = [], k = rUnits / SYMBOL_R_MM;
+    for (const d of list) {
+      const layer = d.what === 'lv' ? 'E-LV-POINTS' : d.what === 'elv' ? 'E-ELV-DEVICES' : 'E-BOARDS', x = d.x / units.factor, y = d.y / units.factor;
+      const label = d.what === 'lv' ? d.detail.split(' · ')[0] : d.label, plan = 'plan' in d.symbol ? d.symbol.plan : undefined, box = plan ? symbolBox(plan) : undefined;
+      if (!plan || !box) { devs.push({ layer, x, y, r: rUnits * (d.what === 'board' ? 2 : 1), text: d.symbol.text, label }); continue; }
+      symbols.push(...planSymbolShapes(plan, layer, x, y, k));
+      if (label) symbols.push({ layer, kind: 'text', pts: [[x + (box.x1 + 0.6) * k, y - textH * 0.3]], text: label, h: textH * 0.6, rot: 0 });
+    }
+    return { devs, symbols };
+  };
   // Light room: the room kept, else the one under the pointer, with its lights by the lumen method.
   const luxHover = tool === 'lux' && !luxRoom && cursor.at && floor ? roomAtPointOf(project, floor, cursor.at, units.factor)?.id : undefined;
   const luxOf = tool === 'lux' ? buildingInfoOf(project).rooms.find((r) => r.id === (luxRoom ?? luxHover)) : undefined;
@@ -720,7 +734,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     ...arlAt.map(([x, y], i) => ({ key: `arl${i}`, x: x / units.factor, y: y / units.factor, r: rUnits, shape: arlItem?.symbol.shape ?? 'cross', text: arlItem?.symbol.text ?? '', label: '', ghost: true }))
   ];
   const devices: CanvasDevice[] = cad.showDevices ? [...ghosts, ...placed.filter((d) => shown(d.key)).map((d) => ({
-    key: d.key, x: d.x / units.factor, y: d.y / units.factor, r: d.what === 'board' ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text,
+    key: d.key, x: d.x / units.factor, y: d.y / units.factor, r: d.what === 'board' ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text, ...(d.symbol.plan ? { plan: d.symbol.plan } : {}),
     label: d.what === 'lv' ? d.detail.split(' · ')[0] : d.what === 'board' ? d.label : '', selected: pickedKeys.has(d.key), elv: d.what === 'elv'
   }))] : ghosts;
   // Circuit wiring on this level (metres), and as the canvas draws it (drawing units).
@@ -1373,20 +1387,20 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   async function writeCopy(c: SavedCopy, again: boolean, keep = true): Promise<boolean> {
     if (!view) return false;
     try {
-      const out = !c.devices ? [] : placed.map((d) => ({ layer: d.what === 'lv' ? 'E-LV-POINTS' : d.what === 'elv' ? 'E-ELV-DEVICES' : 'E-BOARDS', x: d.x / units.factor, y: d.y / units.factor, r: rUnits * (d.what === 'board' ? 2 : 1), text: d.symbol.text, label: d.what === 'lv' ? d.detail.split(' · ')[0] : d.label }));
+      const shownDevices = c.devices ? placed : [], { devs: out, symbols } = devicesOut(shownDevices);
       const wired = c.wiring ? wiring : [];
       const wires = wired.flatMap((w) => [...w.arcs, ...(w.home ? [w.home] : [])].map((a) => ({ layer: WIRING_LAYER, kind: 'pline' as const, pts: arcPoints(toUnits(a)) })));
       const tags = wired.map((w) => ({ layer: TAG_LAYER, kind: 'text' as const, pts: [[w.tagAt[0] / units.factor, w.tagAt[1] / units.factor] as Pt], text: w.tag, h: textH * 0.6, rot: 0 }));
       const refLines = c.bind ? xr.bound() : [];
       const drawn = c.drawn ? sketch : [];
-      const bytes = await drawingWithDevices(view, out, [...shapesOut(drawn, units.factor), ...blockDefsOut(defs, units.factor), pointStyleOut(pointStyleOf(project)), ...wires, ...tags, ...refLines], c.as, erasedKey ? erasedKey.split(',') : [], c.version);
+      const bytes = await drawingWithDevices(view, out, [...shapesOut(drawn, units.factor), ...blockDefsOut(defs, units.factor), pointStyleOut(pointStyleOf(project)), ...symbols, ...wires, ...tags, ...refLines], c.as, erasedKey ? erasedKey.split(',') : [], c.version);
       const over = again && c.path ? window.lvds?.files?.overwriteBinary : undefined;
       let r: { message: string; path?: string; name: string } | null;
       if (over && c.path) { await over({ file: c.path, bytes, bak: draft.keepBak }); r = { message: `Saved ${c.name}`, path: c.path, name: c.name }; }
       else r = await saveBinaryAt(c.name, bytes, c.as === 'dwg' ? 'DWG drawing' : 'DXF drawing', c.as, c.as === 'dwg' ? 'application/acad' : 'application/dxf');
       if (!r) return false;
       if (keep) { cad.saved.current.set(view.file.toLowerCase(), { ...c, name: r.name, path: r.path }); cad.markDirty(view.file, false); }
-      cad.say(`SAVE  ${r.message} (${out.length} device${out.length === 1 ? '' : 's'} on E-LV-POINTS / E-ELV-DEVICES / E-BOARDS, ${drawn.length} drawn object${drawn.length === 1 ? '' : 's'} on ${DRAW_LAYER} / ${ANNO_LAYER}${refLines.length ? `, ${boundText(refLines)} bound on NAME$0$LAYER layers` : ''}${wired.length ? `, ${wired.length} circuit${wired.length === 1 ? '' : 's'} wired on ${WIRING_LAYER} / ${TAG_LAYER}` : ''})`);
+      cad.say(`SAVE  ${r.message} (${shownDevices.length} device${shownDevices.length === 1 ? '' : 's'} on E-LV-POINTS / E-ELV-DEVICES / E-BOARDS, ${drawn.length} drawn object${drawn.length === 1 ? '' : 's'} on ${DRAW_LAYER} / ${ANNO_LAYER}${refLines.length ? `, ${boundText(refLines)} bound on NAME$0$LAYER layers` : ''}${wired.length ? `, ${wired.length} circuit${wired.length === 1 ? '' : 's'} wired on ${WIRING_LAYER} / ${TAG_LAYER}` : ''})`);
       onStatus(r.message);
       return true;
     } catch (e) { const msg = e instanceof Error ? e.message : String(e); cad.say(msg); onStatus(msg); return false; }
@@ -1446,8 +1460,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (kind === 'wblock') {
         const items = pickedSk.length ? pickedSk : selSketch ? [selSketch] : [];
         if (!items.length && !pickedItems.length) { cad.say('WBLOCK  Pick the drawn objects or devices first, then WBLOCK.'); return; }
-        const devs = pickedItems.map((d) => ({ layer: d.what === 'lv' ? 'E-LV-POINTS' : d.what === 'elv' ? 'E-ELV-DEVICES' : 'E-BOARDS', x: d.x / units.factor, y: d.y / units.factor, r: rUnits * (d.what === 'board' ? 2 : 1), text: d.symbol.text, label: d.what === 'lv' ? d.detail.split(' · ')[0] : d.label }));
-        const bytes = await drawingWithDevices({ bytes: new TextEncoder().encode(toDxf([])) }, devs, [...shapesOut(items, units.factor), ...blockDefsOut(defs, units.factor), pointStyleOut(pointStyleOf(project))], 'dxf');
+        const { devs, symbols } = devicesOut(pickedItems);
+        const bytes = await drawingWithDevices({ bytes: new TextEncoder().encode(toDxf([])) }, devs, [...shapesOut(items, units.factor), ...blockDefsOut(defs, units.factor), pointStyleOut(pointStyleOf(project)), ...symbols], 'dxf');
         say(await saveBinary(`${base} - objects.dxf`, bytes, 'DXF drawing', 'dxf', 'application/dxf'));
         return;
       }
@@ -1579,7 +1593,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   function pickWindow(a: Pt, b: Pt, crossing: boolean, add: boolean) {
     if (tool === 'zoomwin') { zoomTo({ kind: 'window', a, b }); cad.setTool('none'); return; }
     if (tool === 'stretch') { setStretchBox([a, b]); setPoints([]); cad.say('STRETCH  Specify base point:'); return; }
-    const found = inWindow(placed.filter((d) => shown(d.key)), [a[0] * units.factor, a[1] * units.factor], [b[0] * units.factor, b[1] * units.factor], crossing, DEVICE_R_M);
+    const found = inWindow(placed.filter((d) => shown(d.key)), [a[0] * units.factor, a[1] * units.factor], [b[0] * units.factor, b[1] * units.factor], crossing, rUnits * units.factor);
     const foundSk = sketchInWindow(pickable, a, b, crossing, defs);
     const items = add || tool !== 'none' ? [...pickedItems, ...found.filter((d) => !pickedKeys.has(d.key))] : found;
     const sks = add || tool !== 'none' ? [...pickedSk, ...foundSk.filter((it) => !pickedKeys.has(`sk:${it.id}`))] : foundSk;
