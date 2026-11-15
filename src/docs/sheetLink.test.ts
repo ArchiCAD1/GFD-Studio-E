@@ -624,11 +624,15 @@ describe('rows an opened schedule already holds', () => {
   it('pushTarget reads the panel number and the board above from the linked cells', () => {
     const s = opened();
     expect(s.cells.C2).toBe('FED FROM: SMDB-GF'); // a sheet with rows of its own keeps the values it is linked over
-    expect(pushTarget(project, s)).toEqual({ id: 'DB-NEW', exists: false, fedFrom: 'SMDB-GF', parentExists: true });
-    expect(pushTarget(project, withCells(s, { B2: ' db-gf1 ', C2: 'FED FROM: NOPE-9' }))).toEqual({ id: 'db-gf1', exists: true, fedFrom: 'NOPE-9', parentExists: false });
-    expect(pushTarget(project, withCells(s, { C2: 'FED FROM: ' }))).toEqual({ id: 'DB-NEW', exists: false, fedFrom: '', parentExists: false });
+    expect(pushTarget(project, s)).toEqual({ id: 'DB-NEW', exists: false, fedFrom: 'SMDB-GF', parentExists: true, parentIsPanel: true });
+    expect(pushTarget(project, withCells(s, { B2: ' db-gf1 ', C2: 'FED FROM: NOPE-9' }))).toEqual({ id: 'db-gf1', exists: true, fedFrom: 'NOPE-9', parentExists: false, parentIsPanel: true });
+    expect(pushTarget(project, withCells(s, { C2: 'FED FROM: ' }))).toEqual({ id: 'DB-NEW', exists: false, fedFrom: '', parentExists: false, parentIsPanel: false });
     expect(pushTarget(project, withCells(s, { B2: '' }))).toBeUndefined();
     expect(pushTarget(project, sheet({ B2: 'DB-X' }))).toBeUndefined();
+    // a panel schedule reads the Fed from as a panel only when it is a board of the project or a panel number
+    const md = (fed: string) => pushTarget(project, { ...withCells(s, { C2: `FED FROM: ${fed}` }), link: { ...s.link!, category: 'md' } })!;
+    expect([md('DEWA').parentIsPanel, md('TRANSFORMER TR-1').parentIsPanel, md('SMDB-9').parentIsPanel, md('SMDB-GF').parentIsPanel, md('MCCB-2').parentIsPanel, md('').parentIsPanel]).toEqual([false, false, true, true, false, false]);
+    expect(pushTarget(project, withCells(s, { C2: 'FED FROM: DEWA' }))!.parentIsPanel).toBe(true);
     expect(pushTarget(project, setLinkCell(s, 'B2', undefined))).toBeUndefined();
   });
 

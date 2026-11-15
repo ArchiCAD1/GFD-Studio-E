@@ -3,7 +3,7 @@ import { ask } from '../ConfirmDialog';
 import { useMemo, useRef, useState } from 'react';
 import type { Project } from '../../types';
 import {
-  REF_FIELDS, REF_KINDS, REF_STATUSES, appliedStatus, authorityLabel, baseLimitsOf, limitsChange, changedSinceApplied, duplicateReference, exportReferences, importReferences, loadReferences,
+  REF_FIELDS, REF_KINDS, REF_STATUSES, appliedStatus, authorityChange, authorityLabel, projectAuthority, baseLimitsOf, limitsChange, changedSinceApplied, duplicateReference, exportReferences, importReferences, loadReferences,
   newReference, projectValue, referenceChanges, referenceIssues, resolveReference, saveReference, saveUserReferences, type DesignReference, type RefEntry, type RefKey
 } from '../../model/designReference';
 import { RuleRows, newRule } from './RuleRows';
@@ -28,6 +28,7 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
   const [selId, setSelId] = useState<string>(project.designReference?.id && refs.some((r) => r.id === project.designReference!.id) ? project.designReference.id : refs[0].id);
   const [draft, setDraft] = useState<DesignReference | null>(null);
   const [preview, setPreview] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const saved = refs.find((r) => r.id === selId) ?? refs[0];
@@ -36,6 +37,7 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(saved);
   const issues = useMemo(() => (dirty ? referenceIssues(ref, refs) : []), [dirty, ref, refs]);
   const applied = appliedStatus(project, refs);
+  const change = authorityChange(project, saved, refs);
   const drift = changedSinceApplied(project);
   const changes = useMemo(() => referenceChanges(project, saved, refs), [project, saved, refs]);
   const resolved = useMemo(() => resolveReference(ref, refs), [ref, refs]);
@@ -55,7 +57,7 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
   const persist = (list: DesignReference[]) => { setRefs(list); saveUserReferences(list); };
   const select = async (id: string) => {
     if (dirty && !(await ask('Discard your unsaved changes to this reference?'))) return;
-    setDraft(null); setPreview(false); setSelId(id);
+    setDraft(null); setPreview(false); setAgreed(false); setSelId(id);
   };
   const edit = (patch: Partial<DesignReference>) => setDraft({ ...ref, ...patch });
   const setValue = (key: RefKey, patch: { value?: number | null; clause?: string; note?: string }) => {
@@ -75,7 +77,7 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
     if (dirty && !(await ask('Discard your unsaved changes to this reference?'))) return;
     const list = [...refs, r];
     persist(list);
-    setDraft(null); setPreview(false); setSelId(r.id);
+    setDraft(null); setPreview(false); setAgreed(false); setSelId(r.id);
     onStatus(message);
   }
   function save() {
@@ -105,8 +107,9 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
     onStatus(`Imported ${added.length} reference${added.length > 1 ? 's' : ''}`);
   }
   function apply() {
+    if (change && !agreed) return;
     onApply(saved);
-    setPreview(false);
+    setPreview(false); setAgreed(false);
     onStatus(changes.length ? `Applied ${saved.name}: ${changes.length} value${changes.length > 1 ? 's' : ''} changed` : `${saved.name} recorded as this project's design reference`);
   }
 
@@ -130,6 +133,7 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
             {drift.length > 0 && <span className="warn"> {drift.length} value{drift.length > 1 ? 's' : ''} changed in the project since: {drift.map((k) => REF_FIELDS.find((f) => f.key === k)!.label).join(', ')}.</span>}
             {applied.newer && <span className="warn"> The reference has been edited since (now version {applied.ref!.version}) — apply it again to update.</span>}
             {applied.missing && <span className="m"> The reference is no longer in your library; the project keeps its values.</span>}
+            {projectAuthority(project, refs) && ' The authority is chosen when the project starts.'}
           </p>
         ) : <p className="m u-flush">This project has no design reference yet. Pick one below and apply it.</p>}
       </section>
@@ -165,7 +169,7 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
                   <button className="chip" onClick={() => add(duplicateReference(saved), `Copy of ${saved.name} — edit it and save`)}>Duplicate</button>
                   <button className="chip" onClick={() => exportOne([saved], saved.name)}>Export</button>
                   {!readOnly && <button className="chip" onClick={remove}>Delete</button>}
-                  <button className="chip primary" onClick={() => setPreview(true)}>Apply to this project…</button>
+                  <button className="chip primary" onClick={() => { setPreview(true); setAgreed(false); }}>{change ? 'Change authority…' : 'Apply to this project…'}</button>
                 </>}
               </div>
             </div>
@@ -175,6 +179,7 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
             {preview && !dirty && (
               <div className="card" style={{ margin: '8px 0' }}>
                 <h4 style={{ margin: '0 0 6px' }}>Apply {saved.name} to {project.name}</h4>
+                {change && <p className="warn">This project is under {change.from}. Changing to {change.to} sizes the circuits again; sizes set by hand stay.</p>}
                 {changes.length ? (
                   <table className="compact"><thead><tr><th>Setting</th><th className="num">Now</th><th className="num">After</th></tr></thead><tbody>
                     {changes.map((c) => <tr key={c.key}><td>{c.label}</td><td className="num">{show(c.from, c.unit)}</td><td className="num"><b>{show(c.to, c.unit)}</b></td></tr>)}
@@ -184,9 +189,10 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
                 {savedLimits && <p className="m">It also sets the project's cable / breaker limits{savedLimits.cableLimits ? ` (${savedLimits.cableLimits.tables.length} tables, from ${savedLimits.limitsFrom})` : ': this reference has none, so the project will have none'}.</p>}
                 {savedRules > 0 && <p className="m">It also sets {savedRules} rule row{savedRules > 1 ? 's' : ''} (see Rule rows below); the project's own rows are kept.</p>}
                 <p className="m">Blank values in the reference leave the project's own setting as it is. Run the studies again after applying.</p>
+                {change && <label className="row"><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} /> I want to change the authority</label>}
                 <div className="row">
-                  <button className="chip" onClick={() => setPreview(false)}>Cancel</button>
-                  <button className="chip primary" onClick={apply}>{changes.length ? `Apply ${changes.length} change${changes.length > 1 ? 's' : ''}` : 'Record as the project reference'}</button>
+                  <button className="chip" onClick={() => { setPreview(false); setAgreed(false); }}>Cancel</button>
+                  <button className="chip primary" disabled={!!change && !agreed} onClick={apply}>{change ? 'Change authority' : changes.length ? `Apply ${changes.length} change${changes.length > 1 ? 's' : ''}` : 'Record as the project reference'}</button>
                 </div>
               </div>
             )}
