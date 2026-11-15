@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "name": "LV Design Studio",
+  "tagline": "Low-voltage electrical design in one workspace.",
+  "summary": "An open-source, offline-first workspace for single-line diagrams, load schedules, electrical calculations, drawings and reports. Projects remain under the engineer's control as local files.",
+  "facts": [
+    "No sign-in required",
+    "Projects remain under your control",
+    "MIT or Apache-2.0 licence"
+  ],
+  "engineeringStatus": "The calculations are first-pass design checks, not a substitute for an engineer's verified study. Built-in cable values are approximate references until replaced with manufacturer data, and some study methods are intentionally simplified. Nothing in the app constitutes approval by an electrical authority.",
+  "capabilities": [
+    {
+      "title": "Network and schedules",
+      "description": "Build board hierarchies, load schedules and single-line diagrams from the same project data."
+    },
+    {
+      "title": "Electrical calculations",
+      "description": "Check cable and breaker sizing, voltage drop, short circuit, earthing, protection coordination, transformers, generators and power factor correction."
+    },
+    {
+      "title": "Drawings and deliverables",
+      "description": "Prepare drawing sheets, schedules, bills of quantities and engineering reports from the current design model."
+    },
+    {
+      "title": "Independent cross-checks",
+      "description": "Compare selected studies with optional OpenDSS and pandapower engines installed on your own computer."
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "10-overview-design-stages.png",
+      "title": "Overview and design stages",
+      "description": "Each stage's checklist, its stage gate and the key project figures."
+    },
+    {
+      "file": "01-single-line-diagram.png",
+      "title": "Single line diagram",
+      "description": "IEC and DEWA symbols, the panel tree and board properties."
+    },
+    {
+      "file": "02-load-schedule.png",
+      "title": "Load schedule",
+      "description": "The DEWA connected-load and maximum-demand schedule for the selected board."
+    },
+    {
+      "file": "03-transformer-generator.png",
+      "title": "Transformer and generator sizing",
+      "description": "Transformer fault level and regulation, plus generator sizing with motor starting."
+    },
+    {
+      "file": "04-power-factor-correction.png",
+      "title": "Power factor correction",
+      "description": "Central, group or individual correction with staged and detuned banks."
+    },
+    {
+      "file": "05-earthing-with-panel-tree.png",
+      "title": "Earthing",
+      "description": "Earthing results filtered by the selected panel and its downstream boards."
+    },
+    {
+      "file": "06-study-reports.png",
+      "title": "Study reports",
+      "description": "Select boards and studies, then prepare PDF or Excel engineering deliverables."
+    },
+    {
+      "file": "07-cable-tray-schedule.png",
+      "title": "Cable tray schedule",
+      "description": "Route paths, tray sizing, grouping derating, cross-sections and quantities."
+    },
+    {
+      "file": "08-quick-calculators.png",
+      "title": "Quick calculators",
+      "description": "Fast checks for current, power, cable sizing, voltage drop, transformers and more."
+    },
+    {
+      "file": "09-projects-dashboard.png",
+      "title": "Projects dashboard",
+      "description": "Recent local projects, status, search and duplication."
+    }
+  ]
+}

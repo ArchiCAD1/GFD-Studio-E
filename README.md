@@ -1,62 +1,52 @@
+<!-- PUBLIC-PRODUCT:START — generated from docs/public-site/product.json by scripts/public-site.mjs -->
 # LV Design Studio
 
-An open-source, offline desktop and browser app for low-voltage (LV)
-electrical design: single-line diagrams, load schedules, cable and breaker
-sizing, voltage drop, short circuit, earthing, protection coordination,
-transformer / generator sizing, power factor correction, drawings and
-submission reports. Projects are plain JSON files, so they sync cleanly
-through a Google Drive / OneDrive / Dropbox desktop folder.
+An open-source, offline-first workspace for single-line diagrams, load schedules, electrical calculations, drawings and reports. Projects remain under the engineer's control as local files.
 
 [Try the browser app](https://pdhruv15.github.io/LV-Design-Studio/)
 · [About the project](https://pdhruv15.github.io/LV-Design-Studio/about/)
+· [Download an unsigned beta](https://pdhruv15.github.io/LV-Design-Studio/download/)
 · [Calculation methods and limits](docs/engineering/calculation-methods.md)
 · [Privacy and project data](docs/privacy.md)
 
-**Version 2.146** (see `package.json`). The app is in active use and active
-development.
+**Version 2.146** (see `package.json`). The app is in active use and active development.
 
-> **Engineering status.** The calculations are first-pass design checks, not
-> a substitute for an engineer's verified study. Cable data starts from
-> built-in approximate reference values (replace them with manufacturer data in
-> `Cables.xlsx`), and fault levels use a simplified IEC 60909-0 method
-> (c max = 1.05, cable R at 20 °C, infinite MV source, no KT), not a full
-> IEC 60909 study. Nothing in the app
-> constitutes approval by DEWA or any other authority. Methods, assumptions and
-> limits are in [docs/engineering/calculation-methods.md](docs/engineering/calculation-methods.md).
+> **Engineering status.** The calculations are first-pass design checks, not a substitute for an engineer's verified study. Built-in cable values are approximate references until replaced with manufacturer data, and some study methods are intentionally simplified. Nothing in the app constitutes approval by an electrical authority. Methods, assumptions and limits are in [docs/engineering/calculation-methods.md](docs/engineering/calculation-methods.md).
 
 ## Screenshots
 
-The built-in demo project (a 415 V villa complex). The ribbon starts with Project and the everyday work (Load schedule, SLD, Design CAD). Its Stages tab holds the design stages: 1 Concept → 2 Schematic → 3 Detailed design → 4 Tender and IFC.
+The built-in demonstration project shows the same project model across the design stages, calculations, drawings and deliverables.
 
-**Overview and design stages**: each stage's checklist, the stage gate (Issue detailed design → IFC) and Back to the previous stage, with key figures below.
+**Overview and design stages**: Each stage's checklist, its stage gate and the key project figures.
 ![Overview and design stages](docs/screenshots/10-overview-design-stages.png)
 
-**Single line diagram** (SLD tab): IEC / DEWA symbols, the panel tree on the left, and board properties on the right.
+**Single line diagram**: IEC and DEWA symbols, the panel tree and board properties.
 ![Single line diagram](docs/screenshots/01-single-line-diagram.png)
 
-**Load schedule**: the DEWA connected load / maximum demand form for the board picked in the panel tree.
+**Load schedule**: The DEWA connected-load and maximum-demand schedule for the selected board.
 ![Load schedule](docs/screenshots/02-load-schedule.png)
 
-**Transformer & generator sizing** (1 Concept): a transformer per MDB (fault level, main breaker, regulation, Apply to SLD), and the generator chosen by board, with the largest motor starting last.
+**Transformer and generator sizing**: Transformer fault level and regulation, plus generator sizing with motor starting.
 ![Transformer and generator sizing](docs/screenshots/03-transformer-generator.png)
 
-**Power factor correction** (2 Schematic): central, group or individual correction. Banks are sized from the bottom up (nothing is corrected twice), with steps and detuning. Add them to the SLD.
+**Power factor correction**: Central, group or individual correction with staged and detuned banks.
 ![Power factor correction](docs/screenshots/04-power-factor-correction.png)
 
-**Earthing, filtered from the panel tree**: click SMDB-GF to see only that board and the boards below it.
+**Earthing**: Earthing results filtered by the selected panel and its downstream boards.
 ![Earthing](docs/screenshots/05-earthing-with-panel-tree.png)
 
-**Study reports**: choose boards and studies (short circuit, load flow, PFC…) and export a submission PDF or Excel file, with an SLD for each study.
+**Study reports**: Select boards and studies, then prepare PDF or Excel engineering deliverables.
 ![Study reports](docs/screenshots/06-study-reports.png)
 
-**Cable tray schedule**: route paths (A-B-C), tray sizing with DUCAB cable data, grouping derating, cross-sections and BOQ.
+**Cable tray schedule**: Route paths, tray sizing, grouping derating, cross-sections and quantities.
 ![Cable tray schedule](docs/screenshots/07-cable-tray-schedule.png)
 
-**Quick calculators**: amps, kW/kVA, cable & breaker, voltage drop, transformer and more.
+**Quick calculators**: Fast checks for current, power, cable sizing, voltage drop, transformers and more.
 ![Quick calculators](docs/screenshots/08-quick-calculators.png)
 
-**Projects dashboard**: recent projects, status (Design → Submitted → Approved), search, duplicate.
+**Projects dashboard**: Recent local projects, status, search and duplication.
 ![Projects dashboard](docs/screenshots/09-projects-dashboard.png)
+<!-- PUBLIC-PRODUCT:END -->
 
 ## Setup
 
@@ -94,6 +84,19 @@ Produces a `.dmg` (mac), `.exe` installer (Windows), or `.AppImage` (Linux)
 in `release/`, depending on the platform you build on. `npm run dist:mac`
 builds an Apple-silicon `.dmg` only.
 
+## Unsigned beta releases
+
+After CI succeeds for an approved change on `main`, the beta workflow builds
+unsigned Windows x64 and Apple-silicon macOS installers from that exact commit
+and publishes them as a uniquely versioned GitHub prerelease. Installers remain
+GitHub Release assets; they are not committed to this repository or Pages.
+
+Packaged beta apps can notify the tester about a newer beta and open the
+hard-coded project download page after confirmation. They never download,
+execute, replace or install an update. Development and stable builds do not
+perform the check. See [Unsigned beta releases](docs/beta-releases.md) for the
+workflow, checksums, platform warnings, security boundaries and rollback steps.
+
 ## Publishing the browser app
 
 The browser version is an installable PWA and can be hosted as a static site
@@ -111,7 +114,14 @@ in that browser profile and are not synchronized to Google Drive or another
 device. Download project `.lvds` backups regularly. Clearing the site's data
 or deleting the browser profile removes locally stored projects.
 
-The same workflow also publishes an architecture page at `<site>/architecture/`
+The same workflow also publishes an architecture page at `<site>/architecture/`,
+an About page generated from `docs/public-site/product.json`, and a beta download
+page whose installer metadata is resolved from GitHub Releases at build time.
+The README's marked public section is generated from the same reviewed content;
+`npm run check:public-site` catches drift. The site copies the existing
+`docs/screenshots` files rather than maintaining a second set.
+
+The architecture page
 (for this repository, https://pdhruv15.github.io/LV-Design-Studio/architecture/). It shows every
 module, its main files and how the modules pass data to each other. The page and its Markdown
 sources are in [`docs/architecture/`](docs/architecture/00-index.md); open

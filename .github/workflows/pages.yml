@@ -3,6 +3,9 @@ name: Deploy web app to GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: [Beta release]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -15,67 +18,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  windows-beta:
-    runs-on: windows-latest
-    timeout-minutes: 20
-    permissions:
-      contents: write
-    outputs:
-      download-url: ${{ steps.release.outputs.download-url }}
-    env:
-      GH_TOKEN: ${{ github.token }}
-      CSC_IDENTITY_AUTO_DISCOVERY: "false"
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
-      - name: Identify beta release
-        id: release
-        shell: pwsh
-        run: |
-          $tag = "windows-beta-$env:GITHUB_SHA"
-          "tag=$tag" >> $env:GITHUB_OUTPUT
-          "download-url=https://github.com/$env:GITHUB_REPOSITORY/releases/download/$tag/LV-Design-Studio-Windows-Beta.exe" >> $env:GITHUB_OUTPUT
-          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
-          if ($LASTEXITCODE -eq 0) {
-            "exists=true" >> $env:GITHUB_OUTPUT
-          } else {
-            "exists=false" >> $env:GITHUB_OUTPUT
-          }
-          exit 0
-      - name: Install dependencies
-        if: steps.release.outputs.exists != 'true'
-        run: npm ci
-      - name: Build Windows installer
-        if: steps.release.outputs.exists != 'true'
-        run: npm run dist -- --win --publish never --config.win.signExecutable=false
-      - name: Publish Windows beta
-        if: steps.release.outputs.exists != 'true'
-        shell: pwsh
-        env:
-          BETA_TAG: ${{ steps.release.outputs.tag }}
-        run: |
-          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $installer = "release/LV-Design-Studio-$version-win-x64.exe"
-          $asset = "release/LV-Design-Studio-Windows-Beta.exe"
-          Copy-Item -LiteralPath $installer -Destination $asset
-          $hash = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  LV-Design-Studio-Windows-Beta.exe" | Set-Content release/SHA256SUMS.txt
-          @(
-            "Windows 64-bit beta installer for LV Design Studio $version."
-            ""
-            "Source commit: $env:GITHUB_SHA"
-            ""
-            "This beta is unsigned. Windows may show a publisher warning."
-            "Calculations are first-pass design checks and require engineering verification."
-          ) | Set-Content release/beta-notes.txt
-          gh release create $env:BETA_TAG $asset release/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Windows beta $version" --notes-file release/beta-notes.txt --prerelease --latest=false
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
   deploy:
-    needs: windows-beta
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -83,6 +31,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -91,26 +42,24 @@ jobs:
         run: npm ci
       - name: Build web app
         run: npm run build
+      - name: Build public product and beta pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isPrerelease > "$RUNNER_TEMP/releases.json"
+          tag="$(node scripts/beta-release.mjs select "$RUNNER_TEMP/releases.json")"
+          if [[ -n "$tag" ]]; then
+            gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json tagName,isPrerelease,publishedAt,targetCommitish,assets > "$RUNNER_TEMP/release.json"
+            mkdir -p "$RUNNER_TEMP/release-assets"
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS.txt --dir "$RUNNER_TEMP/release-assets"
+            node scripts/public-site.mjs build --out dist --release "$RUNNER_TEMP/release.json" --checksums "$RUNNER_TEMP/release-assets/SHA256SUMS.txt"
+          else
+            node scripts/public-site.mjs build --out dist
+          fi
       - name: Add architecture page
         # Public map of the app's modules (docs/architecture/navigator.html), served at <site>/architecture/.
         run: mkdir -p dist/architecture && cp docs/architecture/navigator.html dist/architecture/index.html
-      - name: Add About page screenshots
-        run: mkdir -p dist/about/screenshots && cp docs/screenshots/*.png dist/about/screenshots/
-      - name: Link Windows beta installer
-        env:
-          WINDOWS_BETA_DOWNLOAD_URL: ${{ needs.windows-beta.outputs.download-url }}
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync, writeFileSync } from 'node:fs';
-          const file = 'dist/about/index.html';
-          const html = readFileSync(file, 'utf8');
-          const marker = 'href="https://github.com/Pdhruv15/LV-Design-Studio/releases" data-windows-beta-download';
-          const url = process.env.WINDOWS_BETA_DOWNLOAD_URL;
-          if (!url?.startsWith('https://github.com/Pdhruv15/LV-Design-Studio/releases/download/') || !html.includes(marker)) {
-            throw new Error('About page beta download link is missing or invalid');
-          }
-          writeFileSync(file, html.replace(marker, `href="${url}" data-windows-beta-download`));
-          NODE
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload web app
