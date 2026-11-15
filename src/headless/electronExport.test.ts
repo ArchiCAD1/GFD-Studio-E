@@ -10,7 +10,7 @@ import type { Project } from '../types';
 import { callTool, toolByName, type ToolContext } from './tools';
 import { main } from './cli';
 import { agentDir } from './write';
-import { asarHasHeadlessExport, findRenderer, runInRenderer } from './electronExport';
+import { asarHasHeadlessExport, findRenderer, hostApp, installedApps, runInRenderer } from './electronExport';
 
 /** The approval gate of the exports made in Electron (PDF reports, drawing sheets as DXF), with Electron
  * stood in for: it is only started once the export is approved. The real run: tests/pdf/headlessExport.pdf.ts. */
@@ -133,5 +133,34 @@ describe('installed app', () => {
     expect(asarHasHeadlessExport(asar({ dist: { files: {} }, electron: { files: { 'main.cjs': {}, 'headlessExport.cjs': {} } } }))).toBe(true);
     expect(asarHasHeadlessExport(asar({ dist: { files: {} }, electron: { files: { 'main.cjs': {} } } }))).toBe(false);
     expect(asarHasHeadlessExport(path.join(root, 'none.asar'))).toBe(false);
+  });
+
+  it('is looked for where each installer puts it', () => {
+    const win = installedApps('win32', { LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local', ProgramFiles: 'C:\\Program Files' }, 'C:\\Users\\me').map((p) => p.split(path.sep).join('\\'));
+    // The Windows installer's own folder for one user carries the product name.
+    expect(win[0]).toBe('C:\\Users\\me\\AppData\\Local\\Programs\\LV Design Studio\\LV Design Studio.exe');
+    expect(win).toContain('C:\\Program Files\\LV Design Studio\\LV Design Studio.exe');
+    expect(installedApps('darwin', {}, '/Users/me')).toEqual(['/Applications/LV Design Studio.app', '/Users/me/Applications/LV Design Studio.app'].map((a) => path.join(a, 'Contents', 'MacOS', 'LV Design Studio')));
+    expect(installedApps('linux', {}, '/home/me')).toEqual([]);
+  });
+
+  it('is the app lvds runs inside, wherever that was installed', () => {
+    const withExport = { dist: { files: {} }, electron: { files: { 'main.cjs': {}, 'headlessExport.cjs': {} } } };
+    // The layout of a package: the program, and app.asar in its resources.
+    const install = (name: string, files: Record<string, unknown>) => {
+      const dir = path.join(root, name);
+      const exe = process.platform === 'darwin' ? path.join(dir, 'LV Design Studio.app', 'Contents', 'MacOS', 'LV Design Studio') : path.join(dir, 'lv-design-studio');
+      const resources = process.platform === 'darwin' ? path.join(dir, 'LV Design Studio.app', 'Contents', 'Resources') : path.join(dir, 'resources');
+      fs.mkdirSync(path.dirname(exe), { recursive: true });
+      fs.mkdirSync(resources, { recursive: true });
+      fs.writeFileSync(exe, '');
+      fs.copyFileSync(asar(files), path.join(resources, 'app.asar'));
+      return exe;
+    };
+    const exe = install('Somewhere else', withExport);
+    expect(hostApp(exe, true)).toBe(exe);
+    expect(hostApp(exe, false)).toBeUndefined(); // plain Node: lvds is not inside an app
+    expect(hostApp(install('Older app', { dist: { files: {} }, electron: { files: { 'main.cjs': {} } } }), true)).toBeUndefined();
+    expect(hostApp()).toBeUndefined(); // these tests run in Node
   });
 });

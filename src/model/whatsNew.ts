@@ -28,6 +28,13 @@ export const RELEASES: Release[] = [
     ]
   },
   {
+    version: '2.151', date: '2026-11-15',
+    items: [
+      { title: 'Bring your own AI: the MCP connection comes with the installed app', text: 'The installed app now carries its command line (lvds) and its MCP server, so your own AI program (any MCP client, or a free local model through one) can read and check your projects on this computer. The app has no AI of its own and holds no account or key. To connect, run lvds mcp-config from the app\'s resources folder (the README gives the command for macOS and Windows) and paste what it prints into the MCP settings of your AI program. It is read only unless you add --write, and then every change is previewed first.' },
+      { title: 'Command line without Node', text: 'The lvds command of the installed app is run by the app itself, with no window: nothing else needs installing. Its PDF reports and drawing sheets are made by that same app, wherever you installed it.' }
+    ]
+  },
+  {
     version: '2.150', date: '2026-11-15',
     items: [
       { title: 'Projects: saved as .lvds files', text: 'Projects are now saved as .lvds files, with the same content as before. Older .json projects still open; their next save writes a .lvds and keeps the .json as its backup (name.lvds.bak). Double-click a .lvds to open it in the app.' },
