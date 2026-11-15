@@ -15,16 +15,24 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.153', date: '2026-11-15',
+    version: '2.155', date: '2026-11-15',
     items: [
       { title: 'The authority stays with the project', text: 'The authority is chosen when a project starts. On Standards → Design references, a rule set of another authority now shows Change authority…: it names the authority the project is under and needs a tick before it is applied. Rule sets of the same authority apply as before.' }
     ]
   },
   {
-    version: '2.152', date: '2026-11-15',
+    version: '2.154', date: '2026-11-15',
     items: [
       { title: 'Sheets: push a panel schedule to the load schedule', text: 'Push to load schedule now works for a panel schedule (MDB, SMDB, MCC) as well as a DB schedule. A row that names a panel (SMDB-1, DB-GF) makes that panel under it, other rows become feeders, and SPARE and SPACE rows become spares. An INCOMER row sets the panel\'s incomer. A panel\'s load comes from its own schedule, so push those sheets too.', action: 'sheets' },
       { title: 'Sheets: SPARE and SPACE rows of a DB schedule', text: 'A row of a DB schedule that reads SPARE or SPACE and has no load now becomes a spare way or a space at its circuit reference, as in the DB\'s own schedule, not a circuit named SPARE. Pushing the sheet again updates it.', action: 'sheets' }
+    ]
+  },
+  {
+    version: '2.150', date: '2026-11-15',
+    items: [
+      { title: 'Projects: saved as .lvds files', text: 'Projects are now saved as .lvds files, with the same content as before. Older .json projects still open; their next save writes a .lvds and keeps the .json as its backup (name.lvds.bak). Double-click a .lvds to open it in the app.' },
+      { title: 'Project tab: Export JSON', text: 'Export JSON saves the open project as a plain .json file, for scripts and other programs. From the command line: lvds project-json <project>.' },
+      { title: 'Beta downloads for Windows and Mac', text: 'The About page of the LV Design Studio website now shows screenshots of the app, and its Download page offers unsigned beta installers for Windows x64 and Apple-silicon Macs. A beta build tells you when a newer beta is out; it never downloads or installs one itself.' }
     ]
   },
   {

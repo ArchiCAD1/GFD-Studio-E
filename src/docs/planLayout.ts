@@ -8,7 +8,8 @@ import type { LevelRef } from '../model/levels';
 import { isFrozen, vpWindow, type PlanViewport } from '../model/planViewports';
 import { dimOf, scaleLook, segmentsOf, sketchOf, trayLabel, trayLength, trayLine } from '../model/cadSketch';
 import { effective, layerStylesOf, styleOf } from '../model/cadLayerStyle';
-import { annoOf } from '../model/cadAnnotate';
+import { annoOf, SYMBOL_R_MM } from '../model/cadAnnotate';
+import { planSymbolSvg } from '../model/planSymbols';
 import { EM_PER_CAP, textBaseAt, textCorners, textWidth } from '../model/cadText';
 import { LINE_FACTOR, noteBox, noteSegAt } from '../model/cadMtext';
 import { pointMark, pointStyleOf } from '../model/cadPoints';
@@ -53,7 +54,7 @@ export const PLAN_LABEL: Record<PlanType, string> = { lighting: 'Lighting layout
 export const PLAN_TYPES = Object.keys(PLAN_PREFIX) as PlanType[];
 const SIZES: SheetSize[] = ['A3', 'A2', 'A1'];
 const MARGIN = 4, STRIP = 14; // mm: around the plan, and the strip under it (title, scale bar, north arrow)
-const R = 1.8; // symbol radius on paper (mm)
+const R = SYMBOL_R_MM; // symbol radius on paper (mm)
 const TAG = 2.5; // tray and cable text on paper (mm): its capitals' height
 const GREY = '#8c8c8c';
 
@@ -127,8 +128,8 @@ function contentOf(p: Project, type: PlanType, b: string, l: string): Content {
   for (const d of p.lvPoints ?? []) {
     if (!onLevel(d, b, l) || !wanted(d.feederId)) continue;
     const pal = d.emergency ? EMERGENCY_ITEMS[d.emergency] : LV_PALETTE.find((x) => x.id === d.type);
-    const shape = pal?.symbol.shape ?? 'circle', text = pal ? pal.symbol.text : d.type.toUpperCase();
-    out.marks.push({ x: d.x, y: d.y, key: d.emergency ? `lv:em:${d.emergency}` : `lv:${d.type}`, label: pal?.label ?? d.type.toUpperCase(), svg: (x, y, r) => lvSymbol(shape, text, x, y, r) });
+    const shape = pal?.symbol.shape ?? 'circle', text = pal ? pal.symbol.text : d.type.toUpperCase(), plan = (pal?.symbol as { plan?: string } | undefined)?.plan;
+    out.marks.push({ x: d.x, y: d.y, key: d.emergency ? `lv:em:${d.emergency}` : `lv:${d.type}`, label: pal?.label ?? d.type.toUpperCase(), svg: (x, y, r) => (plan ? planSymbolSvg(plan, x, y, r / SYMBOL_R_MM) : lvSymbol(shape, text, x, y, r)) });
   }
   // The DBs feeding this layout's circuits, and any DB with nothing of either layout yet.
   const used = new Set(p.feeders.filter((f) => (p.lvPoints ?? []).some((d) => d.feederId === f.id && onLevel(d, b, l)) && wanted(f.id)).map((f) => f.boardId));
