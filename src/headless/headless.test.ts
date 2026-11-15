@@ -13,7 +13,7 @@ import { TOOLS, callTool, offeredTools, toolByName, type ToolContext } from './t
 import { listProjects, resolveProject } from './project';
 import { main, parseArgs } from './cli';
 import { createApi, newApiToken, tokenMatches, writeApiToken } from './api';
-import { createMcp } from './mcp';
+import { createMcp, mcpConfig } from './mcp';
 
 let folder: string;
 let ctx: ToolContext;
@@ -210,6 +210,49 @@ describe('local API', () => {
     expect(out.join('\n')).toMatch(/Authorization: Bearer/);
     expect(out.join('\n')).not.toContain(token);
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('MCP settings for the engineer\'s own AI program', () => {
+  const node = { execPath: '/usr/local/bin/node', script: '/src/LV-Design-Studio/dist-cli/lvds.mjs', electron: false };
+  const app = { execPath: '/Applications/LV Design Studio.app/Contents/MacOS/LV Design Studio', script: '/Applications/LV Design Studio.app/Contents/Resources/lvds/lvds.mjs', electron: true };
+  const run = async (argv: string[], runtime = node) => {
+    const out: string[] = [], err: string[] = [];
+    const code = await main(argv, '1.0', { out: (s) => out.push(s), err: (s) => err.push(s) }, runtime);
+    return { code, out: out.join('\n'), err: err.join('\n') };
+  };
+
+  it('prints the entry that starts this copy of lvds, read only unless --write', async () => {
+    const r = await run(['mcp-config']);
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.out)).toEqual({ mcpServers: { 'lv-design-studio': { command: node.execPath, args: [node.script, 'mcp'] } } });
+    expect(r.err).toMatch(/read only/);
+    const w = await run(['mcp-config', '--write']);
+    expect(JSON.parse(w.out).mcpServers['lv-design-studio'].args).toEqual([node.script, 'mcp', '--write']);
+    expect(w.err).toMatch(/preview first/);
+  });
+
+  it('in the installed app, the app itself runs it as Node: no window, no separate Node', () => {
+    expect(mcpConfig(app, false).mcpServers['lv-design-studio']).toEqual({ command: app.execPath, args: [app.script, 'mcp'], env: { ELECTRON_RUN_AS_NODE: '1' } });
+    expect(mcpConfig(node, false).mcpServers['lv-design-studio']).not.toHaveProperty('env');
+  });
+
+  it('names no AI product: the engineer brings their own', async () => {
+    const words = /claude|anthropic|chatgpt|openai|gemini|copilot/i;
+    const help = await run(['help']);
+    expect(help.out).toContain('lvds mcp-config');
+    expect(help.out).not.toMatch(words);
+    const config = await run(['mcp-config', '--write'], app);
+    expect(config.out + config.err).not.toMatch(words);
+    // What the server itself tells a client: its instructions and every tool, with the change tools.
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '1.0' });
+    await Promise.all([createMcp({ ...ctx, write: true }, '1.0').connect(a), client.connect(b)]);
+    expect(client.getInstructions()).toMatch(/LV Design Studio/);
+    const { tools } = await client.listTools();
+    expect(tools.length).toBeGreaterThan(40);
+    expect(client.getInstructions() + JSON.stringify(tools)).not.toMatch(words);
+    await client.close();
   });
 });
 

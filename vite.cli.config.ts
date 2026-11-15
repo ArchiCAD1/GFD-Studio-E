@@ -4,7 +4,8 @@ import { builtinModules } from 'node:module';
 import { displayVersion } from './src/model/appVersion';
 
 /** The `lvds` command (CLI, MCP server, local API) as one Node file: dist-cli/lvds.mjs.
- * Uses the app's own calculation code (src/calc, src/model); no React, no Electron. */
+ * Uses the app's own calculation code (src/calc, src/model); no React, no Electron.
+ * The installed app carries it in resources/lvds (package.json extraResources), run by the app as Node. */
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 export default defineConfig({
@@ -18,6 +19,8 @@ export default defineConfig({
     target: 'node20',
     minify: false,
     ssr: 'src/headless/main.ts',
+    // The licence texts of the libraries in the file: the installed app carries it without node_modules (NOTICE.md).
+    license: { fileName: 'third-party-licences.md' },
     rollupOptions: {
       external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
       output: { entryFileNames: 'lvds.mjs', banner: '#!/usr/bin/env node', codeSplitting: false }

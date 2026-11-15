@@ -9,7 +9,7 @@ An open-source, offline-first workspace for single-line diagrams, load schedules
 · [Calculation methods and limits](docs/engineering/calculation-methods.md)
 · [Privacy and project data](docs/privacy.md)
 
-**Version 2.150** (see `package.json`). The app is in active use and active development.
+**Version 2.151** (see `package.json`). The app is in active use and active development.
 
 > **Engineering status.** The calculations are first-pass design checks, not a substitute for an engineer's verified study. Built-in cable values are approximate references until replaced with manufacturer data, and some study methods are intentionally simplified. Nothing in the app constitutes approval by an electrical authority. Methods, assumptions and limits are in [docs/engineering/calculation-methods.md](docs/engineering/calculation-methods.md).
 
@@ -243,19 +243,36 @@ node dist-cli/lvds.mjs cable --current 120 --length 80 --ambient 45
 
 Add `--json` for scripts, `--folder <path>` for another projects folder.
 
-**MCP (for an AI assistant).** `lvds mcp` runs an MCP server on this computer.
-Claude Desktop, Claude Code or a free local model (through any MCP client) can
+**In the installed app.** The installer carries the same `lvds`. The app itself
+runs it, so no window opens and no Node is needed:
+
+| System | Command |
+| --- | --- |
+| macOS | `"/Applications/LV Design Studio.app/Contents/Resources/lvds/lvds" help` |
+| Windows | `"%LOCALAPPDATA%\Programs\LV Design Studio\resources\lvds\lvds.cmd" help` |
+
+On Windows the path starts at the folder you installed to, if you chose
+another one. The Linux AppImage holds the files too, but not at a fixed path:
+use the source folder there.
+
+**MCP (bring your own AI).** `lvds mcp` runs an MCP server on this computer.
+Your own AI program (any MCP client, or a free local model through one) can
 then list projects, read panels and results, run the checks and use the quick
-calculations. The app makes no AI calls itself and needs no paid service. For
-Claude Code:
+calculations. The app has no AI of its own: it makes no AI calls, holds no
+account or key, and needs no paid service. To connect, print the settings of
+this copy and paste them into the MCP settings of your AI program (`lvds` is
+the command from the table above, or `node dist-cli/lvds.mjs` in the source
+folder):
 
 ```bash
-claude mcp add lv-design-studio -- node /path/to/LV-Design-Studio/dist-cli/lvds.mjs mcp
+lvds mcp-config
 ```
 
-For Claude Desktop, add the same command under `mcpServers` in its
-`claude_desktop_config.json`:
-`{"lv-design-studio": {"command": "node", "args": ["/path/to/LV-Design-Studio/dist-cli/lvds.mjs", "mcp"]}}`.
+It prints the `mcpServers` entry most MCP clients take, with the paths filled
+in. From the installed app that is the app itself run as Node:
+`{"mcpServers": {"lv-design-studio": {"command": "<the app>", "args": ["<its resources>/lvds/lvds.mjs", "mcp"], "env": {"ELECTRON_RUN_AS_NODE": "1"}}}}`.
+From the source folder it is
+`{"command": "node", "args": ["/path/to/LV-Design-Studio/dist-cli/lvds.mjs", "mcp"]}`.
 Through MCP and the API, only files inside the projects folder can be opened.
 
 **Local API.** `lvds serve` (default port 8765) answers on `http://127.0.0.1`
