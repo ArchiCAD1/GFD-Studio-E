@@ -73,7 +73,7 @@ declare global {
       cadFile?: {
         /** The CAD view's engine (WebAssembly) and drawing bytes, read in the window. */
         engine?: () => Promise<Uint8Array>;
-        openBytes?: () => Promise<{ file: string; path: string; bytes: Uint8Array } | null>;
+        openBytes?: (opts?: { templates?: boolean }) => Promise<{ file: string; path: string; bytes: Uint8Array } | null>;
         readBytes?: (path: string) => Promise<{ file: string; path: string; bytes: Uint8Array } | null>;
         sampleBytes?: (name: string) => Promise<{ file: string; bytes: Uint8Array } | null>;
         /** The Blocks palette's library: a folder of DWG / DXF files chosen in a dialog (null when cancelled), or one listed again by its path (null when gone). */

@@ -211,9 +211,9 @@ async function withSavingEngine<T>(run: (e: Engine) => Promise<T>): Promise<T> {
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const NO_SNAP = new Float64Array();
 
-/** Opens a drawing from its bytes. */
-export async function openDrawing(file: string, bytes: Uint8Array, path?: string): Promise<CadView> {
-  if (!/\.(dwg|dxf)$/i.test(file)) throw new Error(`${file} is not a DWG or DXF file.`);
+/** Opens a drawing from its bytes. `templates`: a drawing template (DWT, a DWG by another name) is taken too. */
+export async function openDrawing(file: string, bytes: Uint8Array, path?: string, templates = false): Promise<CadView> {
+  if (!(templates ? /\.(dwg|dxf|dwt)$/i : /\.(dwg|dxf)$/i).test(file)) throw new Error(`${file} is not a ${templates ? 'DWG, DXF or DWT' : 'DWG or DXF'} file.`);
   if (!bytes.length) throw new Error(`${file} is empty.`);
   if (bytes.length > MAX_BYTES) throw new Error(`${file} is larger than ${MAX_BYTES / 1024 / 1024} MB.`);
   const engine = await startEngine();
@@ -250,27 +250,29 @@ function fileLayouts(json: string | undefined, papers: ({ info: string; segs: Fl
   });
 }
 
-/** The browser's file picker for one DWG / DXF; null when cancelled. */
-function pickFile(): Promise<File | null> {
+/** The browser's file picker for one DWG / DXF (or DWT, with `templates`); null when cancelled. */
+function pickFile(templates = false): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.dwg,.dxf';
+    input.accept = templates ? '.dwg,.dxf,.dwt' : '.dwg,.dxf';
     input.addEventListener('change', () => resolve(input.files?.[0] ?? null), { once: true });
     input.addEventListener('cancel', () => resolve(null), { once: true });
     input.click();
   });
 }
 
-/** Asks for a drawing (desktop dialog or browser picker) and opens it; null when cancelled. */
-export async function chooseDrawing(): Promise<CadView | null> {
+/** Asks for a drawing (desktop dialog or browser picker) and opens it; null when cancelled. `templates`: drawing
+ * templates (DWT) are offered too — only where the drawing is read and closed again (layouts from another drawing), not
+ * where it becomes the drawing worked on. */
+export async function chooseDrawing({ templates = false }: { templates?: boolean } = {}): Promise<CadView | null> {
   const desktop = window.lvds?.cadFile?.openBytes;
   if (desktop) {
-    const r = await desktop();
-    return r ? openDrawing(r.file, r.bytes, r.path) : null;
+    const r = await (templates ? desktop({ templates: true }) : desktop());
+    return r ? openDrawing(r.file, r.bytes, r.path, templates) : null;
   }
-  const f = await pickFile();
-  return f ? openDrawing(f.name, new Uint8Array(await f.arrayBuffer())) : null;
+  const f = await pickFile(templates);
+  return f ? openDrawing(f.name, new Uint8Array(await f.arrayBuffer()), undefined, templates) : null;
 }
 
 /** Reopens a drawing opened before (desktop only: by its path); null when it is no longer there. */

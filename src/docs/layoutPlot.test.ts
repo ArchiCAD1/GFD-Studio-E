@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { sampleProject } from '../data/sampleProject';
 import type { CadText, CadView, FileLayout } from '../engines/cad/cadEngine';
+import { placeBoard, placeLvPoint } from '../model/cadDevices';
+import { dropRefGeometry, keepRefGeometry } from '../model/cadRefs';
+import { wireLevel } from '../model/cadWiring';
 import { asFileLayout, type DrawingLayout } from '../model/drawingLayouts';
-import { layoutPlotHtml, layoutPlotSvg, printerPaper } from './layoutPlot';
+import type { Project, SketchItem } from '../types';
+import { layoutDesign, layoutPlotHtml, layoutPlotSvg, printerPaper } from './layoutPlot';
 
 const text = (s: string, x: number, y: number, h: number, more: Partial<CadText> = {}): CadText => ({ x, y, h, rot: 0, s, layer: 0, rgb: 0, align: 0, ...more } as CadText);
 /** A model in millimetres whose origin is at 1000, 2000: a 10 m square from 0, 0 (relative), a line far away, a line on a layer that is off. */
@@ -103,3 +108,108 @@ describe('a layout of the drawing as it plots', () => {
     expect([printerPaper(594, 841), printerPaper(1189, 841), printerPaper(500, 300)]).toEqual([undefined, undefined, undefined]);
   });
 });
+
+const gf = { building: 'V', level: 'GF' };
+/** A villa ground floor whose plan is GF.dwg, drawn in millimetres: the DB at 1, 1 m, three lights 4 m apart at y 6 m
+ * (a lighting circuit, wired) and a socket at 19, 1 m (a power circuit). */
+function villa(items: SketchItem[] = []): Project {
+  let p: Project = {
+    ...sampleProject, lvPoints: undefined, cadWiring: undefined, cadSketch: undefined, cadLength: undefined, elvDevices: undefined, drawingSet: undefined, cadLayouts: undefined,
+    building: { buildings: [{ id: 'V', name: 'Villa', levels: [{ id: 'GF', name: 'Ground floor', kind: 'ground', heightM: 4 }, { id: 'FF', name: 'First floor', kind: 'typical', heightM: 4 }] }], rooms: [] },
+    cadPlans: [{ building: 'V', level: 'GF', file: 'GF.dwg', units: 4 }], ...(items.length ? { cadSketch: [{ file: 'gf.DWG', items }] } : {})
+  };
+  p = placeBoard(p, 'DB-GF1', gf, 1, 1);
+  for (const x of [6, 10, 14]) p = placeLvPoint(p, gf, 'ltg', 'DB-GF1-Y1', x, 6).project;
+  p = placeLvPoint(p, gf, 's13', 'DB-GF1-B6', 19, 1).project;
+  return wireLevel(p, gf).project;
+}
+/** A3 with a viewport 200 × 120 mm at 100, 50 showing 20 × 12 m at 1:100, centred on 10, 6 m (drawing units: mm). A model
+ * point x, y (m) is on the page at 100 + 10 x mm from the left and 297 − 50 − 10 y mm from the top. */
+const plan = (more: DrawingLayout['viewports'] = []): FileLayout =>
+  asFileLayout({ name: 'Layout2', paper: [420, 297], viewports: [{ x: 100, y: 50, w: 200, h: 120, cx: 10000, cy: 6000, vh: 12000 }, ...more] }, 1);
+const circles = (svg: string) => [...svg.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)" r="1.8"/g)].map((m) => [Number(m[1]), Number(m[2])]);
+
+describe('the design made in the app, through the viewports of a layout of the drawing', () => {
+  it('draws the level\'s devices of every layout, its DBs and wiring at their places on the page, at their paper sizes', () => {
+    const [d] = layoutDesign(villa(), 'GF.dwg', 4, plan());
+    // The three lights (circles 1.8 mm in radius) at 6, 10 and 14 m across, 6 m up.
+    expect(circles(d)).toEqual([[160, 187], [200, 187], [240, 187]]);
+    // The socket of the power circuit is there with them (a box 3.6 × 2.16 mm round 19, 1 m), and the DB with its name.
+    expect(d).toContain('<rect x="288.2" y="235.92" width="3.6" height="2.16"/>');
+    expect(d).toContain('<rect x="107.5" y="235.75" width="5" height="2.5" fill="#fff"/>');
+    expect(d).toMatch(/<text [^>]*font-weight="700" fill="#000">DB-GF1<\/text>/);
+    // The lighting circuit's wiring and its home run to the DB.
+    expect(d.match(/<path class="ln" /g)!.length).toBeGreaterThanOrEqual(2);
+    // No room outlines: the architect's plan is the drawing itself.
+    expect(d).not.toContain('#8c8c8c');
+  });
+
+  it('draws the work drawn on the file — lines, text, tray runs — cut at the window', () => {
+    const items: SketchItem[] = [
+      { id: 'a', kind: 'line', layer: '0', pts: [[2000, 2000], [8000, 2000]] },
+      { id: 'b', kind: 'text', layer: '0', pts: [[4000, 9000]], text: 'PLANT ROOM', h: 300 },
+      { id: 'c', kind: 'pline', layer: 'E-TRAY', pts: [[0, 11000], [20000, 11000]], tray: { widthMm: 300, service: 'Power', route: 'A' } },
+      { id: 'far', kind: 'line', layer: '0', pts: [[500000, 500000], [510000, 500000]] }
+    ];
+    const [d] = layoutDesign(villa(items), 'GF.dwg', 4, plan());
+    expect(d).toContain('<path d="M120 227L180 227" fill="none" stroke="#000"');
+    // The text 300 mm high is 3 mm on the paper at 1:100: its font 3 / 0.716.
+    expect(d).toMatch(/<text x="140" y="157" font-size="4.19" fill="#000">PLANT ROOM<\/text>/);
+    expect(d).toMatch(/stroke-width="0.5"\/>/); // the tray, at the trays pen
+    expect(d).toContain('CT 300 POWER');
+    // The drawn work is cut at the viewport's window on the page (the far line lies outside it).
+    expect(d).toContain('<clipPath id="ld0"><rect x="100" y="127" width="200" height="120"/></clipPath>');
+    expect(d).toContain('<g class="drawn" clip-path="url(#ld0)">');
+  });
+
+  it('gives a piece per viewport: none for one that is off, and no tags or DB names in a key plan', () => {
+    const key = { x: 310, y: 200, w: 100, h: 60, cx: 10000, cy: 6000, vh: 30000 }; // 1:500
+    const l = plan([key, { ...key, x: 10 }]);
+    const off = { ...l, viewports: l.viewports.map((v, i) => (i === 2 ? { ...v, on: false } : v)) };
+    const d = layoutDesign(villa(), 'GF.dwg', 4, off);
+    expect(d).toHaveLength(3);
+    expect(d[2]).toBe('');
+    expect(circles(d[1])).toHaveLength(3);
+    expect(d[0]).toContain('>DB-GF1<');
+    expect(d[1]).not.toContain('>DB-GF1<');
+    // Each piece keeps its own clip paths apart.
+    expect(d[0]).not.toContain('ld1');
+  });
+
+  it('is empty for a drawing with no design; a drawing that is no level\'s plan shows the level it is given, with its own drawn work', () => {
+    expect(layoutDesign({ ...villa(), lvPoints: undefined, cadWiring: undefined, boards: sampleProject.boards.map(({ planPoint: _p, ...b }) => b) }, 'GF.dwg', 4, plan())).toEqual([]);
+    expect(layoutDesign(villa(), 'other.dwg', 4, plan())).toEqual([]);
+    const tray: SketchItem = { id: 'c', kind: 'pline', layer: 'E-TRAY', pts: [[0, 11000], [20000, 11000]], tray: { widthMm: 300, service: 'Power', route: 'A' } };
+    const p = villa([tray]);
+    const [d] = layoutDesign({ ...p, cadSketch: [...p.cadSketch!, { file: 'other.dwg', items: [{ id: 'z', kind: 'line', layer: '0', pts: [[2000, 2000], [8000, 2000]] }] }] }, 'other.dwg', 4, plan(), gf);
+    expect(circles(d)).toHaveLength(3);
+    expect(d).toContain('<path d="M120 227L180 227"');
+    expect(d).not.toContain('CT 300 POWER'); // the tray is drawn on the other file
+  });
+
+  it('draws the level\'s ELV devices with the rest, and a reference under the plan in grey', () => {
+    const p: Project = {
+      ...villa(), elvDevices: [{ id: 'E1', type: 'smoke-detector', buildingId: 'V', levelId: 'GF', x: 5, y: 5 }],
+      cadRefs: { 'gf.dwg': [{ name: 'STR-GF', file: 'STR-GF.dxf', type: 'overlay', at: [1000, 0], scale: 1000, rot: 0, fade: 50, print: true }] }
+    };
+    const plain = layoutDesign(villa(), 'GF.dwg', 4, plan())[0];
+    // The detector is one more symbol, after the level's lights and socket.
+    const withElv = layoutDesign({ ...p, cadRefs: undefined }, 'GF.dwg', 4, plan())[0];
+    expect(withElv.length).toBeGreaterThan(plain.length);
+    expect(withElv.startsWith(plain)).toBe(true);
+    // The structure in metres, a grid line along y = 6 m, placed 1 m to the right: 18 m is 180 mm at 1:100, cut at the window.
+    keepRefGeometry({ file: 'STR-GF.dxf', units: 6, segs: Float64Array.from([0, 6, 18, 6]), segLayers: Uint16Array.from([0]), layers: [{ name: 'S-GRID', rgb: 1 }] });
+    try {
+      expect(layoutDesign(p, 'GF.dwg', 4, plan())[0]).toMatch(/^<path class="ref" d="M110 187L290 187" fill="none" stroke="#b3b3b3" stroke-width="0.13"\/>/);
+    } finally { dropRefGeometry('STR-GF.dxf'); }
+  });
+
+  it('plots inside its viewport, over the model', () => {
+    const design = layoutDesign(villa(), 'GF.dwg', 4, plan());
+    const { svg } = layoutPlotSvg(plan(), model(), { design });
+    const group = /<g clip-path="url\(#vp0\)">(.*)<\/g>$/.exec(svg.replace(/<\/svg>$/, ''))![1];
+    expect(circles(group)).toHaveLength(3);
+    expect(layoutPlotSvg(plan(), model()).svg).not.toContain('r="1.8"');
+  });
+});
+

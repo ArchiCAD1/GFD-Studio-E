@@ -372,11 +372,13 @@ handle('cad:takePending', async () => {
 const SAMPLE_PLANS = new Set(['sample-villa-gf.dxf', 'sample-villa-ff.dxf']);
 // The CAD view reads drawings itself (engine in the window): the engine, and a drawing's bytes.
 handle('cad:engine', () => cadFile.engineBytes());
-handle('cad:openBytes', async (evt) => {
-  const result = await dialog.showOpenDialog(ownerOf(evt), { title: 'Open a drawing', defaultPath: ensureProjectsFolder(), filters: [{ name: 'CAD drawing', extensions: ['dwg', 'dxf'] }], properties: ['openFile'] });
+// `templates`: drawing templates (DWT) are offered too, for a drawing that is only read (layouts from another drawing).
+handle('cad:openBytes', async (evt, opts) => {
+  const templates = !!opts && opts.templates === true;
+  const result = await dialog.showOpenDialog(ownerOf(evt), { title: 'Open a drawing', defaultPath: ensureProjectsFolder(), filters: [{ name: 'CAD drawing', extensions: templates ? ['dwg', 'dxf', 'dwt'] : ['dwg', 'dxf'] }], properties: ['openFile'] });
   if (result.canceled || result.filePaths.length === 0) return null;
   const file = result.filePaths[0];
-  return { file: path.basename(file), path: file, bytes: cadFile.readDrawingBytes(file) };
+  return { file: path.basename(file), path: file, bytes: cadFile.readDrawingBytes(file, templates) };
 });
 handle('cad:readBytes', (_evt, file) => (isPlanFile(file) && fs.existsSync(file) ? { file: path.basename(file), path: file, bytes: cadFile.readDrawingBytes(file) } : null));
 handle('cad:stat', (_evt, file) => { if (!isPlanFile(file) || !fs.existsSync(file)) return null; const st = fs.statSync(file); return { mtimeMs: st.mtimeMs, size: st.size }; });

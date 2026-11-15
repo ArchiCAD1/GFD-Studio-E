@@ -1,6 +1,6 @@
 # UI / UX proposal — Layout, viewport and template tools on Output (2026-11-14)
 
-Status: **approved on 2026-11-14 ("Go ahead"). Batch 1 (items 1, 3, 4, 6, 8, 10) built in v2.136. Batch 2 (items 5, 9, 12) approved the same day ("go ahead with batch 2") and built in v2.143 on `feat/cad-layout-batch2`. Items 2, 7, 11, 13 and the open points below wait.**
+Status: **approved on 2026-11-14 ("Go ahead"). Batch 1 (items 1, 3, 4, 6, 8, 10) built in v2.136. Batch 2 (items 5, 9, 12) approved the same day ("go ahead with batch 2") and built in v2.143. Open points 1 and 4 after batch 2 (the design on these layouts, DWT) chosen on 2026-11-15 and built in v2.147 on `feat/cad-layout-design`. Items 2, 7, 11, 13 and open points 2 and 3 wait.**
 
 The user's condition: the arrangement must stay close to what people who know current industrial 2D drafting products expect, without copying one, so nobody has to hunt for a tool. Output therefore reads **Layout · Layout viewports · Plot · Publish · Export**, the typed commands keep their usual names (LAYOUT, MV, VPORTS, VPSCALE, VPLOCK, VPMAX / VPMIN, PAGESETUP, SCALELISTEDIT), and the same entries are on a layout tab's right-click menu.
 
@@ -46,10 +46,29 @@ Pictures (printed with the PDF check's hidden renderer, not the app): the new sc
 
 ### Open after batch 2 (for the user to decide)
 
-1. **What a layout made with + shows.** It shows, and plots, the drawing file's own lines and texts. Devices, wiring and objects drawn in the app are not on it; they are on the project's plan sheets. Show them on these layouts too? (Medium to large: the plan drawn through each viewport, on screen and in the plot.)
-2. **Pens on these plots.** One thin black line today. Pen tables and lineweights by layer or colour belong with [[UI UX proposals - 2026-11-10 - Batch plot CAD options]], whose five decisions are still open.
+1. ~~**What a layout made with + shows.**~~ Chosen 2026-11-15 ("Design on + layouts"), built in v2.147: see below.
+2. **Pens on these plots.** The drawing file's lines are one thin black line; the design prints at the set's default pens (v2.147). A pen table per layout, lineweights by layer or colour, and the drawing file's lines in grey under the design belong with [[UI UX proposals - 2026-11-10 - Batch plot CAD options]], whose five decisions are still open.
 3. **Batch plot and Publish** listing the layouts made with + and the file's own: decision 1 of the same proposal.
-4. **DWT** in the file dialog for From another drawing… (a small change in the desktop shell).
+4. ~~**DWT** in the file dialog for From another drawing…~~ Built in v2.147.
+
+## Built (v2.147, the design on layouts)
+
+Picture (printed with the PDF check's hidden renderer, not the app): a layout made with + of the sample villa as it plots, a plan at 1:75 and a key plan at 1:500, with devices, wiring, a tray, a cable route and drawn text: `docs/mockups/cad-layout-design-plot-sample-v2.147.png`.
+
+- **The design through every viewport** (`fileDesignOf`, `fileDesignSvg` in `src/docs/planLayout.ts`; `layoutDesign` in `src/docs/layoutPlot.ts`; `design` on `CadFilePaper`): a layout of the drawing shows what was made in the app over the drawing file's own lines, as the Model tab does: the devices of the level the drawing shows (lighting, power and ELV together), its DBs with their names, wiring, home runs and circuit tags, the tray runs and cable routes drawn on the file with their labels, the references under the plan that print, and the drawn work (lines, text, notes, dimensions, leaders, hatches, points, block inserts). The plot prints the same pieces.
+- **Sizes and pens as on a plan sheet:** symbols and tags keep their paper size at any viewport scale; lines print at the set's default pens. A viewport at half the first one's scale or less is a key plan: no tags or DB names.
+- **Layers:** drawn work on a layer that is off, frozen or set not to print stays off, as on a plan sheet.
+- **The drawing file's own layouts too:** they show the model through their viewports, so the design is on them as well.
+- **DWT:** New layout → From another drawing… offers drawing templates (DWT) as well as DWG and DXF. Only there: a template is read and closed again, never opened as the drawing worked on.
+- **Fixed on the way:** Arrange → Plan and key plan on a layout made with + set the key plan from what its own small frame would fit (1:2000 for the sample villa). It now goes by the plan's scale, as on a plan sheet (1:75 → 1:500).
+
+### Built differently (v2.147)
+
+- No room outlines or room names from Building information: on these layouts the architect's plan is the drawing itself.
+- While a view is dragged inside a viewport, its design moves with it and what comes into the frame is drawn when the drag ends.
+- A device whose circuit is no longer in the design is left off, as on a plan sheet.
+- No legend or notes table on these layouts: they stay on the project's plan sheets.
+- Checked by tests and the picture only: the screens were not opened in the app (project rules).
 
 ## Why
 

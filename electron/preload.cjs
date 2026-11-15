@@ -62,7 +62,7 @@ contextBridge.exposeInMainWorld('lvds', {
   cadFile: {
     takePending: () => ipcRenderer.invoke('cad:takePending'),
     engine: () => ipcRenderer.invoke('cad:engine'),
-    openBytes: () => ipcRenderer.invoke('cad:openBytes'),
+    openBytes: (opts) => ipcRenderer.invoke('cad:openBytes', opts),
     readBytes: (file) => ipcRenderer.invoke('cad:readBytes', file),
     stat: (file) => ipcRenderer.invoke('cad:stat', file),
     sampleBytes: (name) => ipcRenderer.invoke('cad:sampleBytes', name),
