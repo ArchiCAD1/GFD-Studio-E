@@ -69,7 +69,7 @@ describe('plan symbols', () => {
 
   it('the palette points only at symbols that exist, every item under a heading with a symbol for its button', () => {
     const linked = LV_PALETTE.filter((x) => x.symbol.plan);
-    expect(linked.filter((x) => 'lv' in x.kind).map((x) => x.id)).toEqual(['exfan', 's13', 's13t', 'shaver', 's15', 'hd', 'isol']);
+    expect(linked.filter((x) => 'lv' in x.kind).map((x) => x.id)).toEqual(['exfan', 's13', 's13t', 's13-floor', 's13-ceiling', 'shaver', 's15', 'hd', 'isol', 'isol-fused']);
     // The accessories are their plan symbols.
     expect(linked.filter((x) => 'acc' in x.kind).map((x) => x.id)).toEqual(['switch', 'switch-2way', 'dimmer', 'switch-fan', 'limit-switch', 'push-button', 'switch-panel', 'cb-box', 'junction-box', 'pull-box', 'junction-box-ceiling']);
     for (const x of LV_PALETTE) {
@@ -78,7 +78,7 @@ describe('plan symbols', () => {
     }
     // Each point type once: placing counts on the circuit by its type.
     expect(new Set(LV_PALETTE.map((x) => x.id)).size).toBe(LV_PALETTE.length);
-    for (const x of LV_PALETTE) if ('lv' in x.kind) expect(x.kind.lv).toBe(x.id);
+    for (const x of LV_PALETTE) if ('lv' in x.kind) expect(x.variant ? `${x.kind.lv}-${x.variant}` : x.kind.lv).toBe(x.id);
   });
 
   it('a power outlet carries its rating beside the socket', () => {
