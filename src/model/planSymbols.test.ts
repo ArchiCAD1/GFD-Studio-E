@@ -86,3 +86,33 @@ describe('plan symbols', () => {
     expect(symbolBox(s15.plan!, s15.tag)!.x1).toBeLessThan(symbolBox(s15.plan!, '100 A TPN')!.x1);
   });
 });
+
+describe('plan symbols turned on the plan', () => {
+  it('turns about its point by right angles, exactly', () => {
+    // A socket's stem: down the sheet at 0°, to the right at 90°, up at 180°, to the left at 270°.
+    const stem = (rot: number) => symbolGeom('socket', 0, 0, 1, undefined, rot)!.paths[1].pts[1];
+    expect(stem(0)).toEqual([0, -3.25]);
+    expect(stem(90)).toEqual([3.25, 0]);
+    expect(stem(180).map((v) => v + 0)).toEqual([0, 3.25]);
+    expect(stem(270).map((v) => v + 0)).toEqual([-3.25, 0]);
+    expect(symbolGeom('socket', 0, 0, 1, undefined, 360)!.paths[1].pts[1].map((v) => v + 0)).toEqual([0, -3.25]);
+  });
+
+  it('keeps its text upright and clear of the symbol', () => {
+    const at0 = symbolGeom('power-outlet', 0, 0, 1, '15 A')!.texts[0], at180 = symbolGeom('power-outlet', 0, 0, 1, '15 A', 180)!.texts[0];
+    expect(at0.side).toBe(true);
+    // Turned half round: placed by its middle, left of the symbol, the same height.
+    expect(at180.side).toBeUndefined();
+    expect(at180.at[0]).toBeLessThan(-2.9);
+    expect(at180.h).toBe(at0.h);
+    const b = symbolBox('power-outlet', '15 A', 180)!;
+    expect(b.x1).toBeCloseTo(2.4);
+    expect(planSymbolSvg('power-outlet', 0, 0, 1, '15 A', 180)).toContain('text-anchor="middle"');
+  });
+
+  it('turns on the sheet and in a saved drawing alike', () => {
+    expect(planSymbolSvg('socket', 10, 10, 1, undefined, 180)).toContain('M10 8.25L10 6.75');
+    const line = planSymbolShapes('socket', 'L', 0, 0, 1, undefined, 90)[1];
+    expect(line.pts).toEqual([[1.75, 0], [3.25, 0]]);
+  });
+});

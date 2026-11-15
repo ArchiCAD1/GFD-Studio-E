@@ -129,7 +129,7 @@ function contentOf(p: Project, type: PlanType, b: string, l: string): Content {
     if (!onLevel(d, b, l) || !wanted(d.feederId)) continue;
     const pal = d.emergency ? EMERGENCY_ITEMS[d.emergency] : LV_PALETTE.find((x) => x.id === d.type);
     const shape = pal?.symbol.shape ?? 'circle', text = pal ? pal.symbol.text : d.type.toUpperCase(), { plan, tag } = (pal?.symbol ?? {}) as { plan?: string; tag?: string };
-    out.marks.push({ x: d.x, y: d.y, key: d.emergency ? `lv:em:${d.emergency}` : `lv:${d.type}`, label: pal?.label ?? d.type.toUpperCase(), svg: (x, y, r) => (plan ? planSymbolSvg(plan, x, y, r / SYMBOL_R_MM, tag) : lvSymbol(shape, text, x, y, r)) });
+    out.marks.push({ x: d.x, y: d.y, key: d.emergency ? `lv:em:${d.emergency}` : `lv:${d.type}`, label: pal?.label ?? d.type.toUpperCase(), svg: (x, y, r) => (plan ? planSymbolSvg(plan, x, y, r / SYMBOL_R_MM, tag, d.rot) : lvSymbol(shape, text, x, y, r)) });
   }
   // The DBs feeding this layout's circuits, and any DB with nothing of either layout yet.
   const used = new Set(p.feeders.filter((f) => (p.lvPoints ?? []).some((d) => d.feederId === f.id && onLevel(d, b, l)) && wanted(f.id)).map((f) => f.boardId));

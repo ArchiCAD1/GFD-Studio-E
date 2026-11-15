@@ -85,11 +85,13 @@ export interface SymbolGeom {
   texts: { at: Pt; s: string; h: number; side?: boolean }[];
 }
 
-/** The symbol `id` at (x, y), `k` units per paper mm. `tag` replaces its text (a board's tag, an outlet's rating). */
-export function symbolGeom(id: string, x: number, y: number, k: number, tag?: string): SymbolGeom | undefined {
+/** The symbol `id` at (x, y), `k` units per paper mm. `tag` replaces its text (a board's tag, an outlet's rating).
+ * `rot` turns it about its point (degrees anticlockwise): its text stays upright, moved with the symbol. */
+export function symbolGeom(id: string, x: number, y: number, k: number, tag?: string, rot = 0): SymbolGeom | undefined {
   const s = PLAN_SYMBOLS[id];
   if (!s) return undefined;
-  const at = ([px, py]: Pt): Pt => [x + px * k, y + py * k];
+  const a = (rot * Math.PI) / 180, cos = rot % 90 ? Math.cos(a) : [1, 0, -1, 0][((rot / 90) % 4 + 4) % 4], sin = rot % 90 ? Math.sin(a) : [0, 1, 0, -1][((rot / 90) % 4 + 4) % 4];
+  const at = ([px, py]: Pt): Pt => [x + (px * cos - py * sin) * k, y + (px * sin + py * cos) * k];
   const out: SymbolGeom = { paths: [], circles: [], texts: [] };
   for (const p of s.prims) {
     if (p.k === 'line') out.paths.push({ pts: p.pts.map(at), ...(p.closed ? { closed: true } : {}), ...(p.fill ? { fill: true } : {}) });
@@ -98,14 +100,19 @@ export function symbolGeom(id: string, x: number, y: number, k: number, tag?: st
       const n = Math.max(2, Math.ceil((p.a1 - p.a0) / 10)), pts: Pt[] = [];
       for (let i = 0; i <= n; i += 1) { const a = ((p.a0 + ((p.a1 - p.a0) * i) / n) * Math.PI) / 180; pts.push(at([p.c[0] + p.r * Math.cos(a), p.c[1] + p.r * Math.sin(a)])); }
       out.paths.push({ pts });
-    } else out.texts.push({ at: at(p.at), s: tag && !out.texts.length ? tag : p.s, h: p.h * k, ...(p.side ? { side: true } : {}) });
+    } else {
+      const text = tag && !out.texts.length ? tag : p.s;
+      // Turned: text beside the symbol is placed by its middle, so it stays clear of the symbol on every side.
+      if (rot && p.side) out.texts.push({ at: at([p.at[0] + textWidth(text, p.h) / 2, p.at[1]]), s: text, h: p.h * k });
+      else out.texts.push({ at: at(p.at), s: text, h: p.h * k, ...(p.side ? { side: true } : {}) });
+    }
   }
   return out;
 }
 
 /** The symbol's extents about its point in paper mm (text included, by its drawn width). */
-export function symbolBox(id: string, tag?: string): { x0: number; y0: number; x1: number; y1: number } | undefined {
-  const g = symbolGeom(id, 0, 0, 1, tag);
+export function symbolBox(id: string, tag?: string, rot = 0): { x0: number; y0: number; x1: number; y1: number } | undefined {
+  const g = symbolGeom(id, 0, 0, 1, tag, rot);
   if (!g) return undefined;
   const xs: number[] = [], ys: number[] = [];
   for (const p of g.paths) for (const q of p.pts) { xs.push(q[0]); ys.push(q[1]); }
@@ -116,8 +123,8 @@ export function symbolBox(id: string, tag?: string): { x0: number; y0: number; x
 
 const n = (v: number) => +v.toFixed(2);
 /** The symbol on a sheet (SVG, mm, y down) at (x, y), `k` sheet mm per symbol mm: black lines 0.25 mm on white. */
-export function planSymbolSvg(id: string, x: number, y: number, k = 1, tag?: string): string {
-  const g = symbolGeom(id, 0, 0, k, tag);
+export function planSymbolSvg(id: string, x: number, y: number, k = 1, tag?: string, rot = 0): string {
+  const g = symbolGeom(id, 0, 0, k, tag, rot);
   if (!g) return '';
   const P = ([px, py]: Pt) => `${n(x + px)} ${n(y - py)}`;
   const body = [
@@ -129,8 +136,8 @@ export function planSymbolSvg(id: string, x: number, y: number, k = 1, tag?: str
 }
 
 /** The symbol as saved in a DXF / DWG on `layer` (drawing units): lines, circles and its text. */
-export function planSymbolShapes(id: string, layer: string, x: number, y: number, k: number, tag?: string): ShapeOut[] {
-  const g = symbolGeom(id, x, y, k, tag);
+export function planSymbolShapes(id: string, layer: string, x: number, y: number, k: number, tag?: string, rot = 0): ShapeOut[] {
+  const g = symbolGeom(id, x, y, k, tag, rot);
   if (!g) return [];
   return [
     ...g.paths.map((p): ShapeOut => ({ layer, kind: p.pts.length > 2 || p.closed ? 'pline' : 'line', pts: p.pts, ...(p.closed ? { closed: true } : {}) })),

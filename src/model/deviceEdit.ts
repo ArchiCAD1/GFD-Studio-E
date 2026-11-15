@@ -87,7 +87,7 @@ export function copyDevices(p: Project, items: PlacedItem[], dx: number, dy: num
     if (it.what === 'lv') {
       const d = lvOf(p, it.id);
       if (!d) continue;
-      next = placeLvPoint(next, level, d.type, d.feederId, it.x + dx, it.y + dy, d.emergency).project;
+      next = placeLvPoint(next, level, d.type, d.feederId, it.x + dx, it.y + dy, d.emergency, d.luminaire, d.rot).project;
     } else if (it.what === 'elv') {
       const c = copyElv(next, it.id, level, it.x + dx, it.y + dy);
       if (!c) continue;
