@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.157', date: '2026-11-15',
+    items: [
+      { title: 'SLD: the equipment library is a thin strip', text: 'The equipment library is now a thin strip at the edge of the drawing instead of the side panel\'s Equipment tab: search, your favourites and recent items, then one symbol per category. Click a symbol for its list, then click an item and click the drawing, or drag it. The list closes after a pick; its pin keeps it open. The button at the foot of the strip moves it to the other side. The side panel shows the panels again.' }
+    ]
+  },
+  {
     version: '2.155', date: '2026-11-15',
     items: [
       { title: 'The authority stays with the project', text: 'The authority is chosen when a project starts. On Standards → Design references, a rule set of another authority now shows Change authority…: it names the authority the project is under and needs a tick before it is applied. Rule sets of the same authority apply as before.' }

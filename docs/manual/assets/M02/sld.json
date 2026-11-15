@@ -71,13 +71,13 @@
       "target": "sld-canvas",
       "label": "Interactive SLD canvas",
       "rect": {
-        "x": 246,
+        "x": 300,
         "y": 232.390625,
-        "width": 1048,
+        "width": 994,
         "height": 665
       },
       "point": {
-        "x": 0.48125,
+        "x": 0.498125,
         "y": 0.564890625
       }
     },

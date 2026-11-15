@@ -81,8 +81,8 @@ Answered by the user on 2026-11-15.
 
 ## Built as
 
-- Step 1, v2.152, PR 606 (`feat/sld-equipment-strip`): the strip on the System diagram; the Equipment tab removed.
-- Step 2, v2.153, PR 607 (`feat/sld-board-equipment`, stacked on 606): the strip and drops on the Board tab, with the lists filtered to what the board can take; the view stays on the board.
+- Step 1, v2.157, PR 606 (`feat/sld-equipment-strip`): the strip on the System diagram; the Equipment tab removed.
+- Step 2, v2.158, PR 607 (`feat/sld-board-equipment`, stacked on 606): the strip and drops on the Board tab, with the lists filtered to what the board can take; the view stays on the board.
 
 What differs from the mockup:
 
