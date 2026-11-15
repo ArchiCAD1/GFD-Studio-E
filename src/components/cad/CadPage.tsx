@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import CadCanvas, { type CadHover, type CadMarks, type CadToggles, type CanvasDevice, type CanvasWiring } from './CadCanvas';
 import { NO_ACTIONS, rememberedDrawing, SAMPLE_PLANS, type CadRibbonInfo, type CadState, type CadTool } from './cadState';
 import { cadCommand, type CadAction } from './cadCommands';
@@ -45,7 +45,8 @@ import { circlePts, isAssociative, lostAssociation } from '../../model/cadHatchA
 import { keepComputerPatterns, loadComputerPatterns } from '../../model/cadPatternStore';
 import { erasedOf, restoredErased, shownView, withErased, type ErasedParts } from '../../model/cadErased';
 import { CIRCUIT_ATTRIBUTES } from '../../model/cadLoads';
-import { cableLabel, cablesOf, circuitLabel, finalCircuits, LV_PALETTE, moveItem, placedOn, placeItem, placeLvPoint, removeItem, type PaletteItem, type PlacedItem } from '../../model/cadDevices';
+import PlanSymbolIcon from './PlanSymbolIcon';
+import { cableLabel, cablesOf, circuitLabel, finalCircuits, LV_PALETTE, PALETTE_GROUPS, moveItem, placedOn, placeItem, placeLvPoint, removeItem, type PaletteItem, type PlacedItem } from '../../model/cadDevices';
 import { addSketch, withSketchItems, pointStyleOut, blockDefsOut, arcStartCentreEnd, arcThrough, circle2P, circleThrough, dimLabel, dimMeasure, dimOf, linearDir, nextDim, ellipseOf, polygonPts, itemAt, moved, rectangle, removeSketch, rotated, segmentsOf, shapesOut, sketchOf, snapPoints, trayLength, TRAY_LAYER, TRAY_SERVICES, TRAY_WIDTHS, typedPoint, updateSketch, withText } from '../../model/cadSketch';
 import { routeSettings, sizeRoute, trayPlanOf } from '../../calc/cableTray';
 import { fittingCounts, trayFittings, type TrayFitting } from '../../model/cadTrayFittings';
@@ -701,9 +702,9 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const devs: DeviceOut[] = [], symbols: ShapeOut[] = [], k = rUnits / SYMBOL_R_MM;
     for (const d of list) {
       const layer = d.what === 'lv' ? 'E-LV-POINTS' : d.what === 'elv' ? 'E-ELV-DEVICES' : 'E-BOARDS', x = d.x / units.factor, y = d.y / units.factor;
-      const label = d.what === 'lv' ? d.detail.split(' · ')[0] : d.label, plan = 'plan' in d.symbol ? d.symbol.plan : undefined, box = plan ? symbolBox(plan) : undefined;
+      const label = d.what === 'lv' ? d.detail.split(' · ')[0] : d.label, { plan, tag } = d.symbol as PaletteItem['symbol'], box = plan ? symbolBox(plan, tag) : undefined;
       if (!plan || !box) { devs.push({ layer, x, y, r: rUnits * (d.what === 'board' ? 2 : 1), text: d.symbol.text, label }); continue; }
-      symbols.push(...planSymbolShapes(plan, layer, x, y, k));
+      symbols.push(...planSymbolShapes(plan, layer, x, y, k, tag));
       if (label) symbols.push({ layer, kind: 'text', pts: [[x + (box.x1 + 0.6) * k, y - textH * 0.3]], text: label, h: textH * 0.6, rot: 0 });
     }
     return { devs, symbols };
@@ -734,7 +735,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     ...arlAt.map(([x, y], i) => ({ key: `arl${i}`, x: x / units.factor, y: y / units.factor, r: rUnits, shape: arlItem?.symbol.shape ?? 'cross', text: arlItem?.symbol.text ?? '', label: '', ghost: true }))
   ];
   const devices: CanvasDevice[] = cad.showDevices ? [...ghosts, ...placed.filter((d) => shown(d.key)).map((d) => ({
-    key: d.key, x: d.x / units.factor, y: d.y / units.factor, r: d.what === 'board' ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text, ...(d.symbol.plan ? { plan: d.symbol.plan } : {}),
+    key: d.key, x: d.x / units.factor, y: d.y / units.factor, r: d.what === 'board' ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text, ...('plan' in d.symbol && d.symbol.plan ? { plan: d.symbol.plan, tag: d.symbol.tag } : {}),
     label: d.what === 'lv' ? d.detail.split(' · ')[0] : d.what === 'board' ? d.label : '', selected: pickedKeys.has(d.key), elv: d.what === 'elv'
   }))] : ghosts;
   // Circuit wiring on this level (metres), and as the canvas draws it (drawing units).
@@ -4258,9 +4259,18 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
             <>
               <h4>Devices</h4>
               <div className="cad-pal" role="group" aria-label="Device to place">
-                {palette.map((x) => (
-                  <button key={x.id} aria-pressed={cad.device === x.id} className={'elv' in x.kind ? 'elv' : 'lv'} onClick={() => { cad.setDevice(x.id); if (tool !== 'fill' || !('elv' in x.kind)) cad.setTool('dev'); }}>{x.symbol.text || '●'}<span>{x.label}</span></button>
-                ))}
+                {[...PALETTE_GROUPS, 'ELV'].map((name) => {
+                  const items = palette.filter((x) => (('group' in x && x.group) || 'ELV') === name);
+                  return items.length === 0 ? null : (
+                    <Fragment key={name}>
+                      <span className="cad-pal-h">{name}</span>
+                      {items.map((x) => {
+                        const s = x.symbol as PaletteItem['symbol'], icon = s.plan ?? s.icon;
+                        return <button key={x.id} aria-pressed={cad.device === x.id} className={'elv' in x.kind ? 'elv' : 'lv'} onClick={() => { cad.setDevice(x.id); if (tool !== 'fill' || !('elv' in x.kind)) cad.setTool('dev'); }}>{icon ? <PlanSymbolIcon id={icon} tag={s.tag} /> : x.symbol.text || '●'}<span>{x.label}</span></button>;
+                      })}
+                    </Fragment>
+                  );
+                })}
               </div>
               <div className="cad-devform">
                 {floors.length > 0 && (

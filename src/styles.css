@@ -2203,6 +2203,9 @@ svg .ph-tag.click{cursor:pointer}svg .ph-tag.click:hover rect{fill:color-mix(in 
 .cad-pal{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-1);padding:0 var(--space-3) var(--space-2)}
 .cad-pal button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px;background:var(--p2);border:1px solid var(--line);border-radius:var(--radius-sm);font-size:var(--fs-xs);line-height:1.2;text-align:center}
 .cad-pal button[aria-pressed=true]{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 12%,var(--p2))}
+.cad-pal-h{grid-column:1/-1;font-size:var(--fs-xs);color:var(--mut)}
+.cad-pal svg{flex:none;overflow:visible;fill:none;stroke:currentColor;stroke-width:.25}
+.cad-pal svg text{fill:currentColor;stroke:none}
 .cad-pal .elv{color:var(--cad-elv)}
 .cad-pal .lv{color:var(--cad-dev)}
 .cad-devform{display:grid;gap:var(--space-2);padding:0 var(--space-3) var(--space-2)}

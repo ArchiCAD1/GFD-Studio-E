@@ -37,7 +37,7 @@ export interface CadToggles { snap: boolean; osnap: boolean; ortho: boolean; gri
  * cursor; `closed` outlines are shaded. */
 /** A device placed in the app, drawn over the drawing (drawing units, absolute): its symbol, letters and label. */
 /** `plan`: a plan symbol (src/model/planSymbols.ts) drawn in place of `shape` and `text`, `r` the symbol radius (SYMBOL_R_MM on paper). */
-export interface CanvasDevice { key: string; x: number; y: number; r: number; shape: string; text: string; label: string; plan?: string; selected?: boolean; elv?: boolean; ghost?: boolean }
+export interface CanvasDevice { key: string; x: number; y: number; r: number; shape: string; text: string; label: string; plan?: string; tag?: string; selected?: boolean; elv?: boolean; ghost?: boolean }
 /** A wired circuit (drawing units, absolute): arcs between its devices, the home run to its DB (an arrow at the DB) and
  * its tag; `warn` when it has no home run. */
 export interface CanvasWiring { arcs: { a: Pt; c: Pt; b: Pt }[]; home?: { a: Pt; c: Pt; b: Pt }; tag?: { at: Pt; s: string; warn: boolean } }
@@ -640,7 +640,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       ctx.strokeStyle = d.selected ? selC : d.elv ? elvC : lvC;
       ctx.lineWidth = (d.selected ? 3 : 1.5) / scale;
       ctx.globalAlpha = d.ghost ? 0.45 : 1; // a Fill room preview
-      const g = d.plan ? symbolGeom(d.plan, x, y, r / SYMBOL_R_MM) : undefined;
+      const g = d.plan ? symbolGeom(d.plan, x, y, r / SYMBOL_R_MM, d.tag) : undefined;
       if (g) {
         // A plan symbol: its lines and circles, the filled pieces in the line's colour.
         ctx.beginPath();
@@ -710,11 +710,11 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       if (px < 4) continue;
       const sx = (d.x - o0 - ox) * scale, sy = size.h - (d.y - o1 - oy) * scale;
       ctx.fillStyle = d.selected ? selC : d.elv ? elvC : lvC;
-      const g = d.plan ? symbolGeom(d.plan, 0, 0, d.r / SYMBOL_R_MM) : undefined;
+      const g = d.plan ? symbolGeom(d.plan, 0, 0, d.r / SYMBOL_R_MM, d.tag) : undefined;
       // A plan symbol's own text, its capitals at the symbol's height.
       if (g) for (const t of g.texts) { const cap = t.h * scale; ctx.font = `${cap / 0.716}px system-ui, sans-serif`; ctx.textAlign = t.side ? 'left' : 'center'; ctx.fillText(t.s, sx + t.at[0] * scale, sy - t.at[1] * scale + cap / 2); }
       else if (d.text) { ctx.font = `600 ${Math.min(px * 0.8, 40)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(d.text, sx, sy + px * 0.3); }
-      if (px >= 7 && d.label) { ctx.font = `${Math.min(Math.max(px * 0.6, 9), 16)}px system-ui, sans-serif`; ctx.textAlign = 'left'; ctx.fillText(d.label, sx + (d.plan && g ? ((symbolBox(d.plan)!.x1 + 0.6) / SYMBOL_R_MM) * px : px * 1.3), sy + px * 0.3); }
+      if (px >= 7 && d.label) { ctx.font = `${Math.min(Math.max(px * 0.6, 9), 16)}px system-ui, sans-serif`; ctx.textAlign = 'left'; ctx.fillText(d.label, sx + (d.plan && g ? ((symbolBox(d.plan, d.tag)!.x1 + 0.6) / SYMBOL_R_MM) * px : px * 1.3), sy + px * 0.3); }
     }
     // Wiring tags, at screen size beside the home run (in red when it has none).
     ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'left';

@@ -39,18 +39,25 @@ export const EMERGENCY_ITEMS: Record<EmergencyKind, { label: string; symbol: { s
 
 /** The devices the CAD palette offers (ELV ones come from the ELV side with `kind: { elv }`). */
 export type CadDeviceKind = { lv: PointType } | { elv: string } | { board: true };
-/** `plan`: the item's plan symbol (src/model/planSymbols.ts), drawn in place of the plain `shape`. */
-export interface PaletteItem { id: string; label: string; kind: CadDeviceKind; symbol: { shape: string; text: string; plan?: string } }
+/** `plan`: the item's plan symbol (src/model/planSymbols.ts), drawn in place of the plain `shape`, `tag` the text
+ * beside it (a rating); `icon`: the symbol its palette button shows. `group`: its heading on the palette. */
+export interface PaletteItem { id: string; label: string; kind: CadDeviceKind; group?: string; symbol: { shape: string; text: string; plan?: string; tag?: string; icon?: string } }
+/** The palette's headings, in order (ELV devices follow under their own). */
+export const PALETTE_GROUPS = ['Lighting', 'Sockets', 'Equipment', 'Boards'];
 
 export const LV_PALETTE: PaletteItem[] = [
-  { id: 'ltg', label: 'Light', kind: { lv: 'ltg' }, symbol: { shape: 'cross', text: '' } },
-  { id: 's13', label: 'Socket 13 A', kind: { lv: 's13' }, symbol: { shape: 'rect', text: '', plan: 'socket' } },
-  { id: 's13t', label: 'Twin socket', kind: { lv: 's13t' }, symbol: { shape: 'twin', text: '', plan: 'socket-twin' } },
-  { id: 'cfan', label: 'Ceiling fan', kind: { lv: 'cfan' }, symbol: { shape: 'circle', text: 'F' } },
-  { id: 'exfan', label: 'Exhaust fan', kind: { lv: 'exfan' }, symbol: { shape: 'circle', text: 'EF', plan: 'exhaust-fan' } },
-  { id: 'sac', label: 'Split A/C', kind: { lv: 'sac' }, symbol: { shape: 'square', text: 'AC' } },
-  { id: 'wh', label: 'Water heater', kind: { lv: 'wh' }, symbol: { shape: 'square', text: 'WH' } },
-  { id: 'db', label: 'DB', kind: { board: true }, symbol: { shape: 'rect', text: 'DB' } }
+  { id: 'ltg', label: 'Light', group: 'Lighting', kind: { lv: 'ltg' }, symbol: { shape: 'cross', text: '', icon: 'light' } },
+  { id: 'cfan', label: 'Ceiling fan', group: 'Lighting', kind: { lv: 'cfan' }, symbol: { shape: 'circle', text: 'F', icon: 'ceiling-fan' } },
+  { id: 'exfan', label: 'Exhaust fan', group: 'Lighting', kind: { lv: 'exfan' }, symbol: { shape: 'circle', text: 'EF', plan: 'exhaust-fan' } },
+  { id: 's13', label: 'Socket 13 A', group: 'Sockets', kind: { lv: 's13' }, symbol: { shape: 'rect', text: '', plan: 'socket' } },
+  { id: 's13t', label: 'Twin socket', group: 'Sockets', kind: { lv: 's13t' }, symbol: { shape: 'twin', text: '', plan: 'socket-twin' } },
+  { id: 'shaver', label: 'Shaver outlet', group: 'Sockets', kind: { lv: 'shaver' }, symbol: { shape: 'rect', text: 'SH', plan: 'shaver' } },
+  { id: 's15', label: 'Power outlet 15 A', group: 'Sockets', kind: { lv: 's15' }, symbol: { shape: 'rect', text: '15', plan: 'power-outlet', tag: '15 A' } },
+  { id: 'sac', label: 'Split A/C', group: 'Equipment', kind: { lv: 'sac' }, symbol: { shape: 'square', text: 'AC', icon: 'split-ac' } },
+  { id: 'wh', label: 'Water heater', group: 'Equipment', kind: { lv: 'wh' }, symbol: { shape: 'square', text: 'WH', icon: 'water-heater' } },
+  { id: 'hd', label: 'Hand dryer', group: 'Equipment', kind: { lv: 'hd' }, symbol: { shape: 'rect', text: 'HD', plan: 'hand-dryer' } },
+  { id: 'db', label: 'DB', group: 'Boards', kind: { board: true }, symbol: { shape: 'rect', text: 'DB', icon: 'db' } },
+  { id: 'isol', label: 'Isolator', group: 'Boards', kind: { lv: 'isol' }, symbol: { shape: 'rect', text: 'IS', plan: 'isolator' } }
 ];
 
 /** The smallest room outline on the level around a point (metres). */
