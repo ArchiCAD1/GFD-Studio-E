@@ -15,6 +15,14 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.148', date: '2026-11-15',
+    items: [
+      { title: 'Projects: saved as .lvds files', text: 'Projects are now saved as .lvds files, with the same content as before. Older .json projects still open; their next save writes a .lvds and keeps the .json as its backup (name.lvds.bak). Double-click a .lvds to open it in the app.' },
+      { title: 'Project tab: Export JSON', text: 'Export JSON saves the open project as a plain .json file, for scripts and other programs. From the command line: lvds project-json <project>.' },
+      { title: 'Beta downloads for Windows and Mac', text: 'The About page of the LV Design Studio website now shows screenshots of the app, and its Download page offers unsigned beta installers for Windows x64 and Apple-silicon Macs. A beta build tells you when a newer beta is out; it never downloads or installs one itself.' }
+    ]
+  },
+  {
     version: '2.146', date: '2026-11-14',
     items: [
       { title: 'Design CAD: dimension text centred in saved files', text: 'In a DXF or DWG saved from Design CAD, the text of a dimension you drew is now centred where the app and the sheets show it. Other CAD programs used to show it starting at that point, half its width to one side.' }
