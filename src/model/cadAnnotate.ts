@@ -22,6 +22,10 @@ export const ANNO_START: AnnoSettings = { textMm: 2.5, scale: 100 };
 export const annoOf = (p: Project): AnnoSettings => ({ ...ANNO_START, ...(p.cadAnno ?? {}) });
 /** Drawing units per paper mm at the annotation scale. */
 export const unitsPerPaperMm = (a: AnnoSettings, metresPerUnit: number) => a.scale / 1000 / metresPerUnit;
+/** A device symbol's radius on paper (mm): symbols are annotation, the same size on paper at every scale. */
+export const SYMBOL_R_MM = 1.8;
+/** A device symbol's radius in drawing units (3.6 mm across on paper, as plan sheets print it: 0.18 m on the plan at 1:100). */
+export const symbolUnits = (a: AnnoSettings, metresPerUnit: number) => SYMBOL_R_MM * unitsPerPaperMm(a, metresPerUnit);
 /** Text height in drawing units. */
 export const textUnits = (a: AnnoSettings, metresPerUnit: number) => a.textMm * unitsPerPaperMm(a, metresPerUnit);
 
