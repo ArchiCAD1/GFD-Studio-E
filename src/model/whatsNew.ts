@@ -15,9 +15,22 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.152', date: '2026-11-15',
+    version: '2.157', date: '2026-11-15',
     items: [
       { title: 'SLD: the equipment library is a thin strip', text: 'The equipment library is now a thin strip at the edge of the drawing instead of the side panel\'s Equipment tab: search, your favourites and recent items, then one symbol per category. Click a symbol for its list, then click an item and click the drawing, or drag it. The list closes after a pick; its pin keeps it open. The button at the foot of the strip moves it to the other side. The side panel shows the panels again.' }
+    ]
+  },
+  {
+    version: '2.155', date: '2026-11-15',
+    items: [
+      { title: 'The authority stays with the project', text: 'The authority is chosen when a project starts. On Standards → Design references, a rule set of another authority now shows Change authority…: it names the authority the project is under and needs a tick before it is applied. Rule sets of the same authority apply as before.' }
+    ]
+  },
+  {
+    version: '2.154', date: '2026-11-15',
+    items: [
+      { title: 'Sheets: push a panel schedule to the load schedule', text: 'Push to load schedule now works for a panel schedule (MDB, SMDB, MCC) as well as a DB schedule. A row that names a panel (SMDB-1, DB-GF) makes that panel under it, other rows become feeders, and SPARE and SPACE rows become spares. An INCOMER row sets the panel\'s incomer. A panel\'s load comes from its own schedule, so push those sheets too.', action: 'sheets' },
+      { title: 'Sheets: SPARE and SPACE rows of a DB schedule', text: 'A row of a DB schedule that reads SPARE or SPACE and has no load now becomes a spare way or a space at its circuit reference, as in the DB\'s own schedule, not a circuit named SPARE. Pushing the sheet again updates it.', action: 'sheets' }
     ]
   },
   {
