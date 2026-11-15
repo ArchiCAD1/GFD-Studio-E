@@ -16,7 +16,7 @@ export type SymPrim =
   | { k: 'arc'; c: Pt; r: number; a0: number; a1: number } // degrees, anticlockwise from a0 to a1
   | { k: 'text'; at: Pt; s: string; h: number; side?: true };
 
-export type PlanSymbolGroup = 'socket' | 'switch' | 'board' | 'isolator' | 'box';
+export type PlanSymbolGroup = 'socket' | 'switch' | 'board' | 'isolator' | 'box' | 'plain';
 export interface PlanSymbol { id: string; label: string; group: PlanSymbolGroup; prims: SymPrim[] }
 
 // Written as on the sheet (y down the paper), kept with y up.
@@ -66,7 +66,13 @@ const LIST: PlanSymbol[] = [
   sym('junction-box', 'Junction box', 'box', [C(0, 0, 1.75), T(0, 0, 'J')]),
   sym('pull-box', 'Pull box', 'box', [R(-1.75, -1.75, 3.5, 3.5), T(0, 0, 'P')]),
   sym('junction-box-ceiling', 'Junction box above ceiling', 'box', [C(0, 0, 1.75), T(0, 0, 'J'), Q('C', 2.3, 1.2)]),
-  sym('hand-dryer', 'Hand dryer', 'box', board('HD', 5))
+  sym('hand-dryer', 'Hand dryer', 'box', board('HD', 5)),
+
+  // The plain symbols the plan has always drawn (a light, a fan, a square with letters), for the palette's buttons.
+  sym('light', 'Light', 'plain', [C(0, 0, 1.8), L(-1.26, -1.26, 1.26, 1.26), L(-1.26, 1.26, 1.26, -1.26)]),
+  sym('ceiling-fan', 'Ceiling fan', 'plain', [C(0, 0, 1.8), T(0, 0, 'F')]),
+  sym('split-ac', 'Split A/C', 'plain', [R(-1.8, -1.8, 3.6, 3.6), T(0, 0, 'AC', 1.4)]),
+  sym('water-heater', 'Water heater', 'plain', [R(-1.8, -1.8, 3.6, 3.6), T(0, 0, 'WH', 1.3)])
 ];
 
 export const PLAN_SYMBOLS: Record<string, PlanSymbol> = Object.fromEntries(LIST.map((s) => [s.id, s]));
@@ -98,8 +104,8 @@ export function symbolGeom(id: string, x: number, y: number, k: number, tag?: st
 }
 
 /** The symbol's extents about its point in paper mm (text included, by its drawn width). */
-export function symbolBox(id: string): { x0: number; y0: number; x1: number; y1: number } | undefined {
-  const g = symbolGeom(id, 0, 0, 1);
+export function symbolBox(id: string, tag?: string): { x0: number; y0: number; x1: number; y1: number } | undefined {
+  const g = symbolGeom(id, 0, 0, 1, tag);
   if (!g) return undefined;
   const xs: number[] = [], ys: number[] = [];
   for (const p of g.paths) for (const q of p.pts) { xs.push(q[0]); ys.push(q[1]); }

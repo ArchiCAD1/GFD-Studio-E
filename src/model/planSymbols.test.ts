@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ANNO_START, SYMBOL_R_MM, symbolUnits } from './cadAnnotate';
-import { LV_PALETTE } from './cadDevices';
+import { LV_PALETTE, PALETTE_GROUPS } from './cadDevices';
 import { PLAN_SYMBOL_IDS, PLAN_SYMBOLS, planSymbolShapes, planSymbolSvg, symbolBox, symbolGeom } from './planSymbols';
 
 describe('plan symbols', () => {
@@ -14,9 +14,10 @@ describe('plan symbols', () => {
     for (const scale of [50, 100, 200]) expect((symbolUnits({ ...ANNO_START, scale }, 1) * 1000) / scale).toBeCloseTo(SYMBOL_R_MM, 6);
   });
 
-  it('holds the 26 symbols, each with a name and unique id', () => {
-    expect(PLAN_SYMBOL_IDS).toHaveLength(26);
-    expect(new Set(PLAN_SYMBOL_IDS).size).toBe(26);
+  it('holds the 26 plan symbols and the 4 plain ones, each with a name and unique id', () => {
+    expect(PLAN_SYMBOL_IDS.filter((id) => PLAN_SYMBOLS[id].group !== 'plain')).toHaveLength(26);
+    expect(PLAN_SYMBOL_IDS).toHaveLength(30);
+    expect(new Set(PLAN_SYMBOL_IDS).size).toBe(30);
     for (const id of PLAN_SYMBOL_IDS) { expect(PLAN_SYMBOLS[id].label).not.toBe(''); expect(PLAN_SYMBOLS[id].prims.length).toBeGreaterThan(0); }
   });
 
@@ -66,9 +67,22 @@ describe('plan symbols', () => {
     expect(planSymbolShapes('socket', 'L', 0, 0, 1).map((s) => s.kind)).toEqual(['pline', 'line', 'line']);
   });
 
-  it('the palette points only at symbols that exist', () => {
+  it('the palette points only at symbols that exist, every item under a heading with a symbol for its button', () => {
     const linked = LV_PALETTE.filter((x) => x.symbol.plan);
-    expect(linked.map((x) => x.id)).toEqual(['s13', 's13t', 'exfan']);
-    for (const x of linked) expect(PLAN_SYMBOLS[x.symbol.plan!]).toBeDefined();
+    expect(linked.map((x) => x.id)).toEqual(['exfan', 's13', 's13t', 'shaver', 's15', 'hd', 'isol']);
+    for (const x of LV_PALETTE) {
+      expect(PALETTE_GROUPS, x.id).toContain(x.group);
+      expect(PLAN_SYMBOLS[(x.symbol.plan ?? x.symbol.icon)!], x.id).toBeDefined();
+    }
+    // Each point type once: placing counts on the circuit by its type.
+    expect(new Set(LV_PALETTE.map((x) => x.id)).size).toBe(LV_PALETTE.length);
+    for (const x of LV_PALETTE) if ('lv' in x.kind) expect(x.kind.lv).toBe(x.id);
+  });
+
+  it('a power outlet carries its rating beside the socket', () => {
+    const s15 = LV_PALETTE.find((x) => x.id === 's15')!.symbol;
+    expect(symbolGeom(s15.plan!, 0, 0, 1, s15.tag)!.texts.map((t) => t.s)).toEqual(['15 A']);
+    expect(planSymbolSvg(s15.plan!, 0, 0, 1, s15.tag)).toContain('>15 A</text>');
+    expect(symbolBox(s15.plan!, s15.tag)!.x1).toBeLessThan(symbolBox(s15.plan!, '100 A TPN')!.x1);
   });
 });
