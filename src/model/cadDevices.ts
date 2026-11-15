@@ -24,7 +24,11 @@ export interface LvPoint {
   emergency?: EmergencyKind;
   /** The luminaire Light room (LUX) placed, kept with the point so the BOQ counts lights by type. */
   luminaire?: PointLuminaire;
+  /** The symbol turned on the plan (degrees anticlockwise: 90, 180 or 270), so a socket or switch faces its wall. */
+  rot?: number;
 }
+/** A rotation as kept on a point: 0, 90, 180 or 270. */
+export const rightAngle = (deg: number | undefined) => ((Math.round((deg ?? 0) / 90) % 4) + 4) % 4 * 90;
 
 /** A luminaire as placed: a copy of the catalogue entry, so a later catalogue change does not change the design. */
 export interface PointLuminaire { id: string; label: string; watts: number; lumens: number; manufacturer?: string }
@@ -99,11 +103,17 @@ const withCount = (p: Project, feederId: string, type: PointType, delta: number)
 };
 
 /** Places an LV point on a circuit: added to the plan and counted on the circuit. */
-export function placeLvPoint(p: Project, level: LevelRef, type: PointType, feederId: string, x: number, y: number, emergency?: EmergencyKind, luminaire?: PointLuminaire): { project: Project; id: string } {
+export function placeLvPoint(p: Project, level: LevelRef, type: PointType, feederId: string, x: number, y: number, emergency?: EmergencyKind, luminaire?: PointLuminaire, rot?: number): { project: Project; id: string } {
   if (!p.feeders.some((f) => f.id === feederId)) throw new Error('Choose the circuit the point is on.');
   const id = `P${nextLvId(p)}`;
-  const point: LvPoint = { id, type, feederId, buildingId: level.building, levelId: level.level, x, y, ...(emergency ? { emergency } : {}), ...(luminaire ? { luminaire } : {}) };
+  const point: LvPoint = { id, type, feederId, buildingId: level.building, levelId: level.level, x, y, ...(emergency ? { emergency } : {}), ...(luminaire ? { luminaire } : {}), ...(rightAngle(rot) ? { rot: rightAngle(rot) } : {}) };
   return { project: withCount({ ...p, lvPoints: [...(p.lvPoints ?? []), point] }, feederId, type, 1), id };
+}
+
+/** Turns LV points to a rotation (degrees anticlockwise, kept as a right angle). */
+export function rotateLvPoints(p: Project, ids: string[], rot: number): Project {
+  const r = rightAngle(rot);
+  return { ...p, lvPoints: (p.lvPoints ?? []).map((d) => { if (!ids.includes(d.id)) return d; const { rot: _old, ...rest } = d; return r ? { ...rest, rot: r } : rest; }) };
 }
 
 export function moveLvPoint(p: Project, id: string, x: number, y: number): Project {
@@ -127,7 +137,7 @@ export function placeBoard(p: Project, boardId: string, level: LevelRef, x: numb
 }
 
 /** One device shown in the CAD view (metres on the level's plan). */
-export interface PlacedItem { key: string; id: string; what: 'lv' | 'elv' | 'board'; x: number; y: number; label: string; detail: string; symbol: PaletteItem['symbol']; room?: string }
+export interface PlacedItem { key: string; id: string; what: 'lv' | 'elv' | 'board'; x: number; y: number; label: string; detail: string; symbol: PaletteItem['symbol']; room?: string; rot?: number }
 
 /** LV points and boards placed on a level (ELV devices: src/components/elv/elvCadDevices.ts). */
 export function placedOn(p: Project, level: LevelRef): PlacedItem[] {
@@ -135,7 +145,7 @@ export function placedOn(p: Project, level: LevelRef): PlacedItem[] {
   const lv = (p.lvPoints ?? []).filter((d) => d.buildingId === level.building && d.levelId === level.level).map((d): PlacedItem => {
     const f = p.feeders.find((x) => x.id === d.feederId);
     const item = d.emergency ? EMERGENCY_ITEMS[d.emergency] : LV_PALETTE.find((x) => 'lv' in x.kind && x.kind.lv === d.type);
-    return { key: `lv:${d.id}`, id: d.id, what: 'lv', x: d.x, y: d.y, label: item?.label ?? d.type, detail: f ? circuitLabel(p, f) : 'circuit removed', symbol: item?.symbol ?? { shape: 'circle', text: '?' }, room: roomName(d.x, d.y) };
+    return { key: `lv:${d.id}`, id: d.id, what: 'lv', x: d.x, y: d.y, label: item?.label ?? d.type, detail: f ? circuitLabel(p, f) : 'circuit removed', symbol: item?.symbol ?? { shape: 'circle', text: '?' }, room: roomName(d.x, d.y), ...(d.rot ? { rot: d.rot } : {}) };
   });
   const boards = p.boards.filter((b) => b.planPoint && b.level?.building === level.building && b.level?.level === level.level).map((b): PlacedItem => ({
     key: `board:${b.id}`, id: b.id, what: 'board', x: b.planPoint!.x, y: b.planPoint!.y, label: b.id, detail: b.name, symbol: { shape: 'rect', text: 'DB' }, room: b.location
@@ -144,10 +154,10 @@ export function placedOn(p: Project, level: LevelRef): PlacedItem[] {
 }
 
 /** Places an LV palette item (a point on a circuit, or a board) at a point. */
-export function placeItem(p: Project, item: PaletteItem, level: LevelRef, x: number, y: number, target: { feederId?: string; boardId?: string }): { project: Project; message: string } {
+export function placeItem(p: Project, item: PaletteItem, level: LevelRef, x: number, y: number, target: { feederId?: string; boardId?: string; rot?: number }): { project: Project; message: string } {
   if ('elv' in item.kind) throw new Error('ELV devices are placed through the ELV placement.');
   if ('lv' in item.kind) {
-    const { project } = placeLvPoint(p, level, item.kind.lv, target.feederId ?? '', x, y);
+    const { project } = placeLvPoint(p, level, item.kind.lv, target.feederId ?? '', x, y, undefined, undefined, item.symbol.plan ? target.rot : undefined);
     const f = project.feeders.find((q) => q.id === target.feederId)!;
     return { project, message: `${item.label} placed on ${circuitLabel(project, f)} — ${f.points?.[item.kind.lv] ?? 0} on the circuit` };
   }

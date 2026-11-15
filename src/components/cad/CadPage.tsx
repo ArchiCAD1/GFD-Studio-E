@@ -46,7 +46,7 @@ import { keepComputerPatterns, loadComputerPatterns } from '../../model/cadPatte
 import { erasedOf, restoredErased, shownView, withErased, type ErasedParts } from '../../model/cadErased';
 import { CIRCUIT_ATTRIBUTES } from '../../model/cadLoads';
 import PlanSymbolIcon from './PlanSymbolIcon';
-import { cableLabel, cablesOf, circuitLabel, finalCircuits, LV_PALETTE, PALETTE_GROUPS, moveItem, placedOn, placeItem, placeLvPoint, removeItem, type PaletteItem, type PlacedItem } from '../../model/cadDevices';
+import { cableLabel, cablesOf, circuitLabel, finalCircuits, LV_PALETTE, PALETTE_GROUPS, moveItem, placedOn, placeItem, placeLvPoint, removeItem, rotateLvPoints, type PaletteItem, type PlacedItem } from '../../model/cadDevices';
 import { addSketch, withSketchItems, pointStyleOut, blockDefsOut, arcStartCentreEnd, arcThrough, circle2P, circleThrough, dimLabel, dimMeasure, dimOf, linearDir, nextDim, ellipseOf, polygonPts, itemAt, moved, rectangle, removeSketch, rotated, segmentsOf, shapesOut, sketchOf, snapPoints, trayLength, TRAY_LAYER, TRAY_SERVICES, TRAY_WIDTHS, typedPoint, updateSketch, withText } from '../../model/cadSketch';
 import { routeSettings, sizeRoute, trayPlanOf } from '../../calc/cableTray';
 import { fittingCounts, trayFittings, type TrayFitting } from '../../model/cadTrayFittings';
@@ -359,6 +359,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [menuAt, setMenuAt] = useState<Pt | null>(null);
   const [arlSet, setArlSet] = useState<ArlSettings>(ARL_START);
   const [matchFrom, setMatchFrom] = useState<string | null>(null);
+  // The rotation the next socket or switch is placed at (degrees anticlockwise).
+  const [devRot, setDevRot] = useState(0);
   const [matchSet, setMatchSet] = useState<MatchSettings>(MATCH_START);
   const [renaming, setRenaming] = useState<string | null>(null);
   /** A room being renamed or given its type on the command line (the room's right-click menu). */
@@ -702,9 +704,9 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const devs: DeviceOut[] = [], symbols: ShapeOut[] = [], k = rUnits / SYMBOL_R_MM;
     for (const d of list) {
       const layer = d.what === 'lv' ? 'E-LV-POINTS' : d.what === 'elv' ? 'E-ELV-DEVICES' : 'E-BOARDS', x = d.x / units.factor, y = d.y / units.factor;
-      const label = d.what === 'lv' ? d.detail.split(' · ')[0] : d.label, { plan, tag } = d.symbol as PaletteItem['symbol'], box = plan ? symbolBox(plan, tag) : undefined;
+      const label = d.what === 'lv' ? d.detail.split(' · ')[0] : d.label, { plan, tag } = d.symbol as PaletteItem['symbol'], rot = 'rot' in d ? d.rot : undefined, box = plan ? symbolBox(plan, tag, rot) : undefined;
       if (!plan || !box) { devs.push({ layer, x, y, r: rUnits * (d.what === 'board' ? 2 : 1), text: d.symbol.text, label }); continue; }
-      symbols.push(...planSymbolShapes(plan, layer, x, y, k, tag));
+      symbols.push(...planSymbolShapes(plan, layer, x, y, k, tag, rot));
       if (label) symbols.push({ layer, kind: 'text', pts: [[x + (box.x1 + 0.6) * k, y - textH * 0.3]], text: label, h: textH * 0.6, rot: 0 });
     }
     return { devs, symbols };
@@ -735,7 +737,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     ...arlAt.map(([x, y], i) => ({ key: `arl${i}`, x: x / units.factor, y: y / units.factor, r: rUnits, shape: arlItem?.symbol.shape ?? 'cross', text: arlItem?.symbol.text ?? '', label: '', ghost: true }))
   ];
   const devices: CanvasDevice[] = cad.showDevices ? [...ghosts, ...placed.filter((d) => shown(d.key)).map((d) => ({
-    key: d.key, x: d.x / units.factor, y: d.y / units.factor, r: d.what === 'board' ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text, ...('plan' in d.symbol && d.symbol.plan ? { plan: d.symbol.plan, tag: d.symbol.tag } : {}),
+    key: d.key, x: d.x / units.factor, y: d.y / units.factor, r: d.what === 'board' ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text, ...('plan' in d.symbol && d.symbol.plan ? { plan: d.symbol.plan, tag: d.symbol.tag, rot: d.rot } : {}),
     label: d.what === 'lv' ? d.detail.split(' · ')[0] : d.what === 'board' ? d.label : '', selected: pickedKeys.has(d.key), elv: d.what === 'elv'
   }))] : ghosts;
   // Circuit wiring on this level (metres), and as the canvas draws it (drawing units).
@@ -2562,7 +2564,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (!copy) { change(selectedItem.what === 'elv' ? moveElv(project, selectedItem.id, x, y) : moveItem(project, selectedItem, x, y, floor.ref), `${selectedItem.label} moved · ⌘Z to undo`); return; }
     if (selectedItem.what === 'lv') {
       const src = (project.lvPoints ?? []).find((p) => p.id === selectedItem.id)!;
-      change(placeLvPoint(project, floor.ref, src.type, src.feederId, x, y, src.emergency, src.luminaire).project, `${selectedItem.label} copied onto ${selectedItem.detail.split(' · ')[0]} · ⌘Z to undo`);
+      change(placeLvPoint(project, floor.ref, src.type, src.feederId, x, y, src.emergency, src.luminaire, src.rot).project, `${selectedItem.label} copied onto ${selectedItem.detail.split(' · ')[0]} · ⌘Z to undo`);
     } else if (selectedItem.what === 'elv') {
       const src = (project.elvDevices ?? []).find((p) => p.id === selectedItem.id)!;
       change(placeElv(project, src.type, floor.ref, x, y).project, `${selectedItem.label} copied · ⌘Z to undo`);
@@ -3093,7 +3095,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       try {
         const [x, y] = [at[0] * units.factor, at[1] * units.factor];
         const r = 'elv' in item.kind ? placeElv(project, (ELV_PALETTE.find((e) => e.id === item.id) ?? ELV_PALETTE[0]).kind.elv, floor.ref, x, y)
-          : placeItem(project, item, floor.ref, x, y, { feederId: cad.feederId, boardId: cad.boardId });
+          : placeItem(project, item, floor.ref, x, y, { feederId: cad.feederId, boardId: cad.boardId, rot: devRot });
         change(r.project, `${r.message} · ⌘Z to undo`);
       } catch (e) { cad.say(`DEV  ${e instanceof Error ? e.message : String(e)}`); }
     } else if (tool === 'wire') {
@@ -4280,6 +4282,15 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                   <label>Circuit<select aria-label="Circuit" value={cad.feederId} onChange={(e) => cad.setFeederId(e.target.value)}>
                     <option value="">Choose a circuit…</option>
                     {circuits.map((f) => <option key={f.id} value={f.id}>{circuitLabel(project, f)}</option>)}
+                  </select></label>
+                )}
+                {'lv' in item.kind && item.symbol.plan && (
+                  <label>Rotation<select aria-label="Rotation" value={devRot} onChange={(e) => {
+                    const rot = Number(e.target.value), turned = pickedItems.filter((d) => d.what === 'lv' && 'plan' in d.symbol && d.symbol.plan);
+                    setDevRot(rot);
+                    if (turned.length) change(rotateLvPoints(project, turned.map((d) => d.id), rot), `${turned.length} device${turned.length === 1 ? '' : 's'} turned to ${rot}° · ⌘Z to undo`);
+                  }}>
+                    {[0, 90, 180, 270].map((r) => <option key={r} value={r}>{r}°</option>)}
                   </select></label>
                 )}
                 {'board' in item.kind && (
