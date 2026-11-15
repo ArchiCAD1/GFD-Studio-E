@@ -146,3 +146,57 @@ describe('CadFilePaper: editing the viewports of a layout made here', () => {
     expect(d.onPan).not.toHaveBeenCalled();
   });
 });
+
+describe('CadFilePaper: the design made in the app, over the model in each viewport', () => {
+  const piece = '<g fill="#fff" stroke="#000" stroke-width="0.25"><circle cx="100" cy="150" r="1.8"/></g><text x="100" y="140" font-size="2.8" fill="#000">DB-GF1</text>';
+  const showDesign = (design: string[] | undefined, e?: PaperEdit) => act(() => root.render(<CadFilePaper layout={asFileLayout(layoutOf(), 1)} model={model} design={design} edit={e} />));
+  const overlay = () => document.querySelector<SVGSVGElement>('.cad-filepaper-design');
+
+  it('is an SVG the size of the paper over the canvas, each piece clipped to its viewport\'s frame; none without a design', () => {
+    showDesign(undefined);
+    expect(overlay()).toBeNull();
+    showDesign(['', '']);
+    expect(overlay()).toBeNull();
+    showDesign([piece, ''], edit());
+    const svg = overlay()!;
+    expect(svg.getAttribute('viewBox')).toBe('0 0 420 297');
+    expect(svg.style.pointerEvents).toBe('none');
+    // It lies on the paper: as wide as the paper on screen, its left edge 10 mm left of Viewport 1's frame.
+    const f = frame(1), k = parseFloat(f.style.width) / 200;
+    close([parseFloat(svg.style.width), parseFloat(svg.style.height), parseFloat(svg.style.left)], [420 * k, 297 * k, parseFloat(f.style.left) - 10 * k]);
+    // One group, for the viewport that has a piece: clipped to its frame (x 10, y 10 to 287 mm from the bottom: 10 mm from the top).
+    expect([...svg.querySelectorAll('g[data-vp]')].map((g) => g.getAttribute('data-vp'))).toEqual(['0']);
+    const clip = svg.querySelector('clipPath#fpd0 rect')!;
+    expect(['x', 'y', 'width', 'height'].map((a) => Number(clip.getAttribute(a)))).toEqual([10, 10, 200, 277]);
+    expect(svg.querySelector('g[data-vp="0"]')!.getAttribute('clip-path')).toBe('url(#fpd0)');
+    expect(svg.querySelectorAll('circle[r="1.8"]')).toHaveLength(1);
+    expect(svg.textContent).toBe('DB-GF1');
+    // The frames to pick stay above it.
+    expect(svg.compareDocumentPosition(document.querySelector('.cad-vps')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('takes nothing that could run: a script or a handler in a piece is dropped', () => {
+    showDesign(['<circle cx="1" cy="1" r="1.8" onclick="alert(1)"/><script>alert(1)</script>', '']);
+    const svg = overlay()!;
+    expect(svg.querySelector('script')).toBeNull();
+    expect(svg.querySelector('circle')!.hasAttribute('onclick')).toBe(false);
+  });
+
+  it('follows the view while it is dragged in the viewport worked in', () => {
+    const e = edit({ ms: 0 });
+    showDesign([piece, piece], e);
+    const inner = () => overlay()!.querySelector('g[data-vp="0"] > g')!;
+    expect(inner().hasAttribute('transform')).toBe(false);
+    const from = at(100, 100), to = { clientX: from.clientX + 4, clientY: from.clientY - 2 };
+    fire(pane(), 'pointerdown', from);
+    fire(pane(), 'pointermove', to);
+    // 4 px right and 2 px up on screen, in mm on the paper: the piece moves with it (y is down on the page).
+    const m = /translate\(([\d.-]+) ([\d.-]+)\)/.exec(inner().getAttribute('transform')!)!;
+    close([Number(m[1]), Number(m[2])], [4 / from.k, -2 / from.k]);
+    expect(overlay()!.querySelector('g[data-vp="1"] > g')!.hasAttribute('transform')).toBe(false);
+    fire(pane(), 'pointerup', to);
+    expect(inner().hasAttribute('transform')).toBe(false);
+    expect(e.onPan).toHaveBeenCalledTimes(1);
+  });
+});
+

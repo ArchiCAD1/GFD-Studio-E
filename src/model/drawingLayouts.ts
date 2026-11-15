@@ -86,16 +86,18 @@ export function withPaper(l: DrawingLayout, paper: [number, number]): DrawingLay
   const sx = paper[0] / l.paper[0], sy = paper[1] / l.paper[1];
   return { ...l, paper, viewports: l.viewports.map((v) => ({ ...v, x: r1(v.x * sx), y: r1(v.y * sy), w: r1(v.w * sx), h: r1(v.h * sy), vh: v.vh * sy })) };
 }
-/** The layout's viewports in an arrangement (src/model/planViewports.ts), inside the paper's margin: those there keep their centre and scale; new ones show the whole drawing at the scale it fits (a key plan at keyScale of that). */
+/** The layout's viewports in an arrangement (src/model/planViewports.ts), inside the paper's margin: those there keep their centre and scale; new ones show the whole drawing at the scale it fits (a key plan at keyScale of the first viewport's scale, as on a plan sheet). */
 export function arrangeDrawingViewports(l: DrawingLayout, a: VpArrangement, ext: [number, number, number, number], mmPerUnit: number): DrawingLayout {
   const [pw, ph] = l.paper, I = VIEWPORT_INSET_MM, mpu = mmPerUnit > 0 ? mmPerUnit : 1;
   const ok = Number.isFinite(ext[0]) && ext[2] >= ext[0];
   const cx = ok ? (ext[0] + ext[2]) / 2 : 0, cy = ok ? (ext[1] + ext[3]) / 2 : 0;
   const boxes = arrangeBoxes(a, [I, I, pw - 2 * I, ph - 2 * I]);
+  // The plan's scale: the first viewport's, as kept or as fitted to its frame.
+  const first = l.viewports[0], main = first && first.h > 0 ? (first.vh * mpu) / first.h : boxes[0] ? fitScale(ext, boxes[0][2], boxes[0][3], mmPerUnit) : 100;
   const viewports = boxes.map(([bx, by, bw, bh], i): DrawingViewport => {
     const x = bx, y = r1(ph - (by + bh)), old = l.viewports[i];
     if (old) return { ...old, x, y, w: bw, h: bh, vh: old.h > 0 ? (old.vh * bh) / old.h : old.vh };
-    const n = fitScale(ext, bw, bh, mmPerUnit), sc = a.id === 'KEY' && i === 1 ? keyScale(n) : n;
+    const sc = a.id === 'KEY' && i === 1 ? keyScale(main) : fitScale(ext, bw, bh, mmPerUnit);
     return { x, y, w: bw, h: bh, cx, cy, vh: (bh * sc) / mpu };
   });
   return { ...l, viewports };

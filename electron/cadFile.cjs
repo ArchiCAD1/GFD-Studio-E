@@ -39,9 +39,10 @@ async function readDrawingFile(file) {
   return answer.drawing;
 }
 
-/** A drawing file's bytes for the CAD view (read in the window by the same engine), after the same checks. */
-function readDrawingBytes(file) {
-  if (!/\.(dwg|dxf)$/i.test(file)) throw new Error(`${path.basename(file)} is not a DWG or DXF file.`);
+/** A drawing file's bytes for the CAD view (read in the window by the same engine), after the same checks.
+ * `templates`: a drawing template (DWT, a DWG by another name) is taken too. */
+function readDrawingBytes(file, templates = false) {
+  if (!(templates ? /\.(dwg|dxf|dwt)$/i : /\.(dwg|dxf)$/i).test(file)) throw new Error(`${path.basename(file)} is not a ${templates ? 'DWG, DXF or DWT' : 'DWG or DXF'} file.`);
   const size = fs.statSync(file).size;
   if (!size) throw new Error(`${path.basename(file)} is empty.`);
   if (size > MAX_BYTES) throw new Error(`${path.basename(file)} is larger than ${MAX_BYTES / 1024 / 1024} MB.`);

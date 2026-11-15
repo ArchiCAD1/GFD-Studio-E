@@ -80,7 +80,7 @@ import { changeViewports, DrawingViewportPanel, layoutOverlay, layoutsOf, Layout
 import { patchTable, TABLE_WIDTH, tableId, tableName, tablesOf, withTables, type TableKind } from '../../model/sheetTables';
 import { layoutExtent, layoutPaper, layoutRegion, layoutViewports, PLAN_LABEL, PLAN_TYPES, planLegendLabels, planScale as sheetScale } from '../../docs/planLayout';
 import { drawingLayoutFromTemplate, layoutsFromTemplates, loadLayoutTemplates, saveLayoutTemplates, sheetWithTemplate, templateFromFileLayout, templateFromPaper, templateFromSheet, withLayoutTemplate, type LayoutTemplate } from '../../model/layoutTemplates';
-import { layoutPlotHtml } from '../../docs/layoutPlot';
+import { layoutDesign, layoutPlotHtml } from '../../docs/layoutPlot';
 import { ImportLayoutsDialog, LayoutPaperDialog, LayoutPlotDialog, LayoutTemplatesDialog, ScaleListDialog } from './CadLayoutDialogs';
 import { alignView, arrangementOf, arrangeViewports, copyViewport, fitView, isFrozen, isLocked, scalesOf, toggleFrozen, vpName, vpToModel, vpWindow, withScales, type PlanViewport } from '../../model/planViewports';
 import { renumber, setOf, type PlanType } from '../../model/drawingSet';
@@ -843,6 +843,10 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const dwgLayouts = drawingLayoutsOf(project, view?.file);
   const dwgL = drawingLayoutOf(dwgLayouts, cad.layout);
   const paperL = useMemo(() => fileL ?? (dwgL ? asFileLayout(dwgL, (view?.layouts.length ?? 0) + dwgLayouts.indexOf(dwgL) + 1) : undefined), [fileL, dwgL]); // eslint-disable-line react-hooks/exhaustive-deps -- by the layout
+  // The design made in the app, through each viewport of the layout showing: on its paper and in its plot (the level by
+  // its IDs: the floor is worked out anew on every render).
+  const designB = floor?.ref.building, designL = floor?.ref.level;
+  const paperDesign = useMemo(() => (view && paperL ? layoutDesign(project, view.file, view.info.units, paperL, designB && designL ? { building: designB, level: designL } : undefined) : undefined), [project, view, paperL, designB, designL]);
   const layoutNames = [...(view?.layouts ?? []).map((l) => l.name), ...dwgLayouts.map((l) => l.name)];
   const setDwgLayouts = (list: typeof dwgLayouts, what: string) => { if (view) change(withDrawingLayouts(project, view.file, list), `LAYOUT  ${what} · ⌘Z to undo`); };
   /** A layout made on the drawing (+): renamed, copied, moved along the tabs or deleted (its tab's menu and its paper's). */
@@ -936,7 +940,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (!view) { cad.say('LAYOUT  Open a drawing first.'); return; }
     let other: CadView | null = null;
     try {
-      other = await chooseDrawing();
+      other = await chooseDrawing({ templates: true });
       if (!other) return;
       const k = planScale(project, other.file, other.info.units).factor * 1000;
       if (!other.layouts.length) cad.say(`LAYOUT  ${other.file} has no layouts.`);
@@ -4367,7 +4371,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
           }} />}
         {view && paperL ? (
           <div className="cad-stage cad-paper" ref={paperStage} onMouseDown={() => setPaperCtx(null)}>
-            <CadFilePaper layout={paperL} model={view} layersOn={layersOn} edit={paperEdit} onContext={filePaperContext} onDblClick={() => cad.say(fileL ? `LAYOUT  ${fileL.name} is shown as the drawing file has it: work in the model on the Model tab.` : `LAYOUT  ${paperL.name} shows the model: work in it on the Model tab.`)} />
+            <CadFilePaper layout={paperL} model={view} layersOn={layersOn} design={paperDesign} edit={paperEdit} onContext={filePaperContext} onDblClick={() => cad.say(fileL ? `LAYOUT  ${fileL.name} is shown as the drawing file has it: work in the model on the Model tab.` : `LAYOUT  ${paperL.name} shows the model: work in it on the Model tab.`)} />
             {paperCtx && <CadPromptMenu left={paperCtx.at[0] + 4} top={paperCtx.at[1] + 4} items={paperCtx.items} onPick={(x) => { setPaperCtx(null); ctxPick(x); }} />}
           </div>
         ) : view && sheetL ? (
@@ -4474,7 +4478,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
           cad.setLayout(r.id);
         }} />}
       {layoutDlg === 'plot' && view && paperL && <LayoutPlotDialog name={paperL.name} about={fileLayoutTitle(paperL, units.factor * 1000)} paper={[paperOf(paperL).w, paperOf(paperL).h]}
-        html={() => layoutPlotHtml(`${view.file} · ${paperL.name}`, paperL, view, { frames: dwgL?.viewports.map((v) => !!v.frame), layersOn }).html}
+        html={() => layoutPlotHtml(`${view.file} · ${paperL.name}`, paperL, view, { frames: dwgL?.viewports.map((v) => !!v.frame), layersOn, design: paperDesign }).html}
         fileName={`${safeFileName(`${view.file.replace(/\.(dwg|dxf)$/i, '')} ${paperL.name}`)}.pdf`} onStatus={(m) => { cad.say(`PLOT  ${m}`); onStatus(m); }} onClose={() => setLayoutDlg(null)} />}
       {importList && <ImportLayoutsDialog file={importList.file} list={importList.list} onImport={importPicked} onClose={() => setImportList(null)} />}
       {layoutDlg === 'paper' && dwgL && <LayoutPaperDialog layout={dwgL} onClose={() => setLayoutDlg(null)} onSave={(paper) => setDwgLayouts(dwgLayouts.map((l) => (l === dwgL ? withPaper(dwgL, paper) : l)), `${dwgL.name}: ${paperName(paper)}`)} />}

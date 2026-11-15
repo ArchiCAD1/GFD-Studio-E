@@ -15,6 +15,14 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.147', date: '2026-11-15',
+    items: [
+      { title: 'Design CAD: your design on the drawing\'s layouts', text: 'A layout of the drawing — one made with + or the drawing file\'s own — now shows what you made in the app through its viewports, as the Model tab does: devices, DBs, wiring and home runs, cable trays and routes with their tags, and the lines, text, dimensions and hatches you drew. Before, it showed the drawing file\'s own lines and text only. Plot prints the same. Symbols and tags keep their size on the paper at any viewport scale, as on a plan sheet; a small key plan viewport leaves the tags out.', action: 'cad' },
+      { title: 'Design CAD: layouts from a drawing template', text: 'New layout → From another drawing… now takes a drawing template (DWT) as well as a DWG or DXF.', action: 'cad' },
+      { title: 'Design CAD: key plan at the right scale', text: 'Arrange → Plan and key plan on a layout made with + now sets the key plan from the plan\'s scale (a plan at 1:75 gets a key plan at 1:500). It used to come out far too small.', action: 'cad' }
+    ]
+  },
+  {
     version: '2.146', date: '2026-11-14',
     items: [
       { title: 'Design CAD: dimension text centred in saved files', text: 'In a DXF or DWG saved from Design CAD, the text of a dimension you drew is now centred where the app and the sheets show it. Other CAD programs used to show it starting at that point, half its width to one side.' }
