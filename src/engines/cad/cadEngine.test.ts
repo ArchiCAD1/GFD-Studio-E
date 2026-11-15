@@ -68,6 +68,12 @@ describe('CAD engine (Rust, WebAssembly)', () => {
     expect(dwg.info.segments).toBeGreaterThan(100);
     await expect(openDrawing('x.dwg', new TextEncoder().encode('AC1032 broken'))).rejects.toThrow(/could not be read/);
     await expect(openDrawing('x.txt', new Uint8Array([1]))).rejects.toThrow(/not a DWG or DXF/);
+    // A drawing template is a DWG by another name: taken only where templates are asked for.
+    await expect(openDrawing('office.dwt', bytes('tests/fixtures/cad/plan-2018.dwg'))).rejects.toThrow(/not a DWG or DXF/);
+    const dwt = await openDrawing('office.dwt', bytes('tests/fixtures/cad/plan-2018.dwg'), undefined, true);
+    expect([dwt.file, dwt.info.format]).toEqual(['office.dwt', 'DWG']);
+    dwt.close();
+    await expect(openDrawing('x.txt', new Uint8Array([1]), undefined, true)).rejects.toThrow(/not a DWG, DXF or DWT/);
   });
 
   it('lists the blocks inserted with their attributes, for Loads from CAD', () => {

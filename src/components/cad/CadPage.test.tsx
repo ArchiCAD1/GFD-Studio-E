@@ -15,7 +15,7 @@ import { openDrawing } from '../../engines/cad/cadEngine';
 import { dropRefGeometry, keepRefGeometry } from '../../model/cadRefs';
 import '../../engines/cad/cadOps'; // loaded ahead: the engine loads it on demand, which a busy test run can make slow
 import { sampleProject } from '../../data/sampleProject';
-import { placeLvPoint } from '../../model/cadDevices';
+import { placeBoard, placeLvPoint } from '../../model/cadDevices';
 import { planTarget, type PlanTarget } from '../../model/planTarget';
 import { archOnOf } from '../../model/cadLayerState';
 import { dimLabel, dimMeasure, sketchOf } from '../../model/cadSketch';
@@ -1946,6 +1946,69 @@ describe('file tabs', () => {
 
   const lastMsg = () => onChange.mock.calls[onChange.mock.calls.length - 1][1];
 
+  it('LAYOUTMANAGER: lists the tabs of the open drawing; a copy, a rename, a move and a delete made in it are one project change each, and the tabs follow', async () => {
+    const gf = { building: 'V', level: 'GF' };
+    let start: Project = { ...villa, cadPlans: [{ building: 'V', level: 'GF', file: 'sample-villa-gf.dxf', units: 4 }] };
+    for (const [x, y] of [[3, 9], [6, 9.4], [9, 8.8]]) start = placeLvPoint(start, gf, 'ltg', 'DB-GF1-B2', x, y).project;
+    act(() => root.render(<Host start={start} />));
+    await flush();
+    const ltabs = () => [...document.querySelectorAll('[aria-label="Model and layouts"] [role="tab"]')].map((t) => t.textContent);
+    act(() => (document.querySelector('[aria-label="New layout"]') as HTMLButtonElement).click());
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('.cad-ltab')].find((b) => b.textContent === 'Model')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 50, clientY: 500 })));
+    act(() => [...document.querySelectorAll('[role="menuitem"]')].find((b) => b.textContent?.startsWith('Lighting layout'))!.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(ltabs()).toEqual(['Model', 'Layout1', 'Layout2', 'E-LTG-001sheet']);
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('.cad-ltab')].find((b) => b.textContent === 'Layout2')!.click()); // the layout showing
+    const dlg = () => document.querySelector('[aria-label="Layout manager"]');
+    const names = () => [...document.querySelectorAll('[aria-label="Layouts of this drawing"] tbody tr')].map((r) => r.querySelector('td:nth-child(2)')!.textContent);
+    const tick = (name: string) => act(() => document.querySelector<HTMLInputElement>(`[aria-label="Pick ${name}"]`)!.click());
+    const doing = (text: string) => { const n = onChange.mock.calls.length; act(() => button(text).click()); expect(onChange.mock.calls.length, text).toBe(n + 1); };
+    await command('LAYOUTMANAGER');
+    await until(() => !!dlg());
+    const sheetName = project.drawingSet!.sheets.find((x) => x.kind === 'plan')!.number;
+    expect(names()).toEqual(['Layout1', 'Layout2 · current', `${sheetName} — Ground · Lighting layout`]);
+    const texts = [...document.querySelectorAll('[aria-label="Layouts of this drawing"] tbody tr')].map((r) => [...r.querySelectorAll('td')].slice(2).map((c) => c.textContent));
+    expect(texts[1]).toEqual(['Layout', 'A3 landscape', expect.stringMatching(/^1 viewport at 1:\d+/), 'Paper only']);
+    expect(texts[2].slice(2)).toEqual(['Lighting layout · 1:100', "Set's default"]);
+    // Copy a layout made here and the plan sheet in one go: one change, one message, both tabs.
+    tick('Layout2'); tick(`${sheetName} — Ground · Lighting layout`);
+    doing('Copy');
+    expect(lastMsg()).toBe('LAYOUT  2 layouts copied: Layout3, E-LTG-002 · ⌘Z to undo');
+    expect(ltabs()).toEqual(['Model', 'Layout1', 'Layout2', 'Layout3', 'E-LTG-001sheet', 'E-LTG-002sheet']);
+    expect(names()).toHaveLength(5);
+    // Rename the layout made here: the tick and the tab showing follow it.
+    tick(`${sheetName} — Ground · Lighting layout`); // only Layout2 stays ticked
+    act(() => button('Rename…').click());
+    setField('New name', 'Layout1');
+    await act(async () => { document.querySelector('[aria-label="New name"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); });
+    expect(document.querySelector('[role="alert"]')!.textContent).toBe('⚠ There is a layout "Layout1" already.');
+    setField('New name', 'Ground floor');
+    const n0 = onChange.mock.calls.length;
+    await act(async () => { document.querySelector('[aria-label="New name"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); });
+    expect(onChange.mock.calls.length).toBe(n0 + 1);
+    expect(lastMsg()).toBe('LAYOUT  Layout2 renamed Ground floor · ⌘Z to undo');
+    expect(ltabs().slice(1, 4)).toEqual(['Layout1', 'Ground floor', 'Layout3']);
+    expect(state.layout).toBe('dwg:Ground floor');
+    expect((document.querySelector('[aria-label="Pick Ground floor"]') as HTMLInputElement).checked).toBe(true);
+    // Move it down, then delete it and the second sheet: back to the Model tab.
+    doing('Move down');
+    expect(lastMsg()).toBe('LAYOUT  Ground floor moved down · ⌘Z to undo');
+    expect(ltabs().slice(1, 4)).toEqual(['Layout1', 'Layout3', 'Ground floor']);
+    tick('E-LTG-002 — Ground · Lighting layout (copy)');
+    doing('Delete');
+    expect(lastMsg()).toBe('LAYOUT  2 layouts deleted: Ground floor, E-LTG-002 Ground · Lighting layout (copy) · ⌘Z to undo');
+    expect(ltabs()).toEqual(['Model', 'Layout1', 'Layout3', 'E-LTG-001sheet']);
+    expect(state.layout).toBeNull();
+    // A double-click opens a layout and closes the dialog.
+    act(() => { document.querySelectorAll('[aria-label="Layouts of this drawing"] tbody tr')[1].dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); });
+    expect(dlg()).toBeNull();
+    expect(state.layout).toBe('dwg:Layout3');
+    // The tab menu and the typed LAYOUT M open it too.
+    await command('LAYOUT M');
+    await until(() => !!dlg());
+    act(() => button('Close').click());
+    expect(dlg()).toBeNull();
+  });
+
   it('Layout viewports on a plan sheet: VPORTS arranges them, VPCOPY / VPFIT / VPALIGN / VPFRAME act on the one picked, VPMAX shows its area on the Model tab and VPMIN comes back; the scale list adds 1:75', async () => {
     const gf = { building: 'V', level: 'GF' };
     let start: Project = { ...villa, cadPlans: [{ building: 'V', level: 'GF', file: 'sample-villa-gf.dxf', units: 4 }] };
@@ -2216,6 +2279,7 @@ describe('file tabs', () => {
     other();
     await command('LAYOUT I');
     await until(() => !!dlg());
+    expect(cadFile.openBytes).toHaveBeenLastCalledWith({ templates: true }); // drawing templates (DWT) are offered too
     expect(dlg()!.querySelector('h3')!.textContent).toBe('Layouts from another drawing paper-layouts.dxf');
     const rows = [...document.querySelectorAll('[aria-label="Layouts of that drawing"] tbody tr')].map((r) => [...r.querySelectorAll('td')].slice(1).map((c) => c.textContent));
     expect(rows[0].slice(0, 2)).toEqual(['Layout1', 'A3 landscape']);
@@ -2249,6 +2313,58 @@ describe('file tabs', () => {
     // The tab menu and the paper's menu offer it too.
     act(() => [...document.querySelectorAll<HTMLButtonElement>('.cad-ltab')].find((b) => b.textContent === 'Model')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 50, clientY: 500 })));
     expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.firstChild?.textContent?.trim()).slice(0, 3)).toEqual(['New layout', 'From template…', 'From another drawing…']);
+    act(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    // A drawing template (DWT) is read the same way.
+    cadFile.openBytes.mockResolvedValueOnce({ file: 'office.dwt', path: '/jobs/office.dwt', bytes: bytes('tests/fixtures/cad/paper-layouts.dxf') });
+    await command('LAYOUT I');
+    await until(() => !!dlg());
+    expect(dlg()!.querySelector('h3')!.textContent).toBe('Layouts from another drawing office.dwt');
+    act(() => box('A1 Lighting').click());
+    act(() => button('Import 1 layout').click());
+    expect(lastMsg()).toBe('LAYOUT  1 layout from office.dwt: Layout4 · ⌘Z to undo');
+  });
+
+  it('A layout shows the design made in the app over the drawing — devices, the DB, wiring and drawn work — and plots it; the file\'s own layouts too', async () => {
+    const gf = { building: 'V', level: 'GF' };
+    let start = placeBoard(villa, 'DB-GF1', gf, 1, 1);
+    for (const [x, y] of [[3, 9], [6, 9.4], [9, 8.8]]) start = placeLvPoint(start, gf, 'ltg', 'DB-GF1-Y1', x, y).project;
+    start = placeLvPoint(start, gf, 's13', 'DB-GF1-B6', 6, 4).project;
+    // A line drawn on the sample plan in the app.
+    start = { ...start, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [{ id: 'k1', kind: 'line', layer: '0', pts: [[2000, 2000], [8000, 2000]] }] }] };
+    act(() => root.render(<Host start={start} />));
+    await flush();
+    expect(state.view!.file).toBe('sample-villa-gf.dxf');
+    const overlay = () => document.querySelector('.cad-filepaper-design');
+    expect(overlay()).toBeNull(); // the Model tab draws the design itself
+    await command('LAYOUT');
+    expect(state.layout).toBe('dwg:Layout2');
+    // The whole drawing in one viewport: the three lights (circles), the socket (a box), the DB with its name, the line.
+    expect(overlay()).not.toBeNull();
+    expect(overlay()!.querySelectorAll('circle[r="1.8"]')).toHaveLength(3);
+    expect(overlay()!.querySelectorAll('g[data-vp]')).toHaveLength(1);
+    expect(overlay()!.textContent).toContain('DB-GF1');
+    expect(overlay()!.querySelectorAll('.drawn path')).toHaveLength(1);
+    // The plot carries the same design.
+    const pdfBytes = vi.fn(async (_a: { html: string; cssPages?: boolean }) => new Uint8Array([37, 80, 68, 70]));
+    const lvds = (window as unknown as { lvds: { files?: unknown } }).lvds;
+    lvds.files = { pdfBytes, saveBinary: vi.fn(async () => '/out/Layout2.pdf') };
+    await command('PLOT');
+    act(() => button('Plot PDF').click());
+    await until(() => pdfBytes.mock.calls.length === 1);
+    const html = pdfBytes.mock.calls[0][0].html;
+    expect(html.match(/<circle [^>]*r="1.8"/g)).toHaveLength(3);
+    expect(html).toContain('>DB-GF1<');
+    // A drawing file's own layout shows the model through its viewport, so the design is on it as well: the devices of
+    // the level the drawing shows (the first level, as on its Model tab), not the line drawn on the other drawing.
+    await until(() => !document.querySelector('[aria-label="Plot"]'));
+    const v = await openDrawing('paper-layouts.dxf', bytes('tests/fixtures/cad/paper-layouts.dxf'));
+    act(() => state.open(v));
+    await flush();
+    act(() => [...document.querySelectorAll<HTMLButtonElement>('.cad-ltab')].find((b) => b.textContent === 'Layout1')!.click());
+    await flush();
+    expect(state.layout).toBe('file:Layout1');
+    expect(overlay()!.querySelectorAll('circle[r="1.8"]')).toHaveLength(3);
+    expect(overlay()!.querySelectorAll('.drawn path')).toHaveLength(0);
   });
 
   it("The drawing file's own layouts: PLOT opens the Plot dialog, PAGESETUP says the paper is the file's, the viewport commands say to make a layout with +", async () => {
@@ -4582,7 +4698,7 @@ describe('right-click menus: fixes from the audit of 2026-11-11', () => {
     const v = drawingLayoutsOf(project, F)[0].viewports[0];
     expect(v.vh).toBeCloseTo(v.h * 50, 6); // mm drawing: vh = h × 50 drawing units
     await paperRight(40, 0);
-    expect(labels()).toEqual(['New viewport', 'Arrange viewports', 'Plot this layout…', 'Page setup…', 'New layout', 'From another drawing…', 'Rename layout…', 'Copy layout', 'Delete layout', 'Model tab']);
+    expect(labels()).toEqual(['New viewport', 'Arrange viewports', 'Plot this layout…', 'Page setup…', 'New layout', 'From another drawing…', 'Layout manager…', 'Rename layout…', 'Copy layout', 'Delete layout', 'Model tab']);
     await esc();
     await paperRight(0, 0);
     await pickEntry('Show on the Model tab');

@@ -1,11 +1,14 @@
 import type { CadText, CadView, FileLayout } from '../engines/cad/cadEngine';
 import { paperOf, viewportMap } from '../model/fileLayouts';
 import { EM_PER_CAP } from '../model/cadText';
+import type { Project } from '../types';
+import { fileDesignOf, fileDesignSvg } from './planLayout';
 
 /** A layout of the drawing (the file's own, or one made in Design CAD with +) as it plots: its paper with what is drawn
  * on it and the model through each viewport that is on, clipped to its frame, black on white — what the paper view
  * shows (src/components/cad/CadFilePaper.tsx), as one SVG the size of the paper. A viewport's frame prints only when
- * asked (`frames`, by its place in layout.viewports). */
+ * asked (`frames`, by its place in layout.viewports). The design made in the app (devices, DBs, wiring, containment and
+ * drawn work) goes over the model in each viewport (`design`, from layoutDesign). */
 
 type Pt = [number, number];
 /** Line widths on the paper (mm): the model through a viewport, and what is drawn on the paper itself. */
@@ -49,10 +52,31 @@ export interface LayoutPlotOptions {
   frames?: boolean[];
   /** The model's layers that show, in the drawing's order, as turned on, off or frozen in the app (default: as the drawing has them). */
   layersOn?: ArrayLike<number | boolean>;
+  /** The design through each viewport, by its place in layout.viewports (layoutDesign; default: none). */
+  design?: string[];
+}
+
+/** The design made in the app on the drawing `file`, through each viewport of one of its layouts: SVG pieces in mm on the
+ * page from its top left corner, by the viewport's place in layout.viewports ('' for one that is off, and an empty list
+ * when the drawing has no design). The paper view draws them over the model and the plot prints them, each clipped to
+ * its viewport's frame. A viewport at half the first one's scale or less is a key plan: no tags or DB names there.
+ * `level`: the level the drawing shows (default: the one it is the plan of). */
+export function layoutDesign(p: Project, file: string, insunits: number | undefined, layout: FileLayout, level?: { building: string; level: string }): string[] {
+  const d = level ? fileDesignOf(p, file, insunits, level) : fileDesignOf(p, file, insunits);
+  if (!d) return [];
+  const paper = paperOf(layout), k = layout.mm_per_unit > 0 ? layout.mm_per_unit : 1;
+  const shown = (v: FileLayout['viewports'][0]) => v.on && v.w > 0 && v.h > 0;
+  const first = layout.viewports.find(shown), s0 = first ? viewportMap(first).scale : 1;
+  return layout.viewports.map((v, i) => {
+    if (!shown(v)) return '';
+    const map = viewportMap(v), hw = v.w / 2 / map.scale, hh = v.h / 2 / map.scale;
+    const X = (x: number) => paper.mm(map.ps(x, v.cy)[0], 0)[0], Y = (y: number) => paper.h - paper.mm(0, map.ps(v.cx, y)[1])[1];
+    return fileDesignSvg(p, d, [v.cx - hw, v.cy - hh, v.cx + hw, v.cy + hh], X, Y, map.scale * k, `ld${i}`, v === first || map.scale * 2 > s0);
+  });
 }
 
 /** The layout as an SVG of its paper (width and height in mm). */
-export function layoutPlotSvg(layout: FileLayout, model: Pick<CadView, 'segs' | 'segLayers' | 'info'>, { frames = [], layersOn }: LayoutPlotOptions = {}): { svg: string; w: number; h: number } {
+export function layoutPlotSvg(layout: FileLayout, model: Pick<CadView, 'segs' | 'segLayers' | 'info'>, { frames = [], layersOn, design = [] }: LayoutPlotOptions = {}): { svg: string; w: number; h: number } {
   const paper = paperOf(layout), W = paper.w, H = paper.h, k = layout.mm_per_unit > 0 ? layout.mm_per_unit : 1;
   // Paper space → mm on the page from its top left corner.
   const at = (x: number, y: number): Pt => { const [mx, my] = paper.mm(x, y); return [mx, H - my]; };
@@ -81,7 +105,7 @@ export function layoutPlotSvg(layout: FileLayout, model: Pick<CadView, 'segs' | 
       const p = map.ps(t.x, t.y);
       texts += textSvg(t, at(p[0], p[1]), t.h * map.scale * k, (t.w ?? 0) * map.scale * k);
     }
-    out.push(`<clipPath id="vp${i}"><rect ${rect}/></clipPath><g clip-path="url(#vp${i})"><g fill="none" stroke="#000" stroke-width="${MODEL_LINE_MM}" stroke-linecap="round" stroke-linejoin="round">${lines.svg()}</g>${texts}</g>`);
+    out.push(`<clipPath id="vp${i}"><rect ${rect}/></clipPath><g clip-path="url(#vp${i})"><g fill="none" stroke="#000" stroke-width="${MODEL_LINE_MM}" stroke-linecap="round" stroke-linejoin="round">${lines.svg()}</g>${texts}${design[i] ?? ''}</g>`);
     if (frames[i]) out.push(`<rect ${rect} fill="none" stroke="#000" stroke-width="${PAPER_LINE_MM}"/>`);
   });
   // What is drawn on the paper itself.

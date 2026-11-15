@@ -164,6 +164,7 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
     expect(tool('Plot').disabled).toBe(true); // no layout or sheet open
     expect(tool('Page setup').disabled).toBe(true); // nor a layout showing
     expect(tool('Save as template').disabled).toBe(true);
+    expect(tool('Layout manager').disabled).toBe(false); // a drawing is open: the manager needs no layout showing
   });
 
   it('shows the current layer and lists the drawn layers to make another current (not a frozen one)', () => {
@@ -344,7 +345,7 @@ describe('Design CAD ribbon: sheets and layouts', () => {
     click(tool('Plot'));
     expect(output.onPlot).toHaveBeenCalledOnce();
     rerender({ inLayout: false, hasDrawing: false }); // nothing open
-    for (const l of ['Plot', 'Publish', 'PDF', 'DXF', 'DWG']) expect(tool(l).disabled, l).toBe(true);
+    for (const l of ['Plot', 'Publish', 'PDF', 'DXF', 'DWG', 'Layout manager']) expect(tool(l).disabled, l).toBe(true);
     for (const l of ['Page setups', 'Pen tables', 'Printers', 'Batch plot', 'Register']) expect(tool(l).disabled, l).toBe(false);
   });
 
@@ -444,7 +445,7 @@ describe('Design CAD ribbon: sheets and layouts', () => {
     expect(document.querySelector('#ribbon-tip')!.textContent).toBe('Layout viewportsIts tools: Viewport, Arrange, Legend, Notes, Scale, Lock, Fit, Copy, Align, Maximise, Frame prints');
     // A tool that only opens a list is there as its list.
     click(tool('Layout: its tools'));
-    expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent)).toEqual(['New layout: New layout', 'New layout: From template…', 'New layout: From another drawing…', 'New layout: Lighting layout', 'New layout: Power layout', 'New layout: ELV layout', 'New layout: Containment layout', 'Page setup', 'Save as template']);
+    expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent)).toEqual(['New layout: New layout', 'New layout: From template…', 'New layout: From another drawing…', 'New layout: Lighting layout', 'New layout: Power layout', 'New layout: ELV layout', 'New layout: Containment layout', 'Page setup', 'Save as template', 'Layout manager']);
     click(item('New layout: Power layout'));
     expect(cad.onLayoutCmd).toHaveBeenLastCalledWith('LAYOUT POWER');
     wide = 1500;
@@ -485,16 +486,16 @@ describe('Output: layout, viewports, plot, publish, export', () => {
     expect(groups()).toEqual(['Plot', 'Publish', 'Export']);
   });
 
-  it('Layout: Page setup and Save as template run their commands on a layout; the viewport tools run theirs', () => {
+  it('Layout: Page setup, Save as template and Layout manager run their commands; the viewport tools run theirs', () => {
     const { cad } = show({ inLayout: true });
     pick('Output');
     expect(tool('Page setup').disabled).toBe(false);
-    click(tool('Page setup')); click(tool('Save as template'));
+    click(tool('Page setup')); click(tool('Save as template')); click(tool('Layout manager'));
     expect(tools('Layout viewports')).toEqual(['Viewport', 'Arrange', 'Legend', 'Notes', 'Scale', 'Lock', 'Fit', 'Copy', 'Align', 'Maximise', 'Frame prints']);
     for (const t of ['Fit', 'Copy', 'Maximise', 'Frame prints', 'Viewport', 'Legend', 'Notes', 'Lock']) click(tool(t));
     click(tool('Align')); click(item('Side by side'));
     click(tool('Align')); click(item('Stacked'));
-    expect(cmds(cad)).toEqual(['PAGESETUP', 'LAYOUT S', 'VPFIT', 'VPCOPY', 'VPMAX', 'VPFRAME', 'MV', 'LEGEND', 'NOTES', 'VPLOCK', 'VPALIGN H', 'VPALIGN V']);
+    expect(cmds(cad)).toEqual(['PAGESETUP', 'LAYOUT S', 'LAYOUTMANAGER', 'VPFIT', 'VPCOPY', 'VPMAX', 'VPFRAME', 'MV', 'LEGEND', 'NOTES', 'VPLOCK', 'VPALIGN H', 'VPALIGN V']);
   });
 
   it('Arrange lists the nine arrangements; Scale lists the project\'s scales and the scale list', () => {

@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CadText, CadView, FileLayout } from '../../engines/cad/cadEngine';
 import { paperOf, viewportMap } from '../../model/fileLayouts';
 import { BAR_ALPHA, emPerCap, READ_PX, textBar, widthPerPx } from '../../model/cadTextScreen';
+import { sanitizeSvgFragment } from '../../util/sanitize';
 
 /** A layout of the drawing (paper space) in Design CAD, the file's own or one made here: its paper with a shadow, the
  * printable area dashed and trim marks at the corners (on screen only), what is drawn on the paper, and the model
- * through each of its viewports — in black on white, as it plots. The wheel zooms at the pointer, the middle button or
+ * through each of its viewports with the design made in the app over it (`design`: devices, DBs, wiring, containment
+ * and drawn work) — in black on white, as it plots. The wheel zooms at the pointer, the middle button or
  * a drag pans, a middle double-click fits the paper again. The file's own layouts are shown, not edited: a double-click
  * says so (onDblClick). A layout made here is edited (`edit`): a frame picked by its edge moves, its corners resize it,
  * MV makes one from two corners, a double-click inside works in it (the wheel and a drag then move its view), a
@@ -42,11 +44,14 @@ export interface PaperEdit {
 
 const boxOf = (a: Pt, b: Pt): Box => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])];
 
-export function CadFilePaper({ layout, model, layersOn, onDblClick, onContext, edit }: {
+export function CadFilePaper({ layout, model, layersOn, design, onDblClick, onContext, edit }: {
   layout: FileLayout;
   model: Pick<CadView, 'segs' | 'segLayers' | 'info'>;
   /** The model's layers that show, in the drawing's order, as the app has them (default: as the drawing has them). */
   layersOn?: ArrayLike<number | boolean>;
+  /** The design through each viewport, by its place in layout.viewports: SVG pieces in mm on the page from its top left
+   * corner (src/docs/layoutPlot.ts, layoutDesign). Drawn over the model, clipped to the viewport's frame. */
+  design?: string[];
   onDblClick?: () => void;
   /** A right-click: inside a viewport (its index in layout.viewports) or on the paper (null), at the screen point. */
   onContext?: (vp: number | null, x: number, y: number) => void;
@@ -64,6 +69,7 @@ export function CadFilePaper({ layout, model, layersOn, onDblClick, onContext, e
   const [live, setLive] = useState<{ i: number; dx: number; dy: number } | null>(null);
   useEffect(() => { if (!edit?.mv) { setFirst(null); setHover(null); } }, [edit?.mv]);
   const paper = paperOf(layout);
+  const designSvg = useMemo(() => (design ?? []).map((d) => (d ? sanitizeSvgFragment(d) : '')), [design]);
   useEffect(() => {
     const el = host.current;
     if (!el) return undefined;
@@ -242,6 +248,23 @@ export function CadFilePaper({ layout, model, layersOn, onDblClick, onContext, e
         onContext(i >= 0 ? i : null, e.clientX, e.clientY);
       }}>
       <canvas ref={cv} style={{ width: size[0], height: size[1] }} />
+      {designSvg.some(Boolean) && (
+        <svg className="cad-filepaper-design" aria-hidden="true" viewBox={`0 0 ${paper.w} ${paper.h}`} fontFamily="Arial, sans-serif"
+          style={{ position: 'absolute', left: view.x, top: view.y - paper.h * view.k, width: paper.w * view.k, height: paper.h * view.k, pointerEvents: 'none' }}>
+          {layout.viewports.map((v, i) => {
+            if (!v.on || !designSvg[i]) return null;
+            const [l, b, w, h] = frameOf(v);
+            // The view being dragged in the viewport worked in: its design goes with it until the view is kept.
+            const moved = live?.i === i ? `translate(${live.dx} ${-live.dy})` : undefined;
+            return (
+              <g key={i} data-vp={i} clipPath={`url(#fpd${i})`}>
+                <clipPath id={`fpd${i}`}><rect x={l} y={paper.h - b - h} width={w} height={h} /></clipPath>
+                <g transform={moved} dangerouslySetInnerHTML={{ __html: designSvg[i] }} />
+              </g>
+            );
+          })}
+        </svg>
+      )}
       {edit && (
         <div className={`cad-vps${edit.mv ? ' mv' : ''}`} style={{ cursor: edit.mv ? 'crosshair' : undefined }}
           onPointerMove={edit.mv ? (e) => setHover(mmAt(e)) : undefined}

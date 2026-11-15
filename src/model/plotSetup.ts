@@ -10,7 +10,11 @@ import type { Project } from '../types';
 export type PenKey = 'frame' | 'title' | 'arch' | 'refs' | 'devices' | 'trays' | 'routes' | 'sketch' | 'hatch' | 'sld' | 'bus';
 /** A pen: width in mm (0 = as the drawing has it), ink in % of black (100 = black). */
 export interface Pen { w: number; grey: number }
-export interface PenTable { id: string; name: string; pens: Record<PenKey, Pen>; ctb?: string }
+/** A named plot style of an STB file: its lineweight in mm (0: the object's own) and screening (% ink). */
+export interface NamedStyle { name: string; w: number; grey: number }
+/** `ctb`: the CTB file the table came from. `stb`: the STB file it came from, that file's named styles, and the style
+ * each kind of line was given (a kind with none keeps the default pen). */
+export interface PenTable { id: string; name: string; pens: Record<PenKey, Pen>; ctb?: string; stb?: { file: string; styles: NamedStyle[]; by: Partial<Record<PenKey, string>> } }
 /** A sheet's page setup (blank = the set's default): the pen table, whether lineweights print, the plot stamp, and
  * whether a plan sheet prints the drawn work (Design CAD lines, hatches and text; blank = it does). */
 export interface PlotSetup { pens?: string; weights?: 'pens' | 'thin'; stamp?: boolean; drawn?: boolean; /** The named page setup applied (its ID); blank: the sheet's own. */ named?: string }
@@ -80,30 +84,59 @@ export function plotStamp(s: Pick<DrawingSheet, 'number' | 'title'>, rev: string
   return [`${s.number} - ${s.title}`, d, rev ? `Rev ${rev}` : '', user ?? ''].filter(Boolean).join(' · ');
 }
 
-/** The lineweights a CTB file can give (its lineweight index → mm), as CAD programs list them. */
+/** The lineweights a CTB or STB file can give (its lineweight index → mm), as CAD programs list them. */
 const CTB_WEIGHTS = [0, 0.05, 0.09, 0.1, 0.13, 0.15, 0.18, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.53, 0.6, 0.65, 0.7, 0.8, 0.9, 1, 1.06, 1.2, 1.4, 1.58, 2, 2.11];
 export interface Ctb { /** By ACI colour 1–255: width in mm (undefined: the object's own) and screening (% ink). */ colours: Record<number, { w?: number; grey: number }> }
+/** An STB file's named plot styles, in the file's order. */
+export interface Stb { styles: NamedStyle[] }
 
-/** Reads a CTB file: a short text header, then the plot styles compressed with zlib. */
-export async function parseCtb(bytes: Uint8Array): Promise<Ctb> {
+/** Which plot style table a file is, by its header: colour-dependent (CTB) or named styles (STB); undefined: neither. */
+export function plotStyleKind(bytes: Uint8Array): 'ctb' | 'stb' | undefined {
   const head = new TextDecoder('latin1').decode(bytes.slice(0, 48));
-  if (!/^PIAFILEVERSION/.test(head) || !/CTB/i.test(head)) throw new Error('Not a CTB plot style table (colour-dependent). STB files are not read yet.');
+  return !/^PIAFILEVERSION/.test(head) ? undefined : /CTBVER/i.test(head) ? 'ctb' : /STBVER/i.test(head) ? 'stb' : undefined;
+}
+
+/** The plot styles of a CTB or STB file: a short text header, then the styles as text compressed with zlib. Each style
+ * by its number in the file: its name, its width in mm (undefined: the object's own lineweight) and its screening. */
+async function plotStyles(bytes: Uint8Array, kind: 'CTB' | 'STB'): Promise<{ i: number; name: string; w?: number; grey: number }[]> {
   let at = 48;
   while (at < Math.min(bytes.length - 1, 80) && !(bytes[at] === 0x78 && [0x01, 0x5e, 0x9c, 0xda].includes(bytes[at + 1]))) at += 1;
-  if (at >= Math.min(bytes.length - 1, 80)) throw new Error('The CTB file could not be read (no compressed data).');
+  if (at >= Math.min(bytes.length - 1, 80)) throw new Error(`The ${kind} file could not be read (no compressed data).`);
   const stream = new Blob([bytes.slice(at) as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate'));
   const text = await new Response(stream).text();
   const custom = /custom_lineweight_table\s*\{([^}]*)\}/.exec(text)?.[1];
   const table = custom ? [...custom.matchAll(/(\d+)\s*=\s*([\d.]+)/g)].reduce<number[]>((t, m) => { t[Number(m[1])] = Number(m[2]); return t; }, []) : CTB_WEIGHTS;
-  const colours: Ctb['colours'] = {};
   const body = /plot_style\s*\{([\s\S]*)\}\s*custom_lineweight_table/.exec(text)?.[1] ?? text;
-  for (const m of body.matchAll(/(\d+)\s*\{([^}]*)\}/g)) {
-    const i = Number(m[1]) + 1, f = m[2];
-    const lw = Number(/lineweight\s*=\s*(\d+)/.exec(f)?.[1] ?? 255), scr = Number(/screening\s*=\s*(\d+)/.exec(f)?.[1] ?? 100);
-    if (i >= 1 && i <= 255) colours[i] = { ...(lw !== 255 && table[lw] !== undefined ? { w: table[lw] } : {}), grey: scr };
-  }
+  return [...body.matchAll(/(\d+)\s*\{([^}]*)\}/g)].map((m) => {
+    const f = m[2];
+    // The lineweight is a place in the table: 0 (and 255 in files written here before) is the object's own. Screening is
+    // written as "screen"; "screening" is read too. A name has an opening quote only.
+    const lw = Number(/lineweight\s*=\s*(\d+)/.exec(f)?.[1] ?? 0), scr = Number(/\bscreen(?:ing)?\s*=\s*(\d+)/.exec(f)?.[1] ?? 100);
+    const w = lw > 0 && lw !== 255 ? table[lw] : undefined;
+    return { i: Number(m[1]), name: (/(?:^|\s)name\s*=\s*"?([^"\r\n]*)/.exec(f)?.[1] ?? '').trim(), ...(w !== undefined && w > 0 ? { w } : {}), grey: Math.max(0, Math.min(100, scr)) };
+  });
+}
+
+/** Reads a CTB file (plot styles by colour). */
+export async function parseCtb(bytes: Uint8Array): Promise<Ctb> {
+  if (plotStyleKind(bytes) !== 'ctb') throw new Error('Not a CTB plot style table (colour-dependent).');
+  const colours: Ctb['colours'] = {};
+  for (const s of await plotStyles(bytes, 'CTB')) if (s.i >= 0 && s.i <= 254) colours[s.i + 1] = { ...(s.w !== undefined ? { w: s.w } : {}), grey: s.grey };
   if (!Object.keys(colours).length) throw new Error('The CTB file has no plot styles.');
   return { colours };
+}
+
+/** Reads an STB file (named plot styles): its styles in the file's order, each name once. */
+export async function parseStb(bytes: Uint8Array): Promise<Stb> {
+  if (plotStyleKind(bytes) !== 'stb') throw new Error('Not an STB plot style table (named plot styles).');
+  const seen = new Set<string>(), styles: NamedStyle[] = [];
+  for (const s of (await plotStyles(bytes, 'STB')).sort((a, b) => a.i - b.i)) {
+    if (!s.name || seen.has(s.name.toLowerCase())) continue;
+    seen.add(s.name.toLowerCase());
+    styles.push({ name: s.name, w: s.w ?? 0, grey: s.grey });
+  }
+  if (!styles.length) throw new Error('The STB file has no plot styles.');
+  return { styles };
 }
 /** A pen table from a CTB: each kind of line takes the width and screening of its layer's colour; a colour that uses the
  * object's own lineweight keeps the default pen. */
@@ -113,6 +146,20 @@ export function tableFromCtb(id: string, name: string, ctb: Ctb): PenTable {
     return [k, { w: c?.w !== undefined && c.w > 0 ? c.w : d.w, grey: c ? Math.min(d.grey, c.grey) : d.grey }];
   })) as Record<PenKey, Pen>;
   return { id, name, pens, ctb: name };
+}
+
+/** A pen table from an STB: the default pens, with the file's named styles kept to give to each kind of line (withStyle). */
+export function tableFromStb(id: string, name: string, file: string, stb: Stb): PenTable {
+  return { id, name, pens: Object.fromEntries(PEN_KEYS.map((k) => [k, { ...DEFAULT_PENS.pens[k] }])) as Record<PenKey, Pen>, stb: { file, styles: stb.styles.map((s) => ({ ...s })), by: {} } };
+}
+/** An STB pen table with a kind of line given one of its named styles: the line takes the style's screening and its
+ * width (the default pen's when the style uses the object's own lineweight). No style, or one the file does not have:
+ * the kind of line goes back to the default pen. */
+export function withStyle(t: PenTable, k: PenKey, style: string | undefined): PenTable {
+  if (!t.stb) return t;
+  const s = style ? t.stb.styles.find((x) => x.name === style) : undefined, d = DEFAULT_PENS.pens[k];
+  const { [k]: _was, ...rest } = t.stb.by;
+  return { ...t, pens: { ...t.pens, [k]: s ? { w: s.w > 0 ? s.w : d.w, grey: s.grey } : { ...d } }, stb: { ...t.stb, by: s ? { ...rest, [k]: s.name } : rest } };
 }
 
 /** The project with a pen table saved (added, or in place of the one with its ID); the default saved unchanged drops
@@ -198,7 +245,7 @@ export function readSetups(v: unknown): SetupsFile | undefined {
     });
   }
   if (!setups.length) return undefined;
-  const tables = Array.isArray(src.tables) ? src.tables.filter(isPenTable) : [];
+  const tables = Array.isArray(src.tables) ? src.tables.filter(isPenTable).map(stbChecked) : [];
   return { kind: 'lvds.pageSetups', setups, tables };
 }
 /** How a setup prints, as read from a file: only what a page setup holds, so nothing else gets into the project. */
@@ -212,6 +259,16 @@ function plotFrom(v: unknown): NamedSetup['plot'] {
 /** A whole pen table: a width (0: as drawn) and an ink for every kind of line (one with a pen missing could not print). */
 const isPenTable = (t: unknown): t is PenTable => isObj(t) && typeof t.id === 'string' && typeof t.name === 'string' && !!t.name.trim() && isObj(t.pens)
   && PEN_KEYS.every((k) => { const pen = (t.pens as Record<string, unknown>)[k]; return isObj(pen) && typeof pen.w === 'number' && pen.w >= 0 && typeof pen.grey === 'number'; });
+/** A pen table read from a file with its named styles as they must be (a file, styles with a name, a width and an ink,
+ * each kind of line given a style the file has); anything else about them is left out. */
+function stbChecked(t: PenTable): PenTable {
+  const { stb: raw, ...rest } = t as PenTable & { stb?: unknown };
+  if (!isObj(raw) || typeof raw.file !== 'string' || !Array.isArray(raw.styles)) return rest;
+  const styles = raw.styles.flatMap((s): NamedStyle[] => (isObj(s) && typeof s.name === 'string' && !!s.name.trim() && typeof s.w === 'number' && s.w >= 0 && typeof s.grey === 'number' ? [{ name: s.name, w: s.w, grey: Math.max(0, Math.min(100, s.grey)) }] : []));
+  if (!styles.length) return rest;
+  const by = isObj(raw.by) ? Object.fromEntries(PEN_KEYS.flatMap((k) => { const n = (raw.by as Record<string, unknown>)[k]; return typeof n === 'string' && styles.some((s) => s.name === n) ? [[k, n]] : []; })) : {};
+  return { ...rest, stb: { file: raw.file, styles, by } };
+}
 /** The project with page setups brought in. A setup whose name is here already (any case) is left as it is; the others get new ids. A pen table they use is matched by name, else added. */
 export function importSetups(p: Project, f: SetupsFile): { project: Project; added: string[]; kept: string[] } {
   let project = p;

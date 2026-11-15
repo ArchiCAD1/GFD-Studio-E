@@ -2,7 +2,8 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ImportLayoutsDialog, LayoutPaperDialog, LayoutPlotDialog, LayoutTemplatesDialog, ScaleListDialog } from './CadLayoutDialogs';
+import { ImportLayoutsDialog, LayoutManagerDialog, LayoutPaperDialog, LayoutPlotDialog, LayoutTemplatesDialog, ScaleListDialog } from './CadLayoutDialogs';
+import type { ManagerRow } from './cadLayoutManager';
 import { loadLayoutTemplates, saveLayoutTemplates, templateFromPaper } from '../../model/layoutTemplates';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -279,5 +280,156 @@ describe('Layout plot dialog', () => {
     expect(made).toEqual({ bytes: new Uint8Array([1, 2, 3]), name: 'plan Layout2.pdf' });
     act(() => previews[0].onClose());
     expect(document.querySelector('[aria-label="PDF preview mock"]')).toBeNull();
+  });
+});
+
+describe('Layout manager dialog', () => {
+  const ROWS: ManagerRow[] = [
+    { id: 'file:A1 Lighting', kind: 'file', name: 'A1 Lighting', paper: 'A1 landscape', shows: '2 viewports at 1:100, 1:500', setup: 'Paper only' },
+    { id: 'dwg:Layout2', kind: 'drawing', name: 'Layout2', paper: 'A3 landscape', shows: '1 viewport at 1:100', setup: 'Paper only' },
+    { id: 'dwg:Layout3', kind: 'drawing', name: 'Layout3', paper: 'A3 landscape', shows: 'no viewports', setup: 'Paper only' },
+    { id: 's1', kind: 'sheet', name: 'E-LTG-001 — Ground floor', paper: 'A3', shows: 'Lighting layout · 1:100', setup: "Set's default" },
+    { id: 's2', kind: 'sheet', name: 'E-PWR-001 — Ground power', paper: 'A3', shows: 'Power layout · 1:100', setup: 'A1 office' }
+  ];
+  const props = (over: Partial<Parameters<typeof LayoutManagerDialog>[0]> = {}) => ({
+    file: 'Villa.dwg', rows: ROWS, active: 'dwg:Layout3' as string | null, setups: [{ id: 'n1', name: 'A1 office' }, { id: 'n2', name: 'A3 draft' }],
+    onOpen: vi.fn(), onRename: vi.fn((): string | undefined => undefined), onCopy: vi.fn(), onMove: vi.fn(), onDelete: vi.fn(), onApplySetup: vi.fn(), onNew: vi.fn(), onClose: vi.fn(), ...over
+  });
+  const table = () => [...document.querySelectorAll('[aria-label="Layouts of this drawing"] tbody tr')].map((r) => [...r.querySelectorAll('td')].slice(1).map((c) => c.textContent));
+  const tick = (name: string) => click(document.querySelector(`[aria-label="Pick ${name}"]`)!);
+  const on = (...b: string[]) => b.map((t) => !button(t).disabled);
+  const key = (el: Element, k: string) => act(() => { el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true })); });
+
+  it('lists every layout with its kind, paper, what it shows and page setup, marks the one showing, and ticks all but the file\'s own', () => {
+    act(() => root.render(<LayoutManagerDialog {...props()} />));
+    expect(document.querySelector('h3')!.textContent).toBe('Layout manager Villa.dwg');
+    expect(table()).toEqual([
+      ['A1 Lighting', 'Drawing file', 'A1 landscape', '2 viewports at 1:100, 1:500', 'Paper only'],
+      ['Layout2', 'Layout', 'A3 landscape', '1 viewport at 1:100', 'Paper only'],
+      ['Layout3 · current', 'Layout', 'A3 landscape', 'no viewports', 'Paper only'],
+      ['E-LTG-001 — Ground floor', 'Plan sheet', 'A3', 'Lighting layout · 1:100', "Set's default"],
+      ['E-PWR-001 — Ground power', 'Plan sheet', 'A3', 'Power layout · 1:100', 'A1 office']
+    ]);
+    expect([...document.querySelectorAll('[aria-current="true"]')].map((r) => r.querySelector('td:nth-child(2)')!.textContent)).toEqual(['Layout3 · current']);
+    const file = document.querySelector('[aria-label="Pick A1 Lighting"]') as HTMLInputElement;
+    expect(file.disabled).toBe(true);
+    expect(file.title).toBe('As saved in the drawing file: open it, plot it or save it as a template from its tab');
+  });
+
+  it('enables the buttons by what is ticked: one for Open, Rename and Move, any for Copy and Delete; Move stops at the ends of its kind', () => {
+    const p = props();
+    act(() => root.render(<LayoutManagerDialog {...p} />));
+    expect(on('Open', 'Rename…', 'Copy', 'Move up', 'Move down', 'Delete')).toEqual([false, false, false, false, false, false]);
+    tick('Layout2');
+    expect(on('Open', 'Rename…', 'Copy', 'Move up', 'Move down', 'Delete')).toEqual([true, true, true, false, true, true]); // first of its kind
+    tick('Layout3');
+    expect(on('Open', 'Rename…', 'Copy', 'Move up', 'Move down', 'Delete')).toEqual([false, false, true, false, false, true]);
+    tick('Layout2'); // Layout3 alone: the last of the layouts made here
+    expect(on('Move up', 'Move down')).toEqual([true, false]);
+    click(button('Move up'));
+    expect(p.onMove).toHaveBeenCalledWith('dwg:Layout3', -1);
+    click(button('Move down')); // disabled: the last of its kind
+    expect(p.onMove).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens, copies, moves and deletes what is ticked; a delete clears the ticks', () => {
+    const p = props();
+    act(() => root.render(<LayoutManagerDialog {...p} />));
+    tick('Layout2'); tick('E-PWR-001 — Ground power');
+    click(button('Copy'));
+    expect(p.onCopy).toHaveBeenCalledWith(['dwg:Layout2', 's2']);
+    click(button('Delete'));
+    expect(p.onDelete).toHaveBeenCalledWith(['dwg:Layout2', 's2']);
+    expect(on('Copy', 'Delete')).toEqual([false, false]);
+    tick('E-PWR-001 — Ground power');
+    click(button('Move up'));
+    expect(p.onMove).toHaveBeenCalledWith('s2', -1);
+    expect(button('Move down').disabled).toBe(true);
+    click(button('Open'));
+    expect(p.onOpen).toHaveBeenCalledWith('s2');
+    expect(p.onClose).toHaveBeenCalledTimes(1);
+    click(button('New layout'));
+    expect(p.onNew).toHaveBeenCalled();
+    click(button('Close'));
+    expect(p.onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('a double-click on a row opens that layout, the file\'s own too, and closes the dialog; on a tick it only ticks', () => {
+    const p = props();
+    act(() => root.render(<LayoutManagerDialog {...p} />));
+    act(() => { document.querySelector('[aria-label="Pick Layout2"]')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); });
+    expect(p.onOpen).not.toHaveBeenCalled();
+    act(() => { document.querySelector('[aria-label="Layouts of this drawing"] tbody tr')!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); });
+    expect(p.onOpen).toHaveBeenCalledWith('file:A1 Lighting');
+    expect(p.onClose).toHaveBeenCalled();
+  });
+
+  it('renames in the row: Enter applies, an error stays with the input, Escape leaves it without closing the dialog; a layout\'s tick follows its new name', () => {
+    const onRename = vi.fn((_id: string, n: string) => (n === 'Layout3' ? 'There is a layout "Layout3" already.' : undefined));
+    const p = props({ onRename });
+    act(() => root.render(<LayoutManagerDialog {...p} />));
+    tick('Layout2');
+    click(button('Rename…'));
+    const input = () => document.querySelector('[aria-label="New name"]') as HTMLInputElement;
+    expect(input().value).toBe('Layout2');
+    expect(document.activeElement).toBe(input());
+    type('New name', 'Layout3');
+    key(input(), 'Enter');
+    expect(onRename).toHaveBeenCalledWith('dwg:Layout2', 'Layout3');
+    expect(document.querySelector('[role="alert"]')!.textContent).toBe('⚠ There is a layout "Layout3" already.');
+    expect(input()).not.toBeNull();
+    type('New name', 'Ground');
+    key(input(), 'Enter');
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(input()).toBeNull();
+    act(() => root.render(<LayoutManagerDialog {...p} rows={ROWS.map((r) => (r.id === 'dwg:Layout2' ? { ...r, id: 'dwg:Ground', name: 'Ground' } : r))} />));
+    expect((document.querySelector('[aria-label="Pick Ground"]') as HTMLInputElement).checked).toBe(true);
+    click(button('Rename…'));
+    key(input(), 'Escape');
+    expect(input()).toBeNull();
+    expect(p.onClose).not.toHaveBeenCalled();
+    expect(onRename).toHaveBeenCalledTimes(2);
+  });
+
+  it('renames a plan sheet by its title', () => {
+    const p = props();
+    act(() => root.render(<LayoutManagerDialog {...p} />));
+    tick('E-LTG-001 — Ground floor');
+    click(button('Rename…'));
+    expect((document.querySelector('[aria-label="New name"]') as HTMLInputElement).value).toBe('Ground floor');
+    type('New name', 'Lights');
+    key(document.querySelector('[aria-label="New name"]')!, 'Enter');
+    expect(p.onRename).toHaveBeenCalledWith('s1', 'Lights');
+  });
+
+  it('gives the page setup picked to the plan sheets ticked; layouts made here have their paper only', () => {
+    const p = props();
+    act(() => root.render(<LayoutManagerDialog {...p} />));
+    expect([...document.querySelectorAll('[aria-label="Page setup to apply"] option')].map((o) => o.textContent)).toEqual(['A1 office', 'A3 draft']);
+    expect(button('Apply to ticked').disabled).toBe(true);
+    expect(button('Apply to ticked').title).toContain('Page setups are for plan sheets');
+    tick('Layout2');
+    expect(button('Apply to ticked').disabled).toBe(true);
+    tick('E-LTG-001 — Ground floor'); tick('E-PWR-001 — Ground power');
+    type('Page setup to apply', 'n2');
+    click(button('Apply to ticked'));
+    expect(p.onApplySetup).toHaveBeenCalledWith('n2', ['dwg:Layout2', 's1', 's2']);
+  });
+
+  it('says so when there are no named page setups', () => {
+    act(() => root.render(<LayoutManagerDialog {...props({ setups: [] })} />));
+    tick('E-LTG-001 — Ground floor');
+    expect(document.body.textContent).toContain('No named page setups yet: Output → Page setups');
+    expect(button('Apply to ticked').disabled).toBe(true);
+    expect((document.querySelector('[aria-label="Page setup to apply"]') as HTMLSelectElement).disabled).toBe(true);
+  });
+
+  it('drops the ticks of rows that are gone', () => {
+    const p = props();
+    act(() => root.render(<LayoutManagerDialog {...p} />));
+    tick('Layout2'); tick('Layout3');
+    act(() => root.render(<LayoutManagerDialog {...p} rows={ROWS.filter((r) => r.id !== 'dwg:Layout2')} />));
+    click(button('Copy'));
+    expect(p.onCopy).toHaveBeenCalledWith(['dwg:Layout3']);
   });
 });

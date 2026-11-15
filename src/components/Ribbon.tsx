@@ -984,11 +984,12 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
           menu: [
             { label: 'New layout', title: 'A new layout of this drawing: A3, the whole drawing in one viewport; Page setup changes its paper', onClick: () => a.cad?.onLayoutCmd?.('LAYOUT') },
             { label: 'From template…', title: 'A new layout from one of your layout templates: its paper, viewports and tables', onClick: () => a.cad?.onLayoutCmd?.('LAYOUT T') },
-            { label: 'From another drawing…', title: 'Layouts of another drawing (DWG or DXF) added to this one: their paper and viewport frames', onClick: () => a.cad?.onLayoutCmd?.('LAYOUT I') },
+            { label: 'From another drawing…', title: 'Layouts of another drawing (DWG, DXF or DWT) added to this one: their paper and viewport frames', onClick: () => a.cad?.onLayoutCmd?.('LAYOUT I') },
             ...(['Lighting', 'Power', 'ELV', 'Containment'] as const).map((t, i) => ({ label: `${t} layout`, title: `A new ${t.toLowerCase()} plan sheet of this level`, sep: i === 0, onClick: () => a.cad?.onLayoutCmd?.(`LAYOUT ${t.toUpperCase()}`) }))
           ] },
         sm({ label: 'Page setup', icon: FileCog, cmd: 'PAGESETUP', title: 'This layout\'s paper and page setup (PAGESETUP)', onClick: () => a.cad?.onLayoutCmd?.('PAGESETUP'), disabled: !a.cad?.inLayout }),
-        sm({ label: 'Save as template', icon: Save, cmd: 'LAYOUT S', title: 'Save this layout as a template for new layouts: its paper, viewports and tables (LAYOUT S)', onClick: () => a.cad?.onLayoutCmd?.('LAYOUT S'), disabled: !a.cad?.inLayout })
+        sm({ label: 'Save as template', icon: Save, cmd: 'LAYOUT S', title: 'Save this layout as a template for new layouts: its paper, viewports and tables (LAYOUT S)', onClick: () => a.cad?.onLayoutCmd?.('LAYOUT S'), disabled: !a.cad?.inLayout }),
+        sm({ label: 'Layout manager', icon: ListChecks, cmd: 'LAYOUTMANAGER', title: 'Every layout of this drawing in one list: paper, scale and page setup; open, rename, copy, order and delete them, and give a page setup to several at once (LAYOUTMANAGER)', onClick: () => a.cad?.onLayoutCmd?.('LAYOUTMANAGER'), disabled: !a.cad?.hasDrawing })
       ],
       [
         { label: 'Viewport', icon: Frame, cmd: 'MV', title: 'A new viewport: click two corners on the paper (MV)', onClick: () => a.cad?.onLayoutCmd?.('MV') },

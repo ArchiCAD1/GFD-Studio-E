@@ -15,11 +15,27 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.148', date: '2026-11-15',
+    version: '2.150', date: '2026-11-15',
     items: [
       { title: 'Projects: saved as .lvds files', text: 'Projects are now saved as .lvds files, with the same content as before. Older .json projects still open; their next save writes a .lvds and keeps the .json as its backup (name.lvds.bak). Double-click a .lvds to open it in the app.' },
       { title: 'Project tab: Export JSON', text: 'Export JSON saves the open project as a plain .json file, for scripts and other programs. From the command line: lvds project-json <project>.' },
       { title: 'Beta downloads for Windows and Mac', text: 'The About page of the LV Design Studio website now shows screenshots of the app, and its Download page offers unsigned beta installers for Windows x64 and Apple-silicon Macs. A beta build tells you when a newer beta is out; it never downloads or installs one itself.' }
+    ]
+  },
+  {
+    version: '2.149', date: '2026-11-15',
+    items: [
+      { title: 'Design CAD: Layout manager', text: 'Output → Layout → Layout manager (LAYOUTMANAGER) lists every layout of the drawing in one place: the drawing file\'s own, the ones made with + and the level\'s plan sheets, each with its paper, what it shows and its page setup. Tick layouts to copy or delete several at once, rename one, move it up or down, or give a named page setup to several plan sheets together. A double-click opens a layout. It is also on a layout tab\'s right-click menu.', action: 'cad' },
+      { title: 'Pen tables: named plot styles (STB)', text: 'Pen tables → Import CTB / STB… now takes an STB file as well. Its named styles come in with the table, and a new Plot style column gives one to each kind of line: the line takes that style\'s width and screening.' },
+      { title: 'Pen tables: screening from a CTB file', text: 'Importing a CTB file now reads each colour\'s screening as CAD programs write it. Before, the screening was missed and every colour came in at full black. A width that is not in the usual list (0.09, 0.30, 0.53 mm) now shows in the table too. Import the file again to get its screening.' }
+    ]
+  },
+  {
+    version: '2.147', date: '2026-11-15',
+    items: [
+      { title: 'Design CAD: your design on the drawing\'s layouts', text: 'A layout of the drawing — one made with + or the drawing file\'s own — now shows what you made in the app through its viewports, as the Model tab does: devices, DBs, wiring and home runs, cable trays and routes with their tags, and the lines, text, dimensions and hatches you drew. Before, it showed the drawing file\'s own lines and text only. Plot prints the same. Symbols and tags keep their size on the paper at any viewport scale, as on a plan sheet; a small key plan viewport leaves the tags out.', action: 'cad' },
+      { title: 'Design CAD: layouts from a drawing template', text: 'New layout → From another drawing… now takes a drawing template (DWT) as well as a DWG or DXF.', action: 'cad' },
+      { title: 'Design CAD: key plan at the right scale', text: 'Arrange → Plan and key plan on a layout made with + now sets the key plan from the plan\'s scale (a plan at 1:75 gets a key plan at 1:500). It used to come out far too small.', action: 'cad' }
     ]
   },
   {

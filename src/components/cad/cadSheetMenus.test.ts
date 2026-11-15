@@ -80,14 +80,15 @@ describe('right-click menus (phase 3): blocks, references and sheets', () => {
     expect(labels(m)).toEqual(['Show on the Model tab', '-', 'Plot this layout…', '-', 'New layout', 'Model tab']);
   });
 
-  it('a layout of the drawing, on the paper: one made here has New viewport, Arrange, Plot, Page setup, New layout, From another drawing…, Rename, Copy, Delete; the file\'s own has Plot, New layout, From another drawing…', () => {
+  it('a layout of the drawing, on the paper: one made here has New viewport, Arrange, Plot, Page setup, New layout, From another drawing…, Layout manager…, Rename, Copy, Delete; the file\'s own has Plot, New layout, From another drawing…, Layout manager…', () => {
     const m = drawingPaperMenu({ inside: false, editable: true });
-    expect(labels(m)).toEqual(['New viewport', 'Arrange viewports', '-', 'Plot this layout…', 'Page setup…', '-', 'New layout', 'From another drawing…', 'Rename layout…', 'Copy layout', 'Delete layout', '-', 'Model tab']);
+    expect(labels(m)).toEqual(['New viewport', 'Arrange viewports', '-', 'Plot this layout…', 'Page setup…', '-', 'New layout', 'From another drawing…', 'Layout manager…', 'Rename layout…', 'Copy layout', 'Delete layout', '-', 'Model tab']);
     expect(flat(m).find((x) => x.label === 'New viewport')).toMatchObject({ arg: 'cmd|MV', key: 'MV' });
     expect(flat(m).find((x) => x.label === 'From another drawing…')!.arg).toBe('cmd|LAYOUT I');
+    expect(flat(m).find((x) => x.label === 'Layout manager…')!.arg).toBe('cmd|LAYOUTMANAGER');
     expect(flat(m).find((x) => x.label === 'Arrange viewports')!.sub).toHaveLength(9);
     const own = drawingPaperMenu({ inside: false, editable: false });
-    expect(labels(own)).toEqual(['Plot this layout…', '-', 'New layout', 'From another drawing…', '-', 'Model tab']);
+    expect(labels(own)).toEqual(['Plot this layout…', '-', 'New layout', 'From another drawing…', 'Layout manager…', '-', 'Model tab']);
   });
 
   it('every entry of the layout menus runs a typed command or a page action', () => {

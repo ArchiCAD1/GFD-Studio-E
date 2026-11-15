@@ -2,8 +2,9 @@ import { buildingInfoOf, floorsOf } from '../calc/building';
 import { cableSizeText } from '../calc/electrical';
 import { circuitCategory } from '../calc/loadSchedule';
 import { cableLabel, EMERGENCY_ITEMS, LV_PALETTE } from '../model/cadDevices';
-import { planOfLevel } from '../model/cadPlans';
+import { levelOfPlan, planOfLevel } from '../model/cadPlans';
 import { printedRefs } from '../model/cadRefs';
+import type { LevelRef } from '../model/levels';
 import { isFrozen, vpWindow, type PlanViewport } from '../model/planViewports';
 import { dimOf, scaleLook, segmentsOf, sketchOf, trayLabel, trayLength, trayLine } from '../model/cadSketch';
 import { effective, layerStylesOf, styleOf } from '../model/cadLayerStyle';
@@ -102,15 +103,19 @@ const boardsOn = (p: Project, b: string, l: string) => p.boards.flatMap((bd) => 
 function addContainment(p: Project, out: Content, b: string, l: string) {
   const plan = planOfLevel(p, { building: b, level: l });
   if (!plan) return;
-  const k = unitsOf(p, plan.file, plan.units).factor;
-  for (const it of sketchOf(p, plan.file)) {
+  addRuns(p, out, plan.file, unitsOf(p, plan.file, plan.units).factor);
+  if (out.trays.length || out.cables.length) out.boards = boardsOn(p, b, l);
+}
+
+/** The tray runs and cable routes drawn on a drawing file, `k` metres per drawing unit. */
+function addRuns(p: Project, out: Content, file: string, k: number) {
+  for (const it of sketchOf(p, file)) {
     if (it.pts.length < 2) continue;
     const pts = it.pts.map(([x, y]): Pt => [x * k, y * k]);
     if (it.tray) out.trays.push({ ...it, pts });
     const f = it.cable && p.feeders.find((x) => x.id === it.cable!.feederId);
     if (f) out.cables.push({ ...it, pts, text: `${cableLabel(p, f).split(' · ')[0]} · ${cableSizeText(f)}` });
   }
-  if (out.trays.length || out.cables.length) out.boards = boardsOn(p, b, l);
 }
 
 /** What the layout shows of a level, in metres on the level's plan. */
@@ -255,11 +260,15 @@ interface Drawn { it: SketchItem; dash: number[]; lw: number; pt?: { mode: numbe
  * that are on and print, in metres. */
 function drawnOf(p: Project, b: string, l: string): Drawn[] {
   const plan = planOfLevel(p, { building: b, level: l });
-  if (!plan) return [];
-  const k = unitsOf(p, plan.file, plan.units).factor, styles = layerStylesOf(p, plan.file), ps = pointStyleOf(p);
+  return plan ? drawnOn(p, plan.file, unitsOf(p, plan.file, plan.units).factor) : [];
+}
+
+/** The drawn work on a drawing file, `k` metres per drawing unit. */
+function drawnOn(p: Project, file: string, k: number): Drawn[] {
+  const styles = layerStylesOf(p, file), ps = pointStyleOf(p);
   const out: Drawn[] = [];
   // An insert prints as what its block shows.
-  for (const it0 of expandAll(sketchOf(p, plan.file), blockDefsOf(p, plan.file))) {
+  for (const it0 of expandAll(sketchOf(p, file), blockDefsOf(p, file))) {
     const it = it0.kind === 'attdef' ? attdefAsText(it0) : it0; // an attribute definition prints as its tag
     if (it.tray || it.cable || !it.pts.length) continue;
     const st = styleOf(styles, it.layer);
@@ -362,7 +371,7 @@ function drawnSvg(items: Drawn[], X: (x: number) => number, Y: (y: number) => nu
  * the architect's plan, the drawn work, containment, wiring and devices, clipped to the window. `frozen` leaves out
  * layers (drawn, and references' NAME|LAYER) for a viewport; without `tags` (a key plan) the circuit, tray and route
  * tags and the DB names are left out, too big to read there. Returns the SVG pieces and what the legend counts. */
-function contentSvg(p: Project, s: DrawingSheet, c: Content, drawn: Drawn[], refs: ReturnType<typeof refsOnSheet>, rooms: { name: string; outline: Pt[] }[], win: Box, X: (x: number) => number, Y: (y: number) => number, f: number, id: string, frozen?: (layer: string) => boolean, tags = true) {
+function contentSvg(p: Project, s: Pick<DrawingSheet, 'plot'> | undefined, c: Content, drawn: Drawn[], refs: ReturnType<typeof refsOnSheet>, rooms: { name: string; outline: Pt[] }[], win: Box, X: (x: number) => number, Y: (y: number) => number, f: number, id: string, frozen?: (layer: string) => boolean, tags = true) {
   const seg = (a: Pt, b: Pt) => { const k = clip(a, b, win); return k ? `M${X(k[0][0])} ${Y(k[0][1])}L${X(k[1][0])} ${Y(k[1][1])}` : ''; };
   const path = (pts: Pt[], closed = false) => (closed ? [...pts, pts[0]] : pts).slice(1).map((q, i, all) => seg(i ? all[i - 1] : pts[0], q)).join('');
   const out: string[] = [];
@@ -443,6 +452,36 @@ function contentSvg(p: Project, s: DrawingSheet, c: Content, drawn: Drawn[], ref
     counts.set(m.key, { ...k, n: k.n + 1 });
   }
   return { out, counts, trayM, pen };
+}
+
+/** The design over a drawing file's model, in metres (`k` metres per drawing unit): the references under it that print,
+ * the work drawn on it in Design CAD with its tray runs and cable routes, and the wiring, DBs and devices of the level
+ * the drawing shows, of every layout together (lighting, power and ELV), as the Model tab shows them. */
+export interface FileDesign { k: number; c: Content; drawn: Drawn[]; refs: ReturnType<typeof refsOnSheet> }
+
+/** The design over a drawing file, or nothing when there is none. `insunits`: the units the file says; `level`: the level
+ * the drawing shows (default: the one it is the plan of). */
+export function fileDesignOf(p: Project, file: string, insunits?: number, level: Pick<LevelRef, 'building' | 'level'> | undefined = levelOfPlan(p, file)?.ref): FileDesign | undefined {
+  const k = unitsOf(p, file, insunits).factor;
+  const c: Content = { marks: [], boards: [], wiring: [], homes: [], tags: [], trays: [], cables: [] };
+  if (level) for (const type of ['lighting', 'power', 'elv'] as const) {
+    const t = contentOf(p, type, level.building, level.level);
+    c.marks.push(...t.marks); c.wiring.push(...t.wiring); c.homes.push(...t.homes); c.tags.push(...t.tags);
+    for (const d of t.boards) if (!c.boards.some((x) => x.id === d.id)) c.boards.push(d);
+  }
+  addRuns(p, c, file, k);
+  const drawn = drawnOn(p, file, k), refs = printedRefs(p, file, k);
+  return hasContent(c) || drawn.length || refs.some((r) => r.segs) ? { k, c, drawn, refs } : undefined;
+}
+
+/** The design through one window of the model, for a viewport of a layout of the drawing (src/docs/layoutPlot.ts), as
+ * SVG pieces in mm on the page. `win`: the window in drawing units (x0, y0, x1, y1); X and Y: a model coordinate
+ * (drawing units) → mm on the page; `mm`: mm on the page per drawing unit. Symbols and tags are at their paper sizes
+ * and the lines at the set's default pens, as on a plan sheet; without `tags` (a key plan) the circuit, tray and route
+ * tags and the DB names are left out. The architect's plan is the drawing itself, so no room outlines are drawn. */
+export function fileDesignSvg(p: Project, d: FileDesign, win: [number, number, number, number], X: (x: number) => number, Y: (y: number) => number, mm: number, id: string, tags = true): string {
+  const k = d.k;
+  return contentSvg(p, undefined, d.c, d.drawn, d.refs, [], { x0: win[0] * k, y0: win[1] * k, x1: win[2] * k, y1: win[3] * k }, (x) => n(X(x / k)), (y) => n(Y(y / k)), mm / k, id, undefined, tags).out.join('');
 }
 
 /** A legend or notes table placed on the sheet, drawn (src/model/sheetTables.ts): where it goes (mm, drawing area) and its

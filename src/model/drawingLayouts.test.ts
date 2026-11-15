@@ -68,8 +68,10 @@ describe('layout tools on a drawing', () => {
     expect(four.viewports).toHaveLength(4);
     const upper = four.viewports[0], lower = four.viewports[2];
     expect(upper.y).toBeGreaterThan(lower.y); // the first frame is at the top: y runs up from the bottom
+    // A key plan goes by the plan's scale (1:75 → 1:500), not by what its own small frame would fit.
     const key = arrangeDrawingViewports(l, arrangementOf('KEY')!, ext, 1);
-    expect(viewportScaleN(key.viewports[1], 1)).toBeGreaterThan(viewportScaleN(key.viewports[0], 1));
+    expect([viewportScaleN(key.viewports[0], 1), viewportScaleN(key.viewports[1], 1)]).toEqual([75, 500]);
+    expect(viewportScaleN(arrangeDrawingViewports({ ...l, viewports: [] }, arrangementOf('KEY')!, ext, 1).viewports[1], 1)).toBe(500);
     expect(arrangeDrawingViewports(four, arrangementOf('1')!, ext, 1).viewports).toHaveLength(1);
   });
   it('fits every viewport to the whole drawing, centred', () => {
