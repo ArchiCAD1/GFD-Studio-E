@@ -1,7 +1,8 @@
+import path from 'node:path';
 import { z } from 'zod';
 import { allTools, callTool, toolByName, type Tool, type ToolContext } from './tools';
 import { projectsFolder } from './project';
-import { startMcp } from './mcp';
+import { mcpConfig, startMcp, type Runtime } from './mcp';
 import { startApi } from './api';
 
 /** The `lvds` command: every tool from the command line, plus `lvds mcp` (MCP server) and
@@ -116,7 +117,8 @@ function help(version: string): string {
     'Export (a preview unless --export; needs --approvedBy "<engineer>"; never over an existing file):',
     ...allTools().filter((t) => t.name.startsWith('export_') || t.name === 'list_exports').map(usage),
     '',
-    '  lvds mcp [--write]                 Run the MCP server (stdio) for Claude Desktop, Claude Code or a local model',
+    '  lvds mcp [--write]                 Run the MCP server (stdio) for your own AI program: any MCP client, or a local model through one',
+    '  lvds mcp-config [--write]          Print the settings that AI program needs to start this MCP server',
     '  lvds serve [--port 8765] [--write] Run the local API on http://127.0.0.1 (needs its token: lvds help serve)',
     '  (--write also offers the tools that change a project; without it both are read only)',
     '  lvds help <command>      Inputs of one command',
@@ -150,7 +152,10 @@ function commandHelp(t: Tool): string {
 
 // ---- Run ---------------------------------------------------------------------
 
-export async function main(argv: string[], version: string, io: { out: (s: string) => void; err: (s: string) => void } = { out: (s) => process.stdout.write(s + '\n'), err: (s) => process.stderr.write(s + '\n') }): Promise<number> {
+/** This copy of lvds, as an AI program would start it. */
+const thisRuntime = (): Runtime => ({ execPath: process.execPath, script: path.resolve(process.argv[1] ?? 'lvds.mjs'), electron: !!process.versions.electron });
+
+export async function main(argv: string[], version: string, io: { out: (s: string) => void; err: (s: string) => void } = { out: (s) => process.stdout.write(s + '\n'), err: (s) => process.stderr.write(s + '\n') }, runtime: Runtime = thisRuntime()): Promise<number> {
   const a = parseArgs(argv);
   const ctx: ToolContext = { folder: a.folder ?? projectsFolder(), anywhere: true, write: true };
   const cmd = a.command;
@@ -162,6 +167,11 @@ export async function main(argv: string[], version: string, io: { out: (s: strin
   }
   if (cmd === 'version' || cmd === '--version' || cmd === '-v') { io.out(version); return 0; }
   if (cmd === 'mcp') { await startMcp({ ...ctx, anywhere: false, write: a.write }, version); return -1; }
+  if (cmd === 'mcp-config') {
+    io.out(JSON.stringify(mcpConfig(runtime, a.write), null, 2));
+    io.err(`Paste this into the MCP settings of your AI program. It starts LV Design Studio's MCP server on this computer (${a.write ? 'read and change: change tools preview first' : 'read only; add --write to also offer the tools that change a project'}).`);
+    return 0;
+  }
   if (cmd === 'serve') {
     const port = a.port ?? 8765;
     const { server, tokenFile } = await startApi({ ...ctx, anywhere: false, write: a.write }, version, port);

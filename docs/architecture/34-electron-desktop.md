@@ -58,7 +58,7 @@
 | Drawing paths to read (incl. xref paths found inside a drawing) | 21-cad-core | `src/engines/cad/cadEngine.ts:230-279`, `src/components/cad/CadRefs.tsx:164` `lookFor`, `src/model/cadRefs.ts:122` `xrefCandidates` |
 | Engine request (project, OpenDSS script, cable data) | 16-load-flow-engines | `src/engines/external.ts` `engineRequest`, `pythonEngine.run` |
 | Error log text | 01-app-shell | `src/util/errorLog.ts:46` `logError` |
-| Export job (sheets DXF / report PDF) | 31-headless-cli-mcp | `src/headless/electronExport.ts:72` `runInRenderer` (writes `job.json`) |
+| Export job (sheets DXF / report PDF) | 31-headless-cli-mcp | `src/headless/electronExport.ts:86` `runInRenderer` (writes `job.json`) |
 
 ## 4. Outputs — where its results go
 
@@ -74,7 +74,7 @@
 | Printer list, print result | 23-cad-sheets-plot-titleblock | `src/util/printers.ts`, `src/components/docs/OutputDialogs.tsx:175` |
 | DWG/DXF bytes, WebAssembly engine, folder listings, pending "Open with" plans | 21-cad-core | `src/engines/cad/cadEngine.ts`, `src/App.tsx:389` (`takePending`), `CadPage.tsx:379/1283` |
 | Engine results / probe | 16-load-flow-engines | `src/engines/external.ts` `probeEngines`, `pythonEngine.run`; `src/components/EngineCompare.tsx` |
-| Headless result files (base64) | 31-headless-cli-mcp | `src/headless/electronExport.ts:87-91` |
+| Headless result files (base64) | 31-headless-cli-mcp | `src/headless/electronExport.ts:101-105` |
 
 ## 5. User flow — from button click to result
 

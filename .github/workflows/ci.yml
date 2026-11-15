@@ -82,6 +82,10 @@ jobs:
         run: |
           npx electron-builder --linux dir
           node scripts/check-package.mjs release/linux-unpacked
+      # The lvds command the package carries, run by the package's own runtime (the app as Node: no window):
+      # its version, and an MCP server started the way an AI program starts it.
+      - name: Packaged command line and MCP server
+        run: node scripts/check-packaged-lvds.mjs release/linux-unpacked
       # Electron downloads its binary on first use (it has no install script), so fetch it here.
       # Chromium's sandbox helper must then be owned by root and setuid; set it up as Chromium
       # expects, so the PDF tests run with the sandbox on.
