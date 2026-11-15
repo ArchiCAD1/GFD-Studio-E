@@ -1,6 +1,6 @@
 # UI / UX proposal — Layout, viewport and template tools on Output (2026-11-14)
 
-Status: **approved on 2026-11-14 ("Go ahead"). Batch 1 (items 1, 3, 4, 6, 8, 10) built in v2.136. Batch 2 (items 5, 9, 12) approved the same day ("go ahead with batch 2") and built in v2.143. Open points 1 and 4 after batch 2 (the design on these layouts, DWT) chosen on 2026-11-15 and built in v2.147 on `feat/cad-layout-design`. Items 2, 7, 11, 13 and open points 2 and 3 wait.**
+Status: **approved on 2026-11-14 ("Go ahead"). Batch 1 (items 1, 3, 4, 6, 8, 10) built in v2.136. Batch 2 (items 5, 9, 12) approved the same day ("go ahead with batch 2") and built in v2.143. Open points 1 and 4 after batch 2 (the design on these layouts, DWT) chosen on 2026-11-15 and built in v2.147. Items 2 and 11 (layout manager, named plot styles) built in v2.149 on `feat/cad-layout-manager` ("Next", 2026-11-15). Items 7 and 13 and open points 2 and 3 wait.**
 
 The user's condition: the arrangement must stay close to what people who know current industrial 2D drafting products expect, without copying one, so nobody has to hunt for a tool. Output therefore reads **Layout · Layout viewports · Plot · Publish · Export**, the typed commands keep their usual names (LAYOUT, MV, VPORTS, VPSCALE, VPLOCK, VPMAX / VPMIN, PAGESETUP, SCALELISTEDIT), and the same entries are on a layout tab's right-click menu.
 
@@ -69,6 +69,21 @@ Picture (printed with the PDF check's hidden renderer, not the app): a layout ma
 - A device whose circuit is no longer in the design is left off, as on a plan sheet.
 - No legend or notes table on these layouts: they stay on the project's plan sheets.
 - Checked by tests and the picture only: the screens were not opened in the app (project rules).
+
+## Built (v2.149, items 2 and 11)
+
+Picture of the two dialogs (printed with the PDF check's hidden renderer, not the app): `docs/mockups/cad-layout-manager-plot-styles-v2.149.png`.
+
+- **Item 2, Layout manager** (LAYOUTMANAGER, LAYOUT M; Output → Layout → Layout manager; a layout tab's and the paper's right-click menu; `src/components/cad/cadLayoutManager.ts`, `LayoutManagerDialog`): every layout tab of the drawing in tab order: the drawing file's own layouts, the layouts made with +, the level's plan sheets, each with its paper, what it shows and its page setup. Ticked layouts are copied or deleted together; one is renamed in its row, moved up or down among its kind, or opened (a double-click opens too). A named page setup is given to the plan sheets ticked. Each action is one undo step.
+- **Item 11, named plot styles** (`parseStb`, `tableFromStb`, `withStyle` in `src/model/plotSetup.ts`; `PenTableDialog`): Pen tables → Import CTB / STB… reads an STB file. Its styles are kept with the pen table, and a Plot style column gives one to each kind of line: the line takes the style's width (the default pen's when the style uses the object's own lineweight) and its screening. A width or ink changed by hand takes the style off that line.
+- **Fixed on the way:** the CTB import looked for the screening under a name plot style files do not use, so every colour came in at full black; it now reads it as files have it. A width outside the usual list now shows in the table.
+
+### Built differently (v2.149)
+
+- The drawing file's own layouts are listed and can be opened, not changed: they are as saved in the file.
+- A page setup applies to plan sheets only; a layout made with + still has its paper only (pens for these layouts are open point 2).
+- An STB's styles are given to the app's kinds of line by the user; nothing is matched by name. Styles are not read from the layers of a drawing.
+- Checked by tests and the picture only: the screens were not opened in the app (project rules). The STB and CTB readers were checked against files made in the tests, laid out as an open-source reader of these files describes them, not against a file saved by a CAD program.
 
 ## Why
 

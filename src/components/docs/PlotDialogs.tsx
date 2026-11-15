@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Modal } from '../ui';
-import { DEFAULT_PENS, newTableId, parseCtb, PEN_INKS, PEN_KEYS, PEN_LABEL, PEN_WIDTHS, plotOf, tableFromCtb, tablesOf, withDefaults, withTable, type PenKey, type PenTable, type PlotSetup } from '../../model/plotSetup';
+import { DEFAULT_PENS, newTableId, parseCtb, parseStb, PEN_INKS, PEN_KEYS, PEN_LABEL, PEN_WIDTHS, plotOf, plotStyleKind, tableFromCtb, tableFromStb, tablesOf, withDefaults, withStyle, withTable, type PenKey, type PenTable, type PlotSetup } from '../../model/plotSetup';
 import { drawnTextMm, planScale } from '../../docs/planLayout';
 import { drawable, type DrawingSheet, type SheetSize } from '../../model/drawingSet';
 import type { CalcRun } from '../../calc/runs';
@@ -39,7 +39,7 @@ export function PageSetupDialog({ project, sheet, run, onSave, onClose }: {
         </select></label>
         {plan && <label>Scale<select aria-label="Scale" value={scale} onChange={(e) => setScale(Number(e.target.value))}>{SCALES.map((k) => <option key={k} value={k}>1:{k}</option>)}</select></label>}
         <label>Pen table<select aria-label="Pen table" value={setup.pens ?? tables[0].id} onChange={(e) => setSetup({ ...setup, pens: e.target.value })}>
-          {tables.map((t) => <option key={t.id} value={t.id}>{t.name}{t.ctb ? ' (CTB)' : ''}</option>)}
+          {tables.map((t) => <option key={t.id} value={t.id}>{t.name}{t.ctb ? ' (CTB)' : t.stb ? ' (STB)' : ''}</option>)}
         </select></label>
         <label>Lineweights<select aria-label="Lineweights" value={setup.weights ?? 'pens'} onChange={(e) => setSetup({ ...setup, weights: e.target.value as PlotSetup['weights'] })}>
           <option value="pens">Print them (from the pen table)</option><option value="thin">All one thin line</option>
@@ -61,7 +61,7 @@ export function PageSetupDialog({ project, sheet, run, onSave, onClose }: {
   </>);
 }
 
-/** Pen tables: each kind of line's width and ink; a CTB file can be imported as a table. */
+/** Pen tables: each kind of line's width and ink; a CTB file (by colour) or an STB file (named styles) can be imported as a table. */
 export function PenTableDialog({ project, onSave, onClose }: { project: Project; onSave: (next: Project, message: string) => void; onClose: () => void }) {
   const tables = tablesOf(project);
   const [id, setId] = useState(plotOf(project).pens ?? tables[0].id);
@@ -69,29 +69,38 @@ export function PenTableDialog({ project, onSave, onClose }: { project: Project;
   const [error, setError] = useState('');
   const file = useRef<HTMLInputElement>(null);
   const pick = (next: string) => { setId(next); setDraft(tablesOf(project).find((t) => t.id === next) ?? tables[0]); };
-  const setPen = (k: PenKey, f: 'w' | 'grey', v: number) => setDraft({ ...draft, pens: { ...draft.pens, [k]: { ...draft.pens[k], [f]: v } } });
-  async function importCtb(f: File) {
+  // A width or ink changed by hand takes a named style off that kind of line: the pen no longer follows it.
+  const setPen = (k: PenKey, f: 'w' | 'grey', v: number) => {
+    const { [k]: _gone, ...by } = draft.stb?.by ?? {};
+    setDraft({ ...draft, pens: { ...draft.pens, [k]: { ...draft.pens[k], [f]: v } }, ...(draft.stb ? { stb: { ...draft.stb, by } } : {}) });
+  };
+  async function importStyles(f: File) {
     setError('');
     try {
-      const t = tableFromCtb(newTableId(project), f.name.replace(/\.ctb$/i, ''), await parseCtb(new Uint8Array(await f.arrayBuffer())));
-      onSave(withTable(project, { ...t, ctb: f.name }), `${f.name} imported as a pen table · ⌘Z to undo`);
-      setId(t.id); setDraft({ ...t, ctb: f.name });
+      const bytes = new Uint8Array(await f.arrayBuffer()), kind = plotStyleKind(bytes);
+      if (!kind) throw new Error('Not a plot style table: choose a CTB (by colour) or an STB (named styles) file.');
+      const t = kind === 'ctb' ? { ...tableFromCtb(newTableId(project), f.name.replace(/\.ctb$/i, ''), await parseCtb(bytes)), ctb: f.name } : tableFromStb(newTableId(project), f.name.replace(/\.stb$/i, ''), f.name, await parseStb(bytes));
+      onSave(withTable(project, t), kind === 'ctb' ? `${f.name} imported as a pen table · ⌘Z to undo` : `${f.name} imported as a pen table: give its styles to the kinds of line · ⌘Z to undo`);
+      setId(t.id); setDraft(t);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   }
   return (
-    <Modal onClose={onClose} className="modal" style={{ maxWidth: 640 }} label="Pen tables">
+    <Modal onClose={onClose} className="modal" style={{ maxWidth: draft.stb ? 800 : 640 }} label="Pen tables">
       <h3>Pen tables</h3>
       <div className="cad-devform">
-        <label>Table<select aria-label="Table" value={id} onChange={(e) => pick(e.target.value)}>{tablesOf(project).map((t) => <option key={t.id} value={t.id}>{t.name}{t.ctb ? ` (from ${t.ctb})` : ''}</option>)}</select></label>
+        <label>Table<select aria-label="Table" value={id} onChange={(e) => pick(e.target.value)}>{tablesOf(project).map((t) => <option key={t.id} value={t.id}>{t.name}{t.ctb ? ` (from ${t.ctb})` : t.stb ? ` (from ${t.stb.file})` : ''}</option>)}</select></label>
         <label>Name<input aria-label="Table name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></label>
       </div>
       <table className="sched" aria-label="Pens">
-        <thead><tr><th>Line</th><th>Width (mm)</th><th>Ink</th></tr></thead>
+        <thead><tr><th>Line</th>{draft.stb && <th>Plot style</th>}<th>Width (mm)</th><th>Ink</th></tr></thead>
         <tbody>{PEN_KEYS.map((k) => (
           <tr key={k}>
             <td>{PEN_LABEL[k]}</td>
+            {draft.stb && <td><select aria-label={`${PEN_LABEL[k]} plot style`} value={draft.stb.by[k] ?? ''} onChange={(e) => setDraft(withStyle(draft, k, e.target.value || undefined))}>
+              <option value="">—</option>{draft.stb.styles.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}
+            </select></td>}
             <td><select aria-label={`${PEN_LABEL[k]} width`} value={draft.pens[k].w} onChange={(e) => setPen(k, 'w', Number(e.target.value))}>
-              {(k === 'sld' || k === 'bus' ? [0, ...PEN_WIDTHS] : PEN_WIDTHS).map((w) => <option key={w} value={w}>{w ? w.toFixed(2) : 'As drawn'}</option>)}
+              {[...new Set([...(k === 'sld' || k === 'bus' ? [0, ...PEN_WIDTHS] : PEN_WIDTHS), draft.pens[k].w])].sort((a, b) => a - b).map((w) => <option key={w} value={w}>{w ? w.toFixed(2) : 'As drawn'}</option>)}
             </select></td>
             <td><select aria-label={`${PEN_LABEL[k]} ink`} value={draft.pens[k].grey} onChange={(e) => setPen(k, 'grey', Number(e.target.value))}>
               {[...new Set([...PEN_INKS, draft.pens[k].grey])].sort((a, b) => b - a).map((g) => <option key={g} value={g}>{g >= 100 ? 'Black' : `${g} % grey`}</option>)}
@@ -99,12 +108,12 @@ export function PenTableDialog({ project, onSave, onClose }: { project: Project;
           </tr>
         ))}</tbody>
       </table>
-      <p className="m">The architect's lines on plan sheets are the room outlines. A CTB file (from your CAD program's plot styles folder) gives each kind of line the width and screening of the colour of its DXF layer: frame, title and cables colour 7, devices and trays 3, busbars 1, the architect's plan 8.</p>
+      <p className="m">The architect's lines on plan sheets are the room outlines. A CTB file (from your CAD program's plot styles folder) gives each kind of line the width and screening of the colour of its DXF layer: frame, title and cables colour 7, devices and trays 3, busbars 1, the architect's plan 8. An STB file (named plot styles) comes in with its styles: choose one for each kind of line.</p>
       {error && <p className="m" role="alert">⚠ {error}</p>}
-      <input ref={file} type="file" accept=".ctb" hidden aria-label="CTB file" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCtb(f); e.target.value = ''; }} />
+      <input ref={file} type="file" accept=".ctb,.stb" hidden aria-label="Plot style file" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importStyles(f); e.target.value = ''; }} />
       <div className="modal-actions">
         <button className="chip" onClick={onClose}>Close</button>
-        <button className="chip" onClick={() => file.current?.click()}>Import CTB…</button>
+        <button className="chip" onClick={() => file.current?.click()}>Import CTB / STB…</button>
         <span className="sp" />
         {draft.id === DEFAULT_PENS.id && <button className="chip" onClick={() => { setDraft(DEFAULT_PENS); onSave(withTable(project, DEFAULT_PENS), 'Pen table LVDS Electrical reset · ⌘Z to undo'); }}>Reset</button>}
         <button className="chip" onClick={() => { const t = { ...draft, id: newTableId(project), name: `${draft.name} (copy)`, ctb: undefined }; onSave(withTable(project, t), `Pen table ${t.name} added · ⌘Z to undo`); setId(t.id); setDraft(t); }}>Save as new</button>

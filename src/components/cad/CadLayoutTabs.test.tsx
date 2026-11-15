@@ -67,20 +67,23 @@ describe('Model and layout tabs', () => {
   });
 
   it('From another drawing… tops every tab menu; the drawing file\'s own tab has its own menu (Save as template…, Plot…); a layout made here has Plot… after Page setup…', () => {
-    const onDrawing = { rename: fn(), copy: fn(), move: fn(), remove: fn(), pageSetup: fn() }, onImport = fn(), onPlotLayout = fn(), onSaveTemplate = fn(), onTemplates = fn();
-    render({ drawings: [{ id: 'dwg:Layout2', name: 'Layout2', title: '420 × 297 mm · 1 viewport at 1:100' }], onDrawing, onImport, onPlotLayout, onSaveTemplate, onTemplates });
+    const onDrawing = { rename: fn(), copy: fn(), move: fn(), remove: fn(), pageSetup: fn() }, onImport = fn(), onManager = fn(), onPlotLayout = fn(), onSaveTemplate = fn(), onTemplates = fn();
+    render({ drawings: [{ id: 'dwg:Layout2', name: 'Layout2', title: '420 × 297 mm · 1 viewport at 1:100' }], onDrawing, onImport, onManager, onPlotLayout, onSaveTemplate, onTemplates });
     const items = () => [...document.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent);
     const pickItem = (label: string) => act(() => ([...document.querySelectorAll('[role="menuitem"]')].find((b) => b.textContent === label) as HTMLButtonElement).click());
     const menuOf = (i: number) => act(() => document.querySelectorAll('[role="tab"]')[i].dispatchEvent(new MouseEvent('contextmenu', { bubbles: true })));
     menuOf(0);
-    expect(items()).toEqual(['New layout LAYOUT', 'From template…', 'From another drawing…']);
+    expect(items()).toEqual(['New layout LAYOUT', 'From template…', 'From another drawing…', 'Layout manager… LAYOUTMANAGER']);
     pickItem('From another drawing…');
     expect(onImport).toHaveBeenCalledTimes(1);
+    menuOf(0);
+    pickItem('Layout manager… LAYOUTMANAGER');
+    expect(onManager).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[role="menu"]')).toBeNull();
     // The file's own layout: the top block, a rule, then its own entries.
     menuOf(1);
     expect(document.querySelector('[role="menu"]')!.getAttribute('aria-label')).toBe('Layout Layout1');
-    expect(items()).toEqual(['New layout LAYOUT', 'From template…', 'From another drawing…', 'Save as template…', 'Plot… PLOT']);
+    expect(items()).toEqual(['New layout LAYOUT', 'From template…', 'From another drawing…', 'Layout manager… LAYOUTMANAGER', 'Save as template…', 'Plot… PLOT']);
     expect(document.querySelectorAll('[role="menu"] hr')).toHaveLength(1);
     pickItem('Save as template…');
     expect(onSaveTemplate).toHaveBeenCalledWith('file:Layout1');
@@ -89,7 +92,7 @@ describe('Model and layout tabs', () => {
     expect(onPlotLayout).toHaveBeenLastCalledWith('file:Layout1');
     // A layout made here: Plot… after Page setup….
     menuOf(2);
-    expect(items()).toEqual(['New layout LAYOUT', 'From template…', 'From another drawing…', 'Rename…', 'Copy', 'Save as template…', 'Move left', 'Move right', 'Page setup…', 'Plot… PLOT', 'Delete']);
+    expect(items()).toEqual(['New layout LAYOUT', 'From template…', 'From another drawing…', 'Layout manager… LAYOUTMANAGER', 'Rename…', 'Copy', 'Save as template…', 'Move left', 'Move right', 'Page setup…', 'Plot… PLOT', 'Delete']);
     pickItem('Plot… PLOT');
     expect(onPlotLayout).toHaveBeenLastCalledWith('dwg:Layout2');
     // Without the callbacks the entries are not offered; the file's tab has no menu of its own then beyond the top block.

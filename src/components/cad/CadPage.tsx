@@ -81,7 +81,9 @@ import { patchTable, TABLE_WIDTH, tableId, tableName, tablesOf, withTables, type
 import { layoutExtent, layoutPaper, layoutRegion, layoutViewports, PLAN_LABEL, PLAN_TYPES, planLegendLabels, planScale as sheetScale } from '../../docs/planLayout';
 import { drawingLayoutFromTemplate, layoutsFromTemplates, loadLayoutTemplates, saveLayoutTemplates, sheetWithTemplate, templateFromFileLayout, templateFromPaper, templateFromSheet, withLayoutTemplate, type LayoutTemplate } from '../../model/layoutTemplates';
 import { layoutDesign, layoutPlotHtml } from '../../docs/layoutPlot';
-import { ImportLayoutsDialog, LayoutPaperDialog, LayoutPlotDialog, LayoutTemplatesDialog, ScaleListDialog } from './CadLayoutDialogs';
+import { ImportLayoutsDialog, LayoutManagerDialog, LayoutPaperDialog, LayoutPlotDialog, LayoutTemplatesDialog, ScaleListDialog } from './CadLayoutDialogs';
+import { applySetupManaged, copyManaged, deleteManaged, managerRows, moveManaged, renameManaged, type ManagerCtx } from './cadLayoutManager';
+import { setupsOf } from '../../model/plotSetup';
 import { alignView, arrangementOf, arrangeViewports, copyViewport, fitView, isFrozen, isLocked, scalesOf, toggleFrozen, vpName, vpToModel, vpWindow, withScales, type PlanViewport } from '../../model/planViewports';
 import { renumber, setOf, type PlanType } from '../../model/drawingSet';
 import { PublishDialog, SheetWorkspace } from '../sld/SheetWorkspace';
@@ -830,7 +832,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [mv, setMv] = useState(false);
   const [placing, setPlacing] = useState<TableKind | null>(null); // LEGEND / NOTES: the next click on the paper places the table
   const [renamingLayout, setRenamingLayout] = useState<string | null>(null);
-  const [layoutDlg, setLayoutDlg] = useState<'templates' | 'paper' | 'scales' | 'plot' | null>(null); // Output → Layout: templates, the paper, the scale list, plot
+  const [layoutDlg, setLayoutDlg] = useState<'templates' | 'paper' | 'scales' | 'plot' | 'manager' | null>(null); // Output → Layout: templates, the paper, the scale list, plot, the layout manager
   const [importList, setImportList] = useState<{ file: string; list: LayoutTemplate[] } | null>(null); // LAYOUT I: the layouts of another drawing, to pick from
   const [maxFrom, setMaxFrom] = useState<string | null>(null); // VPMAX: the layout to go back to (VPMIN)
   useEffect(() => { if (cad.layout) setMaxFrom(null); }, [cad.layout]); // back on a layout by its tab: nothing is maximised any more
@@ -861,6 +863,43 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const l = newDrawingLayout(nextLayoutName(layoutNames), view.info.extents, units.factor * 1000);
     setDwgLayouts([...dwgLayouts, l], `${l.name} — A3 paper, the whole drawing in one viewport at ${fileLayoutTitle(asFileLayout(l, 0), units.factor * 1000).split(' at ')[1] ?? '1:100'} · Page setup changes the paper`);
     cad.setLayout(drawingLayoutId(l.name));
+  };
+  /** A layout tab picked (or opened from the Layout manager): shown, and what it is said in the command line. */
+  const pickLayout = (id: string | null) => {
+    if (!view) return;
+    cad.setLayout(id);
+    const f = fileLayoutOf(view.layouts, id), d = drawingLayoutOf(dwgLayouts, id);
+    if (f) cad.say(`LAYOUT  ${f.name} — the drawing file's own layout, as saved: ${fileLayoutTitle(f, units.factor * 1000)}.`);
+    else if (d) cad.say(`LAYOUT  ${d.name} — ${fileLayoutTitle(asFileLayout(d, 0), units.factor * 1000)}.`);
+    else if (id) cad.say(`LAYOUT  ${layouts.find((x) => x.id === id)?.number ?? ''} — the paper; double-click inside a viewport to work in it, MV adds one.`);
+  };
+  /** The Layout manager (LAYOUTMANAGER): each action is one project change (one undo step) made by cadLayoutManager.ts. */
+  const mgrCtx: ManagerCtx | undefined = view ? { file: view.file, fileNames: view.layouts.map((l) => l.name), lv } : undefined;
+  const mgrName = (id: string) => drawingLayoutOf(dwgLayouts, id)?.name ?? layouts.find((x) => x.id === id)?.number ?? id;
+  const mgrList = (l: string[]) => `${l.length} layout${l.length === 1 ? '' : 's'}`;
+  const managerActs = !mgrCtx ? undefined : {
+    rename: (id: string, name: string): string | undefined => {
+      const r = renameManaged(project, mgrCtx, id, name);
+      if ('error' in r) return r.error;
+      change(r.project, `LAYOUT  ${mgrName(id)} renamed ${name.trim()} · ⌘Z to undo`);
+      if (cad.layout === id) cad.setLayout(r.id);
+      return undefined;
+    },
+    copy: (ids: string[]) => {
+      const r = copyManaged(project, mgrCtx, ids);
+      if (r.made.length) change(r.project, `LAYOUT  ${mgrList(r.made)} copied: ${r.made.join(', ')} · ⌘Z to undo`); else cad.say("LAYOUT  Nothing to copy: the drawing file's own layouts are as saved.");
+    },
+    move: (id: string, dir: -1 | 1) => { const next = moveManaged(project, mgrCtx, id, dir); if (next) change(next, `LAYOUT  ${mgrName(id)} moved ${dir < 0 ? 'up' : 'down'} · ⌘Z to undo`); },
+    remove: (ids: string[]) => {
+      const r = deleteManaged(project, mgrCtx, ids);
+      if (!r.gone.length) { cad.say("LAYOUT  Nothing to delete: the drawing file's own layouts are as saved."); return; }
+      change(r.project, `LAYOUT  ${mgrList(r.gone)} deleted: ${r.gone.join(', ')} · ⌘Z to undo`);
+      if (cad.layout && ids.includes(cad.layout)) cad.setLayout(null);
+    },
+    apply: (setupId: string, ids: string[]) => {
+      const r = applySetupManaged(project, mgrCtx, setupId, ids), name = setupsOf(project).find((x) => x.id === setupId)?.name ?? setupId;
+      if (r.applied) change(r.project, `LAYOUT  Page setup ${name} given to ${r.applied} plan sheet${r.applied === 1 ? '' : 's'}${r.skipped ? ` (${r.skipped} layout${r.skipped === 1 ? '' : 's'} skipped: paper only)` : ''} · ⌘Z to undo`);
+    }
   };
   useEffect(() => { if (cad.layout && !sheetL && !fileL && !dwgL) cad.setLayout(null); }, [cad.layout, sheetL, fileL, dwgL]); // eslint-disable-line react-hooks/exhaustive-deps -- a layout gone (deleted, another level)
   useEffect(() => { if (!sheetL) { if (!dwgL) setMv(false); setPlacing(null); } }, [sheetL, dwgL]);
@@ -964,6 +1003,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if ((w === 'LAYOUT' || w === 'LO') && (arg === 'T' || arg === 'TEMPLATE')) { if (view) setLayoutDlg('templates'); else cad.say('LAYOUT  Open a drawing first.'); return true; }
     if ((w === 'LAYOUT' || w === 'LO') && (arg === 'S' || arg === 'SAVEAS')) { if (layoutShowing) setLayoutDlg('templates'); else cad.say('LAYOUT  Open a layout tab first: a template keeps its paper, viewports and tables.'); return true; }
     if (w === 'SCALELISTEDIT') { setLayoutDlg('scales'); return true; }
+    if (w === 'LAYOUTMANAGER' || ((w === 'LAYOUT' || w === 'LO') && (arg === 'M' || arg === 'MANAGER'))) { if (view) setLayoutDlg('manager'); else cad.say('LAYOUTMANAGER  Open a drawing first.'); return true; }
     if (w === 'VPMIN') {
       const back = maxFrom && (layouts.some((x) => x.id === maxFrom) || drawingLayoutOf(dwgLayouts, maxFrom) || fileLayoutOf(view?.layouts, maxFrom)) ? maxFrom : null;
       if (back) { cad.setLayout(back); setMaxFrom(null); cad.say('VPMIN  Back on the layout.'); } else cad.say('VPMIN  No viewport is maximised (VPMAX on a layout first).');
@@ -4428,10 +4468,10 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         {dockSide === 'right' ? dock : info}
       </div>
       <CadCommandLine history={cad.history} live={EDIT_TOOLS.includes(tool) ? promptNow(edSet) : undefined} cmd={cmd} setCmd={setCmd} inputRef={input} typed={typed} space={spaceMode} log={log} onLog={setLog} onRun={run} />
-      {view && <LayoutTabs files={view.layouts.map((l) => ({ id: fileLayoutId(l.name), name: l.name, title: fileLayoutTitle(l, units.factor * 1000) }))} drawings={dwgLayouts.map((l, n) => ({ id: drawingLayoutId(l.name), name: l.name, title: fileLayoutTitle(asFileLayout(l, n), units.factor * 1000) }))} layouts={layouts} active={sheetL?.id ?? (fileL ? fileLayoutId(fileL.name) : dwgL ? drawingLayoutId(dwgL.name) : null)} onPick={(id) => { cad.setLayout(id); const f = fileLayoutOf(view.layouts, id); const d = drawingLayoutOf(dwgLayouts, id); if (f) cad.say(`LAYOUT  ${f.name} — the drawing file's own layout, as saved: ${fileLayoutTitle(f, units.factor * 1000)}.`); else if (d) cad.say(`LAYOUT  ${d.name} — ${fileLayoutTitle(asFileLayout(d, 0), units.factor * 1000)}.`); else if (id) cad.say(`LAYOUT  ${layouts.find((x) => x.id === id)?.number ?? ''} — the paper; double-click inside a viewport to work in it, MV adds one.`); }}
+      {view && <LayoutTabs files={view.layouts.map((l) => ({ id: fileLayoutId(l.name), name: l.name, title: fileLayoutTitle(l, units.factor * 1000) }))} drawings={dwgLayouts.map((l, n) => ({ id: drawingLayoutId(l.name), name: l.name, title: fileLayoutTitle(asFileLayout(l, n), units.factor * 1000) }))} layouts={layouts} active={sheetL?.id ?? (fileL ? fileLayoutId(fileL.name) : dwgL ? drawingLayoutId(dwgL.name) : null)} onPick={pickLayout}
         onNew={addDrawingLayout} onNewSheet={addLayout}
         onDrawing={{ ...drawingTabActs, pageSetup: (d) => { cad.setLayout(d.id); setLayoutDlg('paper'); } }}
-        onTemplates={() => layoutCmd('LAYOUT T')} onImport={() => layoutCmd('LAYOUT I')} onPlotLayout={(id) => { cad.setLayout(id); setLayoutDlg('plot'); }} onSaveTemplate={(id) => { cad.setLayout(id); setLayoutDlg('templates'); }}
+        onTemplates={() => layoutCmd('LAYOUT T')} onImport={() => layoutCmd('LAYOUT I')} onManager={() => layoutCmd('LAYOUTMANAGER')} onPlotLayout={(id) => { cad.setLayout(id); setLayoutDlg('plot'); }} onSaveTemplate={(id) => { cad.setLayout(id); setLayoutDlg('templates'); }}
         onRename={(x) => { setRenamingLayout(x.id); cad.say(`RENAME  Type the new title of ${x.number} (now "${x.title}"):`); input.current?.focus(); }}
         onCopy={(x) => { if (!lv) return; const r = newLayout(setOf(project), lv, x.plan ?? 'lighting', x); change({ ...project, drawingSet: r.set }, `LAYOUT  ${x.number} copied · ⌘Z to undo`); cad.setLayout(r.id); }}
         onMove={(x, dir) => change({ ...project, drawingSet: renumber(moveLayout(setOf(project), x.id, dir)) }, `LAYOUT  ${x.number} moved ${dir < 0 ? 'left' : 'right'} · ⌘Z to undo`)}
@@ -4482,6 +4522,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         fileName={`${safeFileName(`${view.file.replace(/\.(dwg|dxf)$/i, '')} ${paperL.name}`)}.pdf`} onStatus={(m) => { cad.say(`PLOT  ${m}`); onStatus(m); }} onClose={() => setLayoutDlg(null)} />}
       {importList && <ImportLayoutsDialog file={importList.file} list={importList.list} onImport={importPicked} onClose={() => setImportList(null)} />}
       {layoutDlg === 'paper' && dwgL && <LayoutPaperDialog layout={dwgL} onClose={() => setLayoutDlg(null)} onSave={(paper) => setDwgLayouts(dwgLayouts.map((l) => (l === dwgL ? withPaper(dwgL, paper) : l)), `${dwgL.name}: ${paperName(paper)}`)} />}
+      {layoutDlg === 'manager' && view && mgrCtx && managerActs && <LayoutManagerDialog file={view.file} rows={managerRows(project, mgrCtx, view.layouts, units.factor * 1000)} active={cad.layout} setups={setupsOf(project).map((x) => ({ id: x.id, name: x.name }))}
+        onOpen={pickLayout} onRename={managerActs.rename} onCopy={managerActs.copy} onMove={managerActs.move} onDelete={managerActs.remove} onApplySetup={managerActs.apply} onNew={addDrawingLayout} onClose={() => setLayoutDlg(null)} />}
       {layoutDlg === 'scales' && <ScaleListDialog scales={scalesOf(project)} onClose={() => setLayoutDlg(null)} onSave={(list) => change(withScales(project, list), `SCALELISTEDIT  ${list.length} scales in the list · ⌘Z to undo`)} />}
       {publishing && <PublishDialog project={project} run={calcRun} current={sheetL?.id} ticked={layouts.map((x) => x.id)} onClose={() => setPublishing(false)} onChange={(p) => onChange(p, 'Sheets issued · ⌘Z to undo')} onStatus={onStatus} onOpen={(id) => { setPublishing(false); onSheet?.(id); }} />}
       {showXR && view && <RefManager file={view.file} level={floor ? floorLabel(project.building, floor) : undefined} x={xr} onAttach={() => void startAttach()} onClip={startClip} onBind={() => { setShowXR(false); const c = copyOf(/^DXF/i.test(view.info.format) ? 'dxf' : 'dwg', true); if (c) void writeCopy({ ...c, path: undefined }, false, false); }} onClose={() => setShowXR(false)} />}

@@ -1,15 +1,16 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal } from '../ui';
 import { PrinterSelect } from '../docs/OutputDialogs';
 import { canPreviewSheetPdf, PdfPreview } from '../docs/SheetPdfPreview';
 import { printerPaper } from '../../docs/layoutPlot';
 import { PLAN_LABEL, PLAN_TYPES } from '../../docs/planLayout';
-import { LAYOUT_PAPERS, paperName, type DrawingLayout } from '../../model/drawingLayouts';
+import { drawingLayoutId, LAYOUT_PAPERS, paperName, type DrawingLayout } from '../../model/drawingLayouts';
 import type { PlanType } from '../../model/drawingSet';
 import { loadLayoutTemplates, parseLayoutTemplate, saveLayoutTemplates, withLayoutTemplate, type LayoutTemplate } from '../../model/layoutTemplates';
 import { MORE_SCALES, VP_SCALES } from '../../model/planViewports';
 import { safeFileName, saveBinary, savePdf, saveText } from '../../util/files';
 import { canPrint, plotPrinter, usePrinters } from '../../util/printers';
+import type { ManagerRow } from './cadLayoutManager';
 
 /** Design CAD → Output → Layout: the layout templates (save, new from one, import, export, delete), a layout's paper and
  * the project's scale list for viewports. */
@@ -111,6 +112,88 @@ export function ImportLayoutsDialog({ file, list, onImport, onClose }: { file: s
         <button className="chip" onClick={onClose}>Cancel</button>
         <span className="sp" />
         <button className="chip primary" disabled={!chosen.length} onClick={() => { onImport(chosen, keep); onClose(); }}>Import {chosen.length} layout{chosen.length === 1 ? '' : 's'}</button>
+      </div>
+    </Modal>
+  );
+}
+
+const KIND_TEXT: Record<ManagerRow['kind'], string> = { file: 'Drawing file', drawing: 'Layout', sheet: 'Plan sheet' };
+
+/** Every layout tab of the drawing in one list (LAYOUTMANAGER): open, rename, copy, order and delete them, and give a named
+ * page setup to several plan sheets at once. Ticks are kept by tab id; the page does the work and one undo step each. */
+export function LayoutManagerDialog({ file, rows, active, setups, onOpen, onRename, onCopy, onMove, onDelete, onApplySetup, onNew, onClose }: {
+  file: string;
+  rows: ManagerRow[];
+  /** The tab showing (null: Model). */
+  active: string | null;
+  setups: { id: string; name: string }[];
+  onOpen: (id: string) => void;
+  /** Rename a layout; the error to show when it cannot be. */
+  onRename: (id: string, name: string) => string | undefined;
+  onCopy: (ids: string[]) => void;
+  onMove: (id: string, dir: -1 | 1) => void;
+  onDelete: (ids: string[]) => void;
+  onApplySetup: (setupId: string, ids: string[]) => void;
+  onNew: () => void;
+  onClose: () => void;
+}) {
+  const [ticked, setTicked] = useState<Set<string>>(new Set());
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [error, setError] = useState('');
+  const [setupId, setSetupId] = useState(setups[0]?.id ?? '');
+  const field = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (renaming?.id) { field.current?.focus(); field.current?.select(); } }, [renaming?.id]);
+  const picked = rows.filter((r) => ticked.has(r.id)), one = picked.length === 1 ? picked[0] : undefined;
+  const flip = (id: string, on: boolean) => { const n = new Set(ticked); if (on) n.add(id); else n.delete(id); setTicked(n); };
+  const sameKind = one ? rows.filter((r) => r.kind === one.kind) : [];
+  const at = one ? sameKind.indexOf(one) : -1;
+  const sheets = picked.filter((r) => r.kind === 'sheet').length, usable = setups.some((x) => x.id === setupId);
+  const startRename = () => { if (one && one.kind !== 'file') { setError(''); setRenaming({ id: one.id, name: one.kind === 'sheet' ? one.name.replace(/^.*? — /, '') : one.name }); } };
+  const finishRename = () => {
+    if (!renaming) return;
+    const e = onRename(renaming.id, renaming.name);
+    if (e) { setError(e); return; }
+    if (renaming.id.startsWith('dwg:')) { const n = new Set(ticked); if (n.delete(renaming.id)) n.add(drawingLayoutId(renaming.name.trim())); setTicked(n); }
+    setError(''); setRenaming(null);
+  };
+  return (
+    <Modal onClose={onClose} className="modal" style={{ maxWidth: 940 }} label="Layout manager">
+      <h3>Layout manager <span className="m">{file}</span></h3>
+      <div style={{ overflowX: 'auto' }}><table className="sched" aria-label="Layouts of this drawing">
+        <thead><tr><th /><th>Layout</th><th>Kind</th><th>Paper</th><th>Shows</th><th>Page setup</th></tr></thead>
+        <tbody>{rows.map((r) => (
+          <tr key={r.id} aria-current={r.id === active ? 'true' : undefined} onDoubleClick={(e) => { if (renaming || (e.target as HTMLElement).closest('input')) return; onOpen(r.id); onClose(); }}>
+            <td><input type="checkbox" aria-label={`Pick ${r.name}`} checked={ticked.has(r.id)} disabled={r.kind === 'file'} title={r.kind === 'file' ? 'As saved in the drawing file: open it, plot it or save it as a template from its tab' : undefined} onChange={(e) => flip(r.id, e.target.checked)} /></td>
+            <td>{renaming?.id === r.id
+              ? <input ref={field} aria-label="New name" value={renaming.name} onChange={(e) => setRenaming({ ...renaming, name: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); finishRename(); } else if (e.key === 'Escape') { e.preventDefault(); setError(''); setRenaming(null); } }} />
+              : <>{r.name}{r.id === active && <span className="m"> · current</span>}</>}</td>
+            <td>{KIND_TEXT[r.kind]}</td><td>{r.paper}</td><td>{r.shows}</td><td>{r.setup}</td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+      {error && <p className="m" role="alert">⚠ {error}</p>}
+      <div className="cad-devform" style={{ display: 'flex', flexWrap: 'wrap', paddingTop: 8 }}>
+        <button className="chip" disabled={!one} title={one ? 'Open the layout ticked' : 'Tick one layout to open it (double-click a row opens it too)'} onClick={() => { if (one) { onOpen(one.id); onClose(); } }}>Open</button>
+        <button className="chip" disabled={!one} title={one ? 'Give the layout ticked another name' : 'Tick one layout to rename it'} onClick={startRename}>Rename…</button>
+        <button className="chip" disabled={!picked.length} title={picked.length ? 'A copy of each layout ticked' : 'Tick the layouts to copy'} onClick={() => onCopy(picked.map((r) => r.id))}>Copy</button>
+        <button className="chip" disabled={!one || at <= 0} title={!one ? 'Tick one layout to move it' : at <= 0 ? 'It is the first of its kind' : 'One place earlier among its kind'} onClick={() => { if (one) onMove(one.id, -1); }}>Move up</button>
+        <button className="chip" disabled={!one || at < 0 || at >= sameKind.length - 1} title={!one ? 'Tick one layout to move it' : at >= sameKind.length - 1 ? 'It is the last of its kind' : 'One place later among its kind'} onClick={() => { if (one) onMove(one.id, 1); }}>Move down</button>
+        <button className="chip" disabled={!picked.length} title={picked.length ? 'Delete the layouts ticked (⌘Z undoes it)' : 'Tick the layouts to delete'} onClick={() => { onDelete(picked.map((r) => r.id)); setTicked(new Set()); }}>Delete</button>
+      </div>
+      <div className="cad-devform" style={{ gridTemplateColumns: 'minmax(0, 320px) auto 1fr', alignItems: 'end' }}>
+        <label>Page setup
+          <select aria-label="Page setup to apply" value={setupId} disabled={!setups.length} onChange={(e) => setSetupId(e.target.value)}>
+            {setups.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </label>
+        <button className="chip" disabled={!usable || !sheets} title={!setups.length ? 'No named page setups yet: Output → Page setups' : !sheets ? 'Page setups are for plan sheets: tick one or more; a layout made here has its paper only' : 'Give the page setup to the plan sheets ticked'} onClick={() => onApplySetup(setupId, picked.map((r) => r.id))}>Apply to ticked</button>
+        {!setups.length && <span className="m">No named page setups yet: Output → Page setups</span>}
+      </div>
+      <div className="modal-actions">
+        <button className="chip" onClick={onNew}>New layout</button>
+        <span className="sp" />
+        <button className="chip primary" onClick={onClose}>Close</button>
       </div>
     </Modal>
   );
