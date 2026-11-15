@@ -64,7 +64,13 @@ The owner approved the revised steps on 2026-11-14 ("Okay, start do it"). Apply 
 - **Sheet tabs on one row:** PR 584, v2.138.
 - **PDF in your own format:** PR 585, v2.139. Load schedule tab → Export → PDF: my format (the panel on screen) and PDF: my format, all panels (`src/docs/sheetPrint.ts`).
 - **Push to load schedule:** v2.140. A linked DB sheet that already has rows (`ownRows`) offers Push to load schedule: `pushRows` makes the panel under its Fed from board (`addPanel`; a missing Fed from board is made too, as a new supply), and one circuit per row through the Apply path; a circuit number such as R1 sets phase and way; pushing again updates; a row that is refused stays in the sheet as a new row with its reason. Use as a template only keeps the layout. Panel schedules (MDB, SMDB, MCC) are not pushed yet.
-- **Next:** pushing a panel schedule's rows; deleting a circuit or feeder from a sheet; the load summary (TCL) as a sheet; formats that follow the chosen authority.
+- **Owner's answers, 2026-11-15** (to the list of what was pending):
+  - The authority is chosen when the project starts and is not switched at random. This replaces the answer of 2026-11-14 on decision 2: the "Change authority sizes the feeders again and lists what changed" work is dropped. A change of authority on a running project is a guarded correction (a warning and a tick), built separately.
+  - Push to load schedule must work for every panel, not only DBs.
+  - Deleting a circuit or feeder from a sheet is not required: that work is done on the Load schedule tab.
+  - The load summary stays as the app's own table.
+- **Push for panel schedules:** v2.154. `pushRows` (now in `src/docs/sheetPush.ts`) takes a panel schedule (MDB, SMDB, MCC) too. The panel is made from its number (`panelKindOf` reads the kind from the number); a Fed from that is not a panel number, such as DEWA, makes it a main panel and no board is made from that text. Each row is read from its name: a panel number (SMDB-1, DB-GF, or the Board it feeds column) makes that panel under it, or connects a main board made by an earlier push (`connectPanel`), or updates its feeder; SPARE and SPACE become spare ways; INCOMER sets the panel's incomer and OUT GOING is a heading, both left out of the rows; anything else is a load feeder. A panel row's load is not taken, because a panel's load comes from its own schedule; the push says so. A board fed from another panel is refused, not moved. Pushing again updates and adds nothing. SPARE and SPACE rows of a DB schedule now become spare ways at their circuit reference, not circuits named SPARE. Not seen on screen yet.
+- **Next:** formats that follow the chosen authority; the new PDF in the PDF check.
 
 The mockup was redrawn as revision 2 after this answer. Sections 2 to 6 of "Proposed" below are the first version and are kept for the record; where they differ from this section, this section holds.
 

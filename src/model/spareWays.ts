@@ -68,6 +68,13 @@ export function updateSpareWay(project: Project, boardId: string, id: string, pa
   }));
 }
 
+/** A spare or space of a DB moved to this phase and way (the caller has checked the slot is free). */
+export function placeSpareWay(project: Project, boardId: string, id: string, phase: Phase, way: number): Project {
+  const board = project.boards.find((b) => b.id === boardId);
+  if (!board) return project;
+  return withSpares(project, boardId, spareWaysOf(board).map((s) => (s.id === id ? { ...s, phase, way } : s)));
+}
+
 export function deleteSpareWay(project: Project, boardId: string, id: string): SpareResult {
   const board = project.boards.find((b) => b.id === boardId);
   const s = board && spareWaysOf(board).find((x) => x.id === id);

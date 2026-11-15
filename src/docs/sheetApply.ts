@@ -1,35 +1,32 @@
-import { circuitWatts, scheduleCircuits, SINGLE_PHASES } from '../calc/loadSchedule';
-import { addPanel } from '../model/addPanel';
+import { circuitWatts } from '../calc/loadSchedule';
 import { addCircuit, updateCircuit } from '../model/schedule';
-import { cellAt, cellName } from '../calc/sheetFormula';
 import { addOutgoingFeeder } from '../model/mdFeeders';
 import type { SheetLink, Sheet } from '../model/sheets';
-import { sheetValues } from '../model/sheets';
-import type { Board, BoardKind, Phase, PointType, Project } from '../types';
+import type { Board, Phase, PointType, Project } from '../types';
 import { applySheetEdits, buildDbSheet, isEditable, isItemizedCell, type DbSheet, type SheetColKey, type SheetEdit } from './dbSheet';
 import { loadScheduleRows } from './loadScheduleDoc';
 import { applyMdEdits, buildMdSheet, deviceOf, type MdColKey, type MdRow, type MdSheet } from './mdSheet';
 import { rowReasons } from './scheduleCheck';
-import { linkFields, ownRows, pushTarget } from './sheetLink';
+import { linkFields } from './sheetLink';
 
 /** Apply to project: what was typed in a linked sheet goes to the project through the same edits the Load schedule tab makes
  * (applySheetEdits, addCircuit, updateCircuit) or the panel form makes (applyMdEdits, addOutgoingFeeder), so the same checks,
  * sizing and refusals apply. No ExcelJS here. */
 
 const COLUMN: Record<string, SheetColKey> = { 'row.mcb': 'mcb', 'row.wire': 'wire', 'row.ecc': 'ecc', 'row.room': 'room', 'row.remarks': 'remarks', 'row.length': 'length' };
-const columnOf = (field: string): SheetColKey | undefined => (field.startsWith('row.points.') ? `pt:${field.slice(11)}` as SheetColKey : COLUMN[field]);
+export const columnOf = (field: string): SheetColKey | undefined => (field.startsWith('row.points.') ? `pt:${field.slice(11)}` as SheetColKey : COLUMN[field]);
 const labelOf = (link: SheetLink, field: string) => linkFields(link.category).find((f) => f.key === field)?.label ?? field;
 const MD_COLUMN: Record<string, MdColKey> = { 'row.name': 'name', 'row.fault': 'fault', 'row.cores': 'cores', 'row.cableType': 'type', 'row.size': 'size', 'row.ecc': 'ecc', 'row.length': 'length', 'row.tcl': 'tcl', 'row.remarks': 'remarks' };
 const DEVICES = ['ACB', 'MCCB', 'ISOL'] as const;
-const mdKey = (r: MdRow) => (r.type === 'feeder' ? keyOf(r.feeder) : r.type === 'way' ? `spare:${r.way.id}` : undefined);
-const keyOf = (f: { uid?: string; id: string }) => f.uid ?? f.id;
-const rowKey = (r: DbSheet['rows'][number]) => (r.type === 'circuit' ? keyOf(r.feeder) : r.type === 'spare' ? `spare:${r.spare.id}` : undefined);
+export const mdKey = (r: MdRow) => (r.type === 'feeder' ? keyOf(r.feeder) : r.type === 'way' ? `spare:${r.way.id}` : undefined);
+export const keyOf = (f: { uid?: string; id: string }) => f.uid ?? f.id;
+export const rowKey = (r: DbSheet['rows'][number]) => (r.type === 'circuit' ? keyOf(r.feeder) : r.type === 'spare' ? `spare:${r.spare.id}` : undefined);
 const LIGHT = /\b(light|lights|lighting|ltg|lamp|lamps)\b/i;
 
-interface Ref { cell?: string; row?: number; text: string }
-type Cell = (letters: string) => string;
+export interface Ref { cell?: string; row?: number; text: string }
+export type Cell = (letters: string) => string;
 /** What differs between the kinds of linked sheet: the table, the tests of one row's typed texts, the edits and the new row. */
-interface Kit<E, T> {
+export interface Kit<E, T> {
   build(p: Project, boardId: string): T;
   /** One row's typed texts, each tested alone against the table: the edits that pass, the letters that passed, and what follows the edits (a typed load). */
   prepare(p: Project, tbl: T, key: string, typed: Record<string, string>, cellOf: Cell, reject: (r: Ref) => void): { good: E[]; ok: Set<string>; after?: (p: Project) => Project };
@@ -43,7 +40,7 @@ interface Kit<E, T> {
 interface Run { project: Project; sheet: Sheet; changed: number; added: number; rejected: string[]; refs: Ref[]; newKeys: Record<number, string> }
 
 /** The DB load schedule: a row per circuit and spare, typed texts to the DB table's columns, a typed load as one load item. */
-function dbKit(link: SheetLink, board: Board): Kit<SheetEdit, DbSheet> {
+export function dbKit(link: SheetLink, board: Board): Kit<SheetEdit, DbSheet> {
   const setWatts = (p: Project, key: string, w: number): Project => {
     const f = p.feeders.find((x) => keyOf(x) === key);
     if (!f || Math.round(circuitWatts(f, board)) === Math.round(w)) return p;
@@ -83,36 +80,46 @@ function dbKit(link: SheetLink, board: Board): Kit<SheetEdit, DbSheet> {
   };
 }
 
-/** The panel form: a row per outgoing feeder and spare way, typed texts to the form's columns. A typed rating goes to the device
- * column the row uses (or the device typed beside it), a typed device moves the rating to that column. */
-function mdKit(link: SheetLink): Kit<SheetEdit, MdSheet> {
-  const present = (r: MdRow) => (r.type === 'feeder' ? { device: deviceOf(r.feeder), rating: r.feeder.breakerRatingA } : r.type === 'way' ? { device: r.way.device ?? (r.way.ratingA > 1600 ? 'ACB' : 'MCCB'), rating: r.way.ratingA } : { device: 'MCCB' as const, rating: undefined });
+/** What a row of the panel form holds now: the device column it uses and its rating. */
+const mdPresent = (r: MdRow, board: Board): { device: MdColKey; rating?: number } => r.type === 'feeder' ? { device: deviceOf(r.feeder), rating: r.feeder.breakerRatingA }
+  : r.type === 'way' ? { device: r.way.device ?? (r.way.ratingA > 1600 ? 'ACB' : 'MCCB'), rating: r.way.ratingA }
+  : r.type === 'incomer' ? (r.feeder ? { device: deviceOf(r.feeder), rating: r.feeder.breakerRatingA } : { device: board.supply?.device ?? 'MCCB', rating: board.supply?.ratingA ?? board.ratedCurrentA })
+  : { device: 'MCCB' };
+
+/** One row's typed texts, each tested alone against the panel form (row `y` of `tbl`). A typed rating goes to the device column the
+ * row uses (or the device typed beside it), a typed device moves the rating to that column. `quiet`: a column the form does not let
+ * this row take is skipped, not refused. */
+export function mdPrepare(link: SheetLink, p: Project, tbl: MdSheet, y: number, typed: Record<string, string>, cellOf: Cell, reject: (r: Ref) => void, quiet = false): { good: SheetEdit[]; ok: Set<string> } {
+  const good: SheetEdit[] = [], ok = new Set<string>();
+  const test = (x: number, value: string, letters: (string | undefined)[], cell: string, field: string) => {
+    if (x < 0 || !tbl.editable(y, x)) { if (!quiet) reject({ cell, text: `${labelOf(link, field)} cannot be changed on this row` }); return; }
+    const e: SheetEdit = { y, x, value }, r = applyMdEdits(p, tbl, [e]);
+    if (r.rejected.length) reject({ cell, text: r.rejected[0].replace(/^[A-Z]+\d+: /, '') }); else { good.push(e); for (const l of letters) if (l) ok.add(l); }
+  };
+  let rating: [string, string] | undefined, device: [string, string] | undefined;
+  for (const [letters, text] of Object.entries(typed)) {
+    const field = link.columns[letters];
+    if (!field || field === 'own') continue;
+    if (field === 'row.rating') rating = [letters, text];
+    else if (field === 'row.device') device = [letters, text];
+    else if (MD_COLUMN[field]) test(tbl.keys.indexOf(MD_COLUMN[field]), text, [letters], cellOf(letters), field);
+  }
+  if (device && !DEVICES.some((d) => d === device![1].trim().toUpperCase())) { reject({ cell: cellOf(device[0]), text: `"${device[1]}" is not ACB, MCCB or ISOL` }); device = undefined; }
+  if (device || rating) {
+    const now = mdPresent(tbl.rows[y], tbl.board), dev = device ? device[1].trim().toUpperCase() as MdColKey : now.device;
+    const [letters, field] = rating ? [rating[0], 'row.rating'] : [device![0], 'row.device'];
+    test(tbl.keys.indexOf(dev), rating ? rating[1] : String(now.rating ?? ''), [rating?.[0], device?.[0]], cellOf(letters), field);
+  }
+  return { good, ok };
+}
+
+/** The panel form: a row per outgoing feeder and spare way, typed texts to the form's columns (see mdPrepare). */
+export function mdKit(link: SheetLink): Kit<SheetEdit, MdSheet> {
   return {
     build: buildMdSheet,
     prepare(p, tbl, key, typed, cellOf, reject) {
-      const good: SheetEdit[] = [], ok = new Set<string>();
       const y = tbl.rows.findIndex((r) => mdKey(r) === key);
-      if (y < 0) return { good, ok };
-      const test = (x: number, value: string, letters: (string | undefined)[], cell: string, field: string) => {
-        if (x < 0 || !tbl.editable(y, x)) { reject({ cell, text: `${labelOf(link, field)} cannot be changed on this row` }); return; }
-        const e: SheetEdit = { y, x, value }, r = applyMdEdits(p, tbl, [e]);
-        if (r.rejected.length) reject({ cell, text: r.rejected[0].replace(/^[A-Z]+\d+: /, '') }); else { good.push(e); for (const l of letters) if (l) ok.add(l); }
-      };
-      let rating: [string, string] | undefined, device: [string, string] | undefined;
-      for (const [letters, text] of Object.entries(typed)) {
-        const field = link.columns[letters];
-        if (!field || field === 'own') continue;
-        if (field === 'row.rating') rating = [letters, text];
-        else if (field === 'row.device') device = [letters, text];
-        else if (MD_COLUMN[field]) test(tbl.keys.indexOf(MD_COLUMN[field]), text, [letters], cellOf(letters), field);
-      }
-      if (device && !DEVICES.some((d) => d === device![1].trim().toUpperCase())) { reject({ cell: cellOf(device[0]), text: `"${device[1]}" is not ACB, MCCB or ISOL` }); device = undefined; }
-      if (device || rating) {
-        const now = present(tbl.rows[y]), dev = device ? device[1].trim().toUpperCase() as MdColKey : now.device;
-        const [letters, field] = rating ? [rating[0], 'row.rating'] : [device![0], 'row.device'];
-        test(tbl.keys.indexOf(dev), rating ? rating[1] : String(now.rating ?? ''), [rating?.[0], device?.[0]], cellOf(letters), field);
-      }
-      return { good, ok };
+      return y < 0 ? { good: [], ok: new Set<string>() } : mdPrepare(link, p, tbl, y, typed, cellOf, reject);
     },
     commit: (p, tbl, edits) => applyMdEdits(p, tbl, edits).project,
     wants: (o) => Object.entries(o).some(([l, t]) => { const f = link.columns[l]; return t.trim() !== '' && (f === 'row.name' || (f === 'row.tcl' && Number(t.trim().replace(/\s*kw$/i, '').replace(',', '.')) > 0)); }),
@@ -210,90 +217,4 @@ export function pendingMarks(project: Project, sheet: Sheet): Record<string, { k
     if (at >= 0) for (const [letters, text] of Object.entries(o)) if (text.trim() !== '' && link.columns[letters]) mark(`${letters}${link.firstRow + at}`, link.columns[letters], r.newKeys[a], a);
   });
   return marks;
-}
-
-// ---- Push to load schedule
-
-const PANEL_KIND = (id: string): BoardKind => { const u = id.trim().toUpperCase(); return u.startsWith('MDB') ? 'MDB' : u.startsWith('SMDB') ? 'SMDB' : u.startsWith('MCC') ? 'MCC' : u.startsWith('MC') ? 'MC' : 'SMDB'; };
-const PHASE_TEXT: Record<string, Phase> = { R: 'R', Y: 'Y', B: 'B', RYB: 'RYB', '3PH': 'RYB', TP: 'RYB', '3': 'RYB' };
-
-/** The rows an opened schedule already holds become the panel and its circuits. The panel (and the board it is fed from, when that
- * is not in the project either) is made if needed; each row is added at the way its reference names (R1, Y 2, RYB-3), or updated
- * when that way is already a circuit; the values go through the same checks as an added row of Apply to project. A row that fails
- * is not made and stays after the block as an added row. Nothing changes when no row could be pushed. */
-export function pushRows(project: Project, sheet: Sheet): { project: Project; sheet: Sheet; added: number; updated: number; made: string[]; rejected: string[] } {
-  const none = (rejected: string[]) => ({ project, sheet, added: 0, updated: 0, made: [] as string[], rejected });
-  const link = sheet.link, target = pushTarget(project, sheet), n = ownRows(sheet);
-  if (!link || link.category !== 'db' || !target) return none(['Link the cell that holds the panel number first.']);
-  if (!n) return none(['This sheet has no rows of its own.']);
-
-  let p = project;
-  const made: string[] = [], find = (id: string) => p.boards.find((b) => b.id.toLowerCase() === id.toLowerCase());
-  try {
-    if (!find(target.id)) {
-      if (target.fedFrom && !find(target.fedFrom)) { p = addPanel(p, target.fedFrom, PANEL_KIND(target.fedFrom)); made.push(target.fedFrom); }
-      p = addPanel(p, target.id, 'DB', target.fedFrom ? find(target.fedFrom)?.id : undefined);
-      made.push(target.id);
-    }
-  } catch (e) { return none([(e as Error).message]); }
-  const board = find(target.id)!, boardId = board.id, l = { ...link, boardId };
-  const kit = dbKit(l, board);
-
-  const typedFields = new Set(linkFields('db').filter((f) => f.typed && f.key !== 'own').map((f) => f.key));
-  const letterOf = (field: string) => Object.keys(l.columns).find((c) => l.columns[c] === field);
-  const values = sheetValues(sheet);
-  const textAt = (letters: string | undefined, r: number) => { if (!letters) return ''; const k = `${letters}${r}`, raw = sheet.cells[k] ?? ''; return (raw.startsWith('=') ? String(values[k]?.value ?? '') : raw).trim(); };
-  const rows = Array.from({ length: n }, (_, i) => {
-    const r = l.firstRow + i, typed: Record<string, string> = {};
-    for (const [c, f] of Object.entries(l.columns)) if (typedFields.has(f) && textAt(c, r) !== '') typed[c] = textAt(c, r);
-    const ref = /^(RYB|[RYB])\s*-?\s*(\d+)$/i.exec(textAt(letterOf('row.ref'), r));
-    return { r, typed, slot: ref ? { phase: ref[1].toUpperCase() as Phase, way: Number(ref[2]) } : undefined, phase: PHASE_TEXT[textAt(letterOf('row.phase'), r).toUpperCase()] };
-  });
-
-  const out: ({ key: string } | undefined)[] = Array(n).fill(undefined), rejected: string[] = [], touched = new Set<string>();
-  let added = 0, updated = 0;
-  // Rows that name their way go first, so a row without one cannot take it.
-  for (const i of [...rows.keys()].sort((a, b) => Number(!rows[a].slot) - Number(!rows[b].slot) || a - b)) {
-    const { r, typed, slot, phase } = rows[i];
-    const bad: string[] = [], reject = (x: Ref) => bad.push(x.cell ? `${x.cell}: ${x.text}` : x.text), cellOf = (letters: string) => `${letters}${r}`;
-    const fail = (...why: string[]) => { rejected.push(...why); };
-    if (!kit.wants(typed)) { fail(`Row ${r}: give a description or a load`); continue; }
-    const circuits = scheduleCircuits(p, boardId);
-    let existing = slot ? circuits.find((f) => f.phase === slot.phase && f.way === slot.way) : undefined;
-    if (!slot) {
-      const desc = (typed[letterOf('row.room') ?? ''] ?? '').toLowerCase(), same = desc ? circuits.filter((f) => !touched.has(keyOf(f)) && (f.room || f.name || '').trim().toLowerCase() === desc) : [];
-      if (same.length === 1) existing = same[0];
-    } else if (!existing) {
-      const used = new Set<string>();
-      for (const f of [...circuits, ...(board.spareWays ?? []).filter((w) => w.way)]) for (const ph of f.phase === 'RYB' ? SINGLE_PHASES : [f.phase as 'R' | 'Y' | 'B']) used.add(`${ph}${f.way}`);
-      if ((slot.phase === 'RYB' ? SINGLE_PHASES : [slot.phase as 'R' | 'Y' | 'B']).some((ph) => used.has(`${ph}${slot.way}`))) { fail(`Row ${r}: ${slot.phase}${slot.way} is already used on ${boardId}`); continue; }
-    }
-    if (existing) {
-      const key = keyOf(existing);
-      if (touched.has(key)) { fail(`Row ${r}: ${existing.phase}${existing.way} is already used by another row`); continue; }
-      const tbl = kit.build(p, boardId), prep = kit.prepare(p, tbl, key, typed, cellOf, reject);
-      if (bad.length) { fail(...bad); continue; }
-      p = kit.commit(p, tbl, prep.good);
-      if (prep.after) p = prep.after(p);
-      touched.add(key); out[i] = { key }; updated++;
-      continue;
-    }
-    const trial = kit.add(p, boardId, slot ?? (phase ? { phase } : undefined));
-    if (typeof trial === 'string') { fail(`Row ${r}: ${trial}`); continue; }
-    const key = keyOf(trial.project.feeders.find((f) => f.id === trial.id)!), tbl = kit.build(trial.project, boardId), prep = kit.prepare(trial.project, tbl, key, typed, cellOf, reject);
-    if (bad.length) { fail(...bad); continue; }
-    p = kit.commit(trial.project, tbl, prep.good);
-    if (prep.after) p = prep.after(p);
-    touched.add(key); out[i] = { key }; added++;
-  }
-  if (!added && !updated) return none(rejected);
-
-  // The sheet: the own rows stay as the block, made rows first (each with the key of its circuit), then the rows that failed as added rows.
-  const good = rows.map((_, i) => i).filter((i) => out[i]), badRows = rows.map((_, i) => i).filter((i) => !out[i]);
-  const order = [...good, ...badRows], cells = { ...sheet.cells };
-  for (const k of Object.keys(cells)) { const at = cellAt(k)!; if (at.row >= l.firstRow && at.row < l.firstRow + n) delete cells[k]; }
-  order.forEach((from, to) => { for (const [k, t] of Object.entries(sheet.cells)) { const at = cellAt(k)!; if (at.row === l.firstRow + from) cells[cellName(at.col, l.firstRow + to)] = t; } });
-  const { pending: _p, added: _a, ...base } = l;
-  const news = badRows.map((i) => rows[i].typed);
-  return { project: p, sheet: { ...sheet, cells, link: { ...base, rows: [...good.map((i) => out[i]!.key), ...news.map((_, j) => `new:${j}`)], ...(news.length ? { added: news } : {}) } }, added, updated, made, rejected };
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { cellAt, cellName, colName } from '../../calc/sheetFormula';
 import { asTemplate, linkBoards, linkFields, linkFromPlaceholders, linkLabel, linkNeeds, linkToBoard, ownRows, pushTarget, removeLink, setFirstRow, setLinkCell, setLinkColumn, sheetsForBoards, startLink, suggestLink, templateOf } from '../../docs/sheetLink';
-import { pushRows } from '../../docs/sheetApply';
+import { pushRows } from '../../docs/sheetPush';
 import { formatNameError, loadFormats, saveFormats, withFormat } from '../../model/scheduleFormats';
 import { mergeAt, type Sheet, type SheetLink } from '../../model/sheets';
 import type { Project } from '../../types';
@@ -69,7 +69,7 @@ export default function LinkPanel({ project, sheet, sheets, active, onSheet, onP
     const r = pushRows(project, sheet), more = r.rejected.length > 1 ? ` and ${r.rejected.length - 1} more` : '';
     if (!r.added && !r.updated) { onStatus?.(`Nothing pushed: ${r.rejected[0]}${more}`); return; }
     onPush(r.project, r.sheet);
-    onStatus?.(`Pushed to ${r.sheet.link?.boardId}: ${r.added} added, ${r.updated} updated.${r.made.length ? ` Made ${r.made.join(', ')}.` : ''}${r.rejected.length ? ` Not pushed: ${r.rejected[0]}${more}` : ''}`);
+    onStatus?.(`Pushed to ${r.sheet.link?.boardId}: ${r.added} added, ${r.updated} updated.${r.made.length ? ` Made ${r.made.join(', ')}.` : ''}${r.rejected.length ? ` Not pushed: ${r.rejected[0]}${more}` : ''}${r.notes.length ? ` ${r.notes.join(' ')}` : ''}`);
   };
   const boards = linkBoards(project, link.category), needs = linkNeeds(link), ready = needs.every((n) => n.ok);
   const cellFields = linkFields(link.category).filter((f) => f.kind === 'cell'), rowFields = linkFields(link.category).filter((f) => f.kind === 'row');
@@ -87,10 +87,10 @@ export default function LinkPanel({ project, sheet, sheets, active, onSheet, onP
       {own > 0 && (
         <div className="shl-needs" aria-label="Rows of this sheet">
           <span style={{ fontWeight: 500 }}>This sheet has {own} {own === 1 ? 'row' : 'rows'} of its own</span>
-          {!panel && <span>{!target ? 'Link the cell that holds the panel number to push them.' : target.exists ? `Panel ${target.id} is in the project.` : !target.fedFrom ? `Panel ${target.id} is new, with no board above it.` : target.parentExists ? `Panel ${target.id} is new, under ${target.fedFrom}.` : `Panel ${target.id} is new. ${target.fedFrom} is not in the project and is made too.`}</span>}
-          {!panel && <button type="button" className="shl-btn shl-go" disabled={!target} onClick={push}>Push to load schedule</button>}
+          <span>{!target ? 'Link the cell that holds the panel number to push them.' : target.exists ? `Panel ${target.id} is in the project.` : !target.fedFrom ? `Panel ${target.id} is new, with no board above it.` : target.parentExists ? `Panel ${target.id} is new, under ${target.fedFrom}.` : !target.parentIsPanel ? `Panel ${target.id} is new, a main panel. "${target.fedFrom}" is not read as a panel.` : `Panel ${target.id} is new. ${target.fedFrom} is not in the project and is made too.`}</span>
+          <button type="button" className="shl-btn shl-go" disabled={!target} onClick={push}>Push to load schedule</button>
           <button type="button" className="shl-btn" onClick={() => onSheet(asTemplate(sheet))}>Use as a template only</button>
-          <span className="shl-mut">{panel ? "Pushing a panel schedule's rows comes later. Use the layout as a template, then choose the panel." : 'Push makes the panel and one circuit for each row. A size left blank is sized by the rules.'}</span>
+          <span className="shl-mut">{panel ? 'Push makes the panel and one feeder for each row. A row that names a panel (SMDB-1, DB-GF) makes that panel under it; its load comes from its own schedule. A size left blank is sized by the rules.' : 'Push makes the panel and one circuit for each row. A size left blank is sized by the rules.'}</span>
         </div>
       )}
       {own === 0 && <label className="shl-row"><span>Board</span>
