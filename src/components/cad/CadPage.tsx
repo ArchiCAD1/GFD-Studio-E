@@ -46,7 +46,7 @@ import { keepComputerPatterns, loadComputerPatterns } from '../../model/cadPatte
 import { erasedOf, restoredErased, shownView, withErased, type ErasedParts } from '../../model/cadErased';
 import { CIRCUIT_ATTRIBUTES } from '../../model/cadLoads';
 import PlanSymbolIcon from './PlanSymbolIcon';
-import { cableLabel, cablesOf, circuitLabel, finalCircuits, LV_PALETTE, PALETTE_GROUPS, moveItem, placedOn, placeItem, placeLvPoint, removeItem, rotateLvPoints, type PaletteItem, type PlacedItem } from '../../model/cadDevices';
+import { cableLabel, cablesOf, circuitLabel, finalCircuits, LV_PALETTE, PALETTE_GROUPS, moveItem, placedOn, placeItem, placeAccessory, placeLvPoint, removeItem, rotateAccessories, rotateLvPoints, type PaletteItem, type PlacedItem } from '../../model/cadDevices';
 import { addSketch, withSketchItems, pointStyleOut, blockDefsOut, arcStartCentreEnd, arcThrough, circle2P, circleThrough, dimLabel, dimMeasure, dimOf, linearDir, nextDim, ellipseOf, polygonPts, itemAt, moved, rectangle, removeSketch, rotated, segmentsOf, shapesOut, sketchOf, snapPoints, trayLength, TRAY_LAYER, TRAY_SERVICES, TRAY_WIDTHS, typedPoint, updateSketch, withText } from '../../model/cadSketch';
 import { routeSettings, sizeRoute, trayPlanOf } from '../../calc/cableTray';
 import { fittingCounts, trayFittings, type TrayFitting } from '../../model/cadTrayFittings';
@@ -703,8 +703,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const devicesOut = (list: PlacedItem[]): { devs: DeviceOut[]; symbols: ShapeOut[] } => {
     const devs: DeviceOut[] = [], symbols: ShapeOut[] = [], k = rUnits / SYMBOL_R_MM;
     for (const d of list) {
-      const layer = d.what === 'lv' ? 'E-LV-POINTS' : d.what === 'elv' ? 'E-ELV-DEVICES' : 'E-BOARDS', x = d.x / units.factor, y = d.y / units.factor;
-      const label = d.what === 'lv' ? d.detail.split(' · ')[0] : d.label, { plan, tag } = d.symbol as PaletteItem['symbol'], rot = 'rot' in d ? d.rot : undefined, box = plan ? symbolBox(plan, tag, rot) : undefined;
+      const layer = d.what === 'lv' || d.what === 'acc' ? 'E-LV-POINTS' : d.what === 'elv' ? 'E-ELV-DEVICES' : 'E-BOARDS', x = d.x / units.factor, y = d.y / units.factor;
+      const label = d.what === 'lv' ? d.detail.split(' · ')[0] : d.what === 'acc' ? '' : d.label, { plan, tag } = d.symbol as PaletteItem['symbol'], rot = 'rot' in d ? d.rot : undefined, box = plan ? symbolBox(plan, tag, rot) : undefined;
       if (!plan || !box) { devs.push({ layer, x, y, r: rUnits * (d.what === 'board' ? 2 : 1), text: d.symbol.text, label }); continue; }
       symbols.push(...planSymbolShapes(plan, layer, x, y, k, tag, rot));
       if (label) symbols.push({ layer, kind: 'text', pts: [[x + (box.x1 + 0.6) * k, y - textH * 0.3]], text: label, h: textH * 0.6, rot: 0 });
@@ -2568,6 +2568,9 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     } else if (selectedItem.what === 'elv') {
       const src = (project.elvDevices ?? []).find((p) => p.id === selectedItem.id)!;
       change(placeElv(project, src.type, floor.ref, x, y).project, `${selectedItem.label} copied · ⌘Z to undo`);
+    } else if (selectedItem.what === 'acc') {
+      const src = (project.cadAccessories ?? []).find((p) => p.id === selectedItem.id)!;
+      change(placeAccessory(project, floor.ref, src.type, x, y, { feederId: src.feederId, rot: src.rot }).project, `${selectedItem.label} copied · ⌘Z to undo`);
     } else cad.say('COPY  A board is one item; place another board with Add device.');
   }
 
@@ -4278,17 +4281,17 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                 {floors.length > 0 && (
                   <label>This drawing shows<select aria-label="Level of this drawing" value={floor?.key} onChange={(e) => { const f = floors.find((x) => x.key === e.target.value); if (f && view) setPlanLevel(project, view.file, f, change, view.info.units); }}>{floors.map((f) => <option key={f.key} value={f.key}>{floorLabel(project.building, f)}</option>)}</select></label>
                 )}
-                {'lv' in item.kind && (
+                {('lv' in item.kind || ('acc' in item.kind && item.kind.circuit)) && (
                   <label>Circuit<select aria-label="Circuit" value={cad.feederId} onChange={(e) => cad.setFeederId(e.target.value)}>
                     <option value="">Choose a circuit…</option>
                     {circuits.map((f) => <option key={f.id} value={f.id}>{circuitLabel(project, f)}</option>)}
                   </select></label>
                 )}
-                {'lv' in item.kind && item.symbol.plan && (
+                {('lv' in item.kind || 'acc' in item.kind) && item.symbol.plan && (
                   <label>Rotation<select aria-label="Rotation" value={devRot} onChange={(e) => {
-                    const rot = Number(e.target.value), turned = pickedItems.filter((d) => d.what === 'lv' && 'plan' in d.symbol && d.symbol.plan);
+                    const rot = Number(e.target.value), turned = pickedItems.filter((d) => (d.what === 'lv' || d.what === 'acc') && 'plan' in d.symbol && d.symbol.plan), ids = (w: string) => turned.filter((d) => d.what === w).map((d) => d.id);
                     setDevRot(rot);
-                    if (turned.length) change(rotateLvPoints(project, turned.map((d) => d.id), rot), `${turned.length} device${turned.length === 1 ? '' : 's'} turned to ${rot}° · ⌘Z to undo`);
+                    if (turned.length) change(rotateAccessories(rotateLvPoints(project, ids('lv'), rot), ids('acc'), rot), `${turned.length} device${turned.length === 1 ? '' : 's'} turned to ${rot}° · ⌘Z to undo`);
                   }}>
                     {[0, 90, 180, 270].map((r) => <option key={r} value={r}>{r}°</option>)}
                   </select></label>
@@ -4643,9 +4646,9 @@ function ResultView({ r, view, toM, toM2, project, onChange, onMove, onRemove, o
     const it = r.it;
     return (
       <>
-        <div><b>{it.label}</b> <span className="m">{it.what === 'lv' ? 'LV point' : it.what === 'elv' ? 'ELV device' : 'Board'}</span></div>
+        <div><b>{it.label}</b> <span className="m">{it.what === 'lv' ? 'LV point' : it.what === 'elv' ? 'ELV device' : it.what === 'acc' ? 'Accessory' : 'Board'}</span></div>
         <dl className="cad-props">
-          {it.detail && <><dt>{it.what === 'lv' ? 'Circuit' : it.what === 'elv' ? 'System' : 'Name'}</dt><dd>{it.detail}</dd></>}
+          {it.detail && <><dt>{it.what === 'lv' || it.what === 'acc' ? 'Circuit' : it.what === 'elv' ? 'System' : 'Name'}</dt><dd>{it.detail}</dd></>}
           <dt>Room</dt><dd>{it.room ?? '—'}</dd>
           <dt>Position</dt><dd>{it.x.toFixed(2)}, {it.y.toFixed(2)} m</dd>
         </dl>

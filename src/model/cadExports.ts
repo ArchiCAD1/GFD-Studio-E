@@ -5,7 +5,7 @@ import type { SketchItem } from '../types';
  * decimals). Pure; the page turns them into a workbook. */
 
 export const DEVICE_HEAD = ['Kind', 'Device', 'Circuit / board', 'Room', 'X (m)', 'Y (m)'];
-const KIND = { lv: 'LV point', elv: 'ELV device', board: 'Board' } as const;
+const KIND = { lv: 'LV point', elv: 'ELV device', board: 'Board', acc: 'Accessory' } as const;
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 /** One row per device placed, by kind then circuit then name. */

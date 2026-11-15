@@ -1,6 +1,6 @@
 import { rule } from '../database/catalog';
 import { copyElv, elvAlike, isElvType, moveElv, placeElvAt, removeElvs, replaceElv } from '../components/elv/elvCadDevices';
-import { LV_PALETTE, moveItem, placeLvPoint, removeItem, type PlacedItem } from './cadDevices';
+import { LV_PALETTE, moveItem, placeAccessory, placeLvPoint, removeItem, type PlacedItem } from './cadDevices';
 import { updateCircuit } from './schedule';
 import type { LevelRef } from './levels';
 import type { PointType, Project } from '../types';
@@ -20,6 +20,7 @@ const family = (it: PlacedItem) => it.what;
 export function typeOf(p: Project, it: PlacedItem): string {
   if (it.what === 'lv') return lvOf(p, it.id)?.type ?? '';
   if (it.what === 'elv') return elvOf(p, it.id)?.type ?? '';
+  if (it.what === 'acc') return (p.cadAccessories ?? []).find((d) => d.id === it.id)?.type ?? '';
   return 'board';
 }
 
@@ -37,6 +38,7 @@ export function editsFor(p: Project, items: PlacedItem[]): DeviceEdit[] {
   if (!items.length) return [];
   const one = (it: PlacedItem): DeviceEdit[] => it.what === 'board' ? ['rename', 'circuits', 'move', 'delete']
     : it.what === 'elv' ? ['replace', 'coverage', 'match', 'move', 'copy', 'delete']
+    : it.what === 'acc' ? ['move', 'copy', 'delete']
     : [...(typeOf(p, it) === 'ltg' && !lvOf(p, it.id)?.emergency ? ['array' as const] : []), ...(lvOf(p, it.id)?.emergency ? [] : ['replace' as const]), 'circuit', 'match', 'move', 'copy', 'delete'];
   let common = one(items[0]).filter((e) => items.every((it) => one(it).includes(e)));
   if (items.length > 1) common = common.filter((e) => e !== 'array' && e !== 'rename' && e !== 'circuits');
@@ -88,6 +90,10 @@ export function copyDevices(p: Project, items: PlacedItem[], dx: number, dy: num
       const d = lvOf(p, it.id);
       if (!d) continue;
       next = placeLvPoint(next, level, d.type, d.feederId, it.x + dx, it.y + dy, d.emergency, d.luminaire, d.rot).project;
+    } else if (it.what === 'acc') {
+      const d = (p.cadAccessories ?? []).find((x) => x.id === it.id);
+      if (!d) continue;
+      next = placeAccessory(next, level, d.type, it.x + dx, it.y + dy, { feederId: d.feederId, rot: d.rot }).project;
     } else if (it.what === 'elv') {
       const c = copyElv(next, it.id, level, it.x + dx, it.y + dy);
       if (!c) continue;

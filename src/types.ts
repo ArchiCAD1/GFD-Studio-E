@@ -684,6 +684,10 @@ export interface Project {
   lvPoints?: import('./model/cadDevices').LvPoint[];
   /** Circuits wired on the CAD plans (Design CAD → Plan → Wiring), with the device order the engineer saved. */
   cadWiring?: import('./model/cadWiring').CadWiring[];
+  /** Switches, boxes and other no-load items placed on plans in the CAD view (src/model/cadDevices.ts). */
+  cadAccessories?: import('./model/cadDevices').CadAccessory[];
+  /** Highest accessory number given out, so a deleted accessory's ID is never reused. */
+  cadAccessorySeq?: number;
   /** Highest LV point number given out, so a deleted point's ID is never reused. */
   lvPointSeq?: number;
   /** Links made on floor plans in the Floor plan window, per drawing file (the drawing is never changed). */

@@ -1,6 +1,7 @@
 import type { Board, Feeder, PointType, Project } from '../types';
 import { form4SizeText } from './form4';
 import { BOARD_KINDS, POINT_TYPES } from '../types';
+import { PLAN_SYMBOLS } from '../model/planSymbols';
 import { cableTypeOf } from '../model/cableTypes';
 import { breakerTypeOf, cpcOf } from './earthing';
 import { lightningBoqLines } from './lightningProtection';
@@ -292,6 +293,12 @@ export function buildBom(project: Pick<Project, 'boards' | 'feeders'> & Partial<
     for (const [board, n] of Object.entries(t.byBoard)) add('J', t.key, `Luminaire type ${t.code}: ${t.description} — supply and fix, counted on the plans`, 'no', n, board,
       { quantitySource: 'Luminaires placed on the CAD plans (luminaire schedule)' });
   }
+
+  // Switches, boxes and breaker boxes placed on the plans: no load, counted here by type.
+  const accCount = new Map<string, number>();
+  for (const d of p.cadAccessories ?? []) accCount.set(d.type, (accCount.get(d.type) ?? 0) + 1);
+  for (const [t, n] of accCount) add('J', `acc:${t}`, `${PLAN_SYMBOLS[t]?.label ?? t} — supply and fix, counted on the plans`, 'no', n, '',
+    { quantitySource: 'Accessories placed on the CAD plans' });
 
   // Point counts are opt-in: a design load does not establish who supplies the equipment.
   if (p.boq?.includeSchedulePoints) {

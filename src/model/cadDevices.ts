@@ -2,6 +2,7 @@ import { buildingInfoOf } from '../calc/building';
 import { updateCircuit } from './schedule';
 import { circuitRef } from '../calc/loadSchedule';
 import type { LevelRef } from './levels';
+import { PLAN_SYMBOLS } from './planSymbols';
 import type { Feeder, PointType, Project } from '../types';
 
 /** Devices the engineer places in the CAD view, in metres on a level's plan (the same coordinates as the room outlines
@@ -33,6 +34,19 @@ export const rightAngle = (deg: number | undefined) => ((Math.round((deg ?? 0) /
 /** A luminaire as placed: a copy of the catalogue entry, so a later catalogue change does not change the design. */
 export interface PointLuminaire { id: string; label: string; watts: number; lumens: number; manufacturer?: string }
 
+/** A switch, box or breaker box placed on a plan: it carries no load and is not counted on a circuit; the BOQ counts
+ * it. `type` is its plan symbol (src/model/planSymbols.ts); a switch may name the circuit it controls. */
+export interface CadAccessory {
+  id: string; // permanent: never reused
+  type: string;
+  buildingId: string;
+  levelId: string;
+  x: number; // metres on the level's plan
+  y: number;
+  rot?: number;
+  feederId?: string;
+}
+
 export type EmergencyKind = 'fitting' | 'exit-sign' | 'direction-sign';
 /** Plan symbols of the emergency lights and signs (lighting points with `emergency` set). */
 export const EMERGENCY_ITEMS: Record<EmergencyKind, { label: string; symbol: { shape: string; text: string } }> = {
@@ -42,12 +56,13 @@ export const EMERGENCY_ITEMS: Record<EmergencyKind, { label: string; symbol: { s
 };
 
 /** The devices the CAD palette offers (ELV ones come from the ELV side with `kind: { elv }`). */
-export type CadDeviceKind = { lv: PointType } | { elv: string } | { board: true };
+export type CadDeviceKind = { lv: PointType } | { elv: string } | { board: true } | { acc: string; circuit?: true };
 /** `plan`: the item's plan symbol (src/model/planSymbols.ts), drawn in place of the plain `shape`, `tag` the text
  * beside it (a rating); `icon`: the symbol its palette button shows. `group`: its heading on the palette. */
 export interface PaletteItem { id: string; label: string; kind: CadDeviceKind; group?: string; symbol: { shape: string; text: string; plan?: string; tag?: string; icon?: string } }
 /** The palette's headings, in order (ELV devices follow under their own). */
-export const PALETTE_GROUPS = ['Lighting', 'Sockets', 'Equipment', 'Boards'];
+export const PALETTE_GROUPS = ['Lighting', 'Sockets', 'Switches', 'Equipment', 'Boards', 'Boxes'];
+const acc = (type: string, group: string, circuit?: true): PaletteItem => ({ id: type, label: PLAN_SYMBOLS[type].label, group, kind: { acc: type, ...(circuit ? { circuit } : {}) }, symbol: { shape: 'circle', text: '', plan: type } });
 
 export const LV_PALETTE: PaletteItem[] = [
   { id: 'ltg', label: 'Light', group: 'Lighting', kind: { lv: 'ltg' }, symbol: { shape: 'cross', text: '', icon: 'light' } },
@@ -61,7 +76,11 @@ export const LV_PALETTE: PaletteItem[] = [
   { id: 'wh', label: 'Water heater', group: 'Equipment', kind: { lv: 'wh' }, symbol: { shape: 'square', text: 'WH', icon: 'water-heater' } },
   { id: 'hd', label: 'Hand dryer', group: 'Equipment', kind: { lv: 'hd' }, symbol: { shape: 'rect', text: 'HD', plan: 'hand-dryer' } },
   { id: 'db', label: 'DB', group: 'Boards', kind: { board: true }, symbol: { shape: 'rect', text: 'DB', icon: 'db' } },
-  { id: 'isol', label: 'Isolator', group: 'Boards', kind: { lv: 'isol' }, symbol: { shape: 'rect', text: 'IS', plan: 'isolator' } }
+  { id: 'isol', label: 'Isolator', group: 'Boards', kind: { lv: 'isol' }, symbol: { shape: 'rect', text: 'IS', plan: 'isolator' } },
+  // No-load accessories: a switch may name the circuit it controls.
+  ...['switch', 'switch-2way', 'dimmer', 'switch-fan', 'limit-switch', 'push-button', 'switch-panel'].map((t) => acc(t, 'Switches', true)),
+  acc('cb-box', 'Boards', true),
+  ...['junction-box', 'pull-box', 'junction-box-ceiling'].map((t) => acc(t, 'Boxes'))
 ];
 
 /** The smallest room outline on the level around a point (metres). */
@@ -130,6 +149,29 @@ export function removeLvPoint(p: Project, id: string): Project {
   return withCount(next, d.feederId, d.type, -1);
 }
 
+const nextAccId = (p: Project) => (p.cadAccessories ?? []).reduce((m, d) => Math.max(m, Number(/^A(\d+)$/.exec(d.id)?.[1] ?? 0)), p.cadAccessorySeq ?? 0) + 1;
+/** Places an accessory (a switch, a box): on the plan only, no circuit count. A circuit that is not the project's is not kept. */
+export function placeAccessory(p: Project, level: LevelRef, type: string, x: number, y: number, more: { feederId?: string; rot?: number } = {}): { project: Project; id: string } {
+  if (!PLAN_SYMBOLS[type]) throw new Error('Choose the accessory to place.');
+  const id = `A${nextAccId(p)}`, feederId = more.feederId && p.feeders.some((f) => f.id === more.feederId) ? more.feederId : undefined;
+  const item: CadAccessory = { id, type, buildingId: level.building, levelId: level.level, x, y, ...(rightAngle(more.rot) ? { rot: rightAngle(more.rot) } : {}), ...(feederId ? { feederId } : {}) };
+  return { project: { ...p, cadAccessories: [...(p.cadAccessories ?? []), item] }, id };
+}
+export function moveAccessory(p: Project, id: string, x: number, y: number): Project {
+  return { ...p, cadAccessories: (p.cadAccessories ?? []).map((d) => (d.id === id ? { ...d, x, y } : d)) };
+}
+/** Removes an accessory; its ID is not given out again. */
+export function removeAccessory(p: Project, id: string): Project {
+  if (!(p.cadAccessories ?? []).some((d) => d.id === id)) return p;
+  const rest = (p.cadAccessories ?? []).filter((d) => d.id !== id), { cadAccessories: _old, ...base } = p;
+  return { ...base, ...(rest.length ? { cadAccessories: rest } : {}), cadAccessorySeq: nextAccId(p) - 1 };
+}
+/** Turns accessories to a rotation (degrees anticlockwise, kept as a right angle). */
+export function rotateAccessories(p: Project, ids: string[], rot: number): Project {
+  const r = rightAngle(rot);
+  return { ...p, cadAccessories: (p.cadAccessories ?? []).map((d) => { if (!ids.includes(d.id)) return d; const { rot: _old, ...rest } = d; return r ? { ...rest, rot: r } : rest; }) };
+}
+
 /** Places a board on the plan: its position and level, and the room it is in (when that room has an outline). */
 export function placeBoard(p: Project, boardId: string, level: LevelRef, x: number, y: number): Project {
   const room = roomAt(p, level, x, y);
@@ -137,7 +179,7 @@ export function placeBoard(p: Project, boardId: string, level: LevelRef, x: numb
 }
 
 /** One device shown in the CAD view (metres on the level's plan). */
-export interface PlacedItem { key: string; id: string; what: 'lv' | 'elv' | 'board'; x: number; y: number; label: string; detail: string; symbol: PaletteItem['symbol']; room?: string; rot?: number }
+export interface PlacedItem { key: string; id: string; what: 'lv' | 'elv' | 'board' | 'acc'; x: number; y: number; label: string; detail: string; symbol: PaletteItem['symbol']; room?: string; rot?: number }
 
 /** LV points and boards placed on a level (ELV devices: src/components/elv/elvCadDevices.ts). */
 export function placedOn(p: Project, level: LevelRef): PlacedItem[] {
@@ -150,7 +192,11 @@ export function placedOn(p: Project, level: LevelRef): PlacedItem[] {
   const boards = p.boards.filter((b) => b.planPoint && b.level?.building === level.building && b.level?.level === level.level).map((b): PlacedItem => ({
     key: `board:${b.id}`, id: b.id, what: 'board', x: b.planPoint!.x, y: b.planPoint!.y, label: b.id, detail: b.name, symbol: { shape: 'rect', text: 'DB' }, room: b.location
   }));
-  return [...lv, ...boards];
+  const accs = (p.cadAccessories ?? []).filter((d) => d.buildingId === level.building && d.levelId === level.level).map((d): PlacedItem => {
+    const f = d.feederId ? p.feeders.find((x) => x.id === d.feederId) : undefined;
+    return { key: `acc:${d.id}`, id: d.id, what: 'acc', x: d.x, y: d.y, label: PLAN_SYMBOLS[d.type]?.label ?? d.type, detail: f ? circuitLabel(p, f) : '', symbol: { shape: 'circle', text: '', plan: d.type }, room: roomName(d.x, d.y), ...(d.rot ? { rot: d.rot } : {}) };
+  });
+  return [...lv, ...boards, ...accs];
 }
 
 /** Places an LV palette item (a point on a circuit, or a board) at a point. */
@@ -161,15 +207,20 @@ export function placeItem(p: Project, item: PaletteItem, level: LevelRef, x: num
     const f = project.feeders.find((q) => q.id === target.feederId)!;
     return { project, message: `${item.label} placed on ${circuitLabel(project, f)} — ${f.points?.[item.kind.lv] ?? 0} on the circuit` };
   }
+  if ('acc' in item.kind) {
+    const { project } = placeAccessory(p, level, item.kind.acc, x, y, { rot: target.rot, ...(item.kind.circuit ? { feederId: target.feederId } : {}) });
+    return { project, message: `${item.label} placed` };
+  }
   if (!target.boardId) throw new Error('Choose the board to place.');
   return { project: placeBoard(p, target.boardId, level, x, y), message: `${target.boardId} placed on the plan` };
 }
 
 /** Moves or removes a placed LV point or board. */
 export function moveItem(p: Project, it: PlacedItem, x: number, y: number, level: LevelRef): Project {
-  return it.what === 'lv' ? moveLvPoint(p, it.id, x, y) : placeBoard(p, it.id, level, x, y);
+  return it.what === 'lv' ? moveLvPoint(p, it.id, x, y) : it.what === 'acc' ? moveAccessory(p, it.id, x, y) : placeBoard(p, it.id, level, x, y);
 }
 export function removeItem(p: Project, it: PlacedItem): Project {
   if (it.what === 'lv') return removeLvPoint(p, it.id);
+  if (it.what === 'acc') return removeAccessory(p, it.id);
   return { ...p, boards: p.boards.map((b) => { if (b.id !== it.id) return b; const { planPoint: _pp, ...rest } = b; return rest; }) };
 }

@@ -9,7 +9,7 @@ import { isFrozen, vpWindow, type PlanViewport } from '../model/planViewports';
 import { dimOf, scaleLook, segmentsOf, sketchOf, trayLabel, trayLength, trayLine } from '../model/cadSketch';
 import { effective, layerStylesOf, styleOf } from '../model/cadLayerStyle';
 import { annoOf, SYMBOL_R_MM } from '../model/cadAnnotate';
-import { planSymbolSvg } from '../model/planSymbols';
+import { PLAN_SYMBOLS, planSymbolSvg } from '../model/planSymbols';
 import { EM_PER_CAP, textBaseAt, textCorners, textWidth } from '../model/cadText';
 import { LINE_FACTOR, noteBox, noteSegAt } from '../model/cadMtext';
 import { pointMark, pointStyleOf } from '../model/cadPoints';
@@ -130,6 +130,12 @@ function contentOf(p: Project, type: PlanType, b: string, l: string): Content {
     const pal = d.emergency ? EMERGENCY_ITEMS[d.emergency] : LV_PALETTE.find((x) => x.id === d.type);
     const shape = pal?.symbol.shape ?? 'circle', text = pal ? pal.symbol.text : d.type.toUpperCase(), { plan, tag } = (pal?.symbol ?? {}) as { plan?: string; tag?: string };
     out.marks.push({ x: d.x, y: d.y, key: d.emergency ? `lv:em:${d.emergency}` : `lv:${d.type}`, label: pal?.label ?? d.type.toUpperCase(), svg: (x, y, r) => (plan ? planSymbolSvg(plan, x, y, r / SYMBOL_R_MM, tag, d.rot) : lvSymbol(shape, text, x, y, r)) });
+  }
+  // Accessories: switches with the lighting, boxes and breaker boxes with the power.
+  for (const d of p.cadAccessories ?? []) {
+    const s = PLAN_SYMBOLS[d.type];
+    if (!s || !onLevel(d, b, l) || (s.group === 'switch') !== (type === 'lighting')) continue;
+    out.marks.push({ x: d.x, y: d.y, key: `acc:${d.type}`, label: s.label, svg: (x, y, r) => planSymbolSvg(d.type, x, y, r / SYMBOL_R_MM, undefined, d.rot) });
   }
   // The DBs feeding this layout's circuits, and any DB with nothing of either layout yet.
   const used = new Set(p.feeders.filter((f) => (p.lvPoints ?? []).some((d) => d.feederId === f.id && onLevel(d, b, l)) && wanted(f.id)).map((f) => f.boardId));
