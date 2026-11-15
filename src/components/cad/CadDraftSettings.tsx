@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CadDialog, Check, Num, Row } from './CadDialogs';
 import type { CadToggles } from './CadCanvas';
 import type { DraftTab } from './cadState';
-import { CROSS_COLORS, DRAFT_DEFAULTS, OSNAP_BITS, OSNAP_MODES, parseAngles, POLAR_INCREMENTS, type CrossColor, type DraftSettings } from '../../model/cadDraft';
+import { CROSS_COLORS, DRAFT_DEFAULTS, OSNAP_BITS, OSNAP_MODES, parseAngles, PICK_LOOKS, POLAR_INCREMENTS, SEL_COLORS, type CrossColor, type DraftSettings, type PickLook, type SelColor } from '../../model/cadDraft';
 
 type MenuItem = { label: string; title: string; onClick: () => void };
 
@@ -53,7 +53,7 @@ export default function CadDraftSettings({ tab: first = 'snap', draft, toggles, 
     level: levels.find((x) => x.label === lv), unit: units.find((x) => x.label === un)
   });
   const reset = tab === 'cursor' || tab === 'select'
-    ? <button type="button" onClick={() => patch(tab === 'cursor' ? { crossPct: DRAFT_DEFAULTS.crossPct, crossColor: DRAFT_DEFAULTS.crossColor, cursorOutline: true, aperturePx: DRAFT_DEFAULTS.aperturePx, markerPx: DRAFT_DEFAULTS.markerPx, snapTip: true } : { windowFill: true, grips: true, gripPx: DRAFT_DEFAULTS.gripPx, pickBoxPx: DRAFT_DEFAULTS.pickBoxPx, hoverMark: true, hoverTag: false })}>Reset</button>
+    ? <button type="button" onClick={() => patch(tab === 'cursor' ? { crossPct: DRAFT_DEFAULTS.crossPct, crossColor: DRAFT_DEFAULTS.crossColor, cursorOutline: true, aperturePx: DRAFT_DEFAULTS.aperturePx, markerPx: DRAFT_DEFAULTS.markerPx, snapTip: true } : { windowFill: true, grips: true, gripPx: DRAFT_DEFAULTS.gripPx, pickBoxPx: DRAFT_DEFAULTS.pickBoxPx, hoverMark: true, hoverTag: false, pickLook: DRAFT_DEFAULTS.pickLook, selColor: DRAFT_DEFAULTS.selColor, gripMax: DRAFT_DEFAULTS.gripMax })}>Reset</button>
     : tab === 'osnap' ? <><button type="button" onClick={() => patch({ osnap: Object.values(OSNAP_BITS).reduce((a, b) => a | b, 0) })}>Select all</button><button type="button" onClick={() => patch({ osnap: 0 })}>Clear all</button></> : null;
   return (
     <CadDialog id="dsettings" title="Drafting settings" alias="DS" help={HELP[tab]} onOk={ok} onClose={onClose} wide extra={reset}>
@@ -100,6 +100,9 @@ export default function CadDraftSettings({ tab: first = 'snap', draft, toggles, 
         <Num label="Pick box size" unit="px" value={d.pickBoxPx} onChange={(v) => { const x = Math.round(Number(v)); if (x >= 3 && x <= 30) patch({ pickBoxPx: x }); }} />
         <Check label="Highlight what is under the pick box" value={d.hoverMark} onChange={(v) => patch({ hoverMark: v })} />
         <Check label="Name tag after a pause" value={d.hoverTag} onChange={(v) => patch({ hoverTag: v })} />
+        <Row label="Picked objects look"><select aria-label="Picked objects look" value={d.pickLook} onChange={(e) => patch({ pickLook: e.target.value as PickLook })}>{PICK_LOOKS.map((c) => <option key={c.k} value={c.k}>{c.label}</option>)}</select></Row>
+        <Row label="Selection colour"><select aria-label="Selection colour" value={d.selColor} onChange={(e) => patch({ selColor: e.target.value as SelColor })}>{SEL_COLORS.map((c) => <option key={c.k} value={c.k}>{c.label}</option>)}</select></Row>
+        <Num label="Grips on up to" unit="objects" value={d.gripMax} onChange={(v) => { const x = Math.round(Number(v)); if (x >= 1 && x <= 1000) patch({ gripMax: x }); }} />
       </>}
       {tab === 'cursor' && <>
         <Num label="Crosshair size (100 = across)" unit="%" value={d.crossPct} onChange={(v) => { const x = Math.round(Number(v)); if (x >= 1 && x <= 100) patch({ crossPct: x }); }} />

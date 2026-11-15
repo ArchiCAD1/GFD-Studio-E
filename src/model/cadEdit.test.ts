@@ -152,6 +152,25 @@ describe('Mirror, Scale, Stretch, Array, grips, window', () => {
     expect(gripMoved(c, 0, [2, 2]).pts).toEqual([[2, 2]]);
   });
 
+  it('grips: a polyline side\'s middle knows its direction; a circle has a centre and four quadrants; an arc its ends and middle', () => {
+    const l: SketchItem = { id: 'S1', kind: 'pline', layer: 'L', pts: [[0, 0], [10, 0], [10, 5]] };
+    expect(gripsOf(l).filter((g) => g.kind === 'mid').map((g) => g.along)).toEqual([[1, 0], [0, 1]]);
+    const c: SketchItem = { id: 'S2', kind: 'circle', layer: 'L', pts: [[1, 1]], r: 2 };
+    expect(gripsOf(c).map((g) => [g.at, g.kind])).toEqual([[[1, 1], 'point'], [[3, 1], 'radius'], [[1, 3], 'radius'], [[-1, 1], 'radius'], [[1, -1], 'radius']]);
+    expect(gripMoved(c, 2, [1, 6]).r).toBe(5); // the 90° quadrant sizes it
+    const a: SketchItem = { id: 'S3', kind: 'arc', layer: 'L', pts: [[0, 0]], r: 2, a0: 0, a1: Math.PI / 2 };
+    const near = (p: Pt, q: Pt) => expect([p[0], p[1]].map((v) => +v.toFixed(6) + 0)).toEqual(q);
+    const g = gripsOf(a);
+    expect(g.map((x) => x.kind)).toEqual(['point', 'end', 'end', 'radius']);
+    near(g[1].at, [2, 0]); near(g[2].at, [0, 2]); near(g[3].at, [Math.SQRT2, Math.SQRT2].map((v) => +v.toFixed(6)) as Pt);
+    // An arc across 0 rad (from 300° to 60°): the middle is on the x axis.
+    const x: SketchItem = { ...a, a0: (5 * Math.PI) / 3, a1: Math.PI / 3 };
+    near(gripsOf(x)[3].at, [2, 0]);
+    expect(gripMoved(a, 1, [0, -3])).toMatchObject({ a0: -Math.PI / 2, a1: Math.PI / 2, r: 2 }); // start turned
+    expect(gripMoved(a, 2, [-4, 0])).toMatchObject({ a0: 0, a1: Math.PI, r: 2 }); // end turned
+    expect(gripMoved(a, 3, [0, 7]).r).toBe(7); // the middle sizes it
+  });
+
   it('a window picks what is wholly inside; a crossing window also what it touches', () => {
     const items = [line('S1', [1, 1], [3, 1]), line('S2', [2, 2], [8, 2]), { id: 'S3', kind: 'circle' as const, layer: 'L', pts: [[2, 5]] as Pt[], r: 0.5 }];
     expect(sketchInWindow(items, [0, 0], [4, 6], false).map((x) => x.id)).toEqual(['S1', 'S3']);
@@ -165,12 +184,15 @@ describe('Mirror, Scale, Stretch, Array, grips, window', () => {
     expect(m.pts).toEqual([[-10, 0]]);
     expect(m.ax!.map((v) => +v.toFixed(9) + 0)).toEqual([-4, 0]);
     expect(scaled(e, [0, 0], 2)).toMatchObject({ pts: [[20, 0]], ax: [8, 0], ratio: 0.5 });
-    expect(gripsOf(e).map((g) => [g.at, g.kind])).toEqual([[[10, 0], 'point'], [[14, 0], 'radius'], [[10, 2], 'radius']]);
+    expect(gripsOf(e).map((g) => [g.at, g.kind])).toEqual([[[10, 0], 'point'], [[14, 0], 'radius'], [[10, 2], 'radius'], [[6, 0], 'radius'], [[10, -2], 'radius']]);
     expect(gripMoved(e, 1, [10, 6])).toMatchObject({ ax: [0, 6], ratio: 2 / 6 }); // turned and longer; the minor keeps 2
     expect(gripMoved(e, 2, [10, 3]).ratio).toBe(0.75);
     const big = gripMoved(e, 2, [10, 8]); // the minor now the longer: the axes swap
     expect([big.ax!.map((v) => +v.toFixed(9) + 0), big.ratio]).toEqual([[0, 8], 0.5]);
     expect(gripMoved(e, 0, [0, 0]).pts).toEqual([[0, 0]]);
+    expect(gripMoved(e, 3, [10, -6])).toMatchObject({ ratio: 2 / 6 }); // the -major end, turned and longer
+    expect(gripMoved(e, 3, [10, -6]).ax!.map((v) => +v.toFixed(9) + 0)).toEqual([0, 6]);
+    expect(gripMoved(e, 4, [10, -3]).ratio).toBe(0.75); // the -minor end sizes the minor
     const cloud: SketchItem = { id: 'C', kind: 'pline', layer: 'LV-ANNO', pts: [[0, 0], [10, 0], [10, 4], [0, 4]], closed: true, cloud: 2 };
     expect(trim(cloud, [5, 0], walls).error).toBe('Trim works on lines, polylines, trays and cable routes.');
     expect(offset(cloud, 1, [5, -2]).error).toBe('Offset works on lines, polylines, circles, arcs, trays and cable routes.');

@@ -333,17 +333,27 @@ export function arrayPolar(it: SketchItem, centre: Pt, n: number, angleDeg: numb
   });
 }
 
-/** Grips of a drawn item: its points (ends and corners, a centre, a text's place) and each segment's middle. */
-export function gripsOf(it: SketchItem): { at: Pt; kind: 'point' | 'mid' | 'radius' | 'width' }[] {
+export type Grip = { at: Pt; kind: 'point' | 'mid' | 'radius' | 'width' | 'end'; along?: Pt };
+/** Grips of a drawn item: its points (ends and corners, a centre, a text's place) and each segment's middle (with the
+ * direction of its side in `along`); a circle's centre and four quadrants; an arc's centre, ends and middle. */
+export function gripsOf(it: SketchItem): Grip[] {
   if (isPath(it)) {
     const pts = pathOf(it);
-    return [...it.pts.map((at) => ({ at, kind: 'point' as const })), ...pts.slice(1).map((q, i) => ({ at: mul(add(pts[i], q), 0.5), kind: 'mid' as const }))];
+    return [...it.pts.map((at) => ({ at, kind: 'point' as const })), ...pts.slice(1).map((q, i) => ({ at: mul(add(pts[i], q), 0.5), kind: 'mid' as const, along: unit(sub(q, pts[i])) }))];
   }
-  if (it.kind === 'circle') return [{ at: it.pts[0], kind: 'point' }, { at: add(it.pts[0], [it.r ?? 0, 0]), kind: 'radius' }];
+  if (it.kind === 'circle') { const c = it.pts[0], r = it.r ?? 0; return [{ at: c, kind: 'point' }, ...([[1, 0], [0, 1], [-1, 0], [0, -1]] as Pt[]).map((u) => ({ at: add(c, mul(u, r)), kind: 'radius' as const }))]; }
+  if (it.kind === 'arc') {
+    // Drawn anticlockwise from a0 through a sweep in (0, 2π] (as segmentsOf steps it).
+    const c = it.pts[0], r = it.r ?? 0, a0 = it.a0 ?? 0;
+    let s = (it.a1 ?? 0) - a0;
+    while (s <= 0) s += 2 * Math.PI;
+    const on = (a: number): Pt => [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)];
+    return [{ at: c, kind: 'point' }, { at: on(a0), kind: 'end' }, { at: on(a0 + s), kind: 'end' }, { at: on(a0 + s / 2), kind: 'radius' }];
+  }
   // A note: its anchor, and the width handle at the right end of its top edge.
   if (it.kind === 'mtext') return [{ at: it.pts[0], kind: 'point' }, { at: noteCorners(it)[1], kind: 'width' }];
-  // An ellipse: its centre, the end of its major axis and of its minor axis.
-  if (it.kind === 'ellipse' && it.ax) { const k = it.ratio ?? 1; return [{ at: it.pts[0], kind: 'point' }, { at: add(it.pts[0], it.ax), kind: 'radius' }, { at: add(it.pts[0], [-it.ax[1] * k, it.ax[0] * k]), kind: 'radius' }]; }
+  // An ellipse: its centre, then both ends of its major axis and of its minor axis.
+  if (it.kind === 'ellipse' && it.ax) { const k = it.ratio ?? 1, c = it.pts[0], mn: Pt = [-it.ax[1] * k, it.ax[0] * k]; return [{ at: c, kind: 'point' }, { at: add(c, it.ax), kind: 'radius' }, { at: add(c, mn), kind: 'radius' }, { at: sub(c, it.ax), kind: 'radius' }, { at: sub(c, mn), kind: 'radius' }]; }
   return it.pts.map((at) => ({ at, kind: 'point' as const }));
 }
 /** The item with grip `i` dragged to `to`: a point moves; a middle moves its segment; a circle's radius grip sizes it;
@@ -354,11 +364,13 @@ export function gripMoved(it: SketchItem, i: number, to: Pt): SketchItem {
   const d = sub(to, g.at);
   if (it.kind === 'ellipse' && it.ax && g.kind === 'radius') {
     // The major axis's grip turns and sizes it (the minor keeps its length); the minor's sizes the minor.
-    const a = len(it.ax), b = a * (it.ratio ?? 1), v = sub(to, it.pts[0]);
-    if (i === 1) { const na = Math.max(EPS, len(v)); return na >= b ? { ...it, ax: v, ratio: b / na } : { ...it, ax: mul([-v[1], v[0]], b / na), ratio: na / b }; }
+    const a = len(it.ax), b = a * (it.ratio ?? 1), v = i === 3 ? sub(it.pts[0], to) : sub(to, it.pts[0]);
+    if (i === 1 || i === 3) { const na = Math.max(EPS, len(v)); return na >= b ? { ...it, ax: v, ratio: b / na } : { ...it, ax: mul([-v[1], v[0]], b / na), ratio: na / b }; }
     const nb = Math.max(EPS, Math.abs((v[0] * -it.ax[1] + v[1] * it.ax[0]) / a));
     return nb <= a ? { ...it, ratio: nb / a } : { ...it, ax: mul([-it.ax[1], it.ax[0]], nb / a), ratio: a / nb };
   }
+  // An arc's end grip turns that end about the centre (the radius is kept).
+  if (it.kind === 'arc' && g.kind === 'end') { const a = Math.atan2(to[1] - it.pts[0][1], to[0] - it.pts[0][0]); return i === 1 ? { ...it, a0: a } : { ...it, a1: a }; }
   if (g.kind === 'radius') return { ...it, r: Math.max(EPS, len(sub(to, it.pts[0]))) };
   // A note's width handle: the box as wide as the handle's distance along the top edge from the left.
   if (g.kind === 'width') { const b = noteBox(it), v = sub(to, b.tl); return noteWithWidth(it, dot(v, b.u)); }

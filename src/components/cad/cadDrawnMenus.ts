@@ -9,14 +9,14 @@ import { tidy, type CtxEntry, type CtxItem } from './cadContextMenu';
 type Pt = [number, number];
 
 /** The grip right-clicked on the object picked: its index in gripsOf, and what it is. */
-export interface GripMenuState { index: number; kind: 'point' | 'mid' | 'radius' | 'width'; it: SketchItem }
+export interface GripMenuState { index: number; kind: 'point' | 'mid' | 'radius' | 'width' | 'end'; it: SketchItem }
 
-/** Right-click on a grip of the object picked: move, copy or rotate from that point, and a polyline's vertices. */
+/** Right-click on a grip of the object picked: move, copy, rotate or mirror from that point, and a polyline's vertices. */
 export function gripMenu(s: GripMenuState): CtxEntry[] {
   const g = (label: string, action: string, key?: string): CtxItem => ({ label, act: 'grip', arg: `${action}|${s.index}`, ...(key ? { key } : {}) });
   const path = isPath(s.it), n = s.it.pts.length;
   return tidy([
-    g('Move from this point', 'move', 'M'), g('Copy from this point', 'copy', 'CO'), ...(s.it.kind !== 'circle' ? [g('Rotate about this point', 'rotate', 'RO')] : []), '-',
+    g('Move from this point', 'move', 'M'), g('Copy from this point', 'copy', 'CO'), ...(s.it.kind !== 'circle' ? [g('Rotate about this point', 'rotate', 'RO')] : []), g('Mirror through this point', 'mirror', 'MI'), '-',
     ...(path && s.kind === 'mid' ? [g('Add vertex', 'add')] : []),
     ...(path && s.kind === 'point' && n > (s.it.closed ? 3 : 2) ? [g('Remove vertex', 'remove')] : []),
     ...(s.it.kind === 'pline' && n > 2 ? [g(s.it.closed ? 'Open' : 'Close', 'close')] : []), '-',

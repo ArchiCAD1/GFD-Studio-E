@@ -63,6 +63,11 @@ export interface DraftSettings {
    * crosshair, pick box and snap marker. */
   crossColor: CrossColor;
   cursorOutline: boolean;
+  /** How a picked drawn object looks (dashed over a halo, thicker, or dashed only), the colour of that look and of the
+   * grips, and the most objects picked at once that still show grips. */
+  pickLook: PickLook;
+  selColor: SelColor;
+  gripMax: number;
   /** Saving: the format Save As starts with, and the previous copy kept as .bak when Save writes over it. */
   saveFormat: 'own' | 'dwg' | 'dxf';
   keepBak: boolean;
@@ -72,6 +77,12 @@ export interface DraftSettings {
 export type CrossColor = 'ink' | 'accent' | 'cyan';
 export const CROSS_COLORS: { k: CrossColor; label: string }[] = [{ k: 'ink', label: 'Drawing ink' }, { k: 'accent', label: 'Accent' }, { k: 'cyan', label: 'Cyan' }];
 
+/** The ways a picked object is drawn, and the selection colours to choose from. */
+export type PickLook = 'halo' | 'thick' | 'dash';
+export const PICK_LOOKS: { k: PickLook; label: string }[] = [{ k: 'halo', label: 'Dashed + halo' }, { k: 'thick', label: 'Thicker, in the selection colour' }, { k: 'dash', label: 'Dashed only' }];
+export type SelColor = 'blue' | 'accent' | 'cyan' | 'green';
+export const SEL_COLORS: { k: SelColor; label: string }[] = [{ k: 'blue', label: 'Blue' }, { k: 'accent', label: 'Accent' }, { k: 'cyan', label: 'Cyan' }, { k: 'green', label: 'Green' }];
+
 export const DRAFT_DEFAULTS: DraftSettings = {
   snapX: 0, snapY: 0, gridMm: 0, gridMajor: 5,
   polarInc: 45, polarExtra: [], trackAllPolar: false,
@@ -79,6 +90,7 @@ export const DRAFT_DEFAULTS: DraftSettings = {
   dynBoxes: true, dynPrompt: true, dynOptions: true, attDialog: false,
   windowFill: true, grips: true, gripPx: 8, pickBoxPx: 12, hoverMark: true, hoverTag: false,
   crossPct: 100, aperturePx: 10, markerPx: 7, snapTip: true, crossColor: 'ink', cursorOutline: true,
+  pickLook: 'halo', selColor: 'blue', gripMax: 100,
   saveFormat: 'own', keepBak: true
 };
 
@@ -98,6 +110,7 @@ export function draftSettings(v: unknown): DraftSettings {
     windowFill: bool(o.windowFill, d.windowFill), grips: bool(o.grips, d.grips), gripPx: Math.round(num(o.gripPx, 4, 20, d.gripPx)), pickBoxPx: Math.round(num(o.pickBoxPx, 3, 30, d.pickBoxPx)), hoverMark: bool(o.hoverMark, d.hoverMark), hoverTag: bool(o.hoverTag, d.hoverTag),
     crossPct: Math.round(num(o.crossPct, 1, 100, d.crossPct)), aperturePx: Math.round(num(o.aperturePx, 2, 40, d.aperturePx)), markerPx: Math.round(num(o.markerPx, 3, 20, d.markerPx)), snapTip: bool(o.snapTip, d.snapTip),
     crossColor: CROSS_COLORS.some((c) => c.k === o.crossColor) ? o.crossColor as CrossColor : d.crossColor, cursorOutline: bool(o.cursorOutline, d.cursorOutline),
+    pickLook: PICK_LOOKS.some((c) => c.k === o.pickLook) ? o.pickLook as PickLook : d.pickLook, selColor: SEL_COLORS.some((c) => c.k === o.selColor) ? o.selColor as SelColor : d.selColor, gripMax: Math.round(num(o.gripMax, 1, 1000, d.gripMax)),
     saveFormat: o.saveFormat === 'dwg' || o.saveFormat === 'dxf' ? o.saveFormat : 'own', keepBak: bool(o.keepBak, d.keepBak)
   };
 }

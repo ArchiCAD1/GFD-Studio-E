@@ -390,9 +390,9 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [edStep, setEdStep] = useState<{ id: string; at: Pt } | null>(null);
   const [edPhase, setEdPhase] = useState<'pick' | 'points'>('pick');
   const [stretchBox, setStretchBox] = useState<[Pt, Pt] | null>(null);
-  const [gripIdx, setGripIdx] = useState<number | null>(null);
-  /** A grip clicked (not dragged) on the object picked: hot, its right-click menu shows. */
-  const [hotGrip, setHotGrip] = useState<number | null>(null);
+  const [grip, setGrip] = useState<{ id: string; i: number } | null>(null);
+  /** A grip clicked (not dragged) on a drawn object picked: hot, its right-click menu shows. */
+  const [hotGrip, setHotGrip] = useState<{ id: string; i: number } | null>(null);
   const preset = useRef<{ id: string; at: Pt } | null>(null);
   // The command line: the question an edit tool asks (a distance, a radius, Yes / No…), the height and rotation TEXT
   // asks after its point, the commands typed before (Up / Down), the recent commands (Enter with no tool repeats the
@@ -666,7 +666,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const snapExtra = useMemo(() => (snapOnce ? sketchSnaps.filter((q) => q.kind & snapBit) : sketchSnaps), [snapOnce, snapBit, sketchSnaps]);
   const selSketch = sketch.find((it) => `sk:${it.id}` === cad.selected) ?? null;
   // A hot grip cools when the pick, the tool or the drawing changes.
-  useEffect(() => { setHotGrip(null); }, [cad.selected, tool, sketch]);
+  useEffect(() => { setHotGrip(null); }, [cad.selected, picked, tool, sketch]);
   // The drawn objects picked: several, else the one selected; and everything picked.
   const pickedSk = useMemo(() => (picked.length ? sketch.filter((it) => picked.includes(`sk:${it.id}`)) : selSketch ? [selSketch] : []), [picked, sketch, selSketch]);
   // Objects of the opened drawing picked (Shift-click, kept as `dw:<handle>` in picked), else the one clicked. Erasing
@@ -674,9 +674,15 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const dwObjects = useRef(new Map<string, { file: string; o: CadObject }>());
   const pickedDw = useMemo(() => (picked.length ? picked.flatMap((k) => { const x = k.startsWith('dw:') ? dwObjects.current.get(k) : undefined; return x && x.file === view?.file ? [x.o] : []; })
     : result?.kind === 'object' ? [result.o] : []), [picked, result, view]);
+  const pickedDwIds = useMemo(() => pickedDw.map((o) => o.id), [pickedDw]);
   const dwHighlight = useMemo(() => pickedDw.map((o): [number, number] => [o.seg_start, o.seg_end]), [pickedDw]);
   const pickedKeys = new Set([...pickedItems.map((d) => d.key), ...pickedSk.map((it) => `sk:${it.id}`), ...pickedDw.map((o) => `dw:${o.handle}`)]);
   const many = pickedItems.length + pickedSk.length > 1;
+  // Grips on every drawn object picked, up to the limit set in Drafting settings; each in a shape that suits it.
+  const gripList = useMemo(() => (draft.grips && tool === 'none' && pickedSk.length > 0 && pickedSk.length + pickedItems.length <= draft.gripMax
+    ? pickedSk.flatMap((it) => gripsOf(it).map((g, i) => ({ id: it.id, i, ...g, shape: (g.kind === 'radius' || g.kind === 'width' ? 'diamond' : g.kind === 'mid' && it.pts.length > 2 ? 'bar' : 'square') as 'square' | 'bar' | 'diamond' }))) : []),
+  [draft.grips, draft.gripMax, tool, pickedSk, pickedItems.length]);
+  const gripOf = (g: { id: string; i: number } | null) => (g ? gripList.findIndex((x) => x.id === g.id && x.i === g.i) : -1);
   // The architect's lines on shown layers: cutting edges and boundaries for Trim and Extend.
   const drawingSegs = useMemo(() => (drawn && (tool === 'trim' || tool === 'extend') ? segmentsOn(drawn.segs, drawn.segLayers, drawn.info.origin, new Set(drawn.info.layers.map((_, i) => i).filter((i) => layersOn[i]))) : []), [drawn, layersOn, tool]);
   const fittings = useMemo(() => trayFittings(sketch, 0.001 / units.factor).fittings, [sketch, units.factor]);
@@ -759,7 +765,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   // The cursor's shape, and what a click would pick, marked before the click (what is picked already is green: it is
   // only flagged, for the − a Shift-click would take it off with).
   // Devices and drawn objects are found at once; objects of the opened drawing ask the engine once the cursor rests 40 ms.
-  const cursorMode = cursorModeOf(tool, cad.history[cad.history.length - 1], gripIdx !== null);
+  const cursorMode = cursorModeOf(tool, cad.history[cad.history.length - 1], grip !== null);
   const [hover, setHover] = useState<CadHover | undefined>();
   useEffect(() => {
     const at = cursor.at, px = cursor.pixel;
@@ -1677,10 +1683,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       setPromptMenu({ at: screen, items: commandMenu({ options: opts, inputs, toggles: cad.toggles, snapOnce: snapOnce === 'none' ? null : snapOnce }) });
       return;
     }
-    // A grip of the object picked (phase 4): move, copy or rotate from it, and a polyline's vertices.
-    if (selSketch && !many && hotGrip !== null) {
-      const g = gripsOf(selSketch)[hotGrip];
-      if (g) { setPromptMenu({ at: screen, items: gripMenu({ index: hotGrip, kind: g.kind, it: selSketch }) }); return; }
+    // A hot grip of a drawn object picked (phase 4): move, copy, rotate or mirror from it, and a polyline's vertices.
+    const hotIt = hotGrip ? sketch.find((x) => x.id === hotGrip.id) : undefined;
+    if (hotIt && hotGrip) {
+      const g = gripsOf(hotIt)[hotGrip.i];
+      if (g) { setPromptMenu({ at: screen, items: gripMenu({ index: hotGrip.i, kind: g.kind, it: hotIt }) }); return; }
     }
     const d = deviceAt(at, pixel), sk = d ? undefined : hitAt(pickable, at, pickR * pixel);
     const room = floor ? roomAtPointOf(project, floor, at, units.factor) : undefined;
@@ -2132,15 +2139,15 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       }
     }
   }
-  /** A grip right-clicked (phase 4): Move, Copy or Rotate from it, or a vertex added, removed, or the polyline closed. */
+  /** A grip right-clicked (phase 4): Move, Copy, Rotate or Mirror from it, or a vertex added, removed, or the polyline closed. */
   function gripAct(a: string) {
-    const { action, value } = argOf(a), it = selSketch, i = Number(value);
+    const { action, value } = argOf(a), it = hotGrip ? sketch.find((x) => x.id === hotGrip.id) : selSketch, i = Number(value);
     if (!it) return;
     const g = gripsOf(it)[i];
     if (!g) return;
-    if (action === 'move' || action === 'copy' || action === 'rotate') {
+    if (action === 'move' || action === 'copy' || action === 'rotate' || action === 'mirror') {
       pointsNext.current = [g.at]; cad.setTool(action);
-      setTimeout(() => cad.say(action === 'rotate' ? 'ROTATE  About the grip. Specify rotation angle (degrees) or a point:' : `${action.toUpperCase()}  From the grip. Specify second point:`)); return;
+      setTimeout(() => cad.say(action === 'rotate' ? 'ROTATE  About the grip. Specify rotation angle (degrees) or a point:' : action === 'mirror' ? 'MIRROR  Through the grip. Specify second point of the mirror line:' : `${action.toUpperCase()}  From the grip. Specify second point:`)); return;
     }
     const next = action === 'add' ? withVertexAdded(it, i) : action === 'remove' ? withVertexRemoved(it, i) : closedToggled(it);
     if (next === it) return;
@@ -4074,17 +4081,18 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
 
   /** The drawing: on the Model tab, or inside the viewport worked in on a layout (fitted to its window). */
   const drawCanvas = (vpProps?: Pick<React.ComponentProps<typeof CadCanvas>, 'fitBox' | 'fixed' | 'onView'>) => (
-            <CadCanvas view={view!} fadeExcept={reWork} draft={snapDraft} cursorMode={cursorMode} hover={hover} panLeft={tool === 'pan'} pointStyle={pointStyleOf(project)} blocks={defs} onDrop={dropBlock} hidden={hidden} layersOn={layersOn} extents={fitExtents} toggles={snapToggles} gridDots={cad.gridDots} fitKey={cad.fitKey} onCursor={(at, snap, pixel) => setCursor({ at, snap, pixel })} onClick={click} marks={objectArea ? { points: result.points, closed: true } : marks} highlight={highlight} devices={devices} wiring={canvasWiring} sketch={sketch} selectedSketch={pickedSk.map((it) => it.id)} extraSnaps={snapExtra} preview={[...preview, ...emRoutes, ...(gripIdx !== null && selSketch && cursor.at ? [gripMoved(selSketch, gripIdx, cursor.at)] : []), ...(arlLine.length === 2 ? [{ id: '_arl', layer: '', kind: 'line' as const, pts: arlLine }] : [])]} unitsPerMm={0.001 / units.factor} labels={cableLabels} covers={elv?.covers} gaps={elv?.gaps}
+            <CadCanvas view={view!} fadeExcept={reWork} draft={snapDraft} cursorMode={cursorMode} hover={hover} panLeft={tool === 'pan'} pointStyle={pointStyleOf(project)} blocks={defs} onDrop={dropBlock} hidden={hidden} layersOn={layersOn} extents={fitExtents} toggles={snapToggles} gridDots={cad.gridDots} fitKey={cad.fitKey} onCursor={(at, snap, pixel) => setCursor({ at, snap, pixel })} onClick={click} marks={objectArea ? { points: result.points, closed: true } : marks} highlight={highlight} devices={devices} wiring={canvasWiring} sketch={sketch} selectedSketch={pickedSk.map((it) => it.id)} extraSnaps={snapExtra} preview={[...preview, ...emRoutes, ...(grip && cursor.at ? sketch.filter((x) => x.id === grip.id).map((x) => gripMoved(x, grip.i, cursor.at!)) : []), ...(arlLine.length === 2 ? [{ id: '_arl', layer: '', kind: 'line' as const, pts: arlLine }] : [])]} unitsPerMm={0.001 / units.factor} labels={cableLabels} covers={elv?.covers} gaps={elv?.gaps}
               numbersTyped={valuesTyped} layerStyle={styles} refs={xr.placed} refSnap={snapRef} windowSelect={tool === 'none' || tool === 'stretch' || tool === 'zoomwin' || tool === 'selsim' || (PICK_FIRST.includes(tool) && edPhase === 'pick') || (tool === 'tcount' && tc?.step === 'pick')} onWindow={pickWindow} onContext={contextAt} onDouble={doubleClick} zoom={zoomReq} onZoomMenu={zoomMenu}
-              grips={draft.grips && tool === 'none' && selSketch && !many ? gripsOf(selSketch).map((g) => g.at) : []} onGripStart={setGripIdx}
-              onGripEnd={(i, at, moved) => {
-                setGripIdx(null);
-                if (i < 0 || !selSketch) return;
+              grips={gripList} hotGrip={gripOf(hotGrip)} pickedObjects={pickedDwIds} onGripStart={(k) => setGrip(gripList[k] ? { id: gripList[k].id, i: gripList[k].i } : null)}
+              onGripEnd={(k, at, moved) => {
+                setGrip(null);
+                const gr = gripList[k], it = gr && sketch.find((x) => x.id === gr.id);
+                if (!gr || !it) return;
                 // Clicked, not dragged: the grip is hot (its right-click menu, phase 4).
-                if (moved === false) { setHotGrip(i); cad.say('GRIP  Hot grip: drag it, or right-click for its menu (Move, Copy, Rotate from it; vertices).'); return; }
+                if (moved === false) { setHotGrip({ id: gr.id, i: gr.i }); cad.say('GRIP  Hot grip: drag it, or right-click for its menu (Move, Copy, Rotate, Mirror from it; vertices).'); return; }
                 setHotGrip(null);
-                const next = gripMoved(selSketch, i, at);
-                change(updateSketch(project, fileOf(), next), `GRIP  ${kindOf(selSketch)} ${gripsOf(selSketch)[i]?.kind === 'mid' ? 'side moved' : 'changed'}${isPath(next) ? ` — now ${m(toM(next.pts.slice(1).reduce((t, q, k) => t + distance(next.pts[k], q), 0)))}` : ''} · ⌘Z to undo`);
+                const next = gripMoved(it, gr.i, at);
+                change(updateSketch(project, fileOf(), next), `GRIP  ${kindOf(it)} ${gr.kind === 'mid' ? 'side moved' : 'changed'}${isPath(next) ? ` — now ${m(toM(next.pts.slice(1).reduce((t, q, k) => t + distance(next.pts[k], q), 0)))}` : ''} · ⌘Z to undo`);
               }}
               overlay={(toScreen, moving) => {
                 if (edNote) {
@@ -4123,7 +4131,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                     }} />;
                 })() : null;
                 if (promptMenu && !moving) return <CadPromptMenu left={promptMenu.at[0] + 4} top={promptMenu.at[1] + 4} items={promptMenu.items} onPick={ctxPick} />;
-                if (tool !== 'none' || moving || gripIdx !== null || (!pickedItems.length && !pickedSk.length)) return dyn;
+                if (tool !== 'none' || moving || grip !== null || (!pickedItems.length && !pickedSk.length)) return dyn;
                 if (!pickedSk.length && (!floor || !cad.showDevices)) return null;
                 const skPts = pickedSk.flatMap((it) => { const sg = segmentsOf(it, 0.001, defs); return sg.length ? sg.flat() : it.pts; });
                 const xs = [...pickedItems.map((d) => d.x / units.factor), ...skPts.map((q) => q[0])], ys = [...pickedItems.map((d) => d.y / units.factor), ...skPts.map((q) => q[1])], pad = rUnits * 2;

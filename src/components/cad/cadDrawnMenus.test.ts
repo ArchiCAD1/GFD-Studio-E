@@ -19,10 +19,14 @@ describe('right-click menus (phase 4): grips, vertices and FIND', () => {
   });
 
   it('a corner grip: Remove vertex and Close; a side grip: Add vertex; a circle: no Rotate; a two-point line keeps its points', () => {
-    expect(labels(gripMenu({ index: 1, kind: 'point', it: zig }))).toEqual(['Move from this point', 'Copy from this point', 'Rotate about this point', '-', 'Remove vertex', 'Close', '-', 'Undo', 'Exit']);
-    expect(labels(gripMenu({ index: 3, kind: 'mid', it: zig }))).toEqual(['Move from this point', 'Copy from this point', 'Rotate about this point', '-', 'Add vertex', 'Close', '-', 'Undo', 'Exit']);
-    expect(labels(gripMenu({ index: 0, kind: 'point', it: { id: 'l', kind: 'line', layer: '0', pts: [[0, 0], [1, 0]] } }))).toEqual(['Move from this point', 'Copy from this point', 'Rotate about this point', '-', 'Undo', 'Exit']);
-    expect(labels(gripMenu({ index: 0, kind: 'point', it: { id: 'c', kind: 'circle', layer: '0', pts: [[0, 0]], r: 1 } }))).toEqual(['Move from this point', 'Copy from this point', '-', 'Undo', 'Exit']);
+    expect(labels(gripMenu({ index: 1, kind: 'point', it: zig }))).toEqual(['Move from this point', 'Copy from this point', 'Rotate about this point', 'Mirror through this point', '-', 'Remove vertex', 'Close', '-', 'Undo', 'Exit']);
+    expect(labels(gripMenu({ index: 3, kind: 'mid', it: zig }))).toEqual(['Move from this point', 'Copy from this point', 'Rotate about this point', 'Mirror through this point', '-', 'Add vertex', 'Close', '-', 'Undo', 'Exit']);
+    expect(labels(gripMenu({ index: 0, kind: 'point', it: { id: 'l', kind: 'line', layer: '0', pts: [[0, 0], [1, 0]] } }))).toEqual(['Move from this point', 'Copy from this point', 'Rotate about this point', 'Mirror through this point', '-', 'Undo', 'Exit']);
+    expect(labels(gripMenu({ index: 0, kind: 'point', it: { id: 'c', kind: 'circle', layer: '0', pts: [[0, 0]], r: 1 } }))).toEqual(['Move from this point', 'Copy from this point', 'Mirror through this point', '-', 'Undo', 'Exit']);
+    // An arc's end grip: no vertex entries; Mirror runs MIRROR from the grip.
+    const arc = gripMenu({ index: 1, kind: 'end', it: { id: 'a', kind: 'arc', layer: '0', pts: [[0, 0]], r: 1, a0: 0, a1: 1 } });
+    expect(labels(arc)).toEqual(['Move from this point', 'Copy from this point', 'Rotate about this point', 'Mirror through this point', '-', 'Undo', 'Exit']);
+    expect(arc.find((x) => x !== '-' && x.label === 'Mirror through this point')).toMatchObject({ act: 'grip', arg: 'mirror|1', key: 'MI' });
     expect(gripMenu({ index: 3, kind: 'mid', it: zig }).find((x) => x !== '-' && x.label === 'Add vertex')).toMatchObject({ act: 'grip', arg: 'add|3' });
   });
 
