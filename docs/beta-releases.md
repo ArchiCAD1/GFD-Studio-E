@@ -9,7 +9,9 @@ No installer is committed to Git. GitHub Releases stores the `.exe`, `.dmg` and 
 
 ## How a beta is produced
 
-`.github/workflows/beta-release.yml` starts only after the `CI` workflow succeeds for a push to this repository's `main` branch. The workflow checks out the exact tested commit. A manual run is accepted only from `main`, and it independently confirms that the exact commit has a successful push-triggered CI run.
+`.github/workflows/beta-release.yml` starts only when a maintainer deliberately runs **Beta release** from the GitHub Actions page and confirms **Publish an unsigned beta from the latest CI-tested main commit**. The selected ref must be `main`. The workflow independently confirms that the exact commit has a successful push-triggered `CI` run before any native build starts.
+
+The prepare job also checks existing valid beta prereleases. If one already targets the same source commit, the workflow completes without starting the Windows or macOS jobs. This prevents repeated manual clicks from uploading duplicate installers for unchanged source.
 
 Windows packages are built on a Windows x64 runner and macOS packages on a GitHub-hosted M1/arm64 runner. Both unpacked applications pass `scripts/check-package.mjs` before their installers are uploaded. Build jobs have read-only repository permissions; only the final publish job receives `contents: write`.
 
@@ -22,6 +24,20 @@ After publishing, the Pages workflow finds the greatest valid beta SemVer, valid
 - `/about/index.html`, from the reviewed public product content.
 
 Every Pages deployment performs that lookup, so a later deployment from `main` retains the newest beta metadata. No credential is written to the site, and site visitors do not make runtime GitHub API requests.
+
+## When to publish a beta
+
+Normal pull-request and `main` CI continues for every change. Native installers are intentionally batched instead of being published after every successful merge.
+
+Publish a beta when one or more changes need desktop testing, such as:
+
+- a user-facing feature or coherent feature batch;
+- calculation-engine, standards-compliance or engineering-validation changes;
+- project data, database, import or export format changes;
+- an important bug or security fix; or
+- installer, updater, Electron or operating-system compatibility changes.
+
+Documentation, test-only changes, refactors, spelling corrections and small internal fixes do not normally justify their own beta. A practical default is one beta every one or two weeks when test-worthy changes have accumulated, with an immediate manual beta for an urgent fix. Stable releases remain a separate future approval process.
 
 ## Installing the first beta
 

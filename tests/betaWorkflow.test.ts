@@ -5,15 +5,24 @@ const beta = readFileSync('.github/workflows/beta-release.yml', 'utf8');
 const pages = readFileSync('.github/workflows/pages.yml', 'utf8');
 
 describe('beta release workflow trust boundary', () => {
-  it('publishes only after successful same-repository main CI or a verified main dispatch', () => {
-    expect(beta).toContain('workflows: [CI]');
-    expect(beta).toContain("github.event.workflow_run.conclusion == 'success'");
-    expect(beta).toContain("github.event.workflow_run.event == 'push'");
-    expect(beta).toContain("github.event.workflow_run.head_branch == 'main'");
-    expect(beta).toContain('github.event.workflow_run.head_repository.full_name == github.repository');
-    expect(beta).toContain("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'");
+  it('requires an explicitly confirmed main dispatch whose exact source passed push CI', () => {
+    expect(beta).toContain('workflow_dispatch:');
+    expect(beta).toContain('confirm_release:');
+    expect(beta).toContain('type: boolean');
+    expect(beta).toContain('default: false');
+    expect(beta).toContain("github.ref == 'refs/heads/main' && inputs.confirm_release == true");
     expect(beta).toContain('gh run list');
+    expect(beta).toContain('--commit "$SOURCE_SHA"');
+    expect(beta).toContain('--event push');
+    expect(beta).not.toContain('workflow_run:');
     expect(beta).not.toContain('pull_request_target');
+  });
+
+  it('skips native builds when a valid beta already targets the source commit', () => {
+    expect(beta).toContain('gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100"');
+    expect(beta).toContain('node scripts/beta-release.mjs published');
+    expect(beta).toContain('should_release: ${{ steps.release.outputs.should_release }}');
+    expect(beta.match(/if: needs\.prepare\.outputs\.should_release == 'true'/g)).toHaveLength(3);
   });
 
   it('checks out the exact tested commit and limits write permission to publishing', () => {

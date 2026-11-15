@@ -86,10 +86,13 @@ builds an Apple-silicon `.dmg` only.
 
 ## Unsigned beta releases
 
-After CI succeeds for an approved change on `main`, the beta workflow builds
-unsigned Windows x64 and Apple-silicon macOS installers from that exact commit
-and publishes them as a uniquely versioned GitHub prerelease. Installers remain
-GitHub Release assets; they are not committed to this repository or Pages.
+Maintainers deliberately start the beta workflow from GitHub Actions when a
+test-worthy group of changes is ready. The workflow requires confirmation,
+verifies that the exact `main` commit passed push-triggered CI, and skips native
+builds if that source commit already has a beta. It then builds unsigned Windows
+x64 and Apple-silicon macOS installers and publishes them as a uniquely versioned
+GitHub prerelease. Installers remain GitHub Release assets; they are not committed
+to this repository or Pages.
 
 Packaged beta apps can notify the tester about a newer beta and open the
 hard-coded project download page after confirmation. They never download,
