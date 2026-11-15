@@ -78,4 +78,12 @@ describe('attribute prompts in a dialog (S11)', () => {
     expect(draftSettings({ crossColor: 'cyan', cursorOutline: false, hoverMark: false, hoverTag: true })).toMatchObject({ crossColor: 'cyan', cursorOutline: false, hoverMark: false, hoverTag: true });
     expect(draftSettings({ crossColor: 'red', cursorOutline: 'no', hoverTag: 1 })).toMatchObject({ crossColor: 'ink', cursorOutline: true, hoverTag: false });
   });
+
+  it('the picked look: dashed with a halo, in blue, grips on up to 100 objects; checked when read', () => {
+    expect(DRAFT_DEFAULTS).toMatchObject({ pickLook: 'halo', selColor: 'blue', gripMax: 100 });
+    expect(draftSettings({ pickLook: 'thick', selColor: 'green', gripMax: 250.4 })).toMatchObject({ pickLook: 'thick', selColor: 'green', gripMax: 250 });
+    expect(draftSettings({ pickLook: 'glow', selColor: 'red', gripMax: 0 })).toMatchObject({ pickLook: 'halo', selColor: 'blue', gripMax: 100 });
+    expect(draftSettings({ gripMax: 5000 }).gripMax).toBe(100);
+    expect(draftSettings({ gripMax: 1000 }).gripMax).toBe(1000);
+  });
 });

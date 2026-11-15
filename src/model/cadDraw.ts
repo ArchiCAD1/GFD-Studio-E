@@ -64,6 +64,13 @@ export function cssRgb(c: string): Rgb | null {
   return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
 }
 
+/** `a` with `k` (0–1) of `b` mixed in, as #rrggbb; `a` itself when either is not a colour cssRgb reads. */
+export function mixCss(a: string, b: string, k: number): string {
+  const x = cssRgb(a), y = cssRgb(b);
+  if (!x || !y) return a;
+  return `#${x.map((v, i) => Math.round(v + (y[i] - v) * k).toString(16).padStart(2, '0')).join('')}`;
+}
+
 const luminance = (c: Rgb) => {
   const [r, g, b] = c.map((v) => v / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;

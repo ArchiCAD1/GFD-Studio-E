@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CadCanvas, { type CadToggles } from './CadCanvas';
 import type { CadView } from '../../engines/cad/cadEngine';
+import { DRAFT_DEFAULTS } from '../../model/cadDraft';
 import type { SketchItem } from '../../types';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -17,14 +18,17 @@ type M = [number, number, number, number, number, number];
  * view's scale (pixels a drawing unit) of the draw they belong to. */
 function recorder() {
   let m: M = [1, 0, 0, 1, 0, 0], view = 0, sc: number[] | null = null, pts: P[] = [];
-  const stack: M[] = [], scStack: (number[] | null)[] = [], alphas: unknown[] = [], strokes: { m: M; lineWidth: number }[] = [], scales: number[][] = [], words: string[] = [];
+  const stack: M[] = [], scStack: (number[] | null)[] = [], alphas: unknown[] = [], strokes: { m: M; lineWidth: number; style: unknown; alpha: unknown; dash: unknown }[] = [], rects: { kind: 'fill' | 'stroke'; style: unknown; alpha: unknown; dash: unknown; lineWidth: number; box: number[] }[] = [], scales: number[][] = [], words: string[] = [];
   const texts: { s: string; font: string; scale: number[] | null; view: number }[] = [], fills: { pts: P[]; alpha: number; view: number }[] = [];
   const state: Record<string | symbol, unknown> = { lineWidth: 1, globalAlpha: 1 };
   const own: Record<string, unknown> = {
     setTransform: (...a: number[]) => { m = a as M; if (a[3] < 0) view = a[0]; },
     save: () => { stack.push(m); scStack.push(sc); alphas.push(state.globalAlpha); },
     restore: () => { m = stack.pop() ?? m; sc = scStack.pop() ?? null; state.globalAlpha = alphas.pop() ?? state.globalAlpha; },
-    stroke: () => { strokes.push({ m, lineWidth: state.lineWidth as number }); },
+    stroke: () => { strokes.push({ m, lineWidth: state.lineWidth as number, style: state.strokeStyle, alpha: state.globalAlpha, dash: state.dash }); },
+    setLineDash: (d: number[]) => { state.dash = d; },
+    fillRect: (...box: number[]) => { rects.push({ kind: 'fill', style: state.fillStyle, alpha: state.globalAlpha, dash: state.dash, lineWidth: state.lineWidth as number, box }); },
+    strokeRect: (...box: number[]) => { rects.push({ kind: 'stroke', style: state.strokeStyle, alpha: state.globalAlpha, dash: state.dash, lineWidth: state.lineWidth as number, box }); },
     scale: (...a: number[]) => { scales.push(a); sc = a; },
     fillText: (t: string) => { words.push(t); texts.push({ s: t, font: state.font as string, scale: sc, view }); },
     measureText: () => ({ width: 10 }),
@@ -37,7 +41,7 @@ function recorder() {
     get: (_, k) => (typeof k === 'string' && k in own ? own[k] : k in state ? state[k] : () => {}),
     set: (_, k, v) => { state[k] = v; return true; }
   });
-  return { ctx, strokes, scales, words, texts, fills, depth: () => stack.length };
+  return { ctx, strokes, rects, scales, words, texts, fills, depth: () => stack.length };
 }
 /** A font's size in px. */
 const fontPx = (font: string) => Number(/([\d.]+)px/.exec(font)?.[1]);
@@ -220,5 +224,50 @@ describe('drawn objects on the canvas', () => {
     expect(bars.length).toBe(2);
     for (const b of bars) { expect(b.pts.length).toBe(4); expect(extent(b.pts)[1]).toBeCloseTo(1); }
     expect(rec.depth()).toBe(0);
+  });
+
+  describe('what is picked', () => {
+    const line: SketchItem = { id: 'a', kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [1000, 0]], color: '#336699' };
+    const SEL = '#e6e8eb'; // no theme in the test: the selection colour falls back to the drawing ink
+    const put = (props: Partial<Parameters<typeof CadCanvas>[0]> = {}, v = drawing()) => act(() => root.render(<CadCanvas view={v} layersOn={new Uint8Array([1])} toggles={OFF} fitKey={1} onCursor={() => {}} onClick={() => {}} {...props} />));
+    const units = (s: { lineWidth: number; m: M }) => s.lineWidth * -s.m[3]; // screen px
+    const px = (s: string) => s.toLowerCase();
+
+    it('a picked line: a faint 6 px halo, then the line dashed in its own colour', () => {
+      put({ sketch: [line], selectedSketch: ['a'] });
+      const [halo, own] = rec.strokes.filter((s) => s.m[3] < 0).slice(-2);
+      expect(px(String(halo.style))).toBe(SEL); expect(halo.alpha).toBeCloseTo(0.35); expect(units(halo)).toBeCloseTo(6); expect(halo.dash).toEqual([]);
+      expect(own.style).toBe('#336699'); expect(units(own)).toBeCloseTo(1.5); expect(own.alpha).toBe(1);
+      const d = own.dash as number[];
+      expect(d.map((v) => v * -own.m[3])).toEqual([expect.closeTo(6), expect.closeTo(4)]);
+      expect(rec.depth()).toBe(0);
+    });
+
+    it('thicker: 3 px in the selection colour, no halo; dashed only: no halo', () => {
+      put({ sketch: [line], selectedSketch: ['a'], draft: { ...DRAFT_DEFAULTS, pickLook: 'thick' } });
+      let on = rec.strokes.filter((s) => s.m[3] < 0);
+      expect(px(String(on[on.length - 1].style))).toBe(SEL); expect(units(on[on.length - 1])).toBeCloseTo(3);
+      expect(on.some((s) => units(s) > 5)).toBe(false);
+      rec.strokes.length = 0;
+      put({ sketch: [line], selectedSketch: ['a'], draft: { ...DRAFT_DEFAULTS, pickLook: 'dash' } });
+      on = rec.strokes.filter((s) => s.m[3] < 0);
+      expect(on.some((s) => units(s) > 5)).toBe(false);
+      expect(on[on.length - 1].style).toBe('#336699');
+    });
+
+    it('a picked text of an opened drawing gets a box 3 px clear of it; one not picked does not', () => {
+      const texts = [{ x: 100, y: 100, h: 100, rot: 0, s: 'PICKED', layer: 0, rgb: 0, align: 0, o: 7 }, { x: 100, y: 3000, h: 100, rot: 0, s: 'OTHER', layer: 0, rgb: 0, align: 0, o: 8 }];
+      put({ pickedObjects: [7] }, drawing(texts));
+      const boxes = rec.rects.filter((r) => r.kind === 'stroke');
+      expect(boxes.length).toBeGreaterThan(0);
+      const b = boxes[boxes.length - 1];
+      expect(px(String(b.style))).toBe(SEL); expect(b.dash).toEqual([4, 3]);
+      expect(b.box[0]).toBeCloseTo(-3); expect(b.box[3]).toBeGreaterThan(6);
+      const f = rec.rects.filter((r) => r.kind === 'fill').pop()!;
+      expect(f.alpha).toBeCloseTo(0.18);
+      rec.rects.length = 0;
+      put({ pickedObjects: [9] }, drawing(texts));
+      expect(rec.rects.filter((r) => r.kind === 'stroke')).toEqual([]); // none picked: no box
+    });
   });
 });

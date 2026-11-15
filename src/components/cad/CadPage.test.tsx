@@ -58,11 +58,11 @@ beforeEach(() => {
 });
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; delete (window as { lvds?: unknown }).lvds; });
 
-function Host({ start = villa, show }: { start?: Project; show?: (s: CadShow) => void }) {
+function Host({ start = villa, show, gripMax }: { start?: Project; show?: (s: CadShow) => void; gripMax?: number }) {
   const cad = useCad('p1');
   const [p, setP] = useState(start);
   const sheetUi = useSheetUi();
-  const [draft, setDraft] = useState(DRAFT_DEFAULTS);
+  const [draft, setDraft] = useState(gripMax ? { ...DRAFT_DEFAULTS, gripMax } : DRAFT_DEFAULTS);
   state = cad;
   return <CadPage cad={cad} project={p} onChange={(next, msg) => { setP(next); onChange(next, msg); }} onStatus={() => {}} sheetUi={sheetUi}
     draft={draft} onPrefs={(x) => { setDraft(x.draft); onPrefs(x); }} onShow={show} />;
@@ -1081,6 +1081,39 @@ describe('CAD view', () => {
     const items = project.cadSketch![0].items;
     expect(items).toHaveLength(2);
     expect(items[1].pts.map((q) => q.map((v) => Math.round(v)))).toEqual([[X, -2000], [X + 4000, -2000], [X + 4000, -7000]]);
+  });
+
+  it('grips on every drawn object picked: dragging one of the second object edits that object; past the limit there are none', async () => {
+    const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+    const X = 200000;
+    const start: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', [X, 0], [X + 4000, 0]), line('S2', [X, 3000], [X + 4000, 3000])] }] };
+    const dragGrip = async (from: [number, number], to: [number, number]) => {
+      const [gx, gy] = screenOf(...from), [tx, ty] = screenOf(...to), c = document.querySelector('canvas.cad-over')!;
+      await act(async () => {
+        c.dispatchEvent(new MouseEvent('mousedown', { clientX: gx, clientY: gy, button: 0, bubbles: true }));
+        c.dispatchEvent(new MouseEvent('mousemove', { clientX: tx, clientY: ty, bubbles: true }));
+        c.dispatchEvent(new MouseEvent('mouseup', { clientX: tx, clientY: ty, button: 0, bubbles: true }));
+      });
+    };
+    // Past the limit (1 object): no grips, so the same gesture edits nothing.
+    project = start;
+    act(() => root.render(<Host start={start} gripMax={1} />));
+    await flush();
+    act(() => state.toggle('osnap'));
+    await dragWindow([X - 500, -500], [X + 4500, 3500]);
+    await dragGrip([X + 4000, 3000], [X + 4000, 5000]);
+    expect(project.cadSketch![0].items.map((x) => x.pts)).toEqual([[[X, 0], [X + 4000, 0]], [[X, 3000], [X + 4000, 3000]]]);
+    act(() => root.unmount());
+    root = createRoot(host); project = start;
+    act(() => root.render(<Host start={start} />));
+    await flush();
+    act(() => state.toggle('osnap'));
+    await dragWindow([X - 500, -500], [X + 4500, 3500]);
+    await dragGrip([X + 4000, 3000], [X + 4000, 5000]);
+    const items = project.cadSketch![0].items;
+    expect(items[1].pts.map((q) => q.map((v) => Math.round(v)))).toEqual([[X, 3000], [X + 4000, 5000]]);
+    expect(items[0].pts).toEqual([[X, 0], [X + 4000, 0]]);
+    expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toBe('GRIP  Line changed — now 4.47 m · ⌘Z to undo');
   });
 
   it('layer manager: a drawn layer locked cannot be picked; properties of an object and Match properties', async () => {

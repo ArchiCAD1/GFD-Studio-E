@@ -14,7 +14,7 @@ Object.assign(globalThis, { Path2D: Stub, ResizeObserver: Stub });
 type Stroke = { w: number; ops: (string | number)[][]; c?: unknown; alpha?: unknown };
 let strokes: Stroke[] = [];
 /** Filled squares (grips): their colour and box. */
-let fills: { c: unknown; box: number[] }[] = [];
+let fills: { c: unknown; box: number[] }[] = [], paths: { c: unknown; ops: (string | number)[][] }[] = [];
 /** Outlined boxes (the selection window) with their colour and dash, and the texts written (its name). */
 let frames: { c: unknown; dash: unknown; box: number[] }[] = [], texts: string[] = [];
 /** A drawing context for the cursor layer that records its strokes; every other call does nothing. */
@@ -29,6 +29,7 @@ function recorder() {
     stroke: () => { strokes.push({ w: props.lineWidth as number, ops: [...ops], c: props.strokeStyle, alpha: props.globalAlpha }); },
     fillRect: (x, y, w, h) => { fills.push({ c: props.fillStyle, box: [x, y, w, h] }); },
     arc: (x, y, r) => { ops.push(['A', x, y, r]); },
+    fill: () => { paths.push({ c: props.fillStyle, ops: [...ops] }); },
     strokeRect: (x, y, w, h) => { frames.push({ c: props.strokeStyle, dash: props.dash, box: [x, y, w, h] }); },
     setLineDash: ((d: number[]) => { props.dash = d; }) as unknown as (...a: number[]) => unknown,
     fillText: ((t: string) => { texts.push(t); }) as unknown as (...a: number[]) => unknown,
@@ -66,7 +67,7 @@ function cursorAt(x: number, y: number) {
   return { outline: strokes[i - 1], line: { w: strokes[i].w, ops: strokes[i].ops } };
 }
 
-beforeEach(() => { fills = []; frames = []; texts = []; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); });
+beforeEach(() => { fills = []; paths = []; frames = []; texts = []; host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); });
 afterEach(() => { act(() => root.unmount()); host.remove(); });
 
 describe('the cursor follows what the canvas waits for', () => {
@@ -139,7 +140,7 @@ describe('what a click would pick is marked first', () => {
     const [a, b] = [landed[landed.length - 2], landed[landed.length - 1]];
     const grip: [number, number] = [a[0] + (3 * (b[0] - a[0])) / 10, a[1]];
     fills = [];
-    draw({ grips: [grip] });
+    draw({ grips: [{ at: grip }] });
     const { line } = cursorAt(300, 200);
     expect(last(fills)!.c).toBe('#f5c04a');
     // The box is centred on the grip (3 px right of the cursor), not on the cursor.
@@ -261,3 +262,24 @@ describe('the cursor settings (DS, Cursor and Selection)', () => {
   });
 });
 
+describe('grips by shape', () => {
+  beforeEach(() => { document.documentElement.style.setProperty('--bad', '#ff5d6c'); document.documentElement.style.setProperty('--cad-sel', '#4aa8ff'); });
+  const box = (ops: (string | number)[][]) => { const xs = ops.map((o) => o[1] as number), ys = ops.map((o) => o[2] as number); return [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)].map((v) => Math.round(v * 100) / 100); };
+
+  it('a diamond for a size and a bar for a side\'s middle, turned along the side, in the selection colour', () => {
+    draw({ grips: [{ at: [100, 100], shape: 'diamond' }, { at: [300, 100], shape: 'bar', along: [1, 0] }, { at: [500, 100], shape: 'bar', along: [0, 1] }, { at: [700, 100] }] });
+    cursorAt(5, 5);
+    paths = paths.slice(-3); // the last draw of the cursor layer
+    expect(paths.map((p) => p.c)).toEqual(['#4aa8ff', '#4aa8ff', '#4aa8ff']);
+    expect(box(paths[0].ops)).toEqual([9.6, 9.6]); // half-diagonal 0.6 × the 8 px grip size
+    expect(box(paths[1].ops)).toEqual([11, 5]); // long side 1.4 × 8 = 11 px, short side 0.6 × 8 = 5 px
+    expect(box(paths[2].ops)).toEqual([5, 11]); // turned a quarter along a vertical side
+    expect(last(fills)).toMatchObject({ c: '#4aa8ff' }); expect(last(fills).box.slice(2)).toEqual([8, 8]); // the square one
+  });
+
+  it('the hot grip is drawn in the bad colour', () => {
+    draw({ grips: [{ at: [100, 100] }, { at: [300, 100] }], hotGrip: 1 });
+    cursorAt(5, 5);
+    expect(fills.slice(-2).map((f) => f.c)).toEqual(['#4aa8ff', '#ff5d6c']);
+  });
+});

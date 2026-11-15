@@ -15,6 +15,15 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.160', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: picked objects show on any colour', text: 'A picked drawn object is drawn dashed in its own colour over a blue halo, so it shows on any layer colour. The same for the objects of an opened drawing, and a picked text of an opened drawing now gets a box.' },
+      { title: 'Design CAD: grips that suit the object', text: 'Squares for points, bars for the middle of a side, diamonds for sizes. A circle shows its centre and four quadrants, an arc its centre, ends and middle. Grips show on every picked object, up to 100.' },
+      { title: 'Design CAD: Mirror from a hot grip', text: 'Click a grip, then right-click it: Mirror through this point, next to Move, Copy and Rotate.' },
+      { title: 'Drafting settings: picked look and grip limit', text: 'Drafting settings → Selection: the look of picked objects, the selection colour, and how many picked objects show grips.' }
+    ]
+  },
+  {
     version: '2.159', date: '2026-11-15',
     items: [
       { title: 'Busbar riser: one maximum demand', text: 'The busway, its breaker and the Load schedule\'s Busbar riser form now use the same maximum demand: each tap-off board\'s MD from its MD form (TCL × DF). Risers whose floors are boards may get a bigger busway and breaker; check them.' },

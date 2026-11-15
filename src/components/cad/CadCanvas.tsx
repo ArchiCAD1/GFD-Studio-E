@@ -12,7 +12,7 @@ import { POINT_STYLE_DEFAULT, pointMark, pointRadius, type PointStyle } from '..
 import { attdefAsText, expandAll, type CadBlockDef } from '../../model/cadBlocks';
 import type { PlanCells, PlanCover } from '../elv/elvOverlay';
 import { fittingLabel, trayFittings } from '../../model/cadTrayFittings';
-import { cssRgb, dashArray, hatchLines, patternLength, screenColour, tileOf } from '../../model/cadDraw';
+import { cssRgb, dashArray, hatchLines, mixCss, patternLength, screenColour, tileOf } from '../../model/cadDraw';
 import { BAR_ALPHA, emPerCap, READ_PX, SCREEN_FONT, textBar, widthPerPx } from '../../model/cadTextScreen';
 import type { SketchItem } from '../../types';
 import { effective, styleOf, type LayerStyle } from '../../model/cadLayerStyle';
@@ -68,7 +68,7 @@ export function gridStep(scale: number): number {
 /** The drawing in a CAD model space: lines by layer and colour, texts at their height, a crosshair cursor with the snap
  * point under it, live coordinates. Wheel zooms at the cursor (two-finger scroll pans, pinch zooms), the middle button
  * or Space + drag pans, a middle double-click fits. */
-export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = false, fitKey, onCursor, onClick, marks, highlight, devices = [], wiring = [], sketch: sketchIn = [], selectedSketch, extraSnaps = [], preview = [], unitsPerMm = 1, labels = {}, covers = [], gaps, numbersTyped = false, windowSelect = false, onWindow, onContext, panLeft = false, overlay, grips = [], onGripStart, onGripEnd, layerStyle = {}, refs = [], refSnap, fitBox, fixed = false, onView, extents, draft = DRAFT_DEFAULTS, zoom, onZoomMenu, onDouble, pointStyle = POINT_STYLE_DEFAULT, blocks = [], onDrop, fadeExcept, cursorMode = 'ready', hover }: {
+export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = false, fitKey, onCursor, onClick, marks, highlight, devices = [], wiring = [], sketch: sketchIn = [], selectedSketch, extraSnaps = [], preview = [], unitsPerMm = 1, labels = {}, covers = [], gaps, numbersTyped = false, windowSelect = false, onWindow, onContext, panLeft = false, overlay, grips = [], hotGrip: hotGripIn = -1, pickedObjects, onGripStart, onGripEnd, layerStyle = {}, refs = [], refSnap, fitBox, fixed = false, onView, extents, draft = DRAFT_DEFAULTS, zoom, onZoomMenu, onDouble, pointStyle = POINT_STYLE_DEFAULT, blocks = [], onDrop, fadeExcept, cursorMode = 'ready', hover }: {
   view: CadView;
   /** Objects of the drawing erased in the app (CROP): their lines, texts and fills are not drawn. */
   hidden?: ErasedParts;
@@ -112,8 +112,12 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
   gaps?: PlanCells;
   /** The drawn object(s) selected: one ID, or several. */
   selectedSketch?: string | string[] | null;
-  /** Grips of the drawn object selected (drawing units): pressed and dragged, they reach the page on release. */
-  grips?: Pt[];
+  /** Grips of the drawn objects picked (drawing units), each a square, a bar turned along `along` (a side's middle) or a
+   * diamond (a size): pressed and dragged, they reach the page on release. `hotGrip`: the index of the one clicked. */
+  grips?: { at: Pt; shape?: 'square' | 'bar' | 'diamond'; along?: Pt }[];
+  hotGrip?: number;
+  /** Ids of the objects of the opened drawing that are picked (their texts get the picked box). */
+  pickedObjects?: number[];
   onGripStart?: (i: number) => void;
   /** A grip let go: where (`moved` false: pressed and let go in place, a click on it). */
   onGripEnd?: (i: number, at: Pt, moved?: boolean) => void;
@@ -176,6 +180,8 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
   const gripFrom = useRef<[number, number] | null>(null);
   const gripsRef = useRef(grips);
   gripsRef.current = grips;
+  const hotGripRef = useRef(hotGripIn);
+  hotGripRef.current = hotGripIn;
   // A window being dragged (canvas pixels); `on` once it has moved far enough not to be a click.
   const win = useRef<{ x: number; y: number; x2: number; y2: number; on: boolean } | null>(null);
   const [moving, setMoving] = useState(false);
@@ -415,6 +421,39 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       ctx.restore();
     }
     ctx.lineWidth = px;
+    // The selection colour (Drafting settings → Selection) and the look of what is picked.
+    const look = draft.pickLook;
+    const selSk = draft.selColor === 'accent' ? colour('--acc', ink) : draft.selColor === 'cyan' ? colour('--res-cur', ink) : draft.selColor === 'green' ? colour('--cad-snap', ink) : colour('--cad-sel', ink);
+    /** The current path stroked as a drawn object: picked, in its own colour dashed over a halo (or thicker in the
+     * selection colour, or dashed only); else plainly. Leaves the stroke colour set for what follows. */
+    const strokeObject = (sel: boolean, own: string, w: number, ia: number, dash: number[]) => {
+      if (sel && look === 'halo') {
+        ctx.globalAlpha = 0.35 * ia; ctx.strokeStyle = selSk; ctx.lineWidth = 6 / scale; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([]); ctx.stroke();
+        ctx.globalAlpha = ia; ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+      }
+      ctx.strokeStyle = sel && look === 'thick' ? selSk : own;
+      ctx.lineWidth = sel && look === 'thick' ? 3 / scale : w;
+      ctx.setLineDash(sel && look !== 'thick' ? [6 / scale, 4 / scale] : dash);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    };
+    /** The box round a picked text or note (screen pixels, 3 px clear all round): the selection colour faint inside, a dashed outline. */
+    const pickBox = (x: number, y: number, w: number, h: number) => {
+      const a = ctx.globalAlpha;
+      ctx.fillStyle = selSk; ctx.globalAlpha = a * 0.18; ctx.fillRect(x - 3, y - 3, w + 6, h + 6); ctx.globalAlpha = a;
+      ctx.strokeStyle = selSk; ctx.lineWidth = look === 'thick' ? 2 : 1; ctx.setLineDash(look === 'thick' ? [] : [4, 3]); ctx.strokeRect(x - 3, y - 3, w + 6, h + 6); ctx.setLineDash([]);
+    };
+    // What is picked of the opened drawing: its halo under the layers' lines, its gaps (the halo's colour, or the
+    // background's) over them after.
+    let hp: Path2D | null = null;
+    if (highlight?.some(([a, z]) => z > a)) {
+      hp = new Path2D();
+      for (const [a, z] of highlight) for (let i = a; i < z; i += 1) { hp.moveTo(view.segs[i * 4], view.segs[i * 4 + 1]); hp.lineTo(view.segs[i * 4 + 2], view.segs[i * 4 + 3]); }
+      if (look === 'halo') {
+        ctx.globalAlpha = 0.35 * fa; ctx.strokeStyle = selSk; ctx.lineWidth = 6 / scale; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke(hp);
+        ctx.globalAlpha = fa; ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+      }
+    }
     const dashes = view.info.linetypes ?? [];
     for (const b of batches) {
       if (!layersOn[b.layer] || !onScreen(b.box)) continue;
@@ -426,12 +465,13 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     }
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
-    if (highlight?.some(([a, z]) => z > a)) {
-      const p = new Path2D();
-      for (const [a, z] of highlight) for (let i = a; i < z; i += 1) { p.moveTo(view.segs[i * 4], view.segs[i * 4 + 1]); p.lineTo(view.segs[i * 4 + 2], view.segs[i * 4 + 3]); }
-      ctx.strokeStyle = colour('--cad-snap', '#37d67a');
-      ctx.lineWidth = 3 / scale;
-      ctx.stroke(p);
+    if (hp) {
+      if (look === 'thick') { ctx.strokeStyle = selSk; ctx.lineWidth = 3 / scale; ctx.stroke(hp); }
+      else {
+        // Drawn dashed: 6 px of the line, 4 px painted over.
+        ctx.strokeStyle = look === 'halo' ? mixCss(bg, selSk, 0.35) : bg; ctx.lineWidth = 2 / scale;
+        ctx.setLineDash([4 / scale, 6 / scale]); ctx.lineDashOffset = -6 / scale; ctx.stroke(hp); ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      }
     }
     // ELV coverage: circles and camera views cut at their room, then the squares not covered.
     const bad = colour('--bad', '#ff5d6c');
@@ -464,7 +504,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     }
     // What the engineer drew, over the drawing; a tray run as one heavier line, broken at its label when the label shows.
     const { fittings } = trayFittings(sketch, unitsPerMm);
-    const skC = colour('--cad-sketch', '#7fd1ff'), selSk = colour('--cad-snap', '#37d67a');
+    const skC = colour('--cad-sketch', '#7fd1ff');
     const trayH = TRAY_TEXT_MM * unitsPerMm, trayText = trayH * scale >= 4;
     const ltScale = 100 * unitsPerMm; // linetype dashes in paper mm at 1:100
     const emK = emPerCap(ctx, FONT), widths = widthsOf.get(view) ?? new Map<string, number>();
@@ -488,7 +528,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         ctx.save();
         ctx.translate((b.tl[0] - o0 - ox) * scale, size.h - (b.tl[1] - o1 - oy) * scale);
         ctx.rotate(-(it.rot ?? 0));
-        ctx.fillStyle = isSel(it.id) ? selSk : nef.color ?? skC; ctx.textAlign = 'left';
+        ctx.fillStyle = nef.color ?? skC; ctx.textAlign = 'left';
         if (b.h * scale < READ_PX) {
           ctx.save(); ctx.globalAlpha *= BAR_ALPHA; ctx.beginPath();
           for (const line of b.lines) for (const seg of line.segs) textBar(ctx, seg.x * scale, line.y * scale, 0, seg.h * scale, seg.w * scale, 0);
@@ -503,7 +543,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
           if (seg.u) ctx.fillRect(0, sp * 0.12, (seg.w * scale) / up, Math.max(1 / up, sp * 0.06));
           ctx.restore();
         }
-        if (isSel(it.id)) { ctx.strokeStyle = selSk; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.strokeRect(0, 0, b.w * scale, b.H * scale); ctx.setLineDash([]); }
+        if (isSel(it.id)) pickBox(0, 0, b.w * scale, b.H * scale);
         ctx.restore();
         return;
         }
@@ -529,7 +569,13 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         }
         ctx.textAlign = label.align;
         if (it.tray) ctx.textBaseline = 'middle'; // in the gap of the tray's line
-        ctx.fillStyle = isSel(it.id) ? selSk : lef.color ?? skC;
+        ctx.fillStyle = lef.color ?? skC;
+        // A text picked: its box, as wide as the words are drawn.
+        if (it.kind === 'text' && isSel(it.id)) {
+          const w = widthPerPx(ctx, FONT, label.s, widths) * em, a = ctx.fillStyle;
+          pickBox(label.align === 'center' ? -w / 2 : label.align === 'right' ? -w : 0, -cap, w, cap);
+          ctx.fillStyle = a;
+        }
         if (cap < READ_PX) {
           // Too small to read: a faint bar where the words are.
           ctx.globalAlpha *= BAR_ALPHA; ctx.beginPath();
@@ -554,11 +600,11 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       if (it.kind === 'point') {
         // A point: its style's marker about it, sized to the screen or in drawing units (never under 3 pixels).
         const r = Math.max(pointRadius(pointStyle, size.h / scale), 1.5 / scale), mk = pointMark(pointStyle.mode), px0 = it.pts[0][0] - o0, py0 = it.pts[0][1] - o1;
-        ctx.strokeStyle = isSel(it.id) ? selSk : ef.color ?? skC; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = (isSel(it.id) ? 3 : 1.5) / scale;
         ctx.beginPath();
         for (const [a, b] of mk.lines) { ctx.moveTo(px0 + a[0] * r, py0 + a[1] * r); ctx.lineTo(px0 + b[0] * r, py0 + b[1] * r); }
         if (mk.circle) { ctx.moveTo(px0 + r, py0); ctx.arc(px0, py0, r, 0, 2 * Math.PI); }
-        ctx.stroke();
+        strokeObject(isSel(it.id), ef.color ?? skC, 1.5 / scale, ia, []);
+        ctx.fillStyle = ctx.strokeStyle;
         if (mk.dot) { ctx.beginPath(); ctx.arc(px0, py0, Math.max(r * 0.2, 2 / scale), 0, 2 * Math.PI); ctx.fill(); }
         continue;
       }
@@ -570,7 +616,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         outline.closePath();
         // Its islands are part of the same path: filled and clipped even-odd, so they stay clear.
         for (const h of it.holes ?? []) { h.forEach((q, i) => (i ? outline.lineTo(q[0] - o0, q[1] - o1) : outline.moveTo(q[0] - o0, q[1] - o1))); outline.closePath(); }
-        const col = isSel(it.id) ? selSk : ef.color ?? skC;
+        const col = ef.color ?? skC;
         ctx.save();
         ctx.clip(outline, 'evenodd');
         const xs = it.kind === 'circle' ? [it.pts[0][0] - (it.r ?? 0), it.pts[0][0] + (it.r ?? 0)] : it.pts.map((q) => q[0]);
@@ -593,17 +639,15 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
           ctx.setLineDash([]);
         }
         ctx.restore();
-        if (!isSel(it.id)) continue; // a hatch shows its outline only when picked
+        if (!isSel(it.id)) continue; // a hatch shows its outline only when picked, with the selection colour faint inside
+        ctx.globalAlpha = 0.15 * ia; ctx.fillStyle = selSk; ctx.fill(outline, 'evenodd'); ctx.globalAlpha = ia;
       }
-      ctx.strokeStyle = isSel(it.id) ? selSk : ef.color ?? skC;
-      ctx.lineWidth = (isSel(it.id) ? 3 : ef.lw && toggles.lwt !== false ? Math.max(1.5, ef.lw * 6) : it.tray ? 2.5 : 1.5) / scale;
       ctx.beginPath();
       if (it.tray) for (const q of trayText ? trayLine(it, trayH).pieces : [it.pts]) q.forEach((p, i) => (i ? ctx.lineTo(p[0] - o0, p[1] - o1) : ctx.moveTo(p[0] - o0, p[1] - o1)));
       else for (const [a, b] of segmentsOf(it, 0.001 / unitsPerMm)) { ctx.moveTo(a[0] - o0, a[1] - o1); ctx.lineTo(b[0] - o0, b[1] - o1); }
-      if (it.cable) ctx.setLineDash([10 / scale, 5 / scale]); // a cable route: dashed
-      else if (ef.dash.length && ef.dash.reduce((t, v) => t + v, 0) * ltScale * scale >= 4) ctx.setLineDash(ef.dash.map((v) => v * ltScale));
-      ctx.stroke();
-      ctx.setLineDash([]);
+      // A cable route is dashed; so is a linetype that shows at this zoom.
+      const dash = it.cable ? [10 / scale, 5 / scale] : ef.dash.length && ef.dash.reduce((t, v) => t + v, 0) * ltScale * scale >= 4 ? ef.dash.map((v) => v * ltScale) : [];
+      strokeObject(isSel(it.id), ef.color ?? skC, (ef.lw && toggles.lwt !== false ? Math.max(1.5, ef.lw * 6) : it.tray ? 2.5 : 1.5) / scale, ia, dash);
       if (it.leader && it.pts.length > 1) {
         // The leader's arrow at its first point, 3 mm long on paper at 1:100.
         const [a, b] = [it.pts[0], it.pts[1]], ang = Math.atan2(a[1] - b[1], a[0] - b[0]), hd = 3 * ltScale;
@@ -672,6 +716,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.textBaseline = 'alphabetic';
     const bars = new Map<string, Path2D>();
+    const pickedTx = new Set(pickedObjects);
     let drawn = 0;
     for (const tx of view.info.texts) {
       if (!layersOn[tx.layer] || (gone && tx.o !== undefined && gone.objects.has(tx.o))) continue;
@@ -680,6 +725,11 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       const sx = (tx.x - o0 - ox) * scale, sy = size.h - (tx.y - o1 - oy) * scale;
       if (sx < -2000 || sx > size.w + 2000 || sy < -200 || sy > size.h + 200) continue;
       const em = cap * emK, fill = shade(tx.rgb);
+      if (tx.o !== undefined && pickedTx.has(tx.o)) {
+        // Picked: its box, as wide as the words are drawn (the bar, when too small to read).
+        const w = tx.w ? tx.w * scale : widthPerPx(ctx, FONT, tx.s, widths) * em;
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(-tx.rot); pickBox(tx.align === 1 ? -w / 2 : tx.align === 2 ? -w : 0, -cap, w, cap); ctx.restore();
+      }
       if (cap < READ_PX || drawn >= 6000) {
         let bar = bars.get(fill);
         if (!bar) bars.set(fill, (bar = new Path2D()));
@@ -736,7 +786,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         ctx.fillText(fittingLabel(f), sx + fpx * 1.2, sy - fpx * 1.2);
       }
     }
-  }, [t, size, batches, fills, gone, layersOn, toggles.grid, toggles.lwt, draft.gridMm, draft.gridMajor, view, highlight, devices, wiring, sketch, selectedSketch, unitsPerMm, labels, covers, gaps, theme, gridDots, layerStyle, refPaths, pointStyle, fadeExcept]); // eslint-disable-line react-hooks/exhaustive-deps -- colours read from CSS each draw
+  }, [t, size, batches, fills, gone, layersOn, toggles.grid, toggles.lwt, draft.gridMm, draft.gridMajor, view, highlight, pickedObjects, draft.pickLook, draft.selColor, devices, wiring, sketch, selectedSketch, unitsPerMm, labels, covers, gaps, theme, gridDots, layerStyle, refPaths, pointStyle, fadeExcept]); // eslint-disable-line react-hooks/exhaustive-deps -- colours read from CSS each draw
 
   /** The cursor: crosshair and pick box, and the snap marker with its name. */
   function drawCursor(at: Pt | null, snap?: { p: Pt; kind: number }, guide?: Landing['guide']) {
@@ -792,15 +842,26 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       tag(box.x2 + 12, box.y2 + 10, crossing ? 'Crossing' : 'Window');
     }
     // Grips; the one under the pick box (no command, or objects wanted) in the hover colour, and the box locks onto it.
-    const hotGrip = at && modeRef.current !== 'point' && mouse.current ? gripUnder(mouse.current[0], mouse.current[1]) : -1;
+    const underGrip = at && modeRef.current !== 'point' && mouse.current ? gripUnder(mouse.current[0], mouse.current[1]) : -1;
+    const gripBg = colour('--cad-bg', BG), gripCol = ds.selColor === 'accent' ? colour('--acc', snapC) : ds.selColor === 'cyan' ? colour('--res-cur', snapC) : ds.selColor === 'green' ? snapC : colour('--cad-sel', snapC);
     gripsRef.current.forEach((g, i) => {
-      const gx = (g[0] - o0 - ox) * scale, gy = size.h - (g[1] - o1 - oy) * scale;
-      const gh = ds.gripPx / 2;
-      ctx.fillStyle = i === hotGrip ? colour('--warn', snapC) : snapC; ctx.fillRect(Math.round(gx) - gh, Math.round(gy) - gh, ds.gripPx, ds.gripPx);
+      const gx = Math.round((g.at[0] - o0 - ox) * scale), gy = Math.round(size.h - (g.at[1] - o1 - oy) * scale);
+      ctx.fillStyle = i === hotGripRef.current || i === gripping.current ? colour('--bad', snapC) : i === underGrip ? colour('--warn', snapC) : gripCol;
+      ctx.strokeStyle = gripBg; ctx.lineWidth = 1;
+      if (!g.shape || g.shape === 'square') { const gh = ds.gripPx / 2; ctx.fillRect(gx - gh, gy - gh, ds.gripPx, ds.gripPx); ctx.strokeRect(gx - gh, gy - gh, ds.gripPx, ds.gripPx); return; }
+      ctx.beginPath();
+      if (g.shape === 'diamond') { const h = ds.gripPx * 0.6; ctx.moveTo(gx, gy - h); ctx.lineTo(gx + h, gy); ctx.lineTo(gx, gy + h); ctx.lineTo(gx - h, gy); ctx.closePath(); }
+      else if (g.shape === 'bar') {
+        // Long side along the side it moves (screen y is flipped).
+        const a = g.along ? Math.atan2(-g.along[1], g.along[0]) : 0, hl = Math.round(ds.gripPx * 1.4) / 2, hs = Math.round(ds.gripPx * 0.6) / 2, cs = Math.cos(a), sn = Math.sin(a);
+        ([[-hl, -hs], [hl, -hs], [hl, hs], [-hl, hs]] as Pt[]).forEach(([u, v], k) => (k ? ctx.lineTo : ctx.moveTo).call(ctx, gx + u * cs - v * sn, gy + u * sn + v * cs));
+        ctx.closePath();
+      }
+      ctx.fill(); ctx.stroke();
     });
     // What a click would pick: an amber outline at 40 % over it (not while a grip is under the box).
     const hv = hoverRef.current;
-    if (ds.hoverMark && hv && !hv.picked && at && hotGrip < 0 && modeRef.current !== 'point' && !handRef.current) {
+    if (ds.hoverMark && hv && !hv.picked && at && underGrip < 0 && modeRef.current !== 'point' && !handRef.current) {
       ctx.save();
       ctx.globalAlpha = 0.4; ctx.strokeStyle = colour('--acc', snapC); ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -848,7 +909,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     // outline in the canvas colour, so they read over lines of any colour. The crosshair stops 2 px outside the box.
     if (handRef.current) return;
     const mode = modeRef.current;
-    const lock = hotGrip >= 0 ? gripsRef.current[hotGrip] : undefined;
+    const lock = underGrip >= 0 ? gripsRef.current[underGrip]?.at : undefined;
     const [lx, ly] = lock ? [(lock[0] - o0 - ox) * scale, size.h - (lock[1] - o1 - oy) * scale] : [sx, sy];
     const cx = Math.round(lx) + 0.5, cy = Math.round(ly) + 0.5;
     const pb = ds.pickBoxPx, withBox = mode !== 'point';
@@ -904,7 +965,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     const r = pickRadiusPx(draftRef.current);
     let best = -1, bd = Infinity;
     gripsRef.current.forEach((q, i) => {
-      const d = Math.max(Math.abs((q[0] - o0 - v.ox) * v.scale - x), Math.abs(size.h - (q[1] - o1 - v.oy) * v.scale - y));
+      const d = Math.max(Math.abs((q.at[0] - o0 - v.ox) * v.scale - x), Math.abs(size.h - (q.at[1] - o1 - v.oy) * v.scale - y));
       if (d <= r && d < bd) { best = i; bd = d; }
     });
     return best;
@@ -1015,7 +1076,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
   // After zoom / pan, or the canvas resized: the cursor's drawing point moves, so it is tracked again. When only the
   // marks change (a pick, the cursor moving in a tool), they are redrawn without reporting the cursor back (that would loop).
   useEffect(() => { if (mouse.current) track(mouse.current[0], mouse.current[1]); else drawCursor(null); }, [t, size.w, size.h]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { drawCursor(mouse.current ? lastAt.current?.at ?? null : null, mouse.current ? lastAt.current?.snap : undefined, mouse.current ? lastAt.current?.guide : undefined); }, [marks, preview, theme, grips, draft, cursorMode, hover, hand, shiftOn, still]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawCursor(mouse.current ? lastAt.current?.at ?? null : null, mouse.current ? lastAt.current?.snap : undefined, mouse.current ? lastAt.current?.guide : undefined); }, [marks, preview, theme, grips, hotGripIn, draft, cursorMode, hover, hand, shiftOn, still]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** The whole drawing in view, with a margin (FIT / ZE, 0, a double click of the wheel, the zoom chip). */
   const fitT = (): ViewT => {
