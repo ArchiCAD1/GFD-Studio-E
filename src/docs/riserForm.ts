@@ -36,6 +36,8 @@ export interface RiserForm {
   rows: RiserFormRow[];
   totals: { phases: PhaseKw; tcl: number; md: number; meters: Record<MeterType, number> };
   df: number;
+  /** The riser's own diversity when it is below 1: the rows' MD before it, and the factor with its source. */
+  riserDiversity?: { value: number; label: string; beforeKw: number };
 }
 
 const Z = (): Record<MeterType, number> => ({ '1-PH': 0, '3-PH': 0, CT: 0 });
@@ -45,7 +47,6 @@ export function buildRiserForm(project: Project, riserId: string): RiserForm | n
   const r = (project.busRisers ?? []).find((x) => x.id === riserId);
   if (!r) return null;
   const res = sizeRiser(project, r);
-  const dfDefault = project.info?.mdDemandFactor ?? 0.8;
   const rows: RiserFormRow[] = [];
   for (const fl of res.floors) {
     const f = fl.floor;
@@ -67,7 +68,8 @@ export function buildRiserForm(project: Project, riserId: string): RiserForm | n
       } else {
         const kw = fl.kw;
         const phases = { R: kw / 3, Y: kw / 3, B: kw / 3 };
-        rows.push({ name, sptp: 'TP', mccb: fl.tapOffA, phases, tcl: kw, df: dfDefault, md: kw * dfDefault, meters: Z() });
+        // the typed kW is already this floor's demand
+        rows.push({ name, sptp: 'TP', mccb: fl.tapOffA, phases, tcl: kw, df: 1, md: kw, meters: Z(), remarks: 'Load entered on the riser page' });
       }
     }
   }
@@ -75,7 +77,9 @@ export function buildRiserForm(project: Project, riserId: string): RiserForm | n
   const meters = Z();
   rows.forEach((x) => (Object.keys(meters) as MeterType[]).forEach((m) => (meters[m] += x.meters[m])));
   const tcl = sum(phases);
-  const md = rows.reduce((a, x) => a + (x.md ?? 0), 0);
+  const sumMd = rows.reduce((a, x) => a + (x.md ?? 0), 0);
+  const diverse = res.diversity < 1 - 1e-9;
+  const md = diverse ? sumMd * res.diversity : sumMd;
   const fault = res.faultKa !== undefined ? STANDARD_ICU_KA.find((k) => k >= res.faultKa! - 1e-6) : undefined;
   return {
     ref: r.name, fedFrom: r.sourceBoardId ?? '',
@@ -83,6 +87,7 @@ export function buildRiserForm(project: Project, riserId: string): RiserForm | n
       name: 'INCOMER', sptp: 'TP', acb: res.feederBreakerA, faultKa: fault, phases, tcl, meters: Z(),
       busway: res.type ? `${res.type.ratingA}A TPN+E DISTRIBUTED BUS RISER` : 'BUS RISER'
     },
-    rows, totals: { phases, tcl, md, meters }, df: tcl > 0 ? md / tcl : dfDefault
+    rows, totals: { phases, tcl, md, meters }, df: tcl > 0 ? md / tcl : project.info?.mdDemandFactor ?? 0.8,
+    riserDiversity: diverse ? { value: res.diversity, label: res.diversityRule === 'typed' ? 'typed' : `IEC 61439, ${res.tapOffs} tap-offs`, beforeKw: sumMd } : undefined
   };
 }

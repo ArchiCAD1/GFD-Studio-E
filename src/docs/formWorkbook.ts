@@ -295,6 +295,12 @@ export function addRiserSheet(wb: ExcelJS.Workbook, project: Project, riserId: s
   put(ws, r, 1, 'OUTGOINGS', { border: true }); box(ws, r, 1, r, n); r++;
   const line = (x: RiserFormRow) => [x.name, x.sptp, x.acb ?? '', x.mccb ?? '', x.faultKa ?? '', x.cores ?? '', x.type ?? '', x.size ?? '', x.ecc ?? '', k(x.phases.R), k(x.phases.Y), k(x.phases.B), k(x.tcl), x.df ?? '', k(x.md ?? 0), x.meters['1-PH'], x.meters['3-PH'], x.meters.CT, x.remarks ?? ''];
   for (const x of f.rows) { line(x).forEach((v, c) => put(ws, r, c + 1, v, { border: true, align: c === 0 ? 'left' : 'center', numFmt: c >= 9 && c <= 14 ? TWO : undefined })); r++; }
+  if (f.riserDiversity) {
+    const d = f.riserDiversity;
+    put(ws, r, 1, `RISER DIVERSITY ${d.value.toFixed(2)} (${d.label})`, { bold: true, border: true, align: 'left' }); merge(ws, r, 1, r, 14);
+    put(ws, r, 15, `${k(d.beforeKw).toFixed(2)} → ${k(f.totals.md).toFixed(2)}`, { bold: true, border: true });
+    box(ws, r, 16, r, n); r++;
+  }
   put(ws, r, 5, 'TOTAL CONNECTED - LOAD PER PHASE', { bold: true, border: true }); merge(ws, r, 5, r, 9);
   [f.totals.phases.R, f.totals.phases.Y, f.totals.phases.B, f.totals.tcl].forEach((v, c) => put(ws, r, 10 + c, k(v), { bold: true, border: true, numFmt: TWO }));
   put(ws, r, 14, '', { border: true });

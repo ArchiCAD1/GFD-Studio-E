@@ -69,13 +69,16 @@ describe('ENG-011: busbar riser voltage drop from each section’s P and Q', () 
     const l: Feeder = { ...lead, id: 'L', kvar: undefined, loadType: undefined, loadKw: 40, powerFactor: 1 };
     const p = project({ boards: [{ id: 'MDB', name: 'MDB', sourceKva: 1000 }, { id: 'DB2', name: 'DB2', upstreamId: 'MDB' }], feeders: [l, lead] });
     const s = sizeRiser(p, riser([{ id: 'F', name: 'F', boardId: 'DB2' }, B]));
-    expect(s.floors[0].kvar).toBeCloseTo(-60, 9); // fixed capacitor: leading kept
-    expect(s.sections[0].q).toBeCloseTo(-60 + 400 / 3, 9); // mixed: lagging above, leading below
-    expect(s.sections[1].vdPct).toBeCloseTo(drop(20, 140, -60 + 400 / 3), 9);
+    // The board's MD-form kW is 40 × 0.8 DF = 32; its leading kvar keeps the demand power factor (−60 ÷ 40 × 32).
+    expect(s.floors[0].kvar).toBeCloseTo(-48, 9); // fixed capacitor: leading kept
+    expect(s.sections[0].q).toBeCloseTo(-48 + 400 / 3, 9); // mixed: lagging above, leading below
+    expect(s.sections[1].vdPct).toBeCloseTo(drop(20, 132, -48 + 400 / 3), 9);
+    // The circuits draw 40 kW but the MD form says 32 kW: the riser says so rather than size short in silence.
+    expect(s.notes.join(' ')).toMatch(/DB2: its circuits' demand 40(\.0+)? kW is above its MD-form maximum demand 32(\.0+)? kW/);
     const onlyLead = sizeRiser(p, riser([{ id: 'F', name: 'F', boardId: 'DB2' }]));
     expect(onlyLead.sections[0].q).toBeLessThan(0);
     expect(onlyLead.pf).toBeLessThan(1);
-    expect(onlyLead.sections[0].vdPct).toBeCloseTo(drop(10, 40, -60), 9);
+    expect(onlyLead.sections[0].vdPct).toBeCloseTo(drop(10, 32, -48), 9);
   });
 
   it('page / report parity, with zero and non-zero upstream drop and both materials', () => {

@@ -1,17 +1,18 @@
-import { boardTotals } from '../calc/summary';
 import { boardLocation } from '../model/levels';
 import { cables } from '../calc/cableTable';
 import { builtUpAreaOf } from '../calc/building';
 import { breakerTypeOf, cpcOf } from '../calc/earthing';
 import { runsOf } from '../calc/electrical';
-import { isScheduleCircuit, type PhaseKw } from '../calc/loadSchedule';
+import { isScheduleCircuit } from '../calc/loadSchedule';
 import { applyRecommendation, breakerRatings, recommend } from '../calc/sizing';
 import { CABLE_TYPES, DEFAULT_CABLE_TYPE, type Board, type Feeder, type MeterType, type Project, type SpareWay, type SwitchDevice } from '../types';
 import { isDbBoard, spareLabel, spareWaysOf, updateSpareWay, type SparePatch } from '../model/spareWays';
 import { roleOf } from '../model/emergency';
 import { supplyAuthorityOf } from '../model/designReference';
 import { cellName, parseCount, parsePositive, STYLE, type SheetEdit, type SheetModel } from './sheet';
-import { feedersOn } from '../calc/network';
+import { add, connectedPhaseKw, feederConnected, panelDf, panelSummary, sum, ZERO } from '../calc/panelDemand';
+
+export { connectedPhaseKw, panelDf, panelSummary };
 
 /** "Details of connected load, maximum demand & kWh metering" — the
  * authority form for a meter cabinet, MDB, SMDB or MCC: its incomer, then
@@ -62,26 +63,6 @@ export interface MdSheet extends SheetModel {
   };
 }
 
-const ZERO: PhaseKw = { R: 0, Y: 0, B: 0 };
-const add = (a: PhaseKw, b: PhaseKw): PhaseKw => ({ R: a.R + b.R, Y: a.Y + b.Y, B: a.B + b.B });
-const sum = (p: PhaseKw) => p.R + p.Y + p.B;
-
-/** Connected (installed) load of one feeder per phase, kW: nameplate load
- * with no demand factor; single-phase circuits on their own phase. */
-function feederConnected(f: Feeder): PhaseKw {
-  if (f.generation) return ZERO; // generation is not connected load
-  if (f.cores === 2 && f.phase && f.phase !== 'RYB') return { ...ZERO, [f.phase]: f.loadKw };
-  return { R: f.loadKw / 3, Y: f.loadKw / 3, B: f.loadKw / 3 };
-}
-
-/** Connected load per phase of everything fed from a board, kW. */
-export function connectedPhaseKw(project: Project, boardId: string, seen = new Set<string>()): PhaseKw {
-  if (seen.has(boardId)) return ZERO;
-  seen.add(boardId);
-  return feedersOn(project, boardId)
-    .reduce((acc, f) => add(acc, f.feedsBoardId ? connectedPhaseKw(project, f.feedsBoardId, seen) : feederConnected(f)), ZERO);
-}
-
 export const deviceOf = (f: Feeder): SwitchDevice => f.device ?? (breakerTypeOf(f) === 'ACB' ? 'ACB' : 'MCCB');
 
 /** Meter suggested by the form's own legend: (1) 1-phase up to 60 A,
@@ -102,23 +83,6 @@ const kw = (v: number) => v.toFixed(2);
  * panel below draws. Generation and capacitor banks have no connected load. */
 const ownLoad = (row: MdRow | undefined): row is { type: 'feeder'; feeder: Feeder } =>
   row?.type === 'feeder' && !row.toBoard && !row.feeder.generation && !row.feeder.kvar && row.feeder.loadType !== 'capacitor';
-
-/** The panel's own diversity factor: typed on the panel, else its own loads'
- * maximum demand ÷ connected load (not the project's). */
-export function panelDf(project: Project, board: Board): number {
-  if (board.mdDemandFactor !== undefined) return board.mdDemandFactor;
-  // The project's demand factor for the MD forms, as on the TCL summary and riser forms.
-  if (project.info?.mdDemandFactor !== undefined) return project.info.mdDemandFactor;
-  const t = boardTotals(project, board.id);
-  return t.connectedKw > 0 ? Math.round(Math.min(1, t.demandKw / t.connectedKw) * 100) / 100 : 1;
-}
-
-/** Panel summary for the SLD: TCL, DF and MDL = TCL × DF, kW. */
-export function panelSummary(project: Project, board: Board): { tclKw: number; df: number; mdlKw: number } {
-  const tclKw = sum(connectedPhaseKw(project, board.id));
-  const df = panelDf(project, board);
-  return { tclKw, df, mdlKw: tclKw * df };
-}
 
 /** Authority form titles, by panel type (the DEWA submission table). */
 export const MD_TITLE_METERING = 'DETAILS OF CONNECTED LOAD, MAX. DEMAND & kWh METERING';

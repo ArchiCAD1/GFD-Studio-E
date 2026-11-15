@@ -263,7 +263,7 @@ export function dbRiserLayout(project: Project, buildingId: string): DbRiserLayo
       run.name = r.name;
       const a = res?.type?.ratingA;
       run.type = `Busbar${a ? ` ${a} A` : ''} ${r.material === 'cu' ? 'Cu' : 'Al'}`;
-      run.breaker = a ? `${a} A` : '';
+      run.breaker = res?.feederBreakerA ? `${res.feederBreakerA} A` : '';
       for (const x of res?.floors ?? []) if (x.floor.boardId && x.tapOffA) run.tapOffA.set(x.floor.boardId, x.tapOffA);
     } else {
       cables++;

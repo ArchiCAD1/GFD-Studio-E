@@ -66,7 +66,7 @@ export function addG10RiserMockup(project: Project, preferredSourceId?: string):
     feeders.push({
       id: incomingId, boardId: sourceBoardId, feedsBoardId: panelId, name: `Busbar tap-off to ${panelId}`,
       loadKw: 0, demandFactor: 1, powerFactor: 0.9, lengthM: 8, cableCsaMm2: floor === 0 ? 120 : 70, cores: 4,
-      breakerRatingA: floor === 0 ? 250 : 160, breakerIcuKa: 36, breakerType: 'MCCB'
+      breakerRatingA: floor === 0 ? 125 : 100, breakerIcuKa: 36, breakerType: 'MCCB'
     });
     const loadId = unique(taken, `${panelId}-LOAD`);
     taken.add(loadId);

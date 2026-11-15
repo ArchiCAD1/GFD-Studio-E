@@ -354,7 +354,7 @@ function baseSection(key: StudyReportKind, data: CalcData, scope: Scope): Sectio
     return {
       key, title: info.title, statuses,
       method: [
-        'Demand: the tap-offs’ loads (a floor’s board demand, or the load entered) × diversity (IEC 61439-6: 0.9 for 2–3 tap-offs, 0.8 for 4–5, 0.7 for 6–9, 0.6 for 10 or more, unless set).',
+        'Demand: a board floor at its maximum demand on its MD form (TCL × DF), or the load entered on the page, × the riser diversity: same as the MD forms (1.0, the default when every floor is a board), IEC 61439-6 by tap-offs (0.9 for 2–3, 0.8 for 4–5, 0.7 for 6–9, 0.6 for 10 or more; the default for loads entered on the page), or typed.',
         'Rating: Ib ≤ In (feeding breaker) ≤ busway rating × ambient derating (≈ 1 % per °C above 40 °C).',
         'Voltage drop floor by floor: ΔU = √3 · I · L · (R cos φ + X sin φ), each riser section carrying the diversified load of the tap-offs above it.',
         'Short-circuit: the busway’s Icw (1 s) ≥ the fault level at the board feeding it. Busway data: ' + (p.busbarData ? 'as entered for this project.' : 'typical sandwich busway — confirm with the manufacturer.')
@@ -362,8 +362,8 @@ function baseSection(key: StudyReportKind, data: CalcData, scope: Scope): Sectio
       summary: [{ label: 'Risers checked', value: tally(statuses), status: statuses.length ? worst(statuses) : undefined },
         ...rs.map((x) => ({ label: x.riser.name, value: x.type ? `${x.type.ratingA} A ${MATERIAL_LABEL[x.riser.material].toLowerCase()}` : '—', status: st(x) }))],
       tables: [
-        { title: 'Busbar risers', headers: ['Riser', 'From', 'Tap-offs', 'Demand (kW)', 'Ib (A)', 'Breaker (A)', 'Busway', 'Area / phase (mm²)', 'Icw (kA) · fault (kA)', 'Vd top (%)', 'W × H (mm)', 'Length (m)', 'Weight (kg)', 'Result'],
-          rows: rs.map((x) => [x.riser.name, x.riser.sourceBoardId ?? '—', x.tapOffs, fig.power(x.demandKw), fig.current(x.designA), fig.plain(x.feederBreakerA),
+        { title: 'Busbar risers', headers: ['Riser', 'From', 'Tap-offs', 'Diversity', 'Demand (kW)', 'Ib (A)', 'Breaker (A)', 'Busway', 'Area / phase (mm²)', 'Icw (kA) · fault (kA)', 'Vd top (%)', 'W × H (mm)', 'Length (m)', 'Weight (kg)', 'Result'],
+          rows: rs.map((x) => [x.riser.name, x.riser.sourceBoardId ?? '—', x.tapOffs, `${x.diversity.toFixed(2)} (${x.diversityRule === 'forms' ? 'MD forms' : x.diversityRule === 'iec' ? 'IEC 61439' : 'typed'})`, fig.power(x.demandKw), fig.current(x.designA), fig.plain(x.feederBreakerA),
             x.type ? `${x.type.ratingA} A ${MATERIAL_LABEL[x.riser.material]}` : 'Above the data', x.type ? x.type.csaMm2 : '—',
             x.type ? `${x.type.icwKa} · ${x.faultKa !== undefined ? fig.fault(x.faultKa) : '—'}` : '—', fig.pct(x.vdTopPct), x.type ? `${x.type.widthMm} × ${x.type.heightMm}` : '—', fig.fixed(x.lengthM, 1), x.weightKg !== undefined ? fig.fixed(x.weightKg, 0) : '—', S(st(x))]) },
         ...rs.map((x) => ({ title: `${x.riser.name} — tap-offs`, headers: ['Floor', 'Board', 'Load (kW)', 'Current (A)', 'Tap-off (A)', 'Floors', 'Height (m)', 'Vd (%)'],
