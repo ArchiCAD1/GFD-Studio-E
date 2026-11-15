@@ -3,7 +3,8 @@
 Status, 2026-11-15:
 - The user said "This is okay" and asked that an SMDB feeding four or five panels be covered: that is Part D.
 - They then asked about risers with no busbar, about diversity on the riser schematic, and about the link with the Load schedule: Parts E and F.
-- Nothing is built yet. Building starts on the user's word.
+- Decision 1 was answered with "Go ahead … keep in mind it should work [for] different electrical panel load and bus bar size". The first build (F1, F2, B1's diversity choice and typical-data line, A2, C2 and the demo's tap-off breakers) is in branch `feat/riser-one-maximum-demand` (v2.156).
+- The other steps wait.
 
 Mockup: `docs/mockups/riser-enhancements-mockup.html` (image: `riser-enhancements-mockup.png`). Its figures come from the app's G+10 mock-up (Busbar riser page → G+10 mock-up: MDB-1 on a 1500 kVA transformer, 415 V, 45 °C, eleven SMDBs, a 630 A copper busway). They were worked out with the app's own functions. Rows marked "example" are added only to show a check.
 
@@ -218,7 +219,7 @@ Each step is one PR with tests.
 
 ## Decisions
 
-1. **The riser's maximum demand (Part F):**
+1. **The riser's maximum demand (Part F)** — **answered 2026-11-15: one maximum demand from the MD forms**, working for any panel load and busbar size; the demo's breakers may be adjusted.
    - The sum of the tap-offs' MD from their MD forms, as the busbar riser form already shows (suggested; G+10: 500 kW, 1000 A copper on an 800 A breaker).
    - Keep the IEC table (today; 300 kW, 630 A copper on a 500 A breaker), shown as its own riser diversity row on the forms and the schematic.
 2. **Is the board's incoming feeder the cable from the tap-off box?** Suggested: **yes**, with the check above 15 m.
