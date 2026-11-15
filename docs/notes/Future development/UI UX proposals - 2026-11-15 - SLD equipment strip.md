@@ -1,6 +1,6 @@
 # UI UX proposal – SLD equipment strip, and equipment on the Board tab (2026-11-15)
 
-Status: **proposal, waiting for the user's decision.** Nothing is built.
+Status: **proposal.** The user answered decisions 1–4 and 6 on 2026-11-15 (see Decisions); decision 5 is open. Nothing is built.
 
 Mockup: `docs/mockups/sld-equipment-strip-mockup.html` (image: `sld-equipment-strip-mockup.png`).
 
@@ -20,9 +20,9 @@ The user's request: the equipment library is a wide panel and they do not like i
 
 ### 1. A 44 px equipment strip
 
-On the System and Board tabs, a 44 px strip on the left edge of the drawing, from under the diagram tabs down to the results drawer.
+On the System and Board tabs, a 44 px strip on the left edge of the drawing, from under the diagram tabs down to the results drawer. A button at its foot moves it to the right edge and back; the app remembers the side. On the right, its lists open to the left.
 
-- Top to bottom: Search; favourites ★ and recently used (the same 8 as today's row, fewer on a short window; the mockup draws 4); the categories as their symbols, the same as today's category tiles (11, or 10 when the database holds no equipment of your own); Hide at the foot.
+- Top to bottom: Search; favourites ★ and recently used (the same 8 as today's row, fewer on a short window; the mockup draws 4); the categories as their symbols, the same as today's category tiles (11, or 10 when the database holds no equipment of your own); at the foot, Move to the other side and Hide.
 - Category names and counts are in the hover tooltip ("Boards · 12").
 - Clicking a category opens its list beside the strip, one column: symbol, name, where-it-drops dots. Feeder presets, My presets and Components open a wider list (about 270 px) for their two-line cards with edit, copy and delete.
 - Clicking an item closes the list and arms it: the next click on the drawing places it. Drag works as today. A pin in the list's header keeps it open, to place several kinds.
@@ -40,8 +40,8 @@ The same strip is on the Board tab. The board's own drawing takes drops and clic
 
 - **On the busbar:** a new way on this board, where the marker shows (between two ways, with `before` as on the System diagram). This covers loads, boards, presets, components, My equipment, capacitor bank, SPD, PMU and generator.
 - **On a way:** breaker type, kWh or CT meter, RCD, local isolator, cable type or cable edit on that circuit. A starter goes only on a motor way.
-- **Greyed items:** anything this board cannot take is greyed in the list, with the reason as hover text: Meter cabinet (only on the System diagram's empty canvas); Transformer and Bus coupler / tie (main boards only); MDB, LV-MDB and LV-ACB (only under a meter cabinet). The check is `canDrop` against this board's busbar and its ways. On the System diagram nothing is greyed.
-- **After a drop:** the view stays on this board and selects the new way, also when a sub-board was dropped. Today `showResult` selects a new board, which on the Board tab would jump to it. The new board opens from its link in the circuit table, as other sub-boards do now.
+- **Hidden items:** the lists and search show only what this board can take, on its busbar or on one of its ways. On a sub-main board such as SMDB-G1, Supply lists only the two generators: Transformer and Bus coupler / tie (main boards only) and Meter cabinet (only on the System diagram's empty canvas) are not listed, nor MDB, LV-MDB and LV-ACB (only under a meter cabinet). A category with nothing for this board leaves the strip, such as Starters on a board with no motor way. The check is `canDrop` against this board's busbar and its ways. The System diagram lists everything.
+- **After a drop:** a dropped load, device or meter never changes the board on screen. For a dropped board or board preset, see decision 5: today `showResult` selects a new board, which on the Board tab would jump to it.
 - **Final circuits:** a small single-phase way (20 A or less, `SLD_FINAL_CIRCUIT_MAX_A`) is not drawn on its own unless Show final circuits is on. It joins the "see the DB load schedule" box, and the status line says so.
 - **Ribbon:** with the Board tab open, an item from Supply or Devices that this board can take stays on the Board tab. The others (Meter cabinet always; Transformer and Bus coupler on a board that is not a main board) switch to the System diagram as today.
 
@@ -55,26 +55,26 @@ The same strip is on the Board tab. The board's own drawing takes drops and clic
 
 ## Suggested steps
 
-1. The strip and its lists on the System diagram. They replace the Equipment tab and the full-screen floating library.
-2. Drops and clicks on the Board tab's drawing, greyed items, staying on the board, and the ribbon's Supply and Devices staying on the Board tab.
+1. The strip and its lists on the System diagram, with the left / right switch. They replace the Equipment tab and the full-screen floating library.
+2. Drops and clicks on the Board tab's drawing, hidden items and categories, decision 5, and the ribbon's Supply and Devices staying on the Board tab.
 
 ## Decisions
 
-Suggested answers in bold.
+Answered by the user on 2026-11-15, except 5.
 
-1. Remove the side panel's Equipment tab once the strip is there, or keep both? **Remove**, so the library has one home.
-2. Strip on the left edge of the drawing, or on the right beside the inspector? **Left**, beside the Panels tree, where the library is today.
-3. Icons only (44 px), or a "Show names" option that widens the strip to about 72 px with short names under the symbols? **Icons only**, with names in the tooltip. The option can come later.
-4. After a pick, close the list (the pin keeps it open), or keep it open until closed? **Close**, with the pin.
-5. Board tab, sub-board dropped: stay on this board and select the new way, or open the new board? **Stay.**
-6. Items this board cannot take: greyed with the reason, or hidden? **Greyed**, so the list keeps its shape from board to board.
+1. Remove the side panel's Equipment tab once the strip is there? **Yes.**
+2. Strip on the left or the right edge of the drawing? **The user chooses: left by default; a button at the strip's foot moves it to the right and back, and the app remembers the side.**
+3. Icons only (44 px), or short names under the symbols (about 72 px)? **Icons only, with names in the hover tooltip.**
+4. After a pick, close the list or keep it open? **Close, with a pin in the list's header to keep it open.**
+5. **Open.** On the Board tab, a DB dropped on SMDB-G1's busbar makes a new board, DB-G3. Should the screen stay on SMDB-G1 with the new way selected (A, suggested), or open DB-G3 at once (B)? Drawn as section 5 of the mockup. A dropped load, device or meter never changes the board on screen, so this applies only to boards and board presets.
+6. Items this board cannot take: greyed or hidden? **Hidden**: an item is listed only where it can be used, and a category with nothing for this board leaves the strip. (Greyed had been suggested.)
 
 ## Implementation notes (if approved)
 
-- `src/components/EquipmentPalette.tsx`: the strip and list layout, the open-list state, close on arm, the pin (new preference key `palette.pin`), and the placing chip with × qty. The tile grid goes.
-- `src/App.tsx`: mount the strip beside `SystemDiagram` and `BoardSheetView`; remove `equipment` from `PanelTree`; full screen uses the strip; `showResult` keeps the board on the Board tab; the ribbon's `onArm` does not call `system()` there.
+- `src/components/EquipmentPalette.tsx`: the strip and list layout, the open-list state, close on arm, the pin (new preference key `palette.pin`), the side (new key `palette.side`), and the placing chip with × qty. The tile grid goes.
+- `src/App.tsx`: mount the strip beside `SystemDiagram` and `BoardSheetView`, on the chosen side; remove `equipment` from `PanelTree`; full screen uses the strip; `showResult` on the Board tab as decision 5 settles; the ribbon's `onArm` does not call `system()` there for items the board can take.
 - `src/components/SingleLineDiagram.tsx` and `BoardSheetView.tsx`: a busbar hit line with the insert position (from the pointer between way centres), way targets, the armed click and `onDropItem`, with the same classes as `SystemDiagram` (`bus-hit`, drop highlight).
-- `src/model/sldEdit.ts`: a helper for whether a board can take an item (its busbar or any of its ways) using `canDrop`, with the reason from `dropHint`.
+- `src/model/sldEdit.ts`: a helper for whether a board can take an item (its busbar or any of its ways) using `canDrop`, used on the Board tab to hide items and empty categories.
 - `src/styles.css`: strip and list rules with the existing tokens only.
-- Tests: strip open, close, pin and arm; search; Board tab drop on the busbar with `before` and on a way; greyed items; staying on the board; the ribbon arm on the Board tab; the existing library tests updated.
+- Tests: strip open, close, pin and arm; left / right side; search; Board tab drop on the busbar with `before` and on a way; hidden items and categories; decision 5; the ribbon arm on the Board tab; the existing library tests updated.
 - Manual: the SLD text and captures that show the side panel.
