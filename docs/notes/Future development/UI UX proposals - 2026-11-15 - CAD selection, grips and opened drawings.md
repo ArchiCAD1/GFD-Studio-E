@@ -1,6 +1,8 @@
 # UI UX proposal – Design CAD selection, grips and opened drawings (2026-11-15)
 
-Status: **approved 2026-11-15 with all five suggested answers**: objects of an opened drawing editable and taken over on the first edit; dashed in their own colour + blue halo; grips on each picked object up to 100; circle centre + 4 quadrants and arc centre, 2 ends and middle; an architect's plan protected by locking its layers or attaching it as a reference (no new switch). Step 1 is next.
+Status: **approved 2026-11-15 with all five suggested answers**: objects of an opened drawing editable and taken over on the first edit; dashed in their own colour + blue halo; grips on each picked object up to 100; circle centre + 4 quadrants and arc centre, 2 ends and middle; an architect's plan protected by locking its layers or attaching it as a reference (no new switch). Step 1 built in PR 615 (v2.160).
+
+Built differently from the mockup: the hot grip's right-click menu gained Mirror through this point but not Scale, because the SCALE tool does not yet take the grip as its base point; Stretch is the grip drag itself.
 
 The user noticed two things on 2026-11-15. First, objects of a drawing opened from outside (DXF / DWG) do not edit or right-click like objects drawn in the app. Second, a picked object does not look picked, and there are no grips that suit the object (a rectangle's corners, a circle's centre).
 
