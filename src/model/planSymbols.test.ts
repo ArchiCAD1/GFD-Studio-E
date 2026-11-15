@@ -69,7 +69,9 @@ describe('plan symbols', () => {
 
   it('the palette points only at symbols that exist, every item under a heading with a symbol for its button', () => {
     const linked = LV_PALETTE.filter((x) => x.symbol.plan);
-    expect(linked.map((x) => x.id)).toEqual(['exfan', 's13', 's13t', 'shaver', 's15', 'hd', 'isol']);
+    expect(linked.filter((x) => 'lv' in x.kind).map((x) => x.id)).toEqual(['exfan', 's13', 's13t', 'shaver', 's15', 'hd', 'isol']);
+    // The accessories are their plan symbols.
+    expect(linked.filter((x) => 'acc' in x.kind).map((x) => x.id)).toEqual(['switch', 'switch-2way', 'dimmer', 'switch-fan', 'limit-switch', 'push-button', 'switch-panel', 'cb-box', 'junction-box', 'pull-box', 'junction-box-ceiling']);
     for (const x of LV_PALETTE) {
       expect(PALETTE_GROUPS, x.id).toContain(x.group);
       expect(PLAN_SYMBOLS[(x.symbol.plan ?? x.symbol.icon)!], x.id).toBeDefined();

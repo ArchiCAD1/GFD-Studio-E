@@ -72,11 +72,16 @@ export function withPlanUnit(p: Project, file: string, insunits: number | undefi
     devices += 1;
     return { ...d, x: Math.round(d.x * k * 1000) / 1000, y: Math.round(d.y * k * 1000) / 1000 };
   });
+  const cadAccessories = p.cadAccessories?.map((d) => {
+    if (d.buildingId !== level.building || d.levelId !== level.level) return d;
+    devices += 1;
+    return { ...d, x: Math.round(d.x * k * 1000) / 1000, y: Math.round(d.y * k * 1000) / 1000 };
+  });
   const boards = p.boards.map((b) => {
     if (!b.planPoint || !onLevel(b.level)) return b;
     devices += 1;
     return { ...b, planPoint: { x: Math.round(b.planPoint.x * k * 1000) / 1000, y: Math.round(b.planPoint.y * k * 1000) / 1000 } };
   });
-  next = { ...next, building: { ...info, rooms: scaled }, boards, ...(elvDevices ? { elvDevices } : {}), ...(lvPoints ? { lvPoints } : {}) };
+  next = { ...next, building: { ...info, rooms: scaled }, boards, ...(elvDevices ? { elvDevices } : {}), ...(lvPoints ? { lvPoints } : {}), ...(cadAccessories ? { cadAccessories } : {}) };
   return { project: next, rooms, devices };
 }
