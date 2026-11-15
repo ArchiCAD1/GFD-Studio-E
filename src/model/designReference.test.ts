@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import { buildDesignBasis } from '../docs/designBasis';
 import {
-  BUILT_IN_REFERENCES, REFERENCES_KEY, applyReference, appliedStatus, changedSinceApplied, duplicateReference, exportReferences, importReferences,
+  BUILT_IN_REFERENCES, REFERENCES_KEY, applyReference, appliedStatus, authorityChange, changedSinceApplied, duplicateReference, exportReferences, importReferences,
   loadReferences, loadUserReferences, newReference, originOf, projectValue, referenceChanges, referenceIssues, referenceSourceOf, resolveReference, saveReference, saveUserReferences, settingSource, startChoices, supplyAuthorityOf
 } from './designReference';
 import type { Project } from '../types';
@@ -209,5 +209,30 @@ describe('the supply authority named on the forms', () => {
     const gone: Project = { ...base, designReference: { id: 'ref-gone', name: 'My office ADDC', version: 3, appliedAt: '2026-11-14', values: {} } };
     expect(supplyAuthorityOf(gone)).toBe('ADDC');
     expect(supplyAuthorityOf({ ...gone, designReference: { ...gone.designReference!, name: 'Head office' } })).toBe('AUTHORITY');
+  });
+});
+
+describe('changing the authority of a running project', () => {
+  const underDewa = applyReference(base, ref('builtin-dewa'));
+  it('has no guard before an authority is set, or under a standard only', () => {
+    expect(authorityChange(base, ref('builtin-addc'))).toBeUndefined();
+    expect(authorityChange(applyReference(base, ref('builtin-iec')), ref('builtin-addc'))).toBeUndefined();
+  });
+
+  it('lets the authority\'s own set and the office\'s set built on it through', () => {
+    expect(authorityChange(underDewa, ref('builtin-dewa'))).toBeUndefined();
+    const mine = { ...duplicateReference(ref('builtin-dewa'), 'Office rules'), extends: 'builtin-dewa' };
+    expect(authorityChange(underDewa, mine, [...BUILT_IN_REFERENCES, mine])).toBeUndefined();
+  });
+
+  it('guards another authority\'s set, or a standard, and names both sides', () => {
+    expect(authorityChange(underDewa, ref('builtin-addc'))).toEqual({ from: 'DEWA', to: 'ADDC' });
+    expect(authorityChange(underDewa, ref('builtin-bs7671'))).toEqual({ from: 'DEWA', to: ref('builtin-bs7671').name });
+  });
+
+  it('goes by the name for a set this computer does not have', () => {
+    const gone: Project = { ...base, designReference: { id: 'ref-gone', name: 'My office DEWA', version: 1, appliedAt: '2026-11-14', values: {} } };
+    expect(authorityChange(gone, ref('builtin-addc'))).toEqual({ from: 'DEWA', to: 'ADDC' });
+    expect(authorityChange(gone, ref('builtin-dewa'))).toBeUndefined();
   });
 });

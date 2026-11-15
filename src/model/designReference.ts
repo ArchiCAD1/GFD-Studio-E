@@ -471,14 +471,31 @@ export function originOf(r: DesignReference, list: DesignReference[]): DesignRef
  * METER CABINET"): from the set the project applied, or the authority that set builds on. DEWA for a project
  * with none (the app's defaults); AUTHORITY where the set is a standard or a company's own. */
 export function supplyAuthorityOf(p: Pick<Project, 'designReference'>, list: DesignReference[] = loadReferences()): string {
+  if (!p.designReference) return 'DEWA';
+  return projectAuthority(p, list) ?? 'AUTHORITY';
+}
+
+/** The authority's short name the project is under: from the applied set's origin, else from the set's name
+ * ("My office DEWA" → DEWA). Undefined when the project has no set, or its set is under no authority. */
+export function projectAuthority(p: Pick<Project, 'designReference'>, list: DesignReference[] = loadReferences()): string | undefined {
   const a = p.designReference;
-  if (!a) return 'DEWA';
+  if (!a) return undefined;
   const ref = list.find((r) => r.id === a.id);
   const origin = ref && originOf(ref, list);
   if (origin?.kind === 'authority') return authorityLabel(origin);
-  // A set this computer does not have, or one built on a standard: go by its name ("My office DEWA" → DEWA).
+  // A set this computer does not have, or one built on a standard: go by its name.
   const word = (n: string) => new RegExp(`(^|[^A-Za-z0-9])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^A-Za-z0-9])`, 'i');
-  return list.filter((r) => r.kind === 'authority').map(authorityLabel).find((n) => word(n).test(a.name)) ?? 'AUTHORITY';
+  return list.filter((r) => r.kind === 'authority').map(authorityLabel).find((n) => word(n).test(a.name));
+}
+
+/** What applying this set would do to the project's authority: undefined when the project is under no authority yet, or the set
+ * is that authority's own or builds on it; else the authority the project is under and what it would change to. */
+export function authorityChange(p: Pick<Project, 'designReference'>, ref: DesignReference, list: DesignReference[] = loadReferences()): { from: string; to: string } | undefined {
+  const from = projectAuthority(p, list);
+  if (!from) return undefined;
+  const origin = originOf(ref, list);
+  if (origin.kind === 'authority' && authorityLabel(origin) === from) return undefined;
+  return { from, to: origin.kind === 'authority' ? authorityLabel(origin) : ref.name };
 }
 
 export interface AuthorityChoice { authority: DesignReference; label: string; sets: DesignReference[] }
