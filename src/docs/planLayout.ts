@@ -1,7 +1,7 @@
 import { buildingInfoOf, floorsOf } from '../calc/building';
 import { cableSizeText } from '../calc/electrical';
 import { circuitCategory } from '../calc/loadSchedule';
-import { cableLabel, EMERGENCY_ITEMS, LV_PALETTE } from '../model/cadDevices';
+import { cableLabel, EMERGENCY_ITEMS, lvItemOf } from '../model/cadDevices';
 import { levelOfPlan, planOfLevel } from '../model/cadPlans';
 import { printedRefs } from '../model/cadRefs';
 import type { LevelRef } from '../model/levels';
@@ -127,9 +127,9 @@ function contentOf(p: Project, type: PlanType, b: string, l: string): Content {
   const wanted = (feederId: string) => { const f = p.feeders.find((x) => x.id === feederId); return !!f && (circuitCategory(f) === 'lighting') === (type === 'lighting'); };
   for (const d of p.lvPoints ?? []) {
     if (!onLevel(d, b, l) || !wanted(d.feederId)) continue;
-    const pal = d.emergency ? EMERGENCY_ITEMS[d.emergency] : LV_PALETTE.find((x) => x.id === d.type);
+    const pal = d.emergency ? EMERGENCY_ITEMS[d.emergency] : lvItemOf(d.type, d.variant);
     const shape = pal?.symbol.shape ?? 'circle', text = pal ? pal.symbol.text : d.type.toUpperCase(), { plan, tag } = (pal?.symbol ?? {}) as { plan?: string; tag?: string };
-    out.marks.push({ x: d.x, y: d.y, key: d.emergency ? `lv:em:${d.emergency}` : `lv:${d.type}`, label: pal?.label ?? d.type.toUpperCase(), svg: (x, y, r) => (plan ? planSymbolSvg(plan, x, y, r / SYMBOL_R_MM, tag, d.rot) : lvSymbol(shape, text, x, y, r)) });
+    out.marks.push({ x: d.x, y: d.y, key: d.emergency ? `lv:em:${d.emergency}` : `lv:${d.type}${d.variant ? `:${d.variant}` : ''}`, label: pal?.label ?? d.type.toUpperCase(), svg: (x, y, r) => (plan ? planSymbolSvg(plan, x, y, r / SYMBOL_R_MM, tag, d.rot) : lvSymbol(shape, text, x, y, r)) });
   }
   // Accessories: switches with the lighting, boxes and breaker boxes with the power.
   for (const d of p.cadAccessories ?? []) {

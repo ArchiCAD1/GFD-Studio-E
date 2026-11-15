@@ -1,6 +1,6 @@
 import { rule } from '../database/catalog';
 import { copyElv, elvAlike, isElvType, moveElv, placeElvAt, removeElvs, replaceElv } from '../components/elv/elvCadDevices';
-import { LV_PALETTE, moveItem, placeAccessory, placeLvPoint, removeItem, type PlacedItem } from './cadDevices';
+import { LV_PALETTE, lvItemOf, moveItem, placeAccessory, placeLvPoint, removeItem, type PlacedItem } from './cadDevices';
 import { updateCircuit } from './schedule';
 import type { LevelRef } from './levels';
 import type { PointType, Project } from '../types';
@@ -89,7 +89,7 @@ export function copyDevices(p: Project, items: PlacedItem[], dx: number, dy: num
     if (it.what === 'lv') {
       const d = lvOf(p, it.id);
       if (!d) continue;
-      next = placeLvPoint(next, level, d.type, d.feederId, it.x + dx, it.y + dy, d.emergency, d.luminaire, d.rot).project;
+      next = placeLvPoint(next, level, d.type, d.feederId, it.x + dx, it.y + dy, d.emergency, d.luminaire, d.rot, d.variant).project;
     } else if (it.what === 'acc') {
       const d = (p.cadAccessories ?? []).find((x) => x.id === it.id);
       if (!d) continue;
@@ -125,9 +125,11 @@ export function replaceDevices(p: Project, items: PlacedItem[], type: string): {
   for (const it of items) {
     if (it.what === 'lv') {
       const d = lvOf(next, it.id);
-      if (!d || d.emergency || d.type === type || !LV_PALETTE.some((x) => 'lv' in x.kind && x.kind.lv === type)) continue;
-      next = { ...next, lvPoints: (next.lvPoints ?? []).map((x) => (x.id === d.id ? { ...x, type: type as PointType } : x)) };
-      next = recount(recount(next, d.feederId, d.type, -1), d.feederId, type as PointType, 1);
+      // `type` is a palette item: a point type, or one as fitted (a floor socket).
+      const pal = LV_PALETTE.find((x) => x.id === type && 'lv' in x.kind), to = pal && 'lv' in pal.kind ? pal.kind.lv : undefined;
+      if (!d || d.emergency || !pal || !to || (d.type === to && d.variant === pal.variant)) continue;
+      next = { ...next, lvPoints: (next.lvPoints ?? []).map((x) => { if (x.id !== d.id) return x; const { variant: _old, ...rest } = x; return { ...rest, type: to, ...(pal.variant ? { variant: pal.variant } : {}) }; }) };
+      if (d.type !== to) next = recount(recount(next, d.feederId, d.type, -1), d.feederId, to, 1);
       changed += 1;
     } else if (it.what === 'elv') {
       const r = replaceElv(next, it.id, type);
@@ -171,8 +173,9 @@ export function circuitAfter(p: Project, items: PlacedItem[], feederId: string):
  * system goes with the type). */
 export function matchDevice(p: Project, from: PlacedItem, target: PlacedItem, what: { circuit: boolean; type: boolean }): Project {
   let next = p;
-  if (what.type && from.what === target.what) next = replaceDevices(next, [target], typeOf(p, from)).project;
   const src = from.what === 'lv' ? lvOf(p, from.id) : undefined;
+  // An LV point is matched as fitted (a floor socket stays a floor socket).
+  if (what.type && from.what === target.what) next = replaceDevices(next, [target], (src && lvItemOf(src.type, src.variant)?.id) || typeOf(p, from)).project;
   if (what.circuit && src && target.what === 'lv') next = toCircuit(next, [target], src.feederId).project;
   return next;
 }

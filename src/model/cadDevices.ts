@@ -27,7 +27,11 @@ export interface LvPoint {
   luminaire?: PointLuminaire;
   /** The symbol turned on the plan (degrees anticlockwise: 90, 180 or 270), so a socket or switch faces its wall. */
   rot?: number;
+  /** How the point is fitted, where the plan shows it apart: a floor socket, a socket above the ceiling, a fused
+   * isolator. It counts on its circuit as its type. */
+  variant?: PointVariant;
 }
+export type PointVariant = 'floor' | 'ceiling' | 'fused';
 /** A rotation as kept on a point: 0, 90, 180 or 270. */
 export const rightAngle = (deg: number | undefined) => ((Math.round((deg ?? 0) / 90) % 4) + 4) % 4 * 90;
 
@@ -59,7 +63,7 @@ export const EMERGENCY_ITEMS: Record<EmergencyKind, { label: string; symbol: { s
 export type CadDeviceKind = { lv: PointType } | { elv: string } | { board: true } | { acc: string; circuit?: true };
 /** `plan`: the item's plan symbol (src/model/planSymbols.ts), drawn in place of the plain `shape`, `tag` the text
  * beside it (a rating); `icon`: the symbol its palette button shows. `group`: its heading on the palette. */
-export interface PaletteItem { id: string; label: string; kind: CadDeviceKind; group?: string; symbol: { shape: string; text: string; plan?: string; tag?: string; icon?: string } }
+export interface PaletteItem { id: string; label: string; kind: CadDeviceKind; group?: string; variant?: PointVariant; symbol: { shape: string; text: string; plan?: string; tag?: string; icon?: string } }
 /** The palette's headings, in order (ELV devices follow under their own). */
 export const PALETTE_GROUPS = ['Lighting', 'Sockets', 'Switches', 'Equipment', 'Boards', 'Boxes'];
 const acc = (type: string, group: string, circuit?: true): PaletteItem => ({ id: type, label: PLAN_SYMBOLS[type].label, group, kind: { acc: type, ...(circuit ? { circuit } : {}) }, symbol: { shape: 'circle', text: '', plan: type } });
@@ -70,6 +74,8 @@ export const LV_PALETTE: PaletteItem[] = [
   { id: 'exfan', label: 'Exhaust fan', group: 'Lighting', kind: { lv: 'exfan' }, symbol: { shape: 'circle', text: 'EF', plan: 'exhaust-fan' } },
   { id: 's13', label: 'Socket 13 A', group: 'Sockets', kind: { lv: 's13' }, symbol: { shape: 'rect', text: '', plan: 'socket' } },
   { id: 's13t', label: 'Twin socket', group: 'Sockets', kind: { lv: 's13t' }, symbol: { shape: 'twin', text: '', plan: 'socket-twin' } },
+  { id: 's13-floor', label: 'Floor socket', group: 'Sockets', variant: 'floor', kind: { lv: 's13' }, symbol: { shape: 'rect', text: 'FL', plan: 'socket-floor' } },
+  { id: 's13-ceiling', label: 'Socket above ceiling', group: 'Sockets', variant: 'ceiling', kind: { lv: 's13' }, symbol: { shape: 'rect', text: 'C', plan: 'socket-ceiling' } },
   { id: 'shaver', label: 'Shaver outlet', group: 'Sockets', kind: { lv: 'shaver' }, symbol: { shape: 'rect', text: 'SH', plan: 'shaver' } },
   { id: 's15', label: 'Power outlet 15 A', group: 'Sockets', kind: { lv: 's15' }, symbol: { shape: 'rect', text: '15', plan: 'power-outlet', tag: '15 A' } },
   { id: 'sac', label: 'Split A/C', group: 'Equipment', kind: { lv: 'sac' }, symbol: { shape: 'square', text: 'AC', icon: 'split-ac' } },
@@ -77,11 +83,16 @@ export const LV_PALETTE: PaletteItem[] = [
   { id: 'hd', label: 'Hand dryer', group: 'Equipment', kind: { lv: 'hd' }, symbol: { shape: 'rect', text: 'HD', plan: 'hand-dryer' } },
   { id: 'db', label: 'DB', group: 'Boards', kind: { board: true }, symbol: { shape: 'rect', text: 'DB', icon: 'db' } },
   { id: 'isol', label: 'Isolator', group: 'Boards', kind: { lv: 'isol' }, symbol: { shape: 'rect', text: 'IS', plan: 'isolator' } },
+  { id: 'isol-fused', label: 'Fused isolator', group: 'Boards', variant: 'fused', kind: { lv: 'isol' }, symbol: { shape: 'rect', text: 'FS', plan: 'fused-isolator' } },
   // No-load accessories: a switch may name the circuit it controls.
   ...['switch', 'switch-2way', 'dimmer', 'switch-fan', 'limit-switch', 'push-button', 'switch-panel'].map((t) => acc(t, 'Switches', true)),
   acc('cb-box', 'Boards', true),
   ...['junction-box', 'pull-box', 'junction-box-ceiling'].map((t) => acc(t, 'Boxes'))
 ];
+
+/** The palette item of a point type as fitted (its variant, else the plain one). */
+export const lvItemOf = (type: PointType, variant?: PointVariant): PaletteItem | undefined =>
+  LV_PALETTE.find((x) => 'lv' in x.kind && x.kind.lv === type && x.variant === variant) ?? LV_PALETTE.find((x) => 'lv' in x.kind && x.kind.lv === type && !x.variant);
 
 /** The smallest room outline on the level around a point (metres). */
 function roomAt(p: Project, level: LevelRef, x: number, y: number) {
@@ -122,10 +133,10 @@ const withCount = (p: Project, feederId: string, type: PointType, delta: number)
 };
 
 /** Places an LV point on a circuit: added to the plan and counted on the circuit. */
-export function placeLvPoint(p: Project, level: LevelRef, type: PointType, feederId: string, x: number, y: number, emergency?: EmergencyKind, luminaire?: PointLuminaire, rot?: number): { project: Project; id: string } {
+export function placeLvPoint(p: Project, level: LevelRef, type: PointType, feederId: string, x: number, y: number, emergency?: EmergencyKind, luminaire?: PointLuminaire, rot?: number, variant?: PointVariant): { project: Project; id: string } {
   if (!p.feeders.some((f) => f.id === feederId)) throw new Error('Choose the circuit the point is on.');
   const id = `P${nextLvId(p)}`;
-  const point: LvPoint = { id, type, feederId, buildingId: level.building, levelId: level.level, x, y, ...(emergency ? { emergency } : {}), ...(luminaire ? { luminaire } : {}), ...(rightAngle(rot) ? { rot: rightAngle(rot) } : {}) };
+  const point: LvPoint = { id, type, feederId, buildingId: level.building, levelId: level.level, x, y, ...(emergency ? { emergency } : {}), ...(luminaire ? { luminaire } : {}), ...(rightAngle(rot) ? { rot: rightAngle(rot) } : {}), ...(variant ? { variant } : {}) };
   return { project: withCount({ ...p, lvPoints: [...(p.lvPoints ?? []), point] }, feederId, type, 1), id };
 }
 
@@ -186,7 +197,7 @@ export function placedOn(p: Project, level: LevelRef): PlacedItem[] {
   const roomName = (x: number, y: number) => roomAt(p, level, x, y)?.name;
   const lv = (p.lvPoints ?? []).filter((d) => d.buildingId === level.building && d.levelId === level.level).map((d): PlacedItem => {
     const f = p.feeders.find((x) => x.id === d.feederId);
-    const item = d.emergency ? EMERGENCY_ITEMS[d.emergency] : LV_PALETTE.find((x) => 'lv' in x.kind && x.kind.lv === d.type);
+    const item = d.emergency ? EMERGENCY_ITEMS[d.emergency] : lvItemOf(d.type, d.variant);
     return { key: `lv:${d.id}`, id: d.id, what: 'lv', x: d.x, y: d.y, label: item?.label ?? d.type, detail: f ? circuitLabel(p, f) : 'circuit removed', symbol: item?.symbol ?? { shape: 'circle', text: '?' }, room: roomName(d.x, d.y), ...(d.rot ? { rot: d.rot } : {}) };
   });
   const boards = p.boards.filter((b) => b.planPoint && b.level?.building === level.building && b.level?.level === level.level).map((b): PlacedItem => ({
@@ -203,7 +214,7 @@ export function placedOn(p: Project, level: LevelRef): PlacedItem[] {
 export function placeItem(p: Project, item: PaletteItem, level: LevelRef, x: number, y: number, target: { feederId?: string; boardId?: string; rot?: number }): { project: Project; message: string } {
   if ('elv' in item.kind) throw new Error('ELV devices are placed through the ELV placement.');
   if ('lv' in item.kind) {
-    const { project } = placeLvPoint(p, level, item.kind.lv, target.feederId ?? '', x, y, undefined, undefined, item.symbol.plan ? target.rot : undefined);
+    const { project } = placeLvPoint(p, level, item.kind.lv, target.feederId ?? '', x, y, undefined, undefined, item.symbol.plan ? target.rot : undefined, item.variant);
     const f = project.feeders.find((q) => q.id === target.feederId)!;
     return { project, message: `${item.label} placed on ${circuitLabel(project, f)} — ${f.points?.[item.kind.lv] ?? 0} on the circuit` };
   }
