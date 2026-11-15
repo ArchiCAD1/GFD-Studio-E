@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { boardLocation } from '../../model/levels';
 import type { Project } from '../../types';
 import { boardsInSupplyOrder } from '../../calc/summary';
-import { MATERIAL_LABEL, riserFromBuilding, newRiser, sizeRiser, TYPICAL_BUSBAR_DATA, type BusbarData, type BusbarType, type BusMaterial, type BusRiser, type RiserFloor, type RiserResult } from '../../calc/busbar';
+import { iecDiversity, MATERIAL_LABEL, riserFromBuilding, newRiser, sizeRiser, TYPICAL_BUSBAR_DATA, type BusbarData, type BusbarType, type BusMaterial, type BusRiser, type RiserFloor, type RiserResult } from '../../calc/busbar';
 import { buildSection, buildStudyReportHtml, scopeOf, setupOf } from '../../docs/studyReport';
 import { buildStudyWorkbook } from '../../docs/studyWorkbook';
 import { workbookBytes } from '../../docs/formWorkbook';
@@ -32,6 +32,7 @@ export default function BusbarStudy({ project, onChange, onStatus }: { project: 
   const boards = boardsInSupplyOrder(project);
   const data: BusbarData = project.busbarData ?? TYPICAL_BUSBAR_DATA;
   const res = useMemo(() => (riser ? sizeRiser(project, riser) : undefined), [project, riser]);
+  const atOne = useMemo(() => (riser && res?.allBoards && res.diversity < 1 ? sizeRiser(project, { ...riser, diversity: 1 }) : undefined), [project, riser, res]);
   const alt = useMemo(() => (riser ? sizeRiser(project, { ...riser, material: riser.material === 'cu' ? 'al' : 'cu' }) : undefined), [project, riser]);
 
   const setRisers = (next: BusRiser[]) => onChange({ ...project, busRisers: next });
@@ -122,7 +123,18 @@ export default function BusbarStudy({ project, onChange, onStatus }: { project: 
               <label>Feed to the riser foot (m)<input inputMode="decimal" value={riser.feedM} onChange={(e) => setRiser({ feedM: num(e.target.value) ?? 0 })} /></label>
               <label>Floor-to-floor height (m)<input inputMode="decimal" value={riser.floorHeightM} onChange={(e) => setRiser({ floorHeightM: num(e.target.value) ?? 3.6 })} /></label>
               <label title="Floors the riser passes before the first tap-off (e.g. basements, podium)">Floors before the first tap-off<input inputMode="numeric" value={riser.offsetFloors} onChange={(e) => setRiser({ offsetFloors: Math.max(0, Math.round(num(e.target.value) ?? 0)) })} /></label>
-              <label>Diversity<input inputMode="decimal" value={riser.diversity ?? ''} placeholder={res ? `auto ${res.diversity}` : 'auto'} onChange={(e) => setRiser({ diversity: num(e.target.value) })} /></label>
+              <label>Diversity
+                <select value={res?.diversityRule ?? 'iec'} onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === 'typed') setRiser({ diversity: res?.diversity ?? 1 });
+                  else setRiser({ diversityRule: v as 'forms' | 'iec', diversity: undefined });
+                }}>
+                  <option value="forms">Same as the MD forms — 1.00</option>
+                  <option value="iec">IEC 61439 by tap-offs — {iecDiversity(res?.tapOffs ?? 0).toFixed(2)}</option>
+                  <option value="typed">Typed</option>
+                </select>
+                {riser.diversity !== undefined && <input inputMode="decimal" value={riser.diversity} onChange={(e) => setRiser({ diversity: num(e.target.value) })} />}
+              </label>
               <label>Ambient (°C)<input inputMode="decimal" value={riser.ambientC ?? ''} placeholder={String(project.ambientC)} onChange={(e) => setRiser({ ambientC: num(e.target.value) })} /></label>
               <label>Straight length (m)<input inputMode="decimal" value={riser.elementM} onChange={(e) => setRiser({ elementM: num(e.target.value) ?? 3 })} /></label>
               <label>Elbows<input inputMode="numeric" value={riser.elbows} onChange={(e) => setRiser({ elbows: Math.max(0, Math.round(num(e.target.value) ?? 0)) })} /></label>
@@ -147,11 +159,11 @@ export default function BusbarStudy({ project, onChange, onStatus }: { project: 
                         {boards.map((b) => <option key={b.id} value={b.id}>{b.id}</option>)}
                       </select>
                     </td>
-                    <td>{f.boardId ? <span title="The board's maximum demand">{r ? txt.power(r.kw) : '—'}</span> : <input inputMode="decimal" value={f.kw ?? ''} onChange={(e) => setFloor(f.id, { kw: num(e.target.value) })} />}</td>
+                    <td>{f.boardId ? <span title="The board's maximum demand on its MD form (TCL × DF)">{r ? txt.power(r.kw) : '—'}</span> : <input inputMode="decimal" value={f.kw ?? ''} onChange={(e) => setFloor(f.id, { kw: num(e.target.value) })} />}</td>
                     <td>{f.boardId ? <span className="m">board</span> : <input inputMode="decimal" value={f.pf ?? ''} placeholder="0.9" onChange={(e) => setFloor(f.id, { pf: num(e.target.value) })} />}</td>
                     <td><input inputMode="numeric" value={f.count ?? 1} onChange={(e) => setFloor(f.id, { count: Math.max(1, Math.round(num(e.target.value) ?? 1)) })} title="Typical floors: the same tap-off repeated" /></td>
                     <td>{r ? txt.current(r.currentA) : '—'}</td>
-                    <td>{r?.tapOffA ? `${r.tapOffA} A${(f.count ?? 1) > 1 ? ` × ${f.count}` : ''}` : '—'}</td>
+                    <td title={r?.mccbA ? `At least the MCCB in it (${r.mccbA} A)` : undefined}>{r?.tapOffA ? `${r.tapOffA} A${(f.count ?? 1) > 1 ? ` × ${f.count}` : ''}` : '—'}</td>
                     <td>{r ? txt.fixed(r.heightM, 1) : '—'}</td>
                     <td className={r && r.vdPct > project.vdLimitPct / 2 ? 'warn' : ''}>{r ? `${txt.pct(r.vdPct)} %` : '—'}</td>
                     <td><button className="icon-btn" title="Remove" onClick={() => setRiser({ floors: riser.floors.filter((x) => x.id !== f.id) })} aria-label="Remove"><X size={14} aria-hidden /></button></td>
@@ -180,7 +192,16 @@ export default function BusbarStudy({ project, onChange, onStatus }: { project: 
                 <dl className="kv">
                   <dt>Tap-offs</dt><dd>{res.tapOffs}</dd>
                   <dt>Connected</dt><dd>{txt.power(res.connectedKw)} kW · PF {res.pf.toFixed(2)}{(res.sections[0]?.q ?? 0) < -1e-9 ? ' leading' : ''}</dd>
-                  <dt>Diversity</dt><dd>{res.diversity}{riser.diversity === undefined ? ' (IEC 61439-6)' : ''}</dd>
+                  <dt>Diversity</dt><dd>{res.diversity.toFixed(2)} <span className="m">{res.diversityRule === 'forms' ? '(same as the MD forms)' : res.diversityRule === 'iec' ? `(IEC 61439, ${res.tapOffs} tap-offs)` : '(typed)'}</span></dd>
+                  {atOne && (
+                    <>
+                      <dt /><dd>
+                        <ul className="bb-notes"><li className="warn">Applied on top of the boards' maximum demand, which already has their demand factors. {riser.sourceBoardId ? `${riser.sourceBoardId}'s` : "The source board's"} MD form counts these boards at 1.0.</li></ul>
+                        At 1.0: Ib {txt.current(atOne.designA)} A · {atOne.feederBreakerA} A breaker · {atOne.type ? `${atOne.type.ratingA} A ${MATERIAL_LABEL[riser.material].toLowerCase()}` : 'above the data'}{' '}
+                        <button className="chip" onClick={() => setRiser({ diversityRule: 'forms', diversity: undefined })}>Use 1.0</button>
+                      </dd>
+                    </>
+                  )}
                   <dt>Maximum demand</dt><dd>{txt.power(res.demandKw)} kW · {txt.power(res.demandKva)} kVA</dd>
                   <dt>Design current Ib</dt><dd><b>{txt.current(res.designA)} A</b></dd>
                 </dl>
@@ -193,6 +214,7 @@ export default function BusbarStudy({ project, onChange, onStatus }: { project: 
                   <dt>Selected</dt><dd><b className={res.type ? 'ok' : 'bad'}>{typeText(res)}</b></dd>
                   {res.type && <><dt>Conductor area</dt><dd>{txt.plain(res.type.csaMm2)} mm² per phase · {txt.fixed(res.currentDensity!, 2)} A/mm² at Ib</dd></>}
                   {res.type && <><dt>Short-circuit withstand</dt><dd className={res.icwOk === false ? 'bad' : res.icwOk ? 'ok' : ''}>Icw {res.type.icwKa} kA 1 s{res.faultKa !== undefined ? ` vs ${txt.fault(res.faultKa)} kA at ${riser.sourceBoardId}` : ''}</dd></>}
+                  {!project.busbarData && <><dt /><dd className="warn">Typical busway data — confirm with the manufacturer</dd></>}
                   <dt>Vd at the top tap-off</dt><dd className={res.vdTopPct > project.vdLimitPct / 2 ? 'warn' : 'ok'}>{txt.pct(res.vdTopPct)} % <span className="m">(riser only)</span></dd>
                 </dl>
               </section>

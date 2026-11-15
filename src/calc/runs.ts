@@ -37,13 +37,14 @@ const CABLE_F: FeederField[] = ['lengthM', 'cableCsaMm2', 'parallel', 'cores'];
 const BREAKER_F: FeederField[] = ['breakerRatingA', 'breakerType', 'breakerImMultiple', 'breakerIcuKa'];
 
 const INPUTS: Record<StudyKey, { feeders: FeederField[]; boards: BoardField[]; project: (keyof Project)[] }> = {
-  vd: { feeders: [...TOPOLOGY_F, ...LOAD_F, ...CABLE_F], boards: TOPOLOGY_B, project: ['voltageV', 'vdLimitPct', 'vdTempC', 'busRisers', 'busbarData'] },
+  // Riser sizing reads the boards' MD-form demand factor (mdDemandFactor). The project's own DF (info) is left out: it sits with names and addresses.
+  vd: { feeders: [...TOPOLOGY_F, ...LOAD_F, ...CABLE_F], boards: [...TOPOLOGY_B, 'mdDemandFactor'], project: ['voltageV', 'vdLimitPct', 'vdTempC', 'busRisers', 'busbarData'] },
   fault: { feeders: [...TOPOLOGY_F, ...CABLE_F, 'breakerIcuKa'], boards: TOPOLOGY_B, project: ['voltageV', 'busRisers', 'busbarData'] },
   checks: { feeders: [...TOPOLOGY_F, ...LOAD_F, ...CABLE_F, ...BREAKER_F, 'cableType', 'cpcMm2'], boards: [...TOPOLOGY_B, 'ratedCurrentA'], project: ['voltageV', 'vdLimitPct', 'vdTempC', 'ambientC'] },
   earthing: { feeders: [...TOPOLOGY_F, ...CABLE_F, ...BREAKER_F, 'cpcMm2', 'rcdMa', 'phase', 'way', 'points'], boards: [...TOPOLOGY_B, 'elcbGroupSize', 'elcbSensitivityMa'], project: ['voltageV', 'vdTempC', 'studySettings'] },
   protection: { feeders: [...TOPOLOGY_F, ...CABLE_F, ...BREAKER_F], boards: TOPOLOGY_B, project: ['voltageV'] },
   // Sizing also covers the transformer / generator plan, power factor correction and busbar risers.
-  sizing: { feeders: [...TOPOLOGY_F, ...LOAD_F, 'essential', 'starter', 'loadType'], boards: [...TOPOLOGY_B, 'standby', 'kind', 'ratedCurrentA'], project: ['voltageV', 'studySettings', 'txGen', 'pfc', 'busRisers', 'busbarData'] }
+  sizing: { feeders: [...TOPOLOGY_F, ...LOAD_F, 'essential', 'starter', 'loadType'], boards: [...TOPOLOGY_B, 'standby', 'kind', 'ratedCurrentA', 'mdDemandFactor'], project: ['voltageV', 'studySettings', 'txGen', 'pfc', 'busRisers', 'busbarData'] }
 };
 
 const pick = <T extends object>(o: T, keys: (keyof T)[]) => keys.map((k) => o[k] ?? null);

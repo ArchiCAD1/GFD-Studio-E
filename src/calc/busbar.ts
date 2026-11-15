@@ -1,6 +1,7 @@
 import type { Project } from '../types';
 import { summarizeBuilding } from './building';
 import { boardTotals } from './summary';
+import { panelSummary } from './panelDemand';
 import { faultCurrentKA, impedanceToBoard, upstreamVoltageDropPct } from './electrical';
 import { STANDARD_BREAKER_A } from './sizing';
 import { fig } from '../util/format';
@@ -81,8 +82,12 @@ export interface BusRiser {
   floorHeightM: number;
   /** Floors below the first tap-off (e.g. basements the riser passes). */
   offsetFloors: number;
-  /** Diversity; empty = IEC 61439-6 by the number of tap-offs. */
+  /** Diversity typed by the user; wins over the rule when set. */
   diversity?: number;
+  /** How the riser's own diversity is chosen when none is typed: 'forms' = 1.0 (each tap-off at its
+   * maximum demand on its MD form), 'iec' = IEC 61439-6 by the number of tap-offs. Absent = 'forms'
+   * when every floor is an existing board, else 'iec'. */
+  diversityRule?: 'forms' | 'iec';
   ambientC?: number; // default: the project's
   elementM: number; // standard straight length (m)
   elbows: number;
@@ -110,6 +115,8 @@ export interface RiserFloorResult {
   kva: number;
   currentA: number; // each tap-off
   tapOffA?: number;
+  /** The breaker in the tap-off unit (a board floor's incoming feeder); the unit is at least this. */
+  mccbA?: number;
   heightM: number; // riser length from its foot to this tap-off
   vdPct: number; // from the source board to this tap-off (riser only)
 }
@@ -130,6 +137,9 @@ export interface RiserResult {
   tapOffs: number;
   connectedKw: number;
   diversity: number;
+  diversityRule: 'typed' | 'forms' | 'iec';
+  /** Every floor is an existing board (so its load is its MD-form maximum demand). */
+  allBoards: boolean;
   demandKw: number;
   demandKva: number;
   pf: number;
@@ -157,20 +167,35 @@ export interface RiserResult {
 
 const pfOf = (pf?: number) => Math.min(Math.max(pf ?? 0.9, 0.3), 1);
 
+/** The riser's diversity and the rule it came from: typed, else the chosen rule, else 'forms' (1.0) when
+ * every floor is a board and IEC 61439-6 by tap-offs otherwise. */
+export function riserDiversityOf(project: Project, r: BusRiser, tapOffs: number): { value: number; rule: 'typed' | 'forms' | 'iec'; allBoards: boolean } {
+  const allBoards = r.floors.length > 0 && r.floors.every((f) => !!f.boardId && project.boards.some((b) => b.id === f.boardId));
+  if (r.diversity !== undefined) return { value: r.diversity, rule: 'typed', allBoards };
+  const rule = r.diversityRule ?? (allBoards ? 'forms' : 'iec');
+  return { value: rule === 'forms' ? 1 : iecDiversity(tapOffs), rule, allBoards };
+}
+
 export function sizeRiser(project: Project, r: BusRiser, data: BusbarData = project.busbarData ?? TYPICAL_BUSBAR_DATA): RiserResult {
   const ambientC = r.ambientC ?? project.ambientC;
-  // Each floor's load: the board's demand, or the kW entered.
+  // Each floor's load: the board's maximum demand on its MD form (TCL × DF), or the kW entered.
+  const demandNotes: string[] = [];
   const floors = r.floors.map((f) => {
     const count = Math.max(1, Math.round(f.count ?? 1));
     let kw = f.kw ?? 0, kvar = kw * Math.tan(Math.acos(pfOf(f.pf)));
     if (f.boardId && project.boards.some((b) => b.id === f.boardId)) {
+      const board = project.boards.find((b) => b.id === f.boardId)!;
       const t = boardTotals(project, f.boardId);
-      kw = t.demandKw; kvar = t.demandKvar; // signed: a leading board keeps its negative kvar
+      kw = panelSummary(project, board).mdlKw;
+      // the board's own demand power factor, signed: a leading board keeps its negative kvar
+      kvar = t.demandKw > 1e-9 ? kw * (t.demandKvar / t.demandKw) : kw * Math.tan(Math.acos(0.9));
+      // A D.F on the MD form below what the circuits draw would size the busway short: say so.
+      if (t.demandKw > kw * 1.02 + 0.1) demandNotes.push(`${board.id}: its circuits' demand ${fig.power(t.demandKw)} kW is above its MD-form maximum demand ${fig.power(kw)} kW — check the D.F on its MD form`);
     }
     return { f, count, kw, kvar };
   });
   const tapOffs = floors.reduce((s, x) => s + x.count, 0);
-  const diversity = r.diversity ?? iecDiversity(tapOffs);
+  const { value: diversity, rule: diversityRule, allBoards } = riserDiversityOf(project, r, tapOffs);
   const P = floors.reduce((s, x) => s + x.kw * x.count, 0);
   const Q = floors.reduce((s, x) => s + x.kvar * x.count, 0);
   const connectedKva = Math.hypot(P, Q);
@@ -215,13 +240,21 @@ export function sizeRiser(project: Project, r: BusRiser, data: BusbarData = proj
   let vdAcc = 0;
   const cumAt = sections.map((x) => (vdAcc += x.vdPct));
   const vdAt = cumAt.slice(1); // at each tap-off (riser only: feed + vertical)
+  const tapOffNotes: string[] = [];
   const floorResults: RiserFloorResult[] = floors.map((x) => {
     const idx = levels.findIndex((l) => l.x === x);
     const lastIdx = idx + x.count - 1;
     const kva = Math.hypot(x.kw, x.kvar);
     const a = I(kva);
+    // The tap-off unit carries the breaker in it: never smaller than that MCCB.
+    const mccbA = x.f.boardId ? project.feeders.find((fd) => fd.feedsBoardId === x.f.boardId)?.breakerRatingA : undefined;
+    const need = Math.max(a / 0.85, mccbA ?? 0);
+    const tapOffA = nextStd(TAPOFF_A, need);
+    if (tapOffA === undefined) {
+      tapOffNotes.push(`${x.f.name}: no tap-off unit in the list carries ${mccbA !== undefined && mccbA >= a / 0.85 ? mccbA : Math.round(a)} A (largest ${TAPOFF_A[TAPOFF_A.length - 1]} A) — feed it by cable or split it`);
+    }
     return {
-      floor: x.f, kw: x.kw, kvar: x.kvar, kva, currentA: a, tapOffA: nextStd(TAPOFF_A, a / 0.85),
+      floor: x.f, kw: x.kw, kvar: x.kvar, kva, currentA: a, tapOffA, mccbA,
       heightM: heights[lastIdx] ?? 0, vdPct: vdAt[lastIdx] ?? 0
     };
   });
@@ -230,10 +263,14 @@ export function sizeRiser(project: Project, r: BusRiser, data: BusbarData = proj
   const notes: string[] = [];
   if (!type) notes.push(`Above the largest ${MATERIAL_LABEL[r.material].toLowerCase()} rating in the data — two risers, or split the floors`);
   if (fault !== undefined && type && type.icwKa < fault) notes.push(`Fault at ${r.sourceBoardId} is ${fig.fault(fault)} kA — above the busway's Icw ${type.icwKa} kA; take the next rating or a current-limiting breaker`);
-  if (r.diversity === undefined) notes.push(`Diversity ${diversity} for ${tapOffs} tap-offs (IEC 61439-6)`);
+  notes.push(...demandNotes, ...tapOffNotes);
+  if (diversityRule === 'typed') notes.push(`Diversity ${diversity} (typed)`);
+  else if (diversityRule === 'forms') notes.push('Diversity 1.0: each tap-off at its maximum demand on its MD form (TCL × DF)');
+  else if (allBoards) notes.push(`Riser diversity ${diversity} (IEC 61439, ${tapOffs} tap-offs) on top of the boards' maximum demand on their MD forms`);
+  else notes.push(`Diversity ${diversity} for ${tapOffs} tap-offs (IEC 61439-6)`);
   if (derate < 1) notes.push(`Ambient ${ambientC} °C: rating × ${derate.toFixed(2)}`);
   return {
-    riser: r, tapOffs, connectedKw: P, diversity, demandKw, demandKva, pf, designA, ambientC, derate, requiredA,
+    riser: r, tapOffs, connectedKw: P, diversity, diversityRule, allBoards, demandKw, demandKva, pf, designA, ambientC, derate, requiredA,
     type, alternative: { material: other, type: pick(other) },
     currentDensity: type ? designA / type.csaMm2 : undefined,
     feederBreakerA: inA,

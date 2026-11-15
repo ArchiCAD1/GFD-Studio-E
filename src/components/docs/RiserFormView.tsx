@@ -63,6 +63,12 @@ export default function RiserFormView({ project, onOpenRiser }: { project: Proje
                 <td className="gx-calc">{r.meters['1-PH']}</td><td className="gx-calc">{r.meters['3-PH']}</td><td className="gx-calc">{r.meters.CT}</td><td className="gx-calc l">{r.remarks ?? ''}</td>
               </tr>
             ))}
+            {f.riserDiversity && (
+              <tr>
+                <td className="gx-calc l" colSpan={14}><b>RISER DIVERSITY {f.riserDiversity.value.toFixed(2)} ({f.riserDiversity.label})</b></td>
+                <td className="gx-calc"><b>{kw(f.riserDiversity.beforeKw)} → {kw(f.totals.md)}</b></td><td className="gx-calc" colSpan={4} />
+              </tr>
+            )}
           </tbody>
           <tfoot>
             <tr>

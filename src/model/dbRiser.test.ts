@@ -5,6 +5,7 @@ import type { Board, Feeder, Project } from '../types';
 import { cablesAtGap, countTotal, dbRiserLayout, dbRiserOffered, dbRiserSummary, dbRiserTitles, flagLetter, refLines, rowsTotal } from './dbRiser';
 import { dbRiserDrawing, dbRiserSheetNos } from '../diagram/dbRiserDrawing';
 import { addDbRiserSheets, autoSize, drawable, setOf, sheetChecks, toggleRiserBreak, type DrawingSet } from './drawingSet';
+import { addG10RiserMockup } from './riserMockup';
 import { SHEET_MM } from '../docs/sldSheet';
 import { buildSheetDxfPages } from '../docs/sheetDxf';
 import { dbRiserLegend } from '../diagram/dbRiserDrawing';
@@ -151,6 +152,13 @@ describe('DB riser by level', () => {
     expect(bus.type).toMatch(/^Busbar/);
     expect(L.runs.some((r) => r.kind === 'cable' && [...r.fed.keys()].includes(L.rows.findIndex((x) => x.floors.length === 4)) && r.mainId === 'MDB-1')).toBe(false);
     expect(dbRiserDrawing(p, B).svg).toContain('BR-1');
+  });
+
+  it('the busway\'s breaker label is the feeding breaker, its type the busway rating', () => {
+    const m = addG10RiserMockup(sampleProject, 'MDB-1');
+    const bus = dbRiserLayout(m.project, m.buildingId).runs.find((r) => r.kind === 'bus')!;
+    expect(bus.breaker).toBe('800 A');
+    expect(bus.type).toBe('Busbar 1000 A Cu');
   });
 
   it('shows board references, with the first and last floor on a typical row', () => {
