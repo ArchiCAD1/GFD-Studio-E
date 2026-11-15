@@ -275,16 +275,52 @@ table.t td.cv{white-space:normal}
  <div class="line"><b style="width:210px">Individual feeders riser</b><span>Already right, one breaker and cable per panel; the sheet grows to A2.</span></div>
 </div></div>
 
-<h2><span class="n">6</span>Decisions</h2>
+<h2><span class="n">6</span>No busbar: a cable from MDB-1 to each floor</h2>
+<p class="lead">Sample: the G+10 mock-up with the busway removed; each SMDB has its own cable from MDB-1 (15 m + the floor height + 3 m). The calculations are already right: each cable is a feeder of MDB-1 with its own voltage drop, fault level and checks, and a row on MDB-1's MD form.</p>
+<div class="s5">
+ <div><div class="pc"><b>6a · Boards by level, cable risers — today</b></div><div class="paper"><img src="riser-enhancements-today-3.png" width="900"></div>
+  <div class="pm">Today (the app's print): ten cables drawn as one line from one '10× 160 A' breaker; the riser table gives only 4C 70 mm² and 37 m; no length, voltage drop or fault level per floor; the ground floor branch shows no breaker.</div></div>
+ <div><div class="pc"><b>6b · Feeder schedule (E1) — proposed</b></div><div class="paper">
+  <div class="new" style="padding:4px"><div class="pt">FEEDER SCHEDULE</div><table id="t6b"></table></div>
+  <div style="display:flex;gap:14px;margin-top:8px;align-items:flex-start">
+   <div class="pn new" style="margin:0;flex:1">E2: a typical row groups floors only when cable and breaker match. If L09–L10 were upsized to 4C 95 mm², they would get their own row.<span class="exp">example</span></div>
+   <svg id="s6b" width="380" height="120" viewBox="0 0 380 120"></svg></div>
+ </div><div class="pm">The ground floor branch shows its breaker and cable (D1).</div></div>
+</div>
+
+<h2><span class="n">7</span>Diversity on the riser schematic, and the link with the Load schedule</h2>
+<div class="sub">7a · Today: one busway, three maximum demands</div>
+<div class="frame"><div class="fb">
+ <table class="t">
+  <tr><th style="width:290px">Where</th><th>How the demand is worked out</th></tr>
+  <tr><td>Busbar riser page</td><td class="cv">500 kW (each board's MD) × 0.6 IEC diversity = 300 kW → 463.74 A → 500 A breaker → 630 A copper</td></tr>
+  <tr><td>Load schedule → Busbar riser form (DEWA)</td><td class="cv">TCL 625 kW × DF 0.8 = MD 500 kW (772.89 A), under the form's own "500 A" incomer and "630A … BUS RISER", both taken from the page <span class="bad">— 500 kW is more than the 500 A incomer carries</span></td></tr>
+  <tr><td>MDB-1's MD form</td><td class="cv">11 feeders at their MDL: +500 kW on MDB-1</td></tr>
+  <tr class="mut"><td>Riser sheets</td><td class="cv">no riser total, DF or diversity on any riser sheet</td></tr>
+ </table></div></div>
+<div class="sub" style="margin-top:10px">7b · Proposed: one figure, from the Load schedule</div>
+<div class="frame"><div class="fb">
+ <div class="new" style="display:flex;align-items:stretch;gap:0;padding:10px" id="chain"></div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+  <div class="card">A riser diversity (IEC 0.6, or typed) stays possible; it then shows as its own row everywhere: Riser diversity 0.6 → MD 300 kW.</div>
+  <div class="card">Cable risers: each cable is a row on MDB-1's MD form at its panel's MD; diversity between floors stays on MDB-1's form (DF 0.8).</div></div>
+</div></div>
+<div class="pc" style="margin-top:10px"><b>7c · Proposed: the load on the riser schematic (with decision 1 as suggested)</b></div>
+<div style="width:1090px"><div class="paper"><svg id="s7c" width="1062" height="250" viewBox="0 0 1062 250"></svg>
+ <table style="margin-top:6px"><tr><th>Riser</th><th>From</th><th>Serves</th><th>Type</th><th>Vertical</th><th class="np">TCL</th><th class="np">DF</th><th class="np">MD</th><th class="np">Ib</th><th>Continuation</th></tr>
+  <tr class="lastp"><td>G+10 Main Busbar Riser</td><td>MDB-1</td><td>Ground floor, L01–L10</td><td>Busbar 1000 A Cu</td><td>37 m</td><td class="np">625 kW</td><td class="np">0.80</td><td class="np">500 kW</td><td class="np">772.89 A</td><td>—</td></tr></table></div>
+ <div class="pm">The tap-off and feeder schedules (C1, E1) carry each floor's TCL, DF and MD the same way. Printed loads join the sheet's fingerprint, so an issued riser sheet shows as changed when a load schedule changes them.</div></div>
+
+<h2><span class="n">8</span>Decisions</h2>
 <div class="notes">
- <div><b>1 · Diversity when every floor is a board</b>Same as the source board's MD form (suggested: 1000 A Cu, 800 A breaker) or the IEC table (today: 630 A Cu, 500 A breaker)?</div>
+ <div><b>1 · The riser's maximum demand</b>The sum of the tap-offs' MD from their MD forms, as the busbar riser form shows (suggested: 500 kW, 1000 A Cu on 800 A), or keep IEC 0.6 (300 kW, 630 A Cu on 500 A), shown as its own row everywhere?</div>
  <div><b>2 · Incoming feeder of the board</b>Is it the cable from the tap-off box, checked above 15 m?</div>
  <div><b>3 · One way on the source board</b>After step 1 (suggested), now, or not?</div>
  <div><b>4 · Earth riser cables</b>Table 54.2 and adiabatic, the larger (suggested), or the largest panel CPC only?</div>
  <div style="opacity:.6"><b style="text-decoration:line-through">5 · Busway housing bonding</b>Answered: note 6 on the earth riser sheet already bonds the busbar trunking.</div>
  <div><b>6 · BOQ riser cable allowance</b>0.5 m at each bar (suggested) or a percentage?</div>
- <div><b>7 · Steps</b>1 calculations and the two drawing bugs · 2 busbar riser page · 3 earth riser checks · 4 sheets, BOQ and the SMDB drawings · 5 one way on the source board.</div>
- <div><b>8 · Grouping on Boards by level</b>Only when kind, breaker and cable match, with a count (suggested), or by kind with the rating range?</div>
+ <div><b>7 · Steps</b>1 calculations and the two drawing bugs · 2 one maximum demand per riser (page, riser form, MD form) · 3 earth riser checks · 4 riser sheets (schedules, SMDB drawings, loads) · 5 earth riser sheet and BOQ · 6 one way on the source board.</div>
+ <div><b>8 · Grouping on Boards by level</b>Panels (D1) and floors (E2) only when kind, breaker and cable match, with a count (suggested), or by kind with the rating range?</div>
 </div>
 
 <script>
@@ -394,6 +430,28 @@ const BR=(x,y)=>`<rect x="${x-6}" y="${y-5}" width="12" height="10" fill="#fff" 
  nm.forEach((n,i)=>{const y=44+i*46;s+=LN(345,y,500,y)+X(355,y-5,cb[i],{s:9})+BX(500,y-17,150,34,[[n,1,8.5]]);});
  s+=PU(335,18,325,4*46+50);
  document.getElementById('s5c1').innerHTML=s;})();
+
+// 6b table
+(function(){const L=[["GF","G","250 A","4C 120 mm²","18.0","75","60","0.14","23.39"],["L01","L01","160 A","4C 70 mm²","22.5","55","44","0.21","19.61"],["L02","L02","160 A","4C 70 mm²","26.1","55","44","0.24","18.43"],["L03","L03","160 A","4C 70 mm²","29.7","55","44","0.27","17.35"],["L04","L04","160 A","4C 70 mm²","33.3","55","44","0.31","16.38"],["L05","L05","160 A","4C 70 mm²","36.9","55","44","0.34","15.49"],["L06","L06","160 A","4C 70 mm²","40.5","55","44","0.37","14.68"],["L07","L07","160 A","4C 70 mm²","44.1","55","44","0.41","13.94"],["L08","L08","160 A","4C 70 mm²","47.7","55","44","0.44","13.26"],["L09","L09","160 A","4C 70 mm²","51.3","55","44","0.47","12.65"],["L10","L10","160 A","4C 70 mm²","54.9","55","44","0.51","12.08"]];
+ let t='<tr><th>FLOOR</th><th>BOARD</th><th>BREAKER</th><th>CABLE</th><th>LENGTH</th><th>TCL</th><th>DF</th><th>MD</th><th>Vd AT BOARD</th><th>Isc AT BOARD</th></tr>';
+ L.forEach(r=>{t+=`<tr><td>${r[0]}</td><td>BLD-G10-SMDB-${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]} m</td><td>${r[5]} kW</td><td>0.80</td><td>${r[6]} kW</td><td>${r[7]} %</td><td>${r[8]} kA</td></tr>`});
+ document.getElementById('t6b').innerHTML=t;
+ let s='';
+ s+=`<rect x="10" y="50" width="170" height="64" fill="#fff" stroke="#111" stroke-width="1.2"/>`+LN(22,86,168,86,4)+X(172,106,"MDB-1",{s:10,b:1,a:'end'});
+ s+=LN(60,86,60,22)+BR(60,70)+X(76,66,"250 A · 4C 120 mm²")+PU(72,55,102,15)+LN(60,22,215,22)+BX(215,6,150,32,[["BLD-G10-SMDB-G",1,8.5],["400 A"]]);
+ document.getElementById('s6b').innerHTML=s;})();
+// 7b chain
+(function(){const c=[["DB schedules","circuits and their demand factors"],["Each panel's MD form","TCL · DF · MD (L05 SMDB: 55 kW · 0.8 · 44 kW)"],["Busbar riser form","one row per tap-off; total = riser MD 500 kW"],["Busbar riser page","sized from 500 kW: 772.89 A → 800 A breaker → 1000 A copper"],["MDB-1's MD form","one busway line at 500 kW (B4)"],["TCL summary and transformer",""]];
+ const ar='<div style="flex:none;width:34px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 30 12" width="30" height="12"><path d="M2 6h24M21 1.5l5 4.5-5 4.5"/></svg></div>';
+ document.getElementById('chain').innerHTML=c.map(x=>`<div style="flex:1;background:var(--p2);border:1px solid var(--line-strong);border-radius:6px;padding:8px 10px;font-size:12px"><b style="display:block">${x[0]}</b><span class="mut">${x[1]}</span></div>`).join(ar);})();
+// 7c drawing
+(function(){let s='';
+ s+=`<rect x="40" y="150" width="380" height="92" fill="#fff" stroke="#111" stroke-width="1.5"/>`+LN(55,196,400,196,5);
+ s+=X(410,214,"MDB-1",{s:11,b:1,a:'end'})+X(410,227,"1600 A",{a:'end'})+X(410,238,"TCL 1153.97 kW · DF 0.80 · MDL 923.18 kW",{a:'end',s:8})+PU(225,229,190,12);
+ s+=LN(150,196,150,176)+BR(150,170)+X(160,173,"800 A",{b:1});
+ s+=LN(150,165,150,6,6)+X(137,80,"G+10 Main Busbar Riser · 1000 A Cu",{s:8,b:1,a:'middle',r:-90});
+ s+=LN(150,118,190,118)+BX(190,98,270,44,[["TCL 625 kW · DF 0.80 · MD 500 kW",1,9.5],["Ib 772.89 A — 800 A MCCB — busway 1000 A Cu"]])+PU(184,92,282,56);
+ document.getElementById('s7c').innerHTML=s;})();
 // 4c drawing
 (function(){let s='';
  const fls=[[70,"LEVEL-02","L02","1C 35 mm²"],[210,"LEVEL-01","L01","1C 35 mm²"],[350,"GROUND FLOOR","GF","1C 70 mm²"]];

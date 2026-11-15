@@ -1,6 +1,9 @@
 # UI UX proposal – Riser enhancements: busbar riser, earth riser, boards by level (2026-11-15)
 
-Status: on 2026-11-15 the user said "This is okay" and asked that an SMDB feeding four or five panels be covered; that is Part D. Nothing is built yet. Building starts on the user's word.
+Status, 2026-11-15:
+- The user said "This is okay" and asked that an SMDB feeding four or five panels be covered: that is Part D.
+- They then asked about risers with no busbar, about diversity on the riser schematic, and about the link with the Load schedule: Parts E and F.
+- Nothing is built yet. Building starts on the user's word.
 
 Mockup: `docs/mockups/riser-enhancements-mockup.html` (image: `riser-enhancements-mockup.png`). Its figures come from the app's G+10 mock-up (Busbar riser page → G+10 mock-up: MDB-1 on a 1500 kVA transformer, 415 V, 45 °C, eleven SMDBs, a 630 A copper busway). They were worked out with the app's own functions. Rows marked "example" are added only to show a check.
 
@@ -133,6 +136,68 @@ Proposed:
 
 The Individual feeders riser and the earthing sheets need no change.
 
+### E. No busbar: a cable from the MDB to each floor (added 2026-11-15)
+
+Sample: the G+10 mock-up with the busway removed. Each SMDB is fed by its own cable from MDB-1, 15 m + the floor height + 3 m long.
+
+Today:
+
+- **Calculations: correct by design.** Each cable is a feeder of MDB-1 in the network, with its own voltage drop, fault level, cable and breaker checks, earth loop, and a row on MDB-1's MD form in the Load schedule. G+10:
+  - cables: 4C 70 mm², 22.5 m (L01) to 54.9 m (L10), on 160 A breakers;
+  - voltage drop at the board: 0.21 % to 0.51 %;
+  - fault level: 19.61 kA to 12.08 kA.
+- **Boards by level:**
+  - L01–L10 is one typical row. The ten cables are one line marked 10× from one breaker labelled "10× 160 A", and the riser table reads Cable C1, 4C 70 mm², L01–L10, 37 m.
+  - The sheet does not show each floor's cable length, voltage drop or fault level.
+  - Floors whose cables differ (say, upsized upper floors) still group as typical, because the grouping ignores the cable. The type then reads "4C 70 mm² …".
+- **Individual feeders riser:** every cable is drawn separately with its breaker and cable, on A2 paper.
+- **Busbar riser drawing (as a cable chain):** each cable has its own column with its size and length.
+- **Earth riser:** the same as with a busbar.
+
+Proposed:
+
+**E1. A feeder schedule under the drawing**, the cable counterpart of C1's tap-off schedule. Its columns are Floor, Board, Breaker, Cable, Length, Vd at the board and Isc at the board, with one row per floor.
+
+**E2. A typical row groups floors only when their cables and breakers match.** An upsized floor gets its own row.
+
+D1 applies here too: the ground floor SMDB's branch shows its breaker and cable.
+
+### F. Diversity on the riser schematic, and the link with the Load schedule (added 2026-11-15)
+
+Today the same G+10 busway has three different maximum demands:
+
+| Where | How the demand is worked out | G+10 |
+|---|---|---|
+| Busbar riser page | The sum of each board's maximum demand (500 kW) × IEC 61439 diversity 0.6 | 300 kW → 463.74 A → 500 A breaker → 630 A copper |
+| Load schedule → Busbar riser form (the DEWA form) | The sum of each tap-off's TCL × its DF (625 kW × 0.8) | 500 kW (772.89 A), printed under the form's own "500 A" incomer and "630A … BUS RISER", both taken from the page |
+| MDB-1's MD form | Eleven separate feeders, each at its panel's MDL | +500 kW on MDB-1 |
+
+- **The riser schematic shows none of this.**
+  - Boards by level prints no loads.
+  - The Busbar riser drawing gives each board's rating and kW, and the Individual feeders riser gives each panel's TCL.
+  - No riser sheet gives a riser's total, DF or diversity.
+- **With cables instead of a busbar,** each cable carries its own board's demand. Diversity between floors appears only on MDB-1's MD form (DF 0.8) and the TCL summary.
+
+Proposed:
+
+**F1. One maximum demand per riser, the same everywhere.** It is the busbar riser form's figure: the sum of each tap-off's MD from its own MD form (TCL × DF).
+- The Busbar riser page sizes the busway and its breaker from that figure.
+- The source board's MD form carries it (as one busway line, with B4).
+- The schematic prints it.
+- G+10: 625 kW × 0.8 = 500 kW → 772.89 A → 800 A breaker → 1000 A copper. This is decision 1's suggested answer.
+
+**F2. An extra riser diversity stays possible** (the IEC table, or a typed factor). When used, it shows as its own row everywhere, so the figures never disagree: on the page, on the riser form ("Riser diversity 0.6 → MD 300 kW"), on the source board's MD form and on the schematic.
+
+**F3. On the riser schematic:**
+- a load box at the start of each riser: "TCL 625 kW · DF 0.80 · MD 500 kW · Ib 772.89 A — 800 A MCCB — busway 1000 A Cu", with one more line when a riser diversity applies;
+- TCL, DF, MD and Ib columns in the riser table, for every busbar riser and cable group;
+- each main panel's TCL, DF and MDL, as on the SLD's panel header;
+- each floor's TCL, DF and MD in the tap-off and feeder schedules (C1, E1).
+
+**F4. One chain links the schematic and the Load schedule:**
+- DB schedules → each panel's MD form (TCL, DF, MD) → the busbar riser form (one row per tap-off; its total is the riser MD) or the source board's MD form (one row per cable) → the TCL summary and the transformer.
+- The riser sheets print the same figures. Printed values are already part of a sheet's fingerprint, so an issued riser sheet shows as changed when a load schedule changes them.
+
 ## What stays the same
 
 - The layout of every page and sheet, apart from the items above. Exports stay black and white.
@@ -145,22 +210,23 @@ The Individual feeders riser and the earthing sheets need no change.
 Each step is one PR with tests.
 
 1. A1, A2 and the two drawing bugs (the C2 breaker label and the D2 match line).
-2. A3, B1 and B2.
-3. A4 and B3.
-4. C1, C3, C4, D1, D3 and D4 (with `npm run test:pdf`).
-5. B4, if chosen.
+2. One maximum demand per riser: F1 and F2 with B1, A3 and B2, including the Load schedule's busbar riser form.
+3. A4 and B3 (earth riser checks).
+4. The riser sheets: C1, D1, D3, D4, E1, E2 and F3 (with `npm run test:pdf`).
+5. The earth riser sheet and the BOQ: C3 and C4.
+6. B4, if chosen.
 
 ## Decisions
 
-1. **Diversity default when every floor is a board:**
-   - Same as the source board's MD form (suggested; G+10: 1000 A copper on an 800 A breaker).
-   - Keep the IEC table (today; 630 A copper on a 500 A breaker).
+1. **The riser's maximum demand (Part F):**
+   - The sum of the tap-offs' MD from their MD forms, as the busbar riser form already shows (suggested; G+10: 500 kW, 1000 A copper on an 800 A breaker).
+   - Keep the IEC table (today; 300 kW, 630 A copper on a 500 A breaker), shown as its own riser diversity row on the forms and the schematic.
 2. **Is the board's incoming feeder the cable from the tap-off box?** Suggested: **yes**, with the check above 15 m.
 3. **One way on the source board (B4):** build it after step 1 (suggested), build it now, or don't build it?
 4. **Earth riser cable rule:** as in A4 (suggested), or only the largest panel CPC?
 5. ~~On the sheet, bond the busway housing to each floor earth bar?~~ **Answered:** the earth riser sheet already says so in its note 6, so nothing is added.
 6. **BOQ allowance for the riser cable:** 0.5 m at each bar (suggested), or a percentage?
 7. **Steps and order:** as above?
-8. **Grouping on the Boards by level sheet:**
-   - Group panels only when the kind, breaker and cable match, with a count (suggested).
+8. **Grouping on the Boards by level sheet** (panels in D1, floors in E2):
+   - Group only when the kind, breaker and cable match, with a count (suggested).
    - Or keep grouping by kind, with the range of ratings.
