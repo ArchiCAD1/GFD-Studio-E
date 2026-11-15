@@ -1,4 +1,4 @@
-import type { PaletteItem } from '../model/sldEdit';
+import type { DropTarget, PaletteItem } from '../model/sldEdit';
 
 /** The library item being dragged. Browsers hide drag data until the drop,
  * but the diagram needs it while hovering to show where it can go. */
@@ -23,3 +23,12 @@ export const subscribeArmedItem = (l: () => void) => {
   listeners.add(l);
   return () => { listeners.delete(l); };
 };
+
+/** The drop target under a screen point: the nearest element marked data-drop ("bus:<board>" or "fd:<feeder>"). */
+export function dropTargetAt(x: number, y: number): { target: DropTarget; key: string } | undefined {
+  const el = document.elementFromPoint(x, y)?.closest('[data-drop]');
+  const key = el?.getAttribute('data-drop');
+  if (!key) return undefined;
+  const id = key.slice(key.indexOf(':') + 1);
+  return { key, target: key.startsWith('bus:') ? { type: 'bus', boardId: id } : { type: 'feeder', feederId: id } };
+}

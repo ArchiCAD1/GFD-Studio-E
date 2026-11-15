@@ -237,6 +237,19 @@ export interface DropResult {
   message: string;
 }
 
+/** Whether a board's own diagram (the Board tab) can take an item: on its busbar or on one of its ways. */
+export function boardTakes(project: Project, item: PaletteItem, boardId: string): boolean {
+  return canDrop(project, item, { type: 'bus', boardId })
+    || project.feeders.some((f) => f.boardId === boardId && canDrop(project, item, { type: 'feeder', feederId: f.id }));
+}
+
+/** After a drop on the Board tab the view stays on that board: a board the drop made is shown by selecting its way there. */
+export function stayOnBoard(project: Project, select: DropResult['select'], boardId: string): DropResult['select'] {
+  if (select?.type !== 'board' || select.id === boardId) return select;
+  const way = project.feeders.find((f) => f.boardId === boardId && f.feedsBoardId === select.id);
+  return way ? { type: 'feeder', id: way.id } : select;
+}
+
 function uniqueId(taken: Set<string>, base: string): string {
   for (let n = 1; ; n++) {
     const id = `${base}-${n}`;

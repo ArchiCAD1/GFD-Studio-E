@@ -215,3 +215,26 @@ describe('click to place on the drawing', () => {
     expect(drop).not.toHaveBeenCalled();
   });
 });
+
+describe('<EquipmentPalette accepts> (the Board tab)', () => {
+  const noXfmrOrStarter = (i: PaletteItem) => i.kind !== 'transformer' && i.kind !== 'starter';
+  const show = (accepts?: (i: PaletteItem) => boolean) => act(() => root.render(<EquipmentPalette onHint={() => {}} accepts={accepts} />));
+
+  it('lists only what the board takes; a category with none leaves, My presets and Components stay', () => {
+    show(noXfmrOrStarter);
+    const labels = [...document.querySelectorAll('.eq-cat')].map(catLabel);
+    expect(labels).not.toContain('Starters');
+    expect(labels).toEqual(expect.arrayContaining(['Supply', 'My presets', 'Components']));
+    click(cat('Supply'));
+    expect(rowNames()).not.toContain('Transformer');
+    expect(rowNames().length).toBeGreaterThan(0);
+  });
+
+  it('closes a list whose category has left the strip', () => {
+    show();
+    click(cat('Starters'));
+    expect(document.querySelector('.eq-list')).not.toBeNull();
+    show(noXfmrOrStarter);
+    expect(document.querySelector('.eq-list')).toBeNull();
+  });
+});

@@ -407,7 +407,7 @@ td.ec .ec-err{position:absolute;left:4px;top:100%;z-index:2;background:var(--bad
 .palette-item{display:flex;align-items:center;gap:7px;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--p2);cursor:grab;font-size:var(--fs-sm);user-select:none}
 .palette-item:hover{border-color:var(--acc);color:var(--acc)}
 .palette-item:active{cursor:grabbing}
-.sysdiag .bus-hit{stroke:transparent;stroke-width:28;pointer-events:stroke}
+.sysdiag .bus-hit,.board-sld .bus-hit{stroke:transparent;stroke-width:28;pointer-events:stroke}
 .sysdiag .bd.drop-ok .bus,.sysdiag .bd.drop-ok .box{stroke:var(--acc);stroke-width:5}
 .sysdiag .bd.drop-ok .box{stroke-width:2.5}
 .sysdiag .fd.drop-ok .ln,.sysdiag .fd.drop-ok .sym,.sysdiag .fd.drop-ok .load{stroke:var(--acc);stroke-width:2.5}
@@ -667,8 +667,8 @@ td.ec .ec-err{position:absolute;left:4px;top:100%;z-index:2;background:var(--bad
 .ups-foot{font-size:var(--fs-sm)}
 .pv-check .l{text-align:left}
 .pv-check td.ok{color:var(--ok);font-weight:700}.pv-check td.bad{color:var(--bad);font-weight:700}
-.sysdiag .insert-guide line{stroke:var(--acc);stroke-width:2.5;stroke-dasharray:6 4}
-.sysdiag .insert-guide circle{fill:var(--acc)}
+.sysdiag .insert-guide line,.board-sld .insert-guide line{stroke:var(--acc);stroke-width:2.5;stroke-dasharray:6 4}
+.sysdiag .insert-guide circle,.board-sld .insert-guide circle{fill:var(--acc)}
 .sysdiag .iec .sym-open,.iec .sym-open{fill:none;stroke:var(--tx);stroke-width:1.5}
 .sysdiag .iec .sym-fill,.iec .sym-fill{fill:var(--tx);stroke:none}
 .sysdiag .iec .thick,.iec .thick{stroke-width:2.5}
@@ -1477,7 +1477,14 @@ button.calc-chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--war
 .eq-placing .palette-ic{color:var(--acc)}
 .eq-placing .palette-q{font-size:var(--fs-sm)}
 .eq-strip.right .eq-placing{left:auto;right:calc(100% + 18px);top:56px}
-.sysdiag.armed>svg,.sysdiag.armed .fd,.sysdiag.armed .bd{cursor:copy}
+.sysdiag.armed>svg,.sysdiag.armed .fd,.sysdiag.armed .bd,.board-sld.armed,.board-sld.armed g{cursor:copy}
+.board-sld .bus-glow{stroke:var(--acc);stroke-width:12;opacity:.3;pointer-events:none}
+.board-sld g.drop-ok .ln{stroke:var(--acc);stroke-width:2.5}
+.board-sld g.drop-ok .box{stroke:var(--acc)}
+/* Board tab: the strip as tall as the System diagram's drawing, its chip at the bottom (the board's bar is at the top) */
+.board-edit .eq-strip{align-self:flex-start;height:clamp(420px,calc(100vh - 290px),3000px)}
+.board-edit > .board-sheet{flex:1;min-width:0}
+.board-edit .eq-placing,.board-edit .eq-strip.right .eq-placing{top:auto;bottom:8px}
 /* Panel tree: moving boards */
 .tree-row.dragging{opacity:.5}
 .tree-row.drop-ok{outline:2px solid var(--ok);outline-offset:-2px;background:color-mix(in srgb,var(--ok) 14%,transparent)}

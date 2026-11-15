@@ -22,7 +22,7 @@ const PH = ['R', 'Y', 'B'] as const;
  * in supply order, R / Y / B loading against the unbalance check, a phase tag
  * on each circuit (click to move it to the next phase), Balance phases, the
  * circuit table with R / Y / B kW, and the printed board sheets (PDF, DXF). */
-export default function BoardSheetView({ project, board, results, selected, onSelect, onBoard, onChange, onStatus, onOpenEarthing, diagram }: {
+export default function BoardSheetView({ project, board, results, selected, onSelect, onBoard, onChange, onStatus, onOpenEarthing, diagram, onDropItem }: {
   project: Project;
   board: Board;
   /** Results of every feeder (the table and the sheets use this board's). */
@@ -36,6 +36,8 @@ export default function BoardSheetView({ project, board, results, selected, onSe
   onOpenEarthing?: () => void;
   /** Extra props for the drawing (incomer label, panel summary box). */
   diagram: Pick<React.ComponentProps<typeof SingleLineDiagram>, 'incomerLabel' | 'summary'>;
+  /** Drops and clicks with an armed library item on the drawing (see SingleLineDiagram). */
+  onDropItem?: React.ComponentProps<typeof SingleLineDiagram>['onDropItem'];
 }) {
   const [busy, setBusy] = useState('');
   // The SLD stops at final circuits; show them one by one only to work on phases.
@@ -171,7 +173,7 @@ export default function BoardSheetView({ project, board, results, selected, onSe
         {onOpenEarthing && <button className="linkish" onClick={onOpenEarthing}>Earthing schematic ›</button>}
       </div>
 
-      <SingleLineDiagram board={board} voltageV={project.voltageV} project={project} results={own} selected={selected} onSelect={onSelect} onPhase={cyclePhase} allCircuits={allCircuits} {...diagram} />
+      <SingleLineDiagram board={board} voltageV={project.voltageV} project={project} results={own} selected={selected} onSelect={onSelect} onPhase={cyclePhase} allCircuits={allCircuits} {...diagram} onDropItem={onDropItem} />
 
       <div className="bs-table">
         <table className="compact">

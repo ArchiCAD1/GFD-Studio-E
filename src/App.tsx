@@ -99,7 +99,7 @@ import { StaleBanner } from './components/ui';
 import { generatorScenario, transformerOutage, type SupplyMode } from './calc/scenario';
 import { removeTie, TIE_OPERATION, tieRatings, updateTie } from './model/sldEdit';
 import type { ColorBy } from './diagram/heatmap';
-import { applyMove, armHint, dropMany, libraryEntries, type DropResult, type DropTarget, type MoveItem, type PaletteItem } from './model/sldEdit';
+import { applyMove, armHint, boardTakes, dropMany, libraryEntries, stayOnBoard, type DropResult, type DropTarget, type MoveItem, type PaletteItem } from './model/sldEdit';
 import { getArmedItem, setArmedItem } from './diagram/dragItem';
 import EquipmentPalette from './components/EquipmentPalette';
 import { loadUserPresets, mergePresets, presetFromFeeder, presetsFile, readPresetsFile, saveUserPresets, type FeederPreset } from './model/presets';
@@ -1102,7 +1102,7 @@ export default function App() {
   }
 
   const [dropQty, setDropQty] = useState(1);
-  function dropItem(item: PaletteItem, target: DropTarget) {
+  function dropItem(item: PaletteItem, target: DropTarget, stay?: string) {
     const r = dropMany(project, item, target, dropQty, db.loads);
     // A component dropped: its new ways remember it, so editing it updates them.
     if (item.kind === 'preset' && item.preset.id.startsWith('cmp-') && r.project !== project) {
@@ -1110,7 +1110,7 @@ export default function App() {
       const cid = item.preset.id.slice(4);
       r.project = { ...r.project, feeders: r.project.feeders.map((f) => (!old.has(f.id) && !f.feedsBoardId ? { ...f, componentId: cid } : f)) };
     }
-    showResult(r);
+    showResult(r, stay);
   }
 
   const [editComponent, setEditComponent] = useState<UserComponent | null>(null);
@@ -1129,12 +1129,14 @@ export default function App() {
     showResult(applyMove(project, item, target));
   }
 
-  function showResult(r: DropResult) {
+  function showResult(r: DropResult, stay?: string) {
     if (r.project !== project) setProject(r.project, { step: true });
-    if (r.select?.type === 'board') selectBoard(r.select.id);
-    if (r.select?.type === 'feeder') {
-      setSelected(r.select.id);
-      const f = r.project.feeders.find((x) => x.id === r.select!.id);
+    // On the Board tab the view stays on that board: a new board is shown by its way here.
+    const select = stay ? stayOnBoard(r.project, r.select, stay) : r.select;
+    if (select?.type === 'board') selectBoard(select.id);
+    if (select?.type === 'feeder') {
+      setSelected(select.id);
+      const f = r.project.feeders.find((x) => x.id === select.id);
       if (f) setActiveBoardId(f.boardId);
       setPanel('feeder');
     }
@@ -1262,8 +1264,9 @@ export default function App() {
 
   const home = view === 'projects';
   // The panel tree where clicking a board does something; not on Projects, Overview, Help or settings pages.
-  const equipment = () => (
-    <EquipmentPalette onHint={setStatus} library={libraryEntries(db.loads)} presets={userPresets} qty={dropQty} onQty={setDropQty}
+  const boardAccepts = useMemo(() => (view === 'design' && diagramMode === 'board' && board ? (item: PaletteItem) => boardTakes(project, item, board.id) : undefined), [view, diagramMode, board, project]);
+  const equipment = (accepts?: (item: PaletteItem) => boolean) => (
+    <EquipmentPalette accepts={accepts} onHint={setStatus} library={libraryEntries(db.loads)} presets={userPresets} qty={dropQty} onQty={setDropQty}
                     onDeletePreset={(id) => savePresets(userPresets.filter((p) => p.id !== id), 'Deleted the preset')}
                     onEditPreset={openPresetEditor} onExportPresets={exportPresets} onImportPresets={importPresets}
                     components={componentPresets}
@@ -1353,7 +1356,7 @@ export default function App() {
             const system = () => { setView('design'); setDiagramMode('system'); };
             return {
               fails: bad.length, warns: warn.length, onCheck: () => { system(); showNextCircuit(bad.length ? bad : warn); },
-              onArm: (item: PaletteItem, label: string) => { system(); setArmedItem(item); setDropQty(1); setStatus(armHint(item, label)); },
+              onArm: (item: PaletteItem, label: string) => { if (!(view === 'design' && diagramMode === 'board' && board && boardTakes(project, item, board.id))) system(); setArmedItem(item); setDropQty(1); setStatus(armHint(item, label)); },
               onHvSupply: () => { setPanelsTx(Date.now()); setView('panels'); },
               system: onSld && !!board && diagramMode === 'system',
               layers, onLayers: setLayers, colorBy, onColorBy: setColorBy,
@@ -1506,9 +1509,15 @@ export default function App() {
                     )}
                   </div>
                 </div>
-                {diagramMode === 'system' ? (
-                  <div className={`sld-edit${sldFull ? ' full' : ''}`}>
-                  {equipment()}
+                {diagramMode === 'system' || diagramMode === 'board' ? (
+                  <div className={`sld-edit${diagramMode === 'system' && sldFull ? ' full' : ''}${diagramMode === 'board' ? ' board-edit' : ''}`}>
+                  {equipment(boardAccepts)}
+                  {diagramMode === 'board' ? (
+                  <BoardSheetView project={project} board={board} results={allResults} selected={panel === 'feeder' ? selected : null} onSelect={selectFeeder} onBoard={selectBoard} onOpenEarthing={() => setDiagramMode('earthing')}
+                    onChange={(p) => setProject(p, { step: true })} onStatus={setStatus}
+                    diagram={{ incomerLabel: boardIncomerLabel(project, board), summary: project.drawing?.sldStyle === 'standard' ? undefined : { loc: boardLocation(project, board), ...panelSummary(project, board) } }}
+                    onDropItem={(item, target) => dropItem(item, target, board.id)} />
+                  ) : (
                   <SystemDiagram
                     {...canvasDrawing(showExport)}
                     project={project}
@@ -1570,16 +1579,13 @@ export default function App() {
                       setStatus(`${id}: cable ${patch.parallel ? `${patch.parallel} × ` : ''}${patch.cores}C × ${patch.cableCsaMm2} mm², ${patch.lengthM} m`);
                     }}
                   />
+                  )}
                   </div>
                 ) : diagramMode === 'riser' ? (
                   <RiserView project={project} onChange={(p) => setProject(p, { step: true })} onStatus={setStatus} onOpenSheet={(id) => { setSheetTab(id); setView('drawings'); }} />
                 ) : diagramMode === 'earthing' ? (
                   <EarthingView embedded project={project} onChange={(p) => setProject(p, { step: true })} onSheets={openEarthSheet} />
-                ) : (
-                  <BoardSheetView project={project} board={board} results={allResults} selected={panel === 'feeder' ? selected : null} onSelect={selectFeeder} onBoard={selectBoard} onOpenEarthing={() => setDiagramMode('earthing')}
-                    onChange={(p) => setProject(p, { step: true })} onStatus={setStatus}
-                    diagram={{ incomerLabel: boardIncomerLabel(project, board), summary: project.drawing?.sldStyle === 'standard' ? undefined : { loc: boardLocation(project, board), ...panelSummary(project, board) } }} />
-                )}
+                ) : null}
               </section>
               <section className={`res-drawer${resTab ? ' open' : ''}`} data-doc-id="sld-results">
                 <div className="rd-tabs" role="tablist" aria-label="Results">
