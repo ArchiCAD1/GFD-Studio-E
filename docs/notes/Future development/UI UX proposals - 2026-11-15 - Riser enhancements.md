@@ -1,6 +1,6 @@
 # UI UX proposal – Riser enhancements: busbar riser, earth riser, boards by level (2026-11-15)
 
-Status: **waiting for approval**. Nothing is built.
+Status: on 2026-11-15 the user said "This is okay" and asked that an SMDB feeding four or five panels be covered; that is Part D. Nothing is built yet. Building starts on the user's word.
 
 Mockup: `docs/mockups/riser-enhancements-mockup.html` (image: `riser-enhancements-mockup.png`). Its figures come from the app's G+10 mock-up (Busbar riser page → G+10 mock-up: MDB-1 on a 1500 kVA transformer, 415 V, 45 °C, eleven SMDBs, a 630 A copper busway). They were worked out with the app's own functions. Rows marked "example" are added only to show a check.
 
@@ -85,15 +85,53 @@ The three risers work (v2.149; the riser code is unchanged since 2026-11-09). Th
 - The busway's breaker shows the feeding breaker (500 A), not the busway rating (630 A).
 - A note gives the panel schedule sheets and the earth riser sheet.
 
-**C3. Earth riser sheet:**
-- A floor earth bar schedule: Tag, Level, Panels, Panel conductors and Bonding.
-- When a busbar riser serves the building, its housing (PE) is bonded to the floor earth bar on every floor. This is drawn as one short line per floor, with a note.
+**C3. Earth riser sheet** (corrected 2026-11-15: most of it exists already).
+- The sheet already has a floor earth bar schedule (Level, Floor earth bar, Panels, Floor sheet).
+- Its note 6 already bonds the cable containment, busbar trunking and riser steelwork to each floor earth bar.
+- Only two things are new:
+  - a Panel conductors column in that schedule, giving the conductor sizes on each bar;
+  - the riser cable's vertical length in the notes (36.9 m from the level heights, as in C4).
 
 **C4. BOQ, group I (earthing):**
 - Floor earth bars with two test links (11 in the G+10).
 - The earth riser cable: the vertical length from the levels + 0.5 m at each bar, 42.4 m in the G+10.
 - The LV room cable (length to site).
 - The panel earth conductors by size: 1 × 70 mm² and 10 × 35 mm² (length to site).
+
+### D. An SMDB that feeds four or five panels (added 2026-11-15)
+
+The user asked how the risers show an SMDB on one level that feeds four or five other panels. Two samples were drawn with the app's own sheet printer, using the G+10 mock-up's L05 SMDB:
+
+- **Sample 1, same floor:** BLD-G10-SMDB-L05 feeds three DBs (63, 63 and 40 A), an MCC (63 A) and a UPS board (40 A), all on L05.
+- **Sample 2, floors above too:** the same SMDB feeds a DB and the MCC on L05, and one DB each on L06, L07 and L08.
+
+Today:
+
+| Part | Sample 1 (same floor) | Sample 2 (floors above) |
+|---|---|---|
+| Boards by level sheet | The SMDB's box branches to boxes grouped by kind: one box lists the three DBs, then the MCC and the UPS. The board summary counts them (DB 3, MCC 1, UPS 1). The branches show no breaker or cable and the boxes show no rating, and the 40 A DB is grouped with the 63 A ones. | The SMDB becomes a main panel with its own busbar, in its own column ("From BLD-G10-SMDB-L05"). The three cables up share one line marked 3×, with a flag to the next sheet, and the riser table lists Cable C1, 4C 16 mm², L06–L08. The two L05 panels hang on one drawn breaker, and the flag letter covers the match-line text. |
+| Busbar riser drawing | The five panels sit in a row on the L05 line. Their cable texts overlap, and the lines run through the boxes in between. | The two L05 panels sit in a row in the same way. The cables to L06–L08 rise in their own columns. |
+| Individual feeders riser | Correct by design: the SMDB is drawn with its busbar and one breaker and cable per panel. The sheet grows to A2. | The same. |
+| Earth riser and floor earthing | Correct. Each panel's earth bar goes to the SMDB's earth bar with its own CPC (1C 16 or 10 mm²), shown on the floor earthing sheet with its panel earthing schedule. The riser sheet counts 6 panels at L05. | The panels on L06–L08 go to their own floor earth bars. |
+| Calculations | The L05 tap-off carries the SMDB's whole demand: 83.2 kW (44 kW + 39.2 kW from the five panels) at 129.6 A, so the tap-off unit is 160 A. | The same, at 86.4 kW. |
+
+Proposed:
+
+**D1. Boards by level: each outgoing of an SMDB gets its own breaker and label,** as a main panel's outgoings do.
+- Each branch shows its breaker and cable ("63 A · 4C 16 mm²"), and each box shows the panel's rating.
+- A box groups panels only when the kind, breaker and cable all match, and it gives the count ("DB ×2"). A typical row shows them once.
+
+**D2. Bug:** the match-line text moves clear of the flags.
+
+**D3. Busbar riser drawing:** an SMDB's panels on its own floor are drawn as a short stack on one branch, each with its cable text, as on the Boards by level sheet. No line passes through a box.
+
+**D4.** The tap-off schedule (C1) and the Boards on this riser card name the panels behind each tap-off, for example "BLD-G10-SMDB-L05 + 5 panels (DB ×3, MCC, UPS) · 83.2 kW".
+
+**Covered by the other items:**
+- With A1, the five panels' voltage drop and fault level include the busway up to L05, because they are fed through the SMDB.
+- With A4, the most onerous panel check includes panels earthed through another panel's bar.
+
+The Individual feeders riser and the earthing sheets need no change.
 
 ## What stays the same
 
@@ -106,10 +144,10 @@ The three risers work (v2.149; the riser code is unchanged since 2026-11-09). Th
 
 Each step is one PR with tests.
 
-1. A1, A2 and the C2 breaker label (calculations and the bug).
+1. A1, A2 and the two drawing bugs (the C2 breaker label and the D2 match line).
 2. A3, B1 and B2.
 3. A4 and B3.
-4. C1, C3 and C4 (with `npm run test:pdf`).
+4. C1, C3, C4, D1, D3 and D4 (with `npm run test:pdf`).
 5. B4, if chosen.
 
 ## Decisions
@@ -120,6 +158,9 @@ Each step is one PR with tests.
 2. **Is the board's incoming feeder the cable from the tap-off box?** Suggested: **yes**, with the check above 15 m.
 3. **One way on the source board (B4):** build it after step 1 (suggested), build it now, or don't build it?
 4. **Earth riser cable rule:** as in A4 (suggested), or only the largest panel CPC?
-5. **On the sheet, bond the busway housing to each floor earth bar** when a busbar riser serves the building? Suggested: **yes**.
+5. ~~On the sheet, bond the busway housing to each floor earth bar?~~ **Answered:** the earth riser sheet already says so in its note 6, so nothing is added.
 6. **BOQ allowance for the riser cable:** 0.5 m at each bar (suggested), or a percentage?
 7. **Steps and order:** as above?
+8. **Grouping on the Boards by level sheet:**
+   - Group panels only when the kind, breaker and cable match, with a count (suggested).
+   - Or keep grouping by kind, with the range of ratings.
