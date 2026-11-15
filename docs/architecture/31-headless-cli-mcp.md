@@ -8,12 +8,14 @@
 | Way in | Started by | Who uses it | Can change projects? |
 |---|---|---|---|
 | Command line `lvds <command>` | `src/headless/cli.ts` `main` | the engineer in a terminal, scripts, CI | yes, but every change tool previews unless `--apply` / `--propose` / `--export` is given |
-| MCP server `lvds mcp` (MCP = Model Context Protocol, the way an AI assistant calls local tools over stdin/stdout) | `src/headless/mcp.ts` `createMcp` | Claude Desktop / Claude Code / a local model | only when started with `--write`; even then preview by default |
+| MCP server `lvds mcp` (MCP = Model Context Protocol, the way an AI assistant calls local tools over stdin/stdout) | `src/headless/mcp.ts` `createMcp` | the engineer's own AI program: any MCP client, or a local model through one (the app has no AI, account or key of its own) | only when started with `--write`; even then preview by default |
 | Local HTTP API `lvds serve` | `src/headless/api.ts` `createApi` | Excel, Python, other local programs | only with `--write`, and only by POST with JSON |
 
 All three call the same `callTool` (`src/headless/tools.ts:332`), which checks the arguments against the tool's input schema (zod = a library that checks the shape and range of each input; `.strict()` refuses unknown inputs) before the tool runs.
 
-The bundle is built by `npm run build:cli` (`vite.cli.config.ts`) into one Node file `dist-cli/lvds.mjs` (dependencies and the CAD reader WebAssembly inlined).
+The bundle is built by `npm run build:cli` (`vite.cli.config.ts`), and by `npm run build`, into one Node file `dist-cli/lvds.mjs` (dependencies and the CAD reader WebAssembly inlined).
+
+The installer carries it in `resources/lvds` (`package.json` `extraResources`) with a launcher per system (`build/lvds/lvds`, `lvds.cmd`). The launcher runs `lvds.mjs` with the app itself as Node (`ELECTRON_RUN_AS_NODE`), so no window opens and no separate Node is needed. `lvds mcp-config` prints the `mcpServers` entry an AI program needs to start this copy.
 
 ### 1.1 Coverage — every study / feature and whether CLI/MCP exposes it
 
@@ -46,7 +48,7 @@ There is no in-memory store here: each tool call opens the project file, works o
 | File | Kind | Key functions or components | What they do |
 |---|---|---|---|
 | `src/headless/main.ts` | entry | `main(...)` call, `DOMParser` stand-in | Entry of `dist-cli/lvds.mjs`; adds `@xmldom/xmldom` DOMParser for the DXF code. |
-| `src/headless/mcp.ts` | server | `createMcp` (:13), `startMcp`, `READ_INSTRUCTIONS`, `WRITE_INSTRUCTIONS` | Registers every offered tool with the MCP SDK; read-only/write annotations; client name recorded. |
+| `src/headless/mcp.ts` | server | `createMcp` (:14), `startMcp`, `mcpConfig` (:48), `Runtime`, `READ_INSTRUCTIONS`, `WRITE_INSTRUCTIONS` | Registers every offered tool with the MCP SDK; read-only/write annotations; client name recorded. `mcpConfig`: the settings an AI program needs to start this copy (`lvds mcp-config`). |
 | `src/headless/api.ts` | server | `createApi` (:59), `startApi`, `tokenMatches`, `writeApiToken`, `fromQuery` (:24), `readBody` | 127.0.0.1-only HTTP JSON API with bearer token, refuses browser requests (Origin / Sec-Fetch-Site), writes only by POST JSON. |
 | `src/headless/tools.ts` | tools (read) | `TOOLS`, `allTools`, `offeredTools`, `toolByName`, `callTool` (:332), `circuitRow` (:287), `circuitIssues` (:306), `clientLabel`, `r` | Read tools and 7 quick calcs; the one input-checking path. |
 | `src/headless/editTools.ts` | tools (write) | `EDIT_TOOLS`, `edit` (:53), `proposal` (:92), `proposeTool`, `supplyOrder`, `BOARD_RATING` (:85), `authorOf` | Proposals, structure changes, delete with `approvedBy`, `list_changes`, `undo_change`; checks before/after every change. |
@@ -55,12 +57,14 @@ There is no in-memory store here: each tool call opens the project file, works o
 | `src/headless/exchangeTools.ts` | tools | `EXCHANGE_TOOLS`, `readFile`, `checked`, `summary` | Exchange package check, review, apply with hash and approver. |
 | `src/headless/elvTools.ts` | tools | `ELV_TOOLS`, `elvSettingsFor`, `elvInput`, `listDevices` | ELV estimate, devices on a level, schedules, place loads on LV boards. |
 | `src/headless/exportTools.ts` | tools (export) | `EXPORT_TOOLS`, `runExport` (:68), `readiness` (:58), `sheetsDxf` (:137), `templateFile`, `SHEET_TYPES` (:131) | Preview → approval → write new files into `Exports/<project>/<date>/`, export log. |
-| `src/headless/electronExport.ts` | bridge | `findRenderer` (:54), `runInRenderer` (:72), `asarHasHeadlessExport`, `appRoot` | Finds Electron (source folder or installed app) and runs one export job through temp files. |
+| `src/headless/electronExport.ts` | bridge | `findRenderer` (:68), `runInRenderer` (:86), `hostApp` (:63), `installedApps`, `asarHasHeadlessExport`, `appRoot` | Finds Electron (source folder, the installed app lvds runs inside, or an installed app in its usual place) and runs one export job through temp files. |
 | `src/headless/rendererExport.ts` | bridge (renderer side) | `ExportJob`, `runJob` (:17), `install` | Runs `dxfFiles` or `CATALOGUE.build` + `renderPdf` inside the hidden window. |
 | `src/headless/project.ts` | file access | `projectsFolder`, `appDataDir`, `parseProject`, `resolveProject`, `openProject` (:82), `listProjects`, `unsavedCopyInApp` (:36), `redactPaths` | Find/open projects, same shape check and migration as the app, read-only. |
 | `src/headless/write.ts` | file access | `commitText` (:110), `commitProject`, `undoChange` (:139), `writeBlocked` (:61), `writeAtomic` (:51), `readLog`, `changeEntry`, `MAX_BACKUPS` | Safe project writes: refuse if unsaved in app or changed since read, temp+rename+read-back, backup, change log. |
 | `src/headless/safeFiles.ts` | file access | `confine` (:43), `readFileWithin`, `readFileLimited`, `realDirs`, `areRealDirs`, `writeNewFile` (:127), `openToAppend`, `findFile`, `isInside`, `MAX_PROJECT_BYTES` | Path confinement to the projects folder (MCP/API), no-follow opens, size limits, exclusive file creation. |
-| `vite.cli.config.ts` | build | `defineConfig` | Bundles `src/headless/main.ts` to `dist-cli/lvds.mjs`, Node 20, WASM inlined. |
+| `vite.cli.config.ts` | build | `defineConfig` | Bundles `src/headless/main.ts` to `dist-cli/lvds.mjs`, Node 20, WASM inlined; writes `third-party-licences.md` beside it. |
+| `build/lvds/lvds`, `build/lvds/lvds.cmd` | launchers | — | In the installed app's `resources/lvds`: run `lvds.mjs` with the app as Node (macOS / Linux, Windows). |
+| `scripts/check-packaged-lvds.mjs` | package check | `mcpSession`, `lvdsProblems`, `launcherOf`, `shownVersion` | Runs the packaged `lvds`: version, `mcp-config`, and an MCP session started from those settings (CI and beta builds). |
 | `electron/headlessExport.cjs` | Electron | `run`, `finish` | Hidden sandboxed window on the built `dist/index.html?lvds-export`, own temp profile, no permissions, 10-min limit. |
 | `electron/headlessPreload.cjs` | Electron | `contextBridge` `lvds.files.pdfBytes` | The single bridge the hidden window needs (HTML → PDF). |
 | `electron/main.cjs` (:19-20, :135) | Electron | `headless` flag | Installed app with `--lvds-headless-export` runs only the export. |
@@ -108,7 +112,7 @@ There is no in-memory store here: each tool call opens the project file, works o
 
 There is no button: the "click" is a command or a tool call.
 
-1. User runs `lvds size "Villa" --propose` (or an AI client calls `size_circuits` with `mode: "propose"`). `cli.ts` `main` → `parseArgs` turns flags into arguments; `--propose` sets `args.mode` to the tool's commit mode (`cli.ts:182`); the first plain argument becomes `project`.
+1. User runs `lvds size "Villa" --propose` (or an AI client calls `size_circuits` with `mode: "propose"`). `cli.ts` `main` → `parseArgs` turns flags into arguments; `--propose` sets `args.mode` to the tool's commit mode (`cli.ts:192`); the first plain argument becomes `project`.
 2. `toolByName` finds the tool (alias `size` → `size_circuits`); `callTool` (`tools.ts:332`) checks the arguments with the tool's zod schema (strict) and fills defaults.
 3. The tool calls `edit` (`editTools.ts:53`) → `openProject` (`project.ts:82`) → `resolveProject` / `findFile` / `confine` (MCP/API: inside the projects folder only, no links) → `readFileWithin` (size ≤ 50 MB) → `parseProject` (shape check + migration in memory).
 4. The tool's plan runs: `proposeTool` → in-scope circuits by `evaluateFeeder`, sorted by `supplyOrder`, each sized with `recommend(…,'fix')` / `applyRecommendation`; changed fields become `ValueChange`s → `proposal` (`newModification`, `addOp`, `transition('proposed')`).

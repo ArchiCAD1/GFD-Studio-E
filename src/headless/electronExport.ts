@@ -23,15 +23,23 @@ function appRoot(): string | undefined {
   return undefined;
 }
 
-/** Installed app executables, per platform. */
-function installedApps(): string[] {
-  if (process.platform === 'darwin') return ['/Applications/LV Design Studio.app', path.join(os.homedir(), 'Applications', 'LV Design Studio.app')].map((a) => path.join(a, 'Contents', 'MacOS', 'LV Design Studio'));
-  if (process.platform === 'win32') return [path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'), 'Programs', 'lv-design-studio', 'LV Design Studio.exe'), path.join(process.env.ProgramFiles ?? 'C:\\Program Files', 'LV Design Studio', 'LV Design Studio.exe')];
+/** Installed app executables, per platform. On Windows the installer's own folder for one user is
+ * Programs\LV Design Studio (the installer lets the user choose the folder; a one-click installer would use the package name). */
+export function installedApps(platform = process.platform, env: Record<string, string | undefined> = process.env, home = os.homedir()): string[] {
+  if (platform === 'darwin') return ['/Applications/LV Design Studio.app', path.join(home, 'Applications', 'LV Design Studio.app')].map((a) => path.join(a, 'Contents', 'MacOS', 'LV Design Studio'));
+  if (platform === 'win32') {
+    const programs = path.join(env.LOCALAPPDATA ?? path.join(home, 'AppData', 'Local'), 'Programs');
+    return [path.join(programs, 'LV Design Studio', 'LV Design Studio.exe'), path.join(programs, 'lv-design-studio', 'LV Design Studio.exe'), path.join(env.ProgramFiles ?? 'C:\\Program Files', 'LV Design Studio', 'LV Design Studio.exe')];
+  }
   return [];
 }
 
-/** Whether an installed app's app.asar has the headless export (older versions would open the app window instead). */
+/** Whether an installed app's app.asar has the headless export (older versions would open the app window instead).
+ * Run by the app as Node, fs shows an .asar as a folder; that is switched off while its header is read. */
 export function asarHasHeadlessExport(asar: string): boolean {
+  const proc = process as { noAsar?: boolean };
+  const inElectron = !!process.versions.electron, before = proc.noAsar;
+  if (inElectron) proc.noAsar = true;
   try {
     const fd = fs.openSync(asar, 'r');
     try {
@@ -45,10 +53,16 @@ export function asarHasHeadlessExport(asar: string): boolean {
       const header = JSON.parse(json.toString('utf-8')) as { files?: Record<string, { files?: Record<string, unknown> }> };
       return !!header.files?.electron?.files?.['headlessExport.cjs'] && !!header.files?.dist;
     } finally { fs.closeSync(fd); }
-  } catch { return false; }
+  } catch { return false; } finally { if (inElectron) proc.noAsar = before; }
 }
 
 const asarOf = (exe: string) => (process.platform === 'darwin' ? path.join(exe, '..', '..', 'Resources', 'app.asar') : path.join(path.dirname(exe), 'resources', 'app.asar'));
+
+/** The installed app this lvds runs inside (its resources/lvds, with the app as the Node runtime), wherever
+ * it was installed: the same app makes the export. */
+export function hostApp(execPath = process.execPath, electron = !!process.versions.electron): string | undefined {
+  return electron && asarHasHeadlessExport(asarOf(execPath)) ? execPath : undefined;
+}
 
 /** How to run the renderer export, or why it cannot run here. LVDS_ELECTRON: an Electron executable to use with this app folder. */
 export function findRenderer(): Renderer | { missing: string } {
@@ -63,7 +77,7 @@ export function findRenderer(): Renderer | { missing: string } {
       return { missing: `the app is not built in ${root}: run "npm run build" first` };
     }
   }
-  const app = installedApps().find((exe) => fs.existsSync(exe) && asarHasHeadlessExport(asarOf(exe)));
+  const app = hostApp() ?? installedApps().find((exe) => fs.existsSync(exe) && asarHasHeadlessExport(asarOf(exe)));
   if (app) return { command: app, args: ['--lvds-headless-export'], where: `the installed app (${app})` };
   return { missing: 'it needs Electron: run lvds from the LV Design Studio source folder after "npm install" and "npm run build", or install a version of LV Design Studio that has this export' };
 }

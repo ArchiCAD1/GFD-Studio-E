@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Riser enhancements mockup</title>
+<style>
+:root{--bg:#15171A;--panel:#1D2024;--p2:#26292E;--line:#353A41;--line-strong:#4A5058;--tx:#E6E8EB;--mut:#A3ABB5;--acc:#F5B301;--warn:#f5c04a;--new:#b784ff;--mv:#4fb3a5;--ok:#37d67a;--bad:#ff5d6c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/18px -apple-system,"Segoe UI",system-ui,sans-serif;width:1952px;padding:16px 20px 20px}
+h1{font-size:17px;line-height:22px;margin:0 0 4px}
+h2{font-size:13px;margin:22px 0 8px;font-weight:600}
+h2 .n{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:var(--acc);color:#1D2024;text-align:center;font-size:11px;margin-right:7px}
+p.lead{margin:0 0 8px;color:var(--mut);max-width:1500px}
+.legend{color:var(--mut);font-size:12px;margin:0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin:0 5px 0 14px}
+.legend i.n{border:1.5px dashed var(--new)}
+.legend i.m{border:1px solid var(--mv)}
+.new{outline:1.5px dashed var(--new);outline-offset:-1.5px}
+.mv{outline:1px solid var(--mv);outline-offset:-1px}
+.mut{color:var(--mut)}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}.acc{color:var(--acc)}
+svg{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.frame{border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;background:var(--panel)}
+.ft{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--p2);border-bottom:1px solid var(--line)}
+.ft b{font-size:14px;flex:1}
+.chip{display:inline-block;padding:3px 11px;border-radius:6px;font-size:12px;border:1px solid var(--line-strong);white-space:nowrap}
+.fb{padding:12px 16px}
+.sub{font-size:11px;color:var(--mut);margin:0 0 6px}
+.f{min-width:0}
+.f .l{font-size:11px;color:var(--mut);margin-bottom:2px}
+.f .in{background:var(--p2);border:1px solid var(--line);border-radius:5px;padding:4px 9px;height:28px;font-size:12px;white-space:nowrap;overflow:hidden}
+.f .in.off{opacity:.45}
+.f .h{font-size:11px;color:var(--mut);margin-top:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;height:28px;font-size:12px}
+.seg span{padding:4px 12px;color:var(--mut)}
+.seg span.on{background:var(--acc);color:#1D2024;font-weight:600}
+.sel{display:flex;justify-content:space-between;align-items:center}
+.sel svg{width:11px;height:11px}
+.bb{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 16px;align-items:start}
+.menu{background:var(--panel);border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:4px;margin-top:3px;font-size:12px}
+.menu div{padding:3px 10px;border-radius:5px;white-space:nowrap}
+.menu div.hi{background:rgba(245,179,1,.18)}
+.menu .tk{display:inline-block;width:16px;color:var(--acc)}
+.menu small{display:block;margin-left:16px;font-size:11px;color:var(--mut)}
+table.t{border-collapse:separate;border-spacing:0;width:100%;font-size:12px}
+table.t th{text-align:left;font-weight:400;color:var(--mut);font-size:11px;padding:4px 8px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+table.t td{padding:2px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t .r{text-align:right}
+table.t th.nw,table.t td.nw{border-left:1.5px dashed var(--new);border-right:1.5px dashed var(--new)}
+table.t th.nw{border-top:1.5px dashed var(--new)}
+table.t tr.last td.nw{border-bottom:1.5px dashed var(--new)}
+table.t th.cg,table.t td.cg{border-left:1px solid var(--mv);border-right:1px solid var(--mv)}
+table.t th.cg{border-top:1px solid var(--mv)}
+table.t tr.last td.cg{border-bottom:1px solid var(--mv)}
+table.t td.cv{white-space:normal}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;align-items:start}
+.card{background:var(--p2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:12px}
+.card h4{margin:0 0 4px;font-size:13px}
+.kv{margin:0}
+.kv div{display:flex;justify-content:space-between;gap:10px;padding:1px 0;border-bottom:1px solid var(--line)}
+.kv dt{color:var(--mut);margin:0}.kv dd{margin:0;text-align:right}
+.wb{border-left:3px solid var(--warn);background:var(--panel);padding:4px 8px;margin:4px 0;color:var(--warn);font-size:11px}
+.row3{display:grid;grid-template-columns:repeat(3,620px);gap:26px;align-items:start}
+.row2{display:grid;grid-template-columns:940px 946px;gap:26px;align-items:start}
+.tip{background:var(--panel);border:1px solid var(--line-strong);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.4);padding:5px 9px;font-size:12px;color:var(--mut);margin:4px 0 0 140px;position:relative}
+.tip:before{content:"";position:absolute;top:-6px;left:60px;width:10px;height:10px;background:var(--panel);border-left:1px solid var(--line-strong);border-top:1px solid var(--line-strong);transform:rotate(45deg)}
+.ex{display:inline-block;font-size:10px;line-height:14px;padding:0 5px;border:1px solid var(--line-strong);border-radius:8px;color:var(--mut);margin-left:6px;vertical-align:1px;font-style:normal}
+.exb{border:1px dashed var(--line-strong);border-radius:6px;padding:8px 10px;margin-top:10px}
+.line{display:flex;gap:10px;align-items:center;padding:3px 0;font-size:12px}
+.tabs{display:flex;gap:4px;padding:8px 16px 0;background:var(--p2)}
+.tabs span{padding:6px 16px;border-radius:6px 6px 0 0;color:var(--mut);font-size:12px}
+.tabs span.on{background:var(--acc);color:#1D2024;font-weight:600}
+.badge{display:inline-block;min-width:16px;height:16px;line-height:16px;border-radius:8px;background:#1D2024;color:var(--acc);font-size:10px;text-align:center;margin-left:5px}
+.ck{padding:4px 8px;font-size:12px;border-bottom:1px solid var(--line)}
+.ck.gh{font-size:11px;color:var(--mut);letter-spacing:.03em;border-bottom:1px solid var(--line-strong);margin-top:6px}
+/* paper */
+.pc{font-size:12px;margin:0 0 4px}.pc b{color:var(--tx)}
+.paper{background:#fff;color:#111;border-radius:2px;padding:14px;font:10px/14px Arial,Helvetica,sans-serif;position:relative}
+.paper svg{stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;color:#111;display:block}
+.paper svg text{fill:#111;stroke:none;font-family:Arial,Helvetica,sans-serif}
+.paper .pt{font-weight:700;font-size:10px;margin:0 0 3px}
+.paper table{border-collapse:collapse;width:100%;font-size:9.5px}
+.paper th{background:#eee;text-align:left;font-weight:700;padding:2px 5px;border:.5px solid #111}
+.paper td{padding:2px 5px;border:.5px solid #111;vertical-align:top}
+.paper tr.nr td{border-top:1.5px dashed var(--new);border-bottom:1.5px dashed var(--new)}
+.paper tr.nr td:first-child{border-left:1.5px dashed var(--new)}
+.paper tr.nr td:last-child{border-right:1.5px dashed var(--new)}
+.paper .pn{margin-top:8px;font-size:9.5px;padding:4px 6px;line-height:14px}
+.paper .exp{display:inline-block;font-size:8px;line-height:11px;padding:0 4px;border:.5px solid #111;border-radius:6px;margin-left:5px;vertical-align:1px}
+.paper th.np,.paper td.np{border-left:1.5px dashed var(--new);border-right:1.5px dashed var(--new)}
+.paper th.np{border-top:1.5px dashed var(--new)}
+.paper tr.lastp td.np{border-bottom:1.5px dashed var(--new)}
+.s5{display:grid;grid-template-columns:943px 943px;gap:26px;align-items:start;margin-bottom:12px}
+.s5 .pc{margin:0 0 4px}
+.s5 .paper img{display:block}
+.pflex{display:flex;gap:16px;align-items:flex-start}
+.pm{font-size:11px;color:var(--mut);margin:4px 0 0}
+.notes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:1912px}
+.notes div{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px 11px;font-size:12px;color:var(--mut)}
+.notes b{color:var(--tx);display:block;margin-bottom:3px}
+</style>
+</head>
+<body>
+<h1>Riser enhancements — busbar riser, earth riser, boards by level</h1>
+<p class="lead">Proposal, 2026-11-15. Figures are the app's own results for its G+10 mock-up: MDB-1 on a 1500 kVA transformer, 415 V, 45 °C, eleven SMDBs, a 630 A copper busway. Rows marked example only show a check.</p>
+<div class="legend">Graphite dark.<i class="n"></i>New<i class="m"></i>Changed<span style="margin-left:14px" class="mut">Muted: today</span></div>
+
+<h2><span class="n">1</span>Busbar riser page, with the new height source, diversity choice and per-tap-off checks</h2>
+<div class="frame">
+ <div class="ft"><b>Busbar trunking risers</b><span class="chip">+ Riser</span><span class="chip">G+10 mock-up</span><span class="chip">PDF sheet</span><span class="chip">Excel</span></div>
+ <div class="fb">
+  <div class="bb">
+   <div class="f"><div class="l">Name</div><div class="in">G+10 Main Busbar Riser</div></div>
+   <div class="f"><div class="l">Fed from</div><div class="in sel">MDB-1<svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg></div></div>
+   <div class="f"><div class="l">Material</div><div class="seg"><span class="on">Copper</span><span>Aluminium</span></div></div>
+   <div class="f"><div class="l">Feed to the riser foot (m)</div><div class="in">15</div></div>
+
+   <div class="f new" style="padding:3px;margin:-3px"><div class="l">Floor heights</div><div class="seg"><span class="on">From the levels</span><span>One height</span></div><div class="h">Ground 4.5 m · typical 3.6 m (Building information)</div></div>
+   <div class="f mv" style="padding:3px;margin:-3px"><div class="l">Floor-to-floor height (m)</div><div class="in off">3.6</div><div class="h">used with One height</div></div>
+   <div class="f"><div class="l">Floors before the first tap-off</div><div class="in">0</div></div>
+   <div></div>
+
+   <div class="f mv" style="padding:3px;margin:-3px"><div class="l">Diversity</div><div class="in sel">IEC 61439 by tap-offs — 0.6<svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg></div>
+    <div class="menu"><div>Same as MDB-1's MD form — 1.0<small>suggested when every floor is a board</small></div><div class="hi"><span class="tk">&#10003;</span>IEC 61439 by tap-offs — 0.6</div><div>Typed…</div></div></div>
+   <div class="f"><div class="l">Ambient (°C)</div><div class="in mut">45</div></div>
+   <div class="f"><div class="l">Straight length (m)</div><div class="in">3</div></div>
+   <div class="f"><div class="l">Elbows</div><div class="in">2</div></div>
+  </div>
+  <h2 style="margin:14px 0 6px;font-size:13px">Floors and tap-offs (bottom to top)</h2>
+  <table class="t" id="ft"></table>
+  <div style="margin-top:8px;display:flex;gap:8px"><span class="chip">+ Floor</span><span class="chip">Take floors from the boards</span><span class="chip">Take floors from G+10 Riser Mock-up</span></div>
+  <div class="cards">
+   <div class="card"><h4>Load</h4>
+    <dl class="kv"><div><dt>Tap-offs</dt><dd>11</dd></div><div><dt>Connected</dt><dd>500 kW</dd></div><div><dt>PF</dt><dd>0.90</dd></div><div><dt>Diversity</dt><dd>0.6 <span class="mut">(IEC 61439 by 11 tap-offs)</span></dd></div></dl>
+    <div class="wb new">Applied on top of the boards' maximum demand, which already has their demand factors. MDB-1's MD form counts these boards at 1.0.<br>At 1.0: Ib 772.89 A · 800 A breaker · 1000 A copper <span class="chip" style="color:var(--tx);padding:0 8px;margin-left:4px">Use 1.0</span></div>
+    <dl class="kv"><div><dt>Maximum demand</dt><dd>300 kW · 333.33 kVA</dd></div><div><dt>Design current Ib</dt><dd><b>463.74 A</b></dd></div></dl></div>
+   <div class="card"><h4>Busway</h4>
+    <dl class="kv"><div><dt>Feeding breaker In</dt><dd>500 A</dd></div><div><dt>Needed (÷ 0.95 at 45 °C)</dt><dd>526.32 A</dd></div><div><dt>Selected</dt><dd class="ok"><b>630 A copper</b></dd></div><div><dt>Conductor area</dt><dd>420 mm² per phase</dd></div><div><dt>Current density</dt><dd>1.10 A/mm² at Ib</dd></div><div><dt>Short-circuit withstand</dt><dd class="ok">Icw 36 kA 1 s vs 29.22 kA at MDB-1</dd></div><div><dt>Vd at the top tap-off</dt><dd>0.72 % <span class="mut">(riser only)</span></dd></div></dl>
+    <div class="wb new" style="margin-top:6px">Typical busway data — confirm with the manufacturer</div></div>
+   <div class="card"><h4>Physical</h4>
+    <dl class="kv"><div><dt>Size (W × H)</dt><dd>135 × 90 mm</dd></div><div class="mv"><dt>Length</dt><dd>52.9 m <span class="mut">(15.0 feed + 37.9 vertical, from the levels)</span></dd></div><div><dt>Straight lengths</dt><dd>18 × 3 m</dd></div><div><dt>Weight</dt><dd>688 kg · 13 kg/m</dd></div><div><dt>Parts</dt><dd style="text-align:right">1 end-feed unit, 1 end cap, 2 elbows, 11 tap-off units, fire barriers at each slab</dd></div></dl></div>
+   <div class="card new"><h4>Boards on this riser</h4>
+    <div class="mut" style="margin-bottom:4px">Calculated through the busway: its drop and impedance up to each tap-off are in the board's voltage drop, fault level and earth loop.</div>
+    <table class="t"><tr><th>Board</th><th>Vd at the board</th><th>Fault at the board</th></tr>
+     <tr><td>BLD-G10-SMDB-G</td><td><span class="mut">0.06</span> &rarr; 0.39 %</td><td><span class="mut">26.48</span> &rarr; 23.88 kA</td></tr>
+     <tr><td>BLD-G10-SMDB-L05</td><td><span class="mut">0.07</span> &rarr; 0.69 %</td><td><span class="mut">25.52</span> &rarr; 19.94 kA</td></tr>
+     <tr><td>BLD-G10-SMDB-L10</td><td><span class="mut">0.07</span> &rarr; 0.79 %</td><td><span class="mut">25.52</span> &rarr; 17.60 kA</td></tr></table>
+    <div style="margin-top:4px">Tap-off cables: 11 × 8 m <span class="ok">&#10003;</span> <span class="mut">(checked above 15 m)</span></div></div>
+  </div>
+  <div class="mut" style="font-size:11px;margin-top:6px">Copper or aluminium card unchanged, not shown. &nbsp;·&nbsp; Notes (existing): Diversity 0.6 for 11 tap-offs (IEC 61439-6) &nbsp;·&nbsp; Ambient 45 °C: rating × 0.95</div>
+ </div>
+</div>
+
+<h2><span class="n">2</span>Where the busway now counts</h2>
+<div class="row3">
+ <div><div class="sub">2a · Voltage drop page — board rows</div>
+ <div class="frame"><div class="fb">
+  <table class="t">
+   <tr><th>Board</th><th>Fed from</th><th>Vd at the board</th><th>Worst final circuit</th></tr>
+   <tr><td>BLD-G10-SMDB-G</td><td class="cv">MDB-1 · busway tap-off GF</td><td class="mv">0.39 %<div class="mut" style="font-size:11px">today 0.06 %</div></td><td class="mv">0.70 %<div class="mut" style="font-size:11px">today 0.38 %</div></td></tr>
+   <tr><td>BLD-G10-SMDB-L05</td><td class="cv">MDB-1 · busway tap-off L05</td><td class="mv">0.69 %<div class="mut" style="font-size:11px">today 0.07 %</div></td><td class="mv">1.01 %<div class="mut" style="font-size:11px">today 0.40 %</div></td></tr>
+   <tr><td>BLD-G10-SMDB-L10</td><td class="cv">MDB-1 · busway tap-off L10</td><td class="mv">0.79 %<div class="mut" style="font-size:11px">today 0.07 %</div></td><td class="mv">1.12 %<div class="mut" style="font-size:11px">today 0.40 %</div></td></tr>
+  </table>
+  <div class="tip new" style="margin-left:300px">MDB-1 0.00 % + busway to the L10 tap-off 0.72 % + tap-off cable 0.07 % = 0.79 %</div>
+ </div></div></div>
+ <div><div class="sub">2b · Board properties — supply (BLD-G10-SMDB-L10)</div>
+ <div class="frame"><div class="fb">
+  <dl class="kv">
+   <div class="new" style="padding:3px 4px"><dt>Fed from</dt><dd>MDB-1 through G+10 Main Busbar Riser</dd></div>
+   <div class="new" style="padding:3px 4px"><dt>Tap-off</dt><dd>Level 10 · 36.9 m above the riser foot · 51.9 m of busway</dd></div>
+   <div class="mv" style="padding:3px 4px"><dt>Incoming cable (tap-off cable)</dt><dd>4C 70 mm² · 8 m <span class="ok">&#10003;</span></dd></div>
+   <div class="mv" style="padding:3px 4px"><dt>Breaker</dt><dd>160 A MCCB · Icu 36 kA <span class="ok">&#10003;</span> vs 20.22 kA at the tap-off<div class="mut" style="font-size:11px">today checked against 29.22 kA at MDB-1</div></dd></div>
+  </dl>
+  <div class="exb"><span class="ex" style="margin:0 0 4px">example</span>
+   <div class="wb" style="margin:0;display:flex;gap:10px;align-items:center"><span style="flex:1">Tap-off cable 45 m — is this the cable from the tap-off box? The busway up to Level 10 is counted separately.</span><span class="chip" style="color:var(--tx)">Edit length</span></div></div>
+ </div></div></div>
+ <div><div class="sub">2c · MDB-1 · Connected load &amp; MD form — later (decision 3)</div>
+ <div class="frame"><div class="fb">
+  <div class="sub" style="margin:0 0 2px">Today (11 ways)</div>
+  <table class="t mut"><tr><td>Busbar tap-off to BLD-G10-SMDB-G</td><td>250 A MCCB</td><td>4C 120 mm²</td></tr>
+   <tr><td>Busbar tap-off to BLD-G10-SMDB-L01</td><td>160 A MCCB</td><td>4C 70 mm²</td></tr>
+   <tr><td>Busbar tap-off to BLD-G10-SMDB-L02</td><td>160 A MCCB</td><td>4C 70 mm²</td></tr>
+   <tr><td colspan="3">… 7 more …</td></tr>
+   <tr><td>Busbar tap-off to BLD-G10-SMDB-L10</td><td>160 A MCCB</td><td>4C 70 mm²</td></tr></table>
+  <div class="sub" style="margin:10px 0 2px">Proposed</div>
+  <div class="new" style="padding:4px 8px"><div style="display:flex;gap:6px;align-items:center;font-size:12px"><svg viewBox="0 0 12 12" width="11" height="11"><path d="M2 4l4 4 4-4"/></svg><span>G+10 Main Busbar Riser — 500 A MCCB — busway 630 A copper — 11 tap-offs — 300 kW</span></div>
+   <div class="mut" style="font-size:11px;margin:3px 0 0 24px">GF · BLD-G10-SMDB-G · 250 A tap-off<br>L01–L10 · BLD-G10-SMDB-L01 … L10 · 160 A tap-off ×10</div></div>
+ </div></div></div>
+</div>
+
+<h2><span class="n">3</span>Earthing: riser cable sizes and checks</h2>
+<div class="row2">
+ <div><div class="sub">3a · Earthing settings (excerpt)</div>
+ <div class="frame"><div class="fb">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px">
+   <div class="f"><div class="l">Riser cable</div><div class="in">1C 95 mm² G/Y PVC earth cable</div>
+    <div class="new ok" style="font-size:11px;margin-top:3px;padding:2px 4px">&#10003; Needs 50 mm² — BLD-G10-SMDB-L01: 17.52 kA for 0.1 s (adiabatic 38.74&nbsp;mm², k&nbsp;143)</div></div>
+   <div class="f"><div class="l">LV room cable</div><div class="in">1C 150 mm² G/Y PVC earth cable</div>
+    <div class="new ok" style="font-size:11px;margin-top:3px;padding:2px 4px">&#10003; Needs 70 mm² — BLD-G10-SMDB-G: 4C 120 mm² (Table 54.2)</div></div>
+   <div class="f"><div class="l">Riser name</div><div class="in">EL-A</div></div>
+   <div class="f"><div class="l">Tall buildings</div><div class="in sel">Every level, over sheets<svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg></div></div>
+  </div>
+  <div class="exb"><span class="ex" style="margin:0 0 4px">example</span>
+   <div class="f" style="max-width:420px"><div class="l">Riser cable</div><div class="in">1C 35 mm² G/Y PVC earth cable</div>
+    <div class="bad" style="font-size:11px;margin-top:3px">&#10007; Needs 50 mm² — BLD-G10-SMDB-L01: 17.52 kA for 0.1 s (adiabatic 38.74&nbsp;mm²) <span class="chip" style="color:var(--tx);padding:0 8px;margin-left:6px">Use 50 mm²</span></div></div></div>
+ </div></div></div>
+ <div><div class="sub">3b · Checks tab</div>
+ <div class="frame"><div class="tabs"><span>Drawing</span><span>Earth riser</span><span>Floor earthing</span><span>Pits and tests</span><span class="on">Checks<i class="badge">3</i></span></div>
+  <div class="fb" style="padding-top:6px">
+   <div class="ck mut">&#10003; Transformer neutral and body earths are separate (never interconnected)</div>
+   <div class="ck warn">! Layout: keep earth pits at least 6 m apart</div>
+   <div class="ck gh new">EARTH RISER — G+10 RISER MOCK-UP</div>
+   <div class="ck new"><span class="ok">&#10003;</span> EL-A riser cable 1C 95 mm² — needs 50 mm² (BLD-G10-SMDB-L01, adiabatic 38.74 mm²)</div>
+   <div class="ck new"><span class="ok">&#10003;</span> EL-A LV room cable 1C 150 mm² — needs 70 mm² (BLD-G10-SMDB-G, Table 54.2)</div>
+   <div class="ck new warn">! BLD-G10-DB-L07-2 has no Level — not on the earth riser<span class="ex">example</span></div>
+   <div class="ck new warn">! BLD-G10-SMDB-L03 picked riser EL-B, which does not serve Level 3 — earthed to EL-A<span class="ex">example</span></div>
+  </div></div></div>
+</div>
+
+<h2><span class="n">4</span>Sheets and BOQ (paper, black and white; teal and purple boxes are mockup annotations)</h2>
+<div style="display:grid;grid-template-columns:1090px 796px;gap:26px;align-items:start">
+ <div><div class="pc"><b>4a · E-RSR-001 · Busbar riser: tap-off schedule and notes</b></div>
+  <div class="paper"><div class="pflex"><svg id="s4a" width="400" height="470" viewBox="0 0 400 470"></svg>
+   <div style="flex:1;min-width:0">
+    <div class="new" style="padding:4px"><div class="pt">TAP-OFF SCHEDULE</div><table id="t4a"></table></div>
+    <div class="pn new"><b>NOTES</b><br>1. BUSWAY 630 A Cu, 3P+N+PE, FED FROM MDB-1 THROUGH A 500 A MCCB.<br>2. Isc AND Vd INCLUDE THE BUSWAY UP TO EACH TAP-OFF.<br>3. NOT SHOWN — NO LEVEL IN THIS BUILDING: BLD-G10-DB-L07-2.<span class="exp">example</span></div>
+   </div></div></div></div>
+ <div><div class="pc"><b>4b · E-RSR-002 · Boards by level: breaker label (bug fix) and references</b></div>
+  <div class="paper"><svg id="s4b" width="768" height="360" viewBox="0 0 768 360"></svg>
+   <div style="margin-top:6px"><table><tr><th>Riser</th><th>From</th><th>Serves</th><th>Type</th><th>Vertical</th><th>Continuation</th></tr>
+    <tr><td>G+10 Main Busbar Riser</td><td>MDB-1</td><td>Ground floor, L01–L10</td><td>Busbar 630 A Cu</td><td>37 m</td><td>—</td></tr></table></div>
+   <div class="pn new" style="margin-top:6px">PANEL SCHEDULES: E-DB-001 TO E-DB-012. EARTHING RISER: E-ERT-002.</div></div>
+  <div class="pm">Teal box: the breaker label now reads 500 A, today it reads 630 A (the busway rating). The riser table row is as today; the dashed note is new.</div></div>
+ <div><div class="pc"><b>4c · E-ERT-002 · Earth riser: panel conductors in the floor earth bar schedule</b></div>
+  <div class="paper"><div class="pflex"><svg id="s4c" width="440" height="470" viewBox="0 0 440 470"></svg>
+   <div style="flex:1;min-width:0">
+    <div style="padding:4px"><div class="pt">FLOOR EARTH BAR SCHEDULE</div><table id="t4c"></table></div>
+    <div class="pn"><b>NOTES</b><br>6. CABLE CONTAINMENT, BUSBAR TRUNKING AND RISER STEELWORK BONDED TO THE FLOOR EARTH BAR.<div class="new" style="margin-top:2px;padding:1px 3px">7. RISER CABLE: 36.9 m VERTICAL, FROM THE LEVEL HEIGHTS.</div></div>
+   </div></div></div>
+  <div class="pm">The schedule and note 6 are on the sheet today; only the Panel conductors column and note 7 are new.</div></div>
+ <div><div class="pc"><b>4d · BOQ · group I, earthing (new lines)</b></div>
+  <div class="paper"><table>
+   <tr><th style="width:30px">Item</th><th>Description</th><th style="width:30px">Unit</th><th style="width:30px">Qty</th><th style="width:105px">Reference</th></tr>
+   <tr style="color:#555"><td>I.1</td><td>Main earth terminal bar with test link; earth conductor 1C × 70 mm² Cu/PVC to the pits (length to site)</td><td>set</td><td>1</td><td>MDB-1</td></tr>
+   <tr class="nr"><td>I.2</td><td>Floor earth bar with two test links, EB-EL-A-GF to EB-EL-A-L10</td><td>no.</td><td>11</td><td>EL-A</td></tr>
+   <tr class="nr"><td>I.3</td><td>Earth riser cable 1C 95 mm² G/Y PVC, bar to bar (36.9 m vertical + 0.5 m at each bar)</td><td>m</td><td>42.4</td><td>EL-A</td></tr>
+   <tr class="nr"><td>I.4</td><td>LV room earth cable 1C 150 mm² G/Y PVC, MEB-MDB-1 to EB-EL-A-GF (length to site)</td><td>m</td><td>—</td><td>EL-A</td></tr>
+   <tr class="nr"><td>I.5</td><td>Panel earth conductor 1C 70 mm² G/Y PVC, panel earth bar to floor earth bar (length to site)</td><td>no.</td><td>1</td><td>BLD-G10-SMDB-G</td></tr>
+   <tr class="nr"><td>I.6</td><td>Panel earth conductor 1C 35 mm² G/Y PVC, panel earth bar to floor earth bar (length to site)</td><td>no.</td><td>10</td><td>BLD-G10-SMDB-L01 to L10</td></tr>
+  </table></div></div>
+</div>
+
+<h2><span class="n">5</span>An SMDB that feeds four or five panels</h2>
+<p class="lead">Asked on 2026-11-15. Two samples drawn with the app's own sheet printer on the G+10 mock-up's L05 SMDB. Sample 1: it feeds three DBs (63, 63 and 40 A), an MCC (63 A) and a UPS board (40 A) on L05. Sample 2: it feeds a DB and the MCC on L05, and one DB each on L06, L07 and L08.</p>
+<div class="s5">
+ <div><div class="pc"><b>5a · Boards by level, sample 1 — today</b></div><div class="paper"><img src="riser-enhancements-today-1.png" width="620"></div>
+  <div class="pm">Today (the app's print): no breaker or cable on the branches, no rating in the boxes, the 40 A DB grouped with the 63 A ones.</div></div>
+ <div><div class="pc"><b>5a · Boards by level, sample 1 — proposed</b></div><div class="paper"><svg id="s5a" width="915" height="232" viewBox="0 0 915 232"></svg></div></div>
+</div>
+<div class="s5">
+ <div><div class="pc"><b>5b · Boards by level, sample 2 (sheet 1 of 2) — today</b></div><div class="paper"><img src="riser-enhancements-today-2.png" width="620"></div>
+  <div class="pm">Today: flag A covers the match-line text; the two L05 panels hang on one drawn breaker.</div></div>
+ <div><div class="pc"><b>5b · Boards by level, sample 2 (sheet 1 of 2) — proposed</b></div><div class="paper"><svg id="s5b" width="915" height="330" viewBox="0 0 915 330"></svg></div></div>
+</div>
+<div class="s5">
+ <div><div class="pc"><b>5c · Busbar riser drawing (Riser tab and E-RSR-001), sample 1 — today</b></div><div class="paper"><svg id="s5c0" width="915" height="130" viewBox="0 0 915 130"></svg></div>
+  <div class="pm">Today (redrawn from the app's layout figures): the cable texts overlap and the line runs through the boxes.</div></div>
+ <div><div class="pc"><b>5c · Busbar riser drawing, sample 1 — proposed</b></div><div class="paper"><svg id="s5c1" width="915" height="280" viewBox="0 0 915 280"></svg></div></div>
+</div>
+<div class="sub" style="margin:4px 0 4px">5d · What else follows</div>
+<div class="frame"><div class="fb">
+ <div class="line"><b style="width:210px">Calculations</b><span>The L05 tap-off carries the SMDB's whole demand, 83.2 kW (44 kW + 39.2 kW from the five panels) at 129.6 A, so a 160 A tap-off unit. With A1 the five panels' voltage drop and fault level include the busway up to L05.</span></div>
+ <div class="line" style="align-items:flex-start"><b style="width:210px">Tap-off schedule (C1)</b><div style="flex:1"><div style="margin-bottom:4px">The schedule names the panels behind the tap-off:</div>
+  <div class="paper new" style="padding:6px;max-width:760px"><table><tr><th style="width:60px">FLOOR</th><th>BOARD</th><th style="width:90px">LOAD</th></tr><tr><td>L05</td><td>BLD-G10-SMDB-L05 + 5 panels (DB ×3, MCC, UPS)</td><td>83.2 kW</td></tr></table></div></div></div>
+ <div class="line"><b style="width:210px">Earthing</b><span>Already right. Each panel's earth bar goes to the SMDB's earth bar with its own CPC (1C 16 or 10 mm²) on the floor earthing sheet; the riser sheet counts 6 panels at L05; panels on L06–L08 go to their own floor earth bars. With A4 the most onerous panel check includes them.</span></div>
+ <div class="line"><b style="width:210px">Individual feeders riser</b><span>Already right, one breaker and cable per panel; the sheet grows to A2.</span></div>
+</div></div>
+
+<h2><span class="n">6</span>No busbar: a cable from MDB-1 to each floor</h2>
+<p class="lead">Sample: the G+10 mock-up with the busway removed; each SMDB has its own cable from MDB-1 (15 m + the floor height + 3 m). The calculations are already right: each cable is a feeder of MDB-1 with its own voltage drop, fault level and checks, and a row on MDB-1's MD form.</p>
+<div class="s5">
+ <div><div class="pc"><b>6a · Boards by level, cable risers — today</b></div><div class="paper"><img src="riser-enhancements-today-3.png" width="900"></div>
+  <div class="pm">Today (the app's print): ten cables drawn as one line from one '10× 160 A' breaker; the riser table gives only 4C 70 mm² and 37 m; no length, voltage drop or fault level per floor; the ground floor branch shows no breaker.</div></div>
+ <div><div class="pc"><b>6b · Feeder schedule (E1) — proposed</b></div><div class="paper">
+  <div class="new" style="padding:4px"><div class="pt">FEEDER SCHEDULE</div><table id="t6b"></table></div>
+  <div style="display:flex;gap:14px;margin-top:8px;align-items:flex-start">
+   <div class="pn new" style="margin:0;flex:1">E2: a typical row groups floors only when cable and breaker match. If L09–L10 were upsized to 4C 95 mm², they would get their own row.<span class="exp">example</span></div>
+   <svg id="s6b" width="380" height="120" viewBox="0 0 380 120"></svg></div>
+ </div><div class="pm">The ground floor branch shows its breaker and cable (D1).</div></div>
+</div>
+
+<h2><span class="n">7</span>Diversity on the riser schematic, and the link with the Load schedule</h2>
+<div class="sub">7a · Today: one busway, three maximum demands</div>
+<div class="frame"><div class="fb">
+ <table class="t">
+  <tr><th style="width:290px">Where</th><th>How the demand is worked out</th></tr>
+  <tr><td>Busbar riser page</td><td class="cv">500 kW (each board's MD) × 0.6 IEC diversity = 300 kW → 463.74 A → 500 A breaker → 630 A copper</td></tr>
+  <tr><td>Load schedule → Busbar riser form (DEWA)</td><td class="cv">TCL 625 kW × DF 0.8 = MD 500 kW (772.89 A), under the form's own "500 A" incomer and "630A … BUS RISER", both taken from the page <span class="bad">— 500 kW is more than the 500 A incomer carries</span></td></tr>
+  <tr><td>MDB-1's MD form</td><td class="cv">11 feeders at their MDL: +500 kW on MDB-1</td></tr>
+  <tr class="mut"><td>Riser sheets</td><td class="cv">no riser total, DF or diversity on any riser sheet</td></tr>
+ </table></div></div>
+<div class="sub" style="margin-top:10px">7b · Proposed: one figure, from the Load schedule</div>
+<div class="frame"><div class="fb">
+ <div class="new" style="display:flex;align-items:stretch;gap:0;padding:10px" id="chain"></div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+  <div class="card">A riser diversity (IEC 0.6, or typed) stays possible; it then shows as its own row everywhere: Riser diversity 0.6 → MD 300 kW.</div>
+  <div class="card">Cable risers: each cable is a row on MDB-1's MD form at its panel's MD; diversity between floors stays on MDB-1's form (DF 0.8).</div></div>
+</div></div>
+<div class="pc" style="margin-top:10px"><b>7c · Proposed: the load on the riser schematic (with decision 1 as suggested)</b></div>
+<div style="width:1090px"><div class="paper"><svg id="s7c" width="1062" height="250" viewBox="0 0 1062 250"></svg>
+ <table style="margin-top:6px"><tr><th>Riser</th><th>From</th><th>Serves</th><th>Type</th><th>Vertical</th><th class="np">TCL</th><th class="np">DF</th><th class="np">MD</th><th class="np">Ib</th><th>Continuation</th></tr>
+  <tr class="lastp"><td>G+10 Main Busbar Riser</td><td>MDB-1</td><td>Ground floor, L01–L10</td><td>Busbar 1000 A Cu</td><td>37 m</td><td class="np">625 kW</td><td class="np">0.80</td><td class="np">500 kW</td><td class="np">772.89 A</td><td>—</td></tr></table></div>
+ <div class="pm">The tap-off and feeder schedules (C1, E1) carry each floor's TCL, DF and MD the same way. Printed loads join the sheet's fingerprint, so an issued riser sheet shows as changed when a load schedule changes them.</div></div>
+
+<h2><span class="n">8</span>Decisions</h2>
+<div class="notes">
+ <div><b>1 · The riser's maximum demand</b>The sum of the tap-offs' MD from their MD forms, as the busbar riser form shows (suggested: 500 kW, 1000 A Cu on 800 A), or keep IEC 0.6 (300 kW, 630 A Cu on 500 A), shown as its own row everywhere?</div>
+ <div><b>2 · Incoming feeder of the board</b>Is it the cable from the tap-off box, checked above 15 m?</div>
+ <div><b>3 · One way on the source board</b>After step 1 (suggested), now, or not?</div>
+ <div><b>4 · Earth riser cables</b>Table 54.2 and adiabatic, the larger (suggested), or the largest panel CPC only?</div>
+ <div style="opacity:.6"><b style="text-decoration:line-through">5 · Busway housing bonding</b>Answered: note 6 on the earth riser sheet already bonds the busbar trunking.</div>
+ <div><b>6 · BOQ riser cable allowance</b>0.5 m at each bar (suggested) or a percentage?</div>
+ <div><b>7 · Steps</b>1 calculations and the two drawing bugs · 2 one maximum demand per riser (page, riser form, MD form) · 3 earth riser checks · 4 riser sheets (schedules, SMDB drawings, loads) · 5 earth riser sheet and BOQ · 6 one way on the source board.</div>
+ <div><b>8 · Grouping on Boards by level</b>Panels (D1) and floors (E2) only when kind, breaker and cable match, with a count (suggested), or by kind with the rating range?</div>
+</div>
+
+<script>
+// floors table
+const fl=[["Ground floor","G",60,"250 A","was 125 A","0.0","0.33","26.48","250","0.39"],
+["Level 1","L01",44,"160 A","was 100 A","4.5","0.41","25.65","160","0.48"],
+["Level 2","L02",44,"160 A","","8.1","0.47","24.99","160","0.55"],
+["Level 3","L03",44,"160 A","","11.7","0.53","24.34","160","0.60"],
+["Level 4","L04",44,"160 A","","15.3","0.58","23.70","160","0.65"],
+["Level 5","L05",44,"160 A","","18.9","0.62","23.08","160","0.69"],
+["Level 6","L06",44,"160 A","","22.5","0.65","22.47","160","0.73"],
+["Level 7","L07",44,"160 A","","26.1","0.68","21.88","160","0.75"],
+["Level 8","L08",44,"160 A","","29.7","0.70","21.31","160","0.77"],
+["Level 9","L09",44,"160 A","","33.3","0.71","20.76","160","0.79"],
+["Level 10","L10",44,"160 A","","36.9","0.72","20.22","160","0.79"]];
+const cur=(g)=>g=="G"?"92.75":"68.01";
+let h='<tr><th>Floor</th><th>Board</th><th class="r">Load (kW)</th><th>PF</th><th class="r">Floors like it</th><th class="r">Current (A)</th><th class="cg">Tap-off</th><th class="cg r">Height (m)</th><th class="r">Vd at the tap-off</th><th class="nw r">Isc at the tap-off</th><th class="nw">Tap-off MCCB</th><th class="nw r">Vd at the board</th></tr>';
+fl.forEach((r,i)=>{const L=i==fl.length-1?' class="last"':'';
+h+=`<tr${L}><td>${r[0]}</td><td>BLD-G10-SMDB-${r[1]}</td><td class="r">${r[2]}</td><td class="mut">board</td><td class="r">1</td><td class="r">${cur(r[1])}</td><td class="cg">${r[3]}${r[4]?' <span class="mut">('+r[4]+')</span>':''}</td><td class="cg r">${r[5]}</td><td class="r">${r[6]} %</td><td class="nw r">${r[7]} kA</td><td class="nw">${r[8]} A · Icu 36 kA <span class="ok">&#10003;</span></td><td class="nw r">${r[9]} %</td></tr>`});
+document.getElementById('ft').innerHTML=h;
+
+// 4a table
+let t='<tr><th>FLOOR</th><th>BOARD</th><th>TAP-OFF UNIT</th><th>MCCB</th><th>Isc AT TAP-OFF</th><th>Vd AT BOARD</th></tr>';
+fl.forEach(r=>{t+=`<tr><td>${r[1]=="G"?"GF":r[1]}</td><td>BLD-G10-SMDB-${r[1]}</td><td>${r[3]}</td><td>${r[8]} A, 36 kA</td><td>${r[7]} kA</td><td>${r[9]} %</td></tr>`});
+document.getElementById('t4a').innerHTML=t;
+// 4c table
+let u='<tr><th>LEVEL</th><th>FLOOR EARTH BAR</th><th>PANELS</th><th>FLOOR SHEET</th><th class="np">PANEL CONDUCTORS</th></tr>';
+fl.slice().reverse().forEach((r,i,arr)=>{const g=r[1]=="G",n=g?0:+r[1].slice(1);u+=`<tr${i==arr.length-1?' class="lastp"':''}><td>${g?"GROUND FLOOR":"LEVEL-"+r[1].slice(1)}</td><td>EB-EL-A-${g?"GF":r[1]}</td><td>1</td><td>E-ERT-0${String(3+n).padStart(2,"0")}</td><td class="np">${g?"1C 70 mm²":"1C 35 mm²"}</td></tr>`});
+document.getElementById('t4c').innerHTML=u;
+
+const T=(x,y,s,o='')=>`<text x="${x}" y="${y}" font-size="${o.includes('big')?10:8.5}" ${o.includes('end')?'text-anchor="end"':o.includes('mid')?'text-anchor="middle"':''} ${o.includes('b')?'font-weight="700"':''}>${s}</text>`;
+// 4a drawing
+(function(){let s='';
+ const rows=[[60,"LEVEL 10","+36.90","BLD-G10-SMDB-L10","250 A · 44 kW"],[125,"LEVEL 9","+33.30","BLD-G10-SMDB-L09","250 A · 44 kW"],[255,"LEVEL 2","+8.10","BLD-G10-SMDB-L02","250 A · 44 kW"],[320,"LEVEL 1","+4.50","BLD-G10-SMDB-L01","250 A · 44 kW"],[385,"GROUND FLOOR","±0.00","BLD-G10-SMDB-G","400 A · 60 kW"]];
+ s+=`<line x1="170" y1="40" x2="170" y2="418" stroke="#111" stroke-width="6"/>`;
+ s+=`<rect x="167" y="170" width="6" height="40" fill="#fff" stroke="none"/><path d="M160 176 L180 168 M160 186 L180 178" stroke="#111" stroke-width="1.2"/><path d="M170 160 L170 170 M170 186 L170 200" stroke="#111" stroke-width="6"/>`;
+ rows.forEach(r=>{const y=r[0];
+  s+=T(8,y-2,r[1],'b')+T(8,y+10,r[2]);
+  s+=`<line x1="8" y1="${y+14}" x2="112" y2="${y+14}" stroke="#111" stroke-width=".5" stroke-dasharray="2 2"/>`;
+  s+=`<line x1="173" y1="${y+14}" x2="232" y2="${y+14}" stroke="#111" stroke-width="1.5"/><rect x="190" y="${y+8}" width="12" height="12" fill="#fff" stroke="#111"/>`;
+  s+=`<rect x="232" y="${y-2}" width="150" height="32" fill="#fff" stroke="#111"/>`+T(307,y+12,r[3],'mid')+T(307,y+24,r[4],'mid');});
+ s+=`<rect x="120" y="418" width="100" height="36" fill="#fff" stroke="#111" stroke-width="1.5"/>`+T(170,440,"MDB-1",'mid big b')+T(8,440,"TX-MDB-1 1500 kVA",'b');
+ s+=`<line x1="104" y1="436" x2="120" y2="436" stroke="#111"/>`;
+ s+=`<text transform="translate(148 300) rotate(-90)" font-size="8.5" font-weight="700" text-anchor="middle">G+10 Main Busbar Riser · 630 A Cu</text>`;
+ s+='';
+ document.getElementById('s4a').innerHTML=s;})();
+// 4b drawing
+(function(){let s='<g transform="translate(0 110)">';
+ s+=`<rect x="40" y="150" width="300" height="80" fill="#fff" stroke="#111" stroke-width="1.5"/>`+T(52,168,"MDB-1",'big b');
+ s+=`<line x1="52" y1="190" x2="328" y2="190" stroke="#111" stroke-width="4"/>`+T(52,206,"MAIN BUSBAR");
+ s+=`<line x1="180" y1="190" x2="180" y2="168" stroke="#111" stroke-width="1.5"/>`;
+ s+=`<rect x="160" y="140" width="40" height="28" fill="#fff" stroke="#111" stroke-width="1.5"/>`+T(180,159,"500 A",'mid big b');
+ s+=`<rect x="154" y="134" width="52" height="40" fill="none" stroke="#4fb3a5" stroke-width="1"/>`;
+ s+=`<line x1="180" y1="140" x2="180" y2="-95" stroke="#111" stroke-width="6"/>`;
+ s+=`<text transform="translate(166 10) rotate(-90)" font-size="8.5" font-weight="700" text-anchor="middle">G+10 Main Busbar Riser · Busbar 630 A Cu</text>`;
+ s+=`<rect x="170" y="-105" width="20" height="8" fill="#fff" stroke="#111"/>`;
+ s+='</g>';
+ document.getElementById('s4b').innerHTML=s;})();
+
+const X=(x,y,t,o={})=>`<text x="${x}" y="${y}" font-size="${o.s||8.5}"${o.b?' font-weight="700"':''}${o.a?` text-anchor="${o.a}"`:''}${o.r?` transform="rotate(${o.r} ${x} ${y})"`:''}>${t}</text>`;
+const BX=(x,y,w,h,ls,sw)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#fff" stroke="#111" stroke-width="${sw||1.2}"/>`+ls.map((l,i)=>X(x+w/2,y+h/2+3.2-(ls.length-1)*5.5+i*11,l[0],{b:l[1],a:'middle',s:l[2]||8.5})).join('');
+const PU=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#b784ff" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+const LN=(a,b,c,d,w)=>`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="#111" stroke-width="${w||1.2}"/>`;
+const BR=(x,y)=>`<rect x="${x-6}" y="${y-5}" width="12" height="10" fill="#fff" stroke="#111" stroke-width="1.2"/>`;
+// 5a proposed
+(function(){let s='';
+ s+=X(8,95,"L05",{s:12,b:1})+X(8,108,"+18.90");
+ s+=LN(130,0,130,232,6)+`<circle cx="130" cy="100" r="4" fill="#111"/>`+X(118,150,"G+10 Main Busbar Riser",{s:8,a:'middle',r:-90});
+ s+=LN(130,100,185,100)+BX(185,82,56,36,[["TOB",1,10],["160 A"]])+LN(241,100,290,100)+BX(290,78,150,44,[["BLD-G10-SMDB-L05",1,9],["250 A"]]);
+ s+=LN(440,100,490,100)+LN(490,28,490,196);
+ const br=[[28,"63 A · 4C 16 mm²",[["DB ×2",1,9],["BLD-G10-DB-L05-A, B"],["63 A"]]],[84,"40 A · 4C 10 mm²",[["DB",1,9],["BLD-G10-DB-L05-C"],["40 A"]]],[140,"63 A · 4C 16 mm²",[["MCC",1,9],["BLD-G10-MCC-L05"],["63 A"]]],[196,"40 A · 4C 10 mm²",[["UPS",1,9],["BLD-G10-UPS-L05"],["40 A"]]]];
+ br.forEach(r=>{const y=r[0];s+=LN(490,y,690,y)+BR(515,y)+X(530,y-8,r[1],{s:8.5})+PU(509,y-20,128,29)+BX(690,y-22,200,44,r[2]);
+  s+=PU(766,y+5,48,13);if(y==28)s+=PU(762,y-19,56,14);});
+ document.getElementById('s5a').innerHTML=s;})();
+// 5b proposed
+(function(){let s='';
+ s+=X(10,18,"Level",{s:10,b:1})+X(110,18,"From MDB-1",{s:10,b:1})+X(380,18,"From BLD-G10-SMDB-L05",{s:10,b:1})+LN(0,28,915,28,.6);
+ s+=`<line x1="0" y1="92" x2="915" y2="92" stroke="#111" stroke-width="1.6" stroke-dasharray="14 4 3 4"/>`;
+ const flag=(x,l)=>`<path d="M${x-14} 84 L${x-14} 62 L${x} 50 L${x+14} 62 L${x+14} 84 Z" fill="#fff" stroke="#111" stroke-width="1.2"/>`+X(x,76,l,{s:11,b:1,a:'middle'});
+ s+=flag(130,'A')+flag(380,'B');
+ s+=X(410,72,"MATCH LINE 1 — CONTINUES ON E-RSR-004",{s:9.5,b:1})+`<rect x="404" y="56" width="256" height="22" fill="none" stroke="#4fb3a5" stroke-width="1"/>`;
+ s+=LN(130,84,130,330,6)+X(118,320,"G+10 Main Busbar Riser",{s:8,a:'middle',r:-90});
+ s+=X(10,215,"L05",{s:12,b:1})+X(10,229,"+18.90")+`<circle cx="130" cy="252" r="4" fill="#111"/>`+LN(130,252,160,252)+BX(160,236,56,32,[["TOB",1,10],["160 A"]])+LN(216,252,330,252);
+ s+=`<rect x="330" y="176" width="570" height="140" fill="#fff" stroke="#111" stroke-width="1.2"/>`+LN(345,272,885,272,5);
+ s+=LN(380,272,380,92)+LN(374,140,386,128)+X(392,138,"3×")+BR(380,246)+X(392,249,"3× 63 A");
+ s+=LN(545,272,545,152)+BR(545,246)+BX(470,114,150,38,[["BLD-G10-DB-L05-A",1,8.5],["63 A"]])+X(551,170,"4C 16 mm²")+X(557,249,"63 A");
+ s+=LN(740,272,740,152)+BR(740,246)+BX(670,114,150,38,[["BLD-G10-MCC-L05",1,8.5],["63 A"]])+X(746,170,"4C 16 mm²")+X(752,249,"63 A");
+ s+=PU(536,156,96,102)+PU(731,156,96,102);
+ s+=X(885,296,"BLD-G10-SMDB-L05",{s:10,b:1,a:'end'})+X(885,309,"250 A",{a:'end'});
+ s+=LN(0,326,915,326,.6);
+ document.getElementById('s5b').innerHTML=s;})();
+// 5c today
+(function(){let s='';
+ s+=LN(0,14,915,14,.6)+LN(0,118,915,118,.6)+X(8,66,"L05",{s:12,b:1})+X(8,79,"+18.90");
+ s+=LN(130,0,130,130,6)+`<circle cx="130" cy="66" r="4" fill="#111"/>`+LN(130,66,165,66)+BX(165,50,130,32,[["BLD-G10-SMDB-L05",1,8.5]]);
+ const nm=["BLD-G10-DB-L05-A","BLD-G10-DB-L05-B","BLD-G10-DB-L05-C","BLD-G10-MCC-L05","BLD-G10-UPS-L05"];
+ nm.forEach((n,i)=>{s+=BX(330+i*118,48,105,36,[[n,1,8]]);});
+ s+=LN(295,66,880,66);
+ ["4C 16 mm² · 12 m","4C 16 mm² · 14 m","4C 10 mm² · 10 m","4C 16 mm² · 15 m","4C 10 mm² · 8 m"].forEach((t,i)=>{s+=X(305+i*75,44,t,{s:9});});
+ document.getElementById('s5c0').innerHTML=s;})();
+// 5c proposed
+(function(){let s='';
+ s+=LN(0,6,915,6,.6)+LN(0,272,915,272,.6)+X(8,44,"L05",{s:12,b:1})+X(8,57,"+18.90");
+ s+=LN(130,0,130,280,6)+`<circle cx="130" cy="44" r="4" fill="#111"/>`+LN(130,44,165,44)+BX(165,28,130,32,[["BLD-G10-SMDB-L05",1,8.5]]);
+ s+=LN(295,44,345,44)+LN(345,44,345,44+4*46);
+ const nm=["BLD-G10-DB-L05-A","BLD-G10-DB-L05-B","BLD-G10-DB-L05-C","BLD-G10-MCC-L05","BLD-G10-UPS-L05"],cb=["4C 16 mm² · 12 m","4C 16 mm² · 14 m","4C 10 mm² · 10 m","4C 16 mm² · 15 m","4C 10 mm² · 8 m"];
+ nm.forEach((n,i)=>{const y=44+i*46;s+=LN(345,y,500,y)+X(355,y-5,cb[i],{s:9})+BX(500,y-17,150,34,[[n,1,8.5]]);});
+ s+=PU(335,18,325,4*46+50);
+ document.getElementById('s5c1').innerHTML=s;})();
+
+// 6b table
+(function(){const L=[["GF","G","250 A","4C 120 mm²","18.0","75","60","0.14","23.39"],["L01","L01","160 A","4C 70 mm²","22.5","55","44","0.21","19.61"],["L02","L02","160 A","4C 70 mm²","26.1","55","44","0.24","18.43"],["L03","L03","160 A","4C 70 mm²","29.7","55","44","0.27","17.35"],["L04","L04","160 A","4C 70 mm²","33.3","55","44","0.31","16.38"],["L05","L05","160 A","4C 70 mm²","36.9","55","44","0.34","15.49"],["L06","L06","160 A","4C 70 mm²","40.5","55","44","0.37","14.68"],["L07","L07","160 A","4C 70 mm²","44.1","55","44","0.41","13.94"],["L08","L08","160 A","4C 70 mm²","47.7","55","44","0.44","13.26"],["L09","L09","160 A","4C 70 mm²","51.3","55","44","0.47","12.65"],["L10","L10","160 A","4C 70 mm²","54.9","55","44","0.51","12.08"]];
+ let t='<tr><th>FLOOR</th><th>BOARD</th><th>BREAKER</th><th>CABLE</th><th>LENGTH</th><th>TCL</th><th>DF</th><th>MD</th><th>Vd AT BOARD</th><th>Isc AT BOARD</th></tr>';
+ L.forEach(r=>{t+=`<tr><td>${r[0]}</td><td>BLD-G10-SMDB-${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]} m</td><td>${r[5]} kW</td><td>0.80</td><td>${r[6]} kW</td><td>${r[7]} %</td><td>${r[8]} kA</td></tr>`});
+ document.getElementById('t6b').innerHTML=t;
+ let s='';
+ s+=`<rect x="10" y="50" width="170" height="64" fill="#fff" stroke="#111" stroke-width="1.2"/>`+LN(22,86,168,86,4)+X(172,106,"MDB-1",{s:10,b:1,a:'end'});
+ s+=LN(60,86,60,22)+BR(60,70)+X(76,66,"250 A · 4C 120 mm²")+PU(72,55,102,15)+LN(60,22,215,22)+BX(215,6,150,32,[["BLD-G10-SMDB-G",1,8.5],["400 A"]]);
+ document.getElementById('s6b').innerHTML=s;})();
+// 7b chain
+(function(){const c=[["DB schedules","circuits and their demand factors"],["Each panel's MD form","TCL · DF · MD (L05 SMDB: 55 kW · 0.8 · 44 kW)"],["Busbar riser form","one row per tap-off; total = riser MD 500 kW"],["Busbar riser page","sized from 500 kW: 772.89 A → 800 A breaker → 1000 A copper"],["MDB-1's MD form","one busway line at 500 kW (B4)"],["TCL summary and transformer",""]];
+ const ar='<div style="flex:none;width:34px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 30 12" width="30" height="12"><path d="M2 6h24M21 1.5l5 4.5-5 4.5"/></svg></div>';
+ document.getElementById('chain').innerHTML=c.map(x=>`<div style="flex:1;background:var(--p2);border:1px solid var(--line-strong);border-radius:6px;padding:8px 10px;font-size:12px"><b style="display:block">${x[0]}</b><span class="mut">${x[1]}</span></div>`).join(ar);})();
+// 7c drawing
+(function(){let s='';
+ s+=`<rect x="40" y="150" width="380" height="92" fill="#fff" stroke="#111" stroke-width="1.5"/>`+LN(55,196,400,196,5);
+ s+=X(410,214,"MDB-1",{s:11,b:1,a:'end'})+X(410,227,"1600 A",{a:'end'})+X(410,238,"TCL 1153.97 kW · DF 0.80 · MDL 923.18 kW",{a:'end',s:8})+PU(225,229,190,12);
+ s+=LN(150,196,150,176)+BR(150,170)+X(160,173,"800 A",{b:1});
+ s+=LN(150,165,150,6,6)+X(137,80,"G+10 Main Busbar Riser · 1000 A Cu",{s:8,b:1,a:'middle',r:-90});
+ s+=LN(150,118,190,118)+BX(190,98,270,44,[["TCL 625 kW · DF 0.80 · MD 500 kW",1,9.5],["Ib 772.89 A — 800 A MCCB — busway 1000 A Cu"]])+PU(184,92,282,56);
+ document.getElementById('s7c').innerHTML=s;})();
+// 4c drawing
+(function(){let s='';
+ const fls=[[70,"LEVEL-02","L02","1C 35 mm²"],[210,"LEVEL-01","L01","1C 35 mm²"],[350,"GROUND FLOOR","GF","1C 70 mm²"]];
+ const xl=130,xr=270;
+ // cables
+ s+=`<line x1="${xl}" y1="350" x2="${xl}" y2="${210+8}" stroke="#111" stroke-width="2.2"/>`;
+ s+=`<line x1="${xr}" y1="210" x2="${xr}" y2="${70+8}" stroke="#111" stroke-width="2.2"/>`;
+ s+=`<line x1="${xr}" y1="${350+8}" x2="${xr}" y2="425" stroke="#111" stroke-width="2.2"/>`;
+ fls.forEach(f=>{const y=f[0],g=f[2];
+  s+=`<line x1="8" y1="${y+4}" x2="96" y2="${y+4}" stroke="#111" stroke-width=".5" stroke-dasharray="2 2"/>`+T(8,y-4,f[1],'b');
+  s+=`<rect x="100" y="${y}" width="200" height="8" fill="#111"/>`;
+  [xl,xr].forEach(x=>{s+=`<rect x="${x-6}" y="${y-4}" width="12" height="16" fill="#fff" stroke="#111" stroke-width="1.2"/>`});
+  s+=T(148,y-9,"EB-EL-A-"+g,'b');
+  s+=`<line x1="300" y1="${y+4}" x2="335" y2="${y+4}" stroke="#111"/><rect x="335" y="${y-12}" width="98" height="32" fill="#fff" stroke="#111"/>`+T(384,y,"BLD-G10-SMDB-"+(g=="GF"?"G":g),'mid')+T(384,y+12,f[3],'mid');
+  });
+ s+=T(138,282,"1C 95 mm² G/Y PVC",'')+T(138,293,"EARTH CABLE",'');
+ s+=T(262,142,"1C 95 mm² G/Y PVC",'end')+T(262,153,"EARTH CABLE",'end');
+ s+=`<rect x="225" y="425" width="90" height="26" fill="#fff" stroke="#111" stroke-width="1.5"/>`+T(270,442,"MEB-MDB-1",'mid b');
+ s+=T(262,404,"1C 150 mm² G/Y PVC",'end')+T(262,415,"EARTH CABLE",'end');
+ document.getElementById('s4c').innerHTML=s;})();
+</script>
+<script>document.head.appendChild(document.createElement('style')).textContent = '@page{size:1952px ' + Math.ceil(document.documentElement.scrollHeight) + 'px;margin:0}'</script>
+</body>
+</html>

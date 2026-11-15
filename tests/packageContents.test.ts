@@ -1,14 +1,17 @@
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join, posix, resolve, sep } from 'node:path';
+import { dirname, join, posix, resolve, sep } from 'node:path';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without type declarations
-import { asarFiles, badNoticesIn, LOCALE_FILES, MAC_LANGUAGES, MAC_NOTICES, MAX_ASAR_MB, NOTICES, packageProblems } from '../scripts/check-package.mjs';
+import { asarFiles, badNoticesIn, LOCALE_FILES, LVDS_FILES, MAC_LANGUAGES, MAC_NOTICES, MAX_ASAR_MB, NOTICES, packageProblems } from '../scripts/check-package.mjs';
+// @ts-expect-error — plain ESM script without type declarations
+import { launcherOf, lvdsProblems, mcpSession, shownVersion } from '../scripts/check-packaged-lvds.mjs';
 // @ts-expect-error — plain CommonJS script without type declarations
 import { afterPack, writeNotices } from '../scripts/mac-licences.cjs';
+import { displayVersion } from '../src/model/appVersion';
 
 // What the installed app carries. electron-builder adds production dependencies to the package unless told
 // not to, although they are all compiled into dist and dist-electron. CI lists a real package with
@@ -19,7 +22,7 @@ const pkg = JSON.parse(read('package.json')) as {
   scripts: Record<string, string>;
   dependencies: Record<string, string>;
   overrides: { exceljs: { uuid: string } };
-  build: { files: string[]; electronLanguages: string[]; afterPack: string };
+  build: { files: string[]; electronLanguages: string[]; afterPack: string; extraResources: { from: string; to: string; filter?: string[] }[] };
 };
 
 describe('package filter', () => {
@@ -45,6 +48,19 @@ describe('package filter', () => {
     expect(read('vite.electron.config.ts')).toContain("outDir: 'dist-electron'");
     expect(read('vite.electron.config.ts')).toContain("entryFileNames: 'exceljs.cjs'");
     for (const config of ['vite.config.ts', 'vite.electron.config.ts']) expect(read(config), config).toContain("license: { fileName: 'third-party-licences.md' }");
+  });
+
+  it('carries the lvds command beside the app: the one-file build, its licence texts and a launcher per system', () => {
+    expect(pkg.scripts.build).toContain('vite build -c vite.cli.config.ts');
+    expect(read('vite.cli.config.ts')).toContain("license: { fileName: 'third-party-licences.md' }");
+    expect(pkg.build.extraResources).toContainEqual({ from: 'dist-cli', to: 'lvds', filter: ['lvds.mjs', 'third-party-licences.md'] });
+    expect(pkg.build.extraResources).toContainEqual({ from: 'build/lvds', to: 'lvds' });
+    // Together they are what scripts/check-package.mjs looks for in a real package.
+    expect([...readdirSync(join(root, 'build/lvds')), 'lvds.mjs', 'third-party-licences.md'].sort()).toEqual([...LVDS_FILES].sort());
+    if (process.platform !== 'win32') expect(statSync(join(root, 'build/lvds/lvds')).mode & 0o111).not.toBe(0);
+    // Both launchers run lvds.mjs with the app as Node, so no window opens and no separate Node is needed.
+    for (const launcher of ['build/lvds/lvds', 'build/lvds/lvds.cmd']) expect(read(launcher), launcher).toContain('ELECTRON_RUN_AS_NODE=1');
+    expect(read('build/lvds/lvds.cmd')).toContain('"%~dp0..\\..\\LV Design Studio.exe" "%~dp0lvds.mjs" %*');
   });
 
   it('keeps the compiled libraries in dependencies, so the audit of what ships (scripts/check-audit.mjs) still covers them', () => {
@@ -97,6 +113,109 @@ describe("Electron's licence texts in the Mac app", () => {
       writeFileSync(join(dir, 'LICENSES.chromium.html.gz'), gzipSync('credits'));
       expect(badNoticesIn(dir, ['LICENSES.chromium.html.gz'])).toEqual([]);
     });
+  });
+});
+
+describe.skipIf(process.platform === 'win32')('the lvds launcher of the package (macOS, Linux)', () => {
+  // A stand-in for the app: it prints how it was started.
+  const standIn = '#!/bin/sh\necho "node=$ELECTRON_RUN_AS_NODE"\nfor a in "$@"; do echo "arg=$a"; done\n';
+  const inPackage = (app: string, resources: string, check: (dir: string, launcher: string) => void) => {
+    const dir = mkdtempSync(join(tmpdir(), 'lvds-launcher-'));
+    try {
+      const launcher = join(dir, resources, 'lvds', 'lvds');
+      mkdirSync(dirname(launcher), { recursive: true });
+      copyFileSync(join(root, 'build/lvds/lvds'), launcher);
+      chmodSync(launcher, 0o755);
+      if (app) {
+        mkdirSync(dirname(join(dir, app)), { recursive: true });
+        writeFileSync(join(dir, app), standIn, { mode: 0o755 });
+      }
+      check(dir, launcher);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  };
+  const started = (launcher: string, ...args: string[]) => execFileSync(launcher, args, { encoding: 'utf8' }).trim().split('\n');
+
+  it('on a Mac runs lvds.mjs with the app in Contents/MacOS, as Node', () => {
+    inPackage('LV Design Studio.app/Contents/MacOS/LV Design Studio', 'LV Design Studio.app/Contents/Resources', (dir, launcher) => {
+      expect(started(launcher, 'check', 'My project')).toEqual(['node=1', `arg=${join(dir, 'LV Design Studio.app/Contents/Resources/lvds/lvds.mjs')}`, 'arg=check', 'arg=My project']);
+    });
+  });
+
+  it('on Linux runs it with the program beside resources', () => {
+    inPackage('lv-design-studio', 'resources', (dir, launcher) => {
+      expect(started(launcher, 'mcp')).toEqual(['node=1', `arg=${join(dir, 'resources/lvds/lvds.mjs')}`, 'arg=mcp']);
+    });
+  });
+
+  it('works through a link to it', () => {
+    inPackage('lv-design-studio', 'resources', (dir, launcher) => {
+      mkdirSync(join(dir, 'bin'));
+      symlinkSync(launcher, join(dir, 'bin', 'lvds'));
+      symlinkSync('lvds', join(dir, 'bin', 'lvds2'));
+      for (const link of ['lvds', 'lvds2']) expect(started(join(dir, 'bin', link), 'version'), link).toEqual(['node=1', `arg=${join(dir, 'resources/lvds/lvds.mjs')}`, 'arg=version']);
+    });
+  });
+
+  it('says so when the app is not beside it', () => {
+    inPackage('', 'resources', (_dir, launcher) => {
+      expect(() => execFileSync(launcher, ['version'], { encoding: 'utf8', stdio: 'pipe' })).toThrow(/LV Design Studio was not found/);
+    });
+  });
+});
+
+describe('scripts/check-packaged-lvds.mjs', () => {
+  const tools = Array.from({ length: 21 }, (_, i) => ({ name: `tool_${i}`, annotations: { readOnlyHint: true } }));
+  const config = { mcpServers: { 'lv-design-studio': { command: '/app/LV Design Studio', args: ['/app/resources/lvds/lvds.mjs', 'mcp'], env: { ELECTRON_RUN_AS_NODE: '1' } } } };
+  const clean = () => ({ version: '2.151', expected: '2.151', config, session: { server: { name: 'lv-design-studio', version: '2.151' }, tools, projects: { content: [{ type: 'text', text: '[]' }] } } });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each test breaks one field of a good answer
+  const problems = (change: (p: any) => void) => {
+    const p = clean();
+    change(p);
+    return lvdsProblems(p).join('\n');
+  };
+
+  it('shows the version as the app does, beta builds included', () => {
+    for (const v of ['2.11.0', '2.151.0', '2.150.0-beta.1', '3.0.0']) expect(shownVersion(v), v).toBe(displayVersion(v));
+  });
+
+  it('finds the launcher of each kind of package', () => {
+    expect(launcherOf('release/mac-arm64/LV Design Studio.app', 'darwin')).toBe(join('release/mac-arm64/LV Design Studio.app', 'Contents/Resources', 'lvds', 'lvds'));
+    expect(launcherOf('release/linux-unpacked', 'linux')).toBe(join('release/linux-unpacked', 'resources', 'lvds', 'lvds'));
+    expect(launcherOf('release/win-unpacked', 'win32')).toBe(join('release/win-unpacked', 'resources', 'lvds', 'lvds.cmd'));
+  });
+
+  it('passes a packaged lvds that answers as the app version, read only', () => {
+    expect(lvdsProblems(clean())).toEqual([]);
+  });
+
+  it('finds another version, missing settings, too few tools, a change tool without --write and a failed call', () => {
+    expect(problems((p) => { p.version = '2.146'; })).toContain('lvds version says "2.146", package.json means 2.151');
+    expect(problems((p) => { p.config = {}; p.session = undefined; })).toContain('did not print the settings of the MCP server');
+    expect(problems((p) => { p.session.server.version = '2.146'; })).toContain('not lv-design-studio 2.151');
+    expect(problems((p) => { p.session.tools = tools.slice(0, 3); })).toContain('lists 3 tools');
+    expect(problems((p) => { p.session.tools = [...tools, { name: 'add_panel', annotations: { readOnlyHint: false } }]; })).toContain('offers tools that change a project: add_panel');
+    expect(problems((p) => { p.session.projects = { isError: true, content: [{ type: 'text', text: 'no folder' }] }; })).toContain('list_projects failed');
+  });
+
+  it('talks to an MCP server over its stdin and stdout, and reports one that stops', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lvds-mcp-'));
+    try {
+      // A stand-in server: one JSON message per line, as the MCP stdio transport sends them.
+      writeFileSync(join(dir, 'server.mjs'), `
+        import { createInterface } from 'node:readline';
+        const answers = { initialize: { serverInfo: { name: 'lv-design-studio', version: process.env.SHOWN } }, 'tools/list': { tools: [{ name: 'list_projects' }] }, 'tools/call': { content: [{ type: 'text', text: '[]' }] } };
+        createInterface({ input: process.stdin }).on('line', (line) => {
+          const m = JSON.parse(line);
+          if (m.id) console.log(JSON.stringify({ jsonrpc: '2.0', id: m.id, result: answers[m.method] }));
+        });
+      `);
+      const session = await mcpSession({ command: process.execPath, args: [join(dir, 'server.mjs')], env: { ...process.env, SHOWN: '2.151' } });
+      expect(session).toEqual({ server: { name: 'lv-design-studio', version: '2.151' }, tools: [{ name: 'list_projects' }], projects: { content: [{ type: 'text', text: '[]' }] } });
+      writeFileSync(join(dir, 'stops.mjs'), 'console.error("no projects folder"); process.exit(3);');
+      await expect(mcpSession({ command: process.execPath, args: [join(dir, 'stops.mjs')], env: process.env })).rejects.toThrow(/stopped \(exit 3\) no projects folder/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -174,7 +293,8 @@ describe('scripts/check-package.mjs', () => {
     files: ['package.json', 'dist/index.html', 'dist/third-party-licences.md', 'dist/assets/index-abc.js', 'dist-electron/exceljs.cjs', 'dist-electron/third-party-licences.md', 'electron/main.cjs', 'electron/cad/lvds_cad_reader_bg.wasm'],
     asarMb: 11.6,
     languages: { locales: { found: ['en-US.pak', 'en-GB.pak'], expected: LOCALE_FILES }, framework: { found: ['en_GB.lproj', 'en.lproj'], expected: MAC_LANGUAGES } },
-    badNotices: [] as string[]
+    badNotices: [] as string[],
+    lvds: { found: [...LVDS_FILES] as string[], launcherRuns: true }
   });
   const problems = (change: (p: ReturnType<typeof clean>) => void) => {
     const p = clean();
@@ -205,6 +325,12 @@ describe('scripts/check-package.mjs', () => {
     expect(problems((p) => p.languages.locales.found.push('de.pak'))).toContain('locales should hold only en-GB.pak, en-US.pak');
     expect(problems((p) => { p.languages.locales.found = []; })).toContain('holds 0 files');
     expect(problems((p) => p.languages.framework.found.push('en_FEMININE.lproj'))).toContain('framework should hold only');
+  });
+
+  it('finds the lvds command gone, or its launcher not marked as a program', () => {
+    expect(problems((p) => { p.lvds.found = []; }).split('\n')).toHaveLength(LVDS_FILES.length);
+    expect(problems((p) => { p.lvds.found = p.lvds.found.filter((f) => f !== 'lvds.mjs'); })).toContain('resources/lvds/lvds.mjs is missing: the installed app would be without its lvds command and MCP server');
+    expect(problems((p) => { p.lvds.launcherRuns = false; })).toContain('resources/lvds/lvds is not marked as a program that can be run');
   });
 
   it('finds a licence text gone', () => {
