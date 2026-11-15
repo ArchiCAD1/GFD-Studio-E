@@ -94,7 +94,7 @@ drop while editing.
 <a id="SLD-070"></a>
 ## Edit and reconnect items
 
-- Drag library equipment onto a valid busbar or feeder target.
+- Drag equipment from the equipment strip at the edge of the drawing onto a valid busbar or feeder target, or click it and then click the target. A category symbol opens its list; the pin keeps the list open.
 - Or choose it on the ribbon: **Supply** (transformer, meter cabinet, generator, bus
   coupler) and **Devices** (protection, metering, capacitor bank) pick the same
   library items. Then click the target on the drawing.

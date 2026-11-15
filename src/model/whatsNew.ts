@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.152', date: '2026-11-15',
+    items: [
+      { title: 'SLD: the equipment library is a thin strip', text: 'The equipment library is now a thin strip at the edge of the drawing instead of the side panel\'s Equipment tab: search, your favourites and recent items, then one symbol per category. Click a symbol for its list, then click an item and click the drawing, or drag it. The list closes after a pick; its pin keeps it open. The button at the foot of the strip moves it to the other side. The side panel shows the panels again.' }
+    ]
+  },
+  {
     version: '2.149', date: '2026-11-15',
     items: [
       { title: 'Design CAD: Layout manager', text: 'Output → Layout → Layout manager (LAYOUTMANAGER) lists every layout of the drawing in one place: the drawing file\'s own, the ones made with + and the level\'s plan sheets, each with its paper, what it shows and its page setup. Tick layouts to copy or delete several at once, rename one, move it up or down, or give a named page setup to several plan sheets together. A double-click opens a layout. It is also on a layout tab\'s right-click menu.', action: 'cad' },

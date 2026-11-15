@@ -15,8 +15,11 @@ let root: Root, host: HTMLDivElement;
 beforeEach(() => { localStorage.clear(); host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); });
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; setArmedItem(null); });
 
-const tile = (name: string) => [...document.querySelectorAll<HTMLElement>('.palette-tile')].find((t) => t.querySelector('.palette-tname')?.textContent === name)!;
-const cat = (name: string) => [...document.querySelectorAll<HTMLButtonElement>('.palette-cat')].find((b) => b.textContent === name)!;
+const row = (name: string) => [...document.querySelectorAll<HTMLElement>('.eq-row')].find((t) => t.querySelector('.eq-rname')?.textContent === name)!;
+const catLabel = (b: Element) => b.getAttribute('aria-label')!.replace(/ \(\d+\)$/, '');
+const cat = (name: string) => [...document.querySelectorAll<HTMLButtonElement>('.eq-cat')].find((b) => catLabel(b) === name)!;
+const byLabel = (label: string) => document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+const rowNames = () => [...document.querySelectorAll('.eq-rname')].map((t) => t.textContent);
 const click = (el: Element, init: MouseEventInit = {}) => act(() => { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...init })); });
 
 describe('dropsOn', () => {
@@ -53,56 +56,119 @@ describe('armed item store', () => {
 describe('<EquipmentPalette>', () => {
   const render = (props: Partial<Parameters<typeof EquipmentPalette>[0]> = {}) => {
     const onHint = vi.fn(), onQty = vi.fn();
-    act(() => root.render(<EquipmentPalette docked onHint={onHint} onQty={onQty} {...props} />));
+    act(() => root.render(<EquipmentPalette onHint={onHint} onQty={onQty} {...props} />));
     return { onHint, onQty };
   };
+  const type = (input: HTMLInputElement, value: string) => act(() => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const key = (el: Element, k: string) => act(() => { el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); });
 
-  it('shows category tiles and one category of item tiles at a time', () => {
+  it('has one button per category; each opens its list, another switches, a second click closes', () => {
     render();
-    expect([...document.querySelectorAll('.palette-cat')].map((b) => b.textContent)).toEqual(['Supply', 'Boards', 'Protection', 'Metering', 'Cable', 'Starters', 'Loads', 'Presets', 'My presets', 'Components']);
-    expect(cat('Loads').getAttribute('aria-selected')).toBe('true');
-    expect(tile('Fire pump')).toBeTruthy();
+    expect([...document.querySelectorAll('.eq-cat')].map(catLabel)).toEqual(['Supply', 'Boards', 'Protection', 'Metering', 'Cable', 'Starters', 'Loads', 'Presets', 'My presets', 'Components']);
+    expect(document.querySelector('.eq-list')).toBeNull();
+    click(cat('Loads'));
+    expect(cat('Loads').getAttribute('aria-expanded')).toBe('true');
+    expect(row('Fire pump')).toBeTruthy();
     click(cat('Boards'));
-    const names = [...document.querySelectorAll('.palette-tname')].map((t) => t.textContent);
+    expect(cat('Loads').getAttribute('aria-expanded')).toBe('false');
+    const names = rowNames();
     expect(names).toEqual(expect.arrayContaining(['MDB', 'SMDB', 'DB', 'MCC panel'])); // boards and package panels together
     expect(names).not.toContain('Fire pump');
-    expect(tile('MDB').querySelectorAll('.palette-dots i')).toHaveLength(2); // busbar (under a meter cabinet) or canvas
+    expect(row('MDB').querySelectorAll('.palette-dots i')).toHaveLength(2); // busbar (under a meter cabinet) or canvas
+    click(cat('Boards'));
+    expect(document.querySelector('.eq-list')).toBeNull();
   });
 
-  it('click arms an item, a second click or Esc disarms it; shift-click arms × 3', () => {
+  it('click arms an item and closes the list; the lit recent item or Esc disarms; shift-click arms × 3', () => {
     const { onHint, onQty } = render();
-    click(tile('AHU'));
+    click(cat('Loads'));
+    click(row('AHU'));
     expect(getArmedItem()).toEqual({ kind: 'load', preset: 'ahu' });
-    expect(tile('AHU').getAttribute('aria-pressed')).toBe('true');
+    expect(document.querySelector('.eq-list')).toBeNull();
+    expect(document.querySelector('.eq-placing')?.textContent).toContain('AHU');
     expect(onQty).toHaveBeenLastCalledWith(1);
     expect(onHint).toHaveBeenLastCalledWith(expect.stringContaining('click a busbar'));
-    click(tile('AHU'));
+    click(document.querySelector('.eq-recent .eq-mini.armed')!);
     expect(getArmedItem()).toBeNull();
-    click(tile('Chiller'), { shiftKey: true });
+    click(cat('Loads'));
+    click(row('Chiller'), { shiftKey: true });
     expect(onQty).toHaveBeenLastCalledWith(3);
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
     expect(getArmedItem()).toBeNull();
     expect(onQty).toHaveBeenLastCalledWith(1);
   });
 
-  it('pins favourites and recently used items in a strip', () => {
+  it('keeps the list open after a pick when pinned', () => {
     render();
-    expect(document.querySelector('.palette-strip')).toBeNull();
-    click(tile('EV charger').querySelector('.fav')!);
-    click(tile('Lighting'));
-    expect(document.querySelectorAll('.palette-strip .palette-mini')).toHaveLength(2);
-    expect(document.querySelectorAll('.palette-strip .palette-mini-fav')).toHaveLength(1);
+    click(cat('Loads'));
+    click(document.querySelector('.eq-lhead button[aria-pressed]')!);
+    expect(localStorage.getItem('palette.pin')).toBe('true');
+    click(row('AHU'));
+    expect(getArmedItem()).not.toBeNull();
+    expect(document.querySelector('.eq-list')).not.toBeNull();
   });
 
-  it('search lists matches from every category', () => {
+  it('a pick clears the hover card; Esc on a category button closes its list', () => {
     render();
-    const input = document.querySelector<HTMLInputElement>('.palette-search')!;
-    act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'rcd');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    expect(document.querySelector('.palette-cats')).toBeNull();
-    expect([...document.querySelectorAll('.palette-tname')].map((t) => t.textContent)).toContain('Earth leakage (RCD)');
+    click(cat('Loads'));
+    act(() => { row('AHU').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); });
+    expect(document.querySelector('.palette-tipcard')).not.toBeNull();
+    click(row('AHU'));
+    expect(document.querySelector('.palette-tipcard')).toBeNull(); // the row is gone before it could see the mouse leave
+    act(() => setArmedItem(null));
+    click(cat('Boards'));
+    key(cat('Boards'), 'Escape');
+    expect(document.querySelector('.eq-list')).toBeNull();
+  });
+
+  it('pins favourites and recently used items in the strip', () => {
+    render();
+    expect(document.querySelector('.eq-recent')).toBeNull();
+    click(cat('Loads'));
+    click(row('EV charger').querySelector('.fav')!);
+    click(row('Lighting'));
+    expect(document.querySelectorAll('.eq-recent .eq-mini')).toHaveLength(2);
+    expect(document.querySelectorAll('.eq-recent .eq-mini-fav')).toHaveLength(1);
+  });
+
+  it('search lists matches from every category; Esc clears the query, then closes', () => {
+    render();
+    click(byLabel('Search the equipment library'));
+    const input = document.querySelector<HTMLInputElement>('.eq-list .palette-search')!;
+    expect(input).toBeTruthy();
+    type(input, 'rcd');
+    expect(rowNames()).toContain('Earth leakage (RCD)');
+    key(input, 'Escape');
+    expect(document.querySelector<HTMLInputElement>('.eq-list .palette-search')!.value).toBe('');
+    key(document.querySelector('.eq-list .palette-search')!, 'Escape');
+    expect(document.querySelector('.eq-list')).toBeNull();
+  });
+
+  it('moves to the other side, hides and shows again', () => {
+    render();
+    expect(document.querySelector('.eq-strip.right')).toBeNull();
+    click(byLabel('Move the strip to the right of the drawing'));
+    expect(document.querySelector('.eq-strip.right')).not.toBeNull();
+    expect(localStorage.getItem('palette.side')).toBe('"right"');
+    click(byLabel('Hide the equipment strip'));
+    expect(document.querySelector('.eq-rail')).toBeNull();
+    click(byLabel('Show the equipment strip'));
+    expect(document.querySelector('.eq-rail')).not.toBeNull();
+  });
+
+  it('closes an unpinned list on a click outside, but not a pinned one', () => {
+    render();
+    const outside = () => act(() => { document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); });
+    click(cat('Loads'));
+    outside();
+    expect(document.querySelector('.eq-list')).toBeNull();
+    click(cat('Loads'));
+    click(document.querySelector('.eq-lhead button[aria-pressed]')!);
+    outside();
+    expect(document.querySelector('.eq-list')).not.toBeNull();
   });
 });
 
