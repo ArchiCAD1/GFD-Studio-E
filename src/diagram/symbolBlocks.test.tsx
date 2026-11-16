@@ -21,7 +21,7 @@ function expand(ins: Insert): DxfPrimitive[] {
   const at = (x: number, y: number): Pt => [ins.x + k * (x * c - y * s), ins.y + k * (x * s + y * c)];
   return ins.block.items.map((i): DxfPrimitive => {
     if (i.type === 'line') { const [x1, y1] = at(i.x1, i.y1), [x2, y2] = at(i.x2, i.y2); return { ...i, x1, y1, x2, y2 }; }
-    if (i.type === 'polyline') return { ...i, points: i.points.map(([x, y]) => at(x, y)) };
+    if (i.type === 'polyline' || i.type === 'solid') return { ...i, points: i.points.map(([x, y]) => at(x, y)) };
     if (i.type === 'circle') { const [x, y] = at(i.x, i.y); return { ...i, x, y, r: i.r * k }; }
     if (i.type === 'text') { const [x, y] = at(i.x, i.y); const { rotation: _r, ...rest } = i; const turn = (i.rotation ?? 0) + (ins.rotation ?? 0); return { ...rest, x, y, height: i.height * k, ...(Math.abs(turn) > 0.5 ? { rotation: turn } : {}) }; }
     return i;
@@ -76,6 +76,32 @@ describe('library symbols as CAD blocks', () => {
     }
     const text = (id: SymbolId) => inserts(svgToDxf(`<svg xmlns="http://www.w3.org/2000/svg">${symSvg(id, 0, 0, sc)}</svg>`, 0))[0].block.items.filter((i) => i.type === 'text');
     expect(text('shunt').length).toBeGreaterThan(0);
+  });
+
+  it('writes the black fills of a board symbol as SOLIDs in its block, and none for an unfilled pattern', () => {
+    const solids = (id: SymbolId, ex = false) => inserts(svgToDxf(`<svg xmlns="http://www.w3.org/2000/svg">${symSvg(id, 0, 0, 0.6, false, ex)}</svg>`, 0))[0].block.items.filter((i) => i.type === 'solid');
+    const want: [SymbolId, number][] = [['p-smdb', 1], ['p-mcc', 1], ['p-esmdb', 2], ['p-emcc', 2], ['p-emdb', 2], ['p-mdb', 1], ['p-db', 0], ['p-edb', 0], ['p-fp', 0]];
+    for (const [id, n] of want) expect(solids(id).length, id).toBe(n);
+    for (const i of solids('p-esmdb')) expect((i as Extract<DxfPrimitive, { type: 'solid' }>).points).toHaveLength(3);
+    expect((solids('p-mcc')[0] as Extract<DxfPrimitive, { type: 'solid' }>).points).toHaveLength(4);
+    expect(solids('p-smdb', true)).toHaveLength(1); // an existing board keeps its fills
+    const dxf = toDxf(svgToDxf(`<svg xmlns="http://www.w3.org/2000/svg">${symSvg('p-esmdb', 0, 0, 0.6)}</svg>`, 0));
+    expect(count(dxf, '\r\nSOLID\r\n')).toBe(2);
+    // The extent covers the whole 50 × 25 outline.
+    const [ins] = inserts(svgToDxf(`<svg xmlns="http://www.w3.org/2000/svg">${symSvg('p-smdb', 0, 0, 0.6)}</svg>`, 0));
+    expect(ins.extent![1][0] - ins.extent![0][0]).toBeGreaterThanOrEqual(30 - 0.01);
+  });
+
+  it('writes an existing board symbol as its own -EX block with a dashed outline', () => {
+    const block = (ex: boolean) => inserts(svgToDxf(`<svg xmlns="http://www.w3.org/2000/svg">${symSvg('p-smdb', 0, 0, 0.6, false, ex)}</svg>`, 0))[0];
+    const [plain, old] = [block(false), block(true)];
+    expect(plain.name).toBe('LV-P-SMDB-60');
+    expect(old.name).toBe('LV-P-SMDB-60-EX');
+    const closed = (b: Insert) => b.block.items.filter((i) => i.type === 'polyline' && i.closed).length;
+    const lines = (b: Insert) => b.block.items.filter((i) => i.type === 'polyline' || i.type === 'line').length;
+    expect(closed(plain)).toBeGreaterThanOrEqual(1); // the outline is one closed polyline
+    expect(closed(old)).toBe(0); // dashed: drawn as pieces
+    expect(lines(old)).toBeGreaterThan(lines(plain));
   });
 
   it('keeps dash pieces in the block and the insert extent covers it', () => {

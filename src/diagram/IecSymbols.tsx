@@ -4,9 +4,9 @@ import { isMotor } from '../calc/motor';
 import { isScheduleCircuit } from '../calc/loadSchedule';
 import { cableTypeDef, cableTypeOf, labelCode } from '../model/cableTypes';
 import { DEFAULT_CABLE_TYPE, incomerDeviceOf } from '../types';
-import { Sym, SYM_SCALE, SYMBOLS, type SymbolId } from './symbolLibrary';
+import { PANEL_SYMBOL_IDS, Sym, SYM_SCALE, SYMBOLS, type SymbolId } from './symbolLibrary';
 import { sldDevices } from './sldDevices';
-import { boxedBoardIds, hiddenBoardIds, panelSymbolOf } from './panelBox';
+import { boardSymbolOf, hiddenBoardIds, symbolBoardIds } from './panelBox';
 
 /** IEC 60617 symbols for the single line diagram, drawn with the diagram's
  * own classes (.ln lines, .sym filled shapes) so they follow the theme and
@@ -79,6 +79,7 @@ export function legendEntries(project: Project): LegendEntry[] {
   const hidden = hiddenBoardIds(project);
   const drawn = project.feeders.filter((f) => !isScheduleCircuit(f) && !hidden.has(f.boardId));
   const shown = project.boards.filter((b) => !hidden.has(b.id));
+  const symbolIds = symbolBoardIds(project);
   const loads = drawn.filter((f) => !f.feedsBoardId);
   const types = new Set<string>(loads.map((f) => (isMotor(f) ? 'motor' : f.loadType ?? (f.generation ? 'pv' : 'general'))));
   const has = (k: SwitchKind) => drawn.some((f) => switchKindOf(f) === k);
@@ -88,6 +89,10 @@ export function legendEntries(project: Project): LegendEntry[] {
   if (shown.some((b) => b.standby)) add('gen', 'Standby generator', (x, y) => <Sym id="gen" x={x} y={y} s={SYM_SCALE.legend} />);
   if (shown.some((b) => b.standby && b.standby.changeover !== 'ACB')) add('ats', 'Automatic transfer switch (ATS), 4P switched neutral', (x, y) => <Sym id="ats" x={x} y={y} s={SYM_SCALE.legend} />);
   add('bus', 'Busbar', (x, y) => <line x1={x - 12} y1={y} x2={x + 12} y2={y} className="bus" />);
+  const ends = project.boards.filter((b) => symbolIds.has(b.id));
+  const kinds = new Set(ends.map((b) => boardSymbolOf(project, b)));
+  for (const id of PANEL_SYMBOL_IDS) if (kinds.has(id)) add(id, SYMBOLS[id].label, (x, y) => <Sym id={id} x={x} y={y} s={SYM_SCALE.legend} />);
+  if (ends.some((b) => b.existing)) add('existing-board', 'Existing board: dashed outline', (x, y) => <Sym id="p-db" x={x} y={y} s={SYM_SCALE.legend} existing />);
   if (shown.some((b) => b.existing) || project.feeders.some((f) => f.existing)) add('existing', 'EXISTING: already installed, not in the BOQ', (x, y) => (
     <line x1={x - 12} y1={y} x2={x + 12} y2={y} className="ln" style={{ strokeDasharray: '5 3' }} />
   ));
@@ -139,9 +144,6 @@ export function legendEntries(project: Project): LegendEntry[] {
   if (types.has('sockets')) add('so', 'Socket outlets', (x, y) => <LoadSym x={x} y={y} type="sockets" s={SYM_SCALE.legend} />);
   if (types.has('capacitor')) add('cap', 'Capacitor bank', (x, y) => <LoadSym x={x} y={y} type="capacitor" s={SYM_SCALE.legend} />);
   if (types.has('pv')) add('pv', 'Solar PV / generation', (x, y) => <LoadSym x={x} y={y} type="pv" s={SYM_SCALE.legend} />);
-  const boxed = boxedBoardIds(project);
-  const panels = new Set(project.boards.filter((b) => boxed.has(b.id)).map((b) => panelSymbolOf(project, b)!));
-  for (const id of panels) add(id, `${SYMBOLS[id].label}, drawn as one box`, (x, y) => <Sym id={id} x={x} y={y} s={SYM_SCALE.legend} />);
   const EQUIP: [LoadType, string][] = [['hvac', 'HVAC equipment (AC)'], ['ev', 'EV charger (EV)'], ['it', 'IT / data (IT)'], ['general', 'Other load (L)']];
   for (const [t, label] of EQUIP) if (types.has(t)) add(`eq-${t}`, label, (x, y) => <LoadSym x={x} y={y} type={t} s={SYM_SCALE.legend} />);
   return out;

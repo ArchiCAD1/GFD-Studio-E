@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import SystemDiagram from './SystemDiagram';
 import { sampleProject } from '../data/sampleProject';
 import type { Board, Feeder, Project } from '../types';
 import { textWidth } from '../diagram/panelLabels';
+import { printableSvg } from '../diagram/exportSvg';
 
 const noop = () => {};
 const draw = (project: Project) => {
@@ -22,28 +23,72 @@ const n = (el: Element, a: string) => Number(el.getAttribute(a));
 const board = (host: HTMLElement, id: string) => host.querySelector<SVGGElement>(`g.bd[data-lv-id="board:${id}"]`)!;
 const texts = (g: Element) => [...g.querySelectorAll('text')].map((t) => t.textContent);
 
+/** The board symbol of a board: its group, the outline, the centre x and where its lead-in starts (the symbol's top). */
+const symOf = (g: Element) => {
+  const el = g.querySelector<SVGGElement>('.board-sym g.iec[data-sym]')!;
+  const outline = el.querySelector<SVGRectElement>('rect')!;
+  return { el, id: el.getAttribute('data-sym'), outline, x: n(el, 'data-sym-x'), top: n(el, 'data-sym-y') - 16 * n(el, 'data-sym-s') };
+};
+
 describe('SLD board with no outgoing ways', () => {
   for (const style of ['dewa', 'standard'] as const) {
     it(`ends the incomer on a board symbol with its name, kind and tags beside it (${style})`, () => {
       const host = draw(project([root('MDB-6')], [], style));
       const g = board(host, 'MDB-6');
-      const sym = g.querySelector<SVGRectElement>('.board-sym rect.box')!;
-      const x = n(sym, 'x') + n(sym, 'width') / 2;
-      const bottom = n(sym, 'y') + n(sym, 'height');
-      // The incomer comes down onto the symbol's top; nothing hangs below it.
-      const incomer = [...host.querySelectorAll<SVGLineElement>('g.tx line.ln')].filter((l) => n(l, 'x1') === x && n(l, 'x2') === x);
-      expect(Math.max(...incomer.map((l) => n(l, 'y2')))).toBe(n(sym, 'y'));
+      const sym = symOf(g);
+      const bottom = n(sym.outline, 'y') + n(sym.outline, 'height');
+      expect(sym.id).toBe('p-mdb');
+      // The outline is 2:1.
+      expect(n(sym.outline, 'width') / n(sym.outline, 'height')).toBeCloseTo(2, 1);
+      // The incomer comes down to where the symbol's lead-in starts; nothing hangs below the symbol.
+      const incomer = [...host.querySelectorAll<SVGLineElement>('g.tx line.ln')].filter((l) => n(l, 'x1') === sym.x && n(l, 'x2') === sym.x);
+      expect(Math.max(...incomer.map((l) => n(l, 'y2')))).toBe(sym.top);
       for (const l of g.querySelectorAll<SVGLineElement>(':scope > line')) expect(n(l, 'y1')).toBeLessThan(bottom);
-      // Busbar and two ways inside the enclosure.
-      expect(g.querySelectorAll('.board-sym path').length).toBe(1);
+      // No square, busbar or marks of its own: the symbol is the whole drawing.
+      expect(g.querySelector('.board-sym rect.box')).toBeNull();
+      expect(g.querySelectorAll('.board-sym > path, .board-sym > line').length).toBe(0);
       expect(texts(g)).toEqual(expect.arrayContaining(['MDB-6', 'MDB', 'NO OUTGOING WAYS']));
       // Every text is right of the symbol, none inside it.
       for (const t of g.querySelectorAll<SVGTextElement>('text')) {
-        if (t.closest('.acc')) continue; // the incomer device label, on the line above
-        expect(n(t, 'x')).toBeGreaterThan(x + n(sym, 'width') / 2);
+        if (t.closest('.acc') || t.closest('.iec')) continue; // the incomer device label, on the line above
+        expect(n(t, 'x')).toBeGreaterThan(sym.x + n(sym.outline, 'width') / 2);
       }
     });
   }
+
+  it('draws the symbol of its kind', () => {
+    const kinds: [string, string][] = [['DB', 'p-db'], ['MCC', 'p-mcc'], ['FP', 'p-fp'], ['UPS', 'p-ups'], ['MC', 'p-mc'], ['MDB', 'p-mdb'], ['EMDB', 'p-emdb']];
+    const host = draw(project(kinds.map(([kind]) => root(`${kind}-1`, { kind: kind as Board['kind'] }))));
+    for (const [kind, id] of kinds) expect(symOf(board(host, `${kind}-1`)).id, kind).toBe(id);
+  });
+
+  it('draws an existing board with a dashed outline', () => {
+    const host = draw(project([root('DB-1', { kind: 'DB', existing: { recordedKva: 20 } })]));
+    const sym = symOf(board(host, 'DB-1'));
+    expect(sym.el.getAttribute('data-sym-ex')).toBe('1');
+    expect(sym.outline.getAttribute('style')).toContain('stroke-dasharray');
+  });
+
+  it('puts the status dot right of the name, outside the symbol', () => {
+    const host = draw(project([root('MDB-6')]));
+    const g = board(host, 'MDB-6');
+    const dot = g.querySelector<SVGCircleElement>('.board-sym circle.status-dot')!;
+    const name = [...g.querySelectorAll<SVGTextElement>('.board-sym text')].find((t) => t.textContent === 'MDB-6')!;
+    expect(n(dot, 'cx')).toBeGreaterThan(n(name, 'x') + textWidth('MDB-6', 12, true));
+    expect(g.querySelector('.board-sym g.iec circle')).toBeNull();
+  });
+
+  it('prints no status dot, so no green dot on the sheet', () => {
+    vi.stubGlobal('SVGTextElement', class {}); // not in jsdom
+    const host = draw(project([root('MDB-6')]));
+    document.body.appendChild(host);
+    const live = host.querySelector('.board-sym')!.closest('svg')!;
+    const out = printableSvg(live, 100, 50);
+    host.remove();
+    const doc = new DOMParser().parseFromString(out, 'text/html'); // jsdom writes xmlns twice, which XML refuses
+    expect(doc.querySelector('.board-sym')).not.toBeNull();
+    expect(doc.querySelector('.board-sym circle')).toBeNull();
+  });
 
   it('frames it with a dashed panel frame in DEWA style, holding the incomer, voltage label and MET, pits outside', () => {
     const host = draw(project([root('MDB-6'), root('MDB-7')]));
@@ -51,11 +96,11 @@ describe('SLD board with no outgoing ways', () => {
     const [x1, y1] = [n(frame, 'x'), n(frame, 'y')], [x2, y2] = [x1 + n(frame, 'width'), y1 + n(frame, 'height')];
     const inside = (x: number, y: number) => x > x1 && x < x2 && y > y1 && y < y2;
     const g = board(host, 'MDB-7');
-    const sym = g.querySelector<SVGRectElement>('.board-sym rect.box')!;
-    expect(inside(n(sym, 'x'), n(sym, 'y'))).toBe(true);
-    expect(inside(n(sym, 'x') + n(sym, 'width'), n(sym, 'y') + n(sym, 'height'))).toBe(true);
+    const sym = symOf(g);
+    expect(inside(n(sym.outline, 'x'), n(sym.outline, 'y'))).toBe(true);
+    expect(inside(n(sym.outline, 'x') + n(sym.outline, 'width'), n(sym.outline, 'y') + n(sym.outline, 'height'))).toBe(true);
     for (const t of g.querySelectorAll<SVGTextElement>('text')) expect(inside(n(t, 'x') + textWidth(t.textContent!, 11, true), n(t, 'y'))).toBe(true);
-    const x = n(sym, 'x') + n(sym, 'width') / 2;
+    const x = sym.x;
     const volt = [...host.querySelectorAll<SVGTextElement>('g.tx text.m')].find((t) => / V$/.test(t.textContent ?? '') && n(t, 'x') === x - 8)!;
     expect(inside(n(volt, 'x') - textWidth(volt.textContent!, 11), n(volt, 'y') - 10)).toBe(true);
     const earth = host.querySelector('.earth-pit[data-board-id="MDB-7"]')!;
@@ -78,17 +123,10 @@ describe('SLD board with no outgoing ways', () => {
     expect(g.querySelector('.sched text')!.textContent).toMatch(/^2 circuits/);
   });
 
-  it('draws a DB with one way and a package panel with its control rows', () => {
-    const host = draw(project([root('DB-1', { kind: 'DB' }), root('MCC-1', { kind: 'MCC' })]));
-    expect(board(host, 'DB-1').querySelector('.board-sym > line:not([style])')).not.toBeNull();
-    expect(board(host, 'DB-1').querySelector('.board-sym path')).toBeNull();
-    expect(board(host, 'MCC-1').querySelector('.board-sym path')!.getAttribute('d')).toMatch(/H.*M.*H/);
-  });
-
   it('keeps each transformer\'s LV earth detail by its own incomer, clear of the previous incomer\'s labels', () => {
     for (const style of ['dewa', 'standard'] as const) {
       const host = draw(project([root('MDB-6'), root('MDB-7'), root('MDB-8')], [], style));
-      const xs = ['MDB-6', 'MDB-7', 'MDB-8'].map((id) => { const r = board(host, id).querySelector('.board-sym rect.box')!; return n(r, 'x') + n(r, 'width') / 2; });
+      const xs = ['MDB-6', 'MDB-7', 'MDB-8'].map((id) => symOf(board(host, id)).x);
       const devs = [...host.querySelectorAll<SVGTextElement>('text.dev')];
       for (let i = 1; i < 3; i++) {
         const earth = host.querySelector(`.earth-pit[data-board-id="MDB-${6 + i}"]`)!;

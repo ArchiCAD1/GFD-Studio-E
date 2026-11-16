@@ -114,6 +114,21 @@ describe('SVG to CAD export geometry', () => {
     }
   });
 
+  it('writes black-filled rects, polygons and 3 or 4 corner paths as SOLIDs, and leaves other fills alone', () => {
+    const solids = (svg: string) => svgToDxf(svg, 100).filter((i): i is Extract<DxfPrimitive, { type: 'solid' }> => i.type === 'solid');
+    expect(solids('<svg><rect x="0" y="0" width="10" height="5" fill="#000"/></svg>')[0].points).toEqual([[0, 100], [10, 100], [10, 95], [0, 95]]);
+    expect(solids('<svg><rect x="0" y="0" width="10" height="5" style="fill:rgb(0, 0, 0);stroke:none"/></svg>')).toHaveLength(1); // no stroke: still filled
+    expect(solids('<svg><polygon points="0,0 10,0 5,8" fill="#000000"/></svg>')[0].points).toHaveLength(3);
+    // A path closed by Z or by repeating its first point; each closed run of 3 or 4 corners is one SOLID.
+    expect(solids('<svg><path d="M0 0L10 0L0 8Z" fill="#000"/></svg>')[0].points).toEqual([[0, 100], [10, 100], [0, 92]]);
+    expect(solids('<svg><path d="M0 0L10 0L10 5L0 5L0 0" fill="#000"/></svg>')[0].points).toHaveLength(4);
+    expect(solids('<svg><path d="M0 0L10 0L10 5L0 5L0 2Z M20 0L30 0L20 8Z" fill="#000"/></svg>')).toHaveLength(1); // five corners: left as an outline
+    for (const other of ['#fff', 'none', '#ff0000', 'rgb(255, 255, 255)']) expect(solids(`<svg><rect x="0" y="0" width="10" height="5" fill="${other}"/></svg>`), other).toHaveLength(0);
+    // The outline stays as it is today.
+    expect(svgToDxf('<svg><rect x="0" y="0" width="10" height="5" fill="#000" stroke="#000"/></svg>', 100).map((i) => i.type)).toEqual(['solid', 'polyline']);
+    expect(svgToDxf('<svg><rect x="0" y="0" width="10" height="5" fill="#fff" stroke="#000"/></svg>', 100).map((i) => i.type)).toEqual(['polyline']);
+  });
+
   it.each([false, true])('constrains adjacent feeder labels and clears glands/CT meters (references %s)', (refs) => {
     const markup = renderToStaticMarkup(<SystemDiagram project={dxfExportProject} results={[]} selectedFeederId={null} selectedBoardId={null} onSelectFeeder={noop} onSelectBoard={noop} cableRefs={refs} />);
     const doc = new DOMParser().parseFromString(markup, 'text/xml');
