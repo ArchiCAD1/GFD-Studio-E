@@ -78,6 +78,17 @@ describe('SLD board with no outgoing ways', () => {
     expect(g.querySelector('.board-sym g.iec circle')).toBeNull();
   });
 
+  it('keeps a boxed board\'s status dot clear of its wider symbol', () => {
+    const db: Board = { id: 'DB-1', name: 'DB-1', kind: 'DB', upstreamId: 'MDB-6', ratedCurrentA: 100 };
+    const f: Feeder = { ...sampleProject.feeders[0], id: 'F-DB-1', boardId: 'MDB-6', feedsBoardId: 'DB-1', way: 1 };
+    const host = draw(project([root('MDB-6'), db], [f]));
+    const way = host.querySelector('g.fd[data-lv-id="feeder:F-DB-1"]')!;
+    const sym = way.querySelector<SVGGElement>('g.iec[data-sym="p-db"]')!;
+    const right = n(sym, 'data-sym-x') + 25 * n(sym, 'data-sym-s');
+    const dot = way.querySelector<SVGCircleElement>('circle.status-dot')!;
+    expect(n(dot, 'cx') - n(dot, 'r')).toBeGreaterThan(right);
+  });
+
   it('prints no status dot, so no green dot on the sheet', () => {
     vi.stubGlobal('SVGTextElement', class {}); // not in jsdom
     const host = draw(project([root('MDB-6')]));

@@ -7,7 +7,6 @@ import { buildFormWorkbook } from './formWorkbook';
 import { roleOf } from '../model/emergency';
 import { scheduleGroupOf } from '../model/scheduleGroups';
 import { needsFireRated } from '../model/cableTypes';
-import { leafSymbol } from '../diagram/feederRiserLayout';
 import { boardSymbolOf, panelSymbolOf } from '../diagram/panelBox';
 
 /** The DEWA submission table: which form each panel type gets. */
@@ -58,7 +57,6 @@ describe('submission forms by panel type', () => {
     expect(scheduleGroupOf(project, b('ACB'))).toBe('mdb');
     expect(needsFireRated(project, project.feeders.find((f) => f.id === 'I-FP')!)).toBe(true); // into the fire pump panel
     expect(needsFireRated(project, project.feeders.find((f) => f.id === 'I-ESMDB')!)).toBe(true); // from the LV EMDB
-    expect(leafSymbol('FP')).toBe('mcc');
     expect(panelSymbolOf(project, b('ACB'))).toBe('p-mdb');
     expect(panelSymbolOf(project, b('LVE'))).toBe('p-emdb');
     expect(panelSymbolOf(project, b('FP'))).toBeUndefined();

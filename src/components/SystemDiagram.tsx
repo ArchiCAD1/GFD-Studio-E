@@ -1466,7 +1466,7 @@ export default function SystemDiagram({
                   {feederTags(f.id).map((t, i) => (
                     <text key={t.text} x={n.x} y={y + 177 + (panelPlace ? 13 : 0) + i * 13} textAnchor="middle" className={`res ${t.cls}`}>{t.text}</text>
                   ))}
-                  <circle cx={n.x + 22} cy={y + 78} r="4" className="status-dot" style={{ fill: `var(--${status})` }} />
+                  <circle cx={n.x + (panel && sym ? 30 : 22)} cy={y + 78} r="4" className="status-dot" style={{ fill: `var(--${status})` }} />
                 </>
                 );
               })()}

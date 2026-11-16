@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.164', date: '2026-11-16',
+    items: [
+      { title: 'SLD: board symbols that show the kind of board', text: 'A board at the end of a feeder is now drawn as a 2:1 symbol whose pattern tells its kind: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, the top half filled for an MCC and a second frame for a main board. The risers, the Board tab, the legend and the equipment strip use the same symbols, existing boards are drawn dashed, and printed sheets no longer show the green check dot.' }
+    ]
+  },
+  {
     version: '2.163', date: '2026-11-16',
     items: [
       { title: 'Design CAD: right-click menus stay inside the drawing', text: 'A right-click near the bottom or right edge of the drawing now opens the menu upward or to the left, so every entry can be reached; a menu taller than the drawing scrolls. A list opens beside its row, and to the left at the right edge.', action: 'cad', actionLabel: 'Open Design CAD' }
