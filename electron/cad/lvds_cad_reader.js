@@ -153,6 +153,69 @@ export class CadDoc {
         }
     }
     /**
+     * Every object of `kind` (ObjInfo `kind`, e.g. "Line", "Block") on layer index `layer`, shown and not erased, as JSON
+     * {objects: [ObjInfo with its id], truncated}; for a block also the same block name (`block`, "" otherwise). At most
+     * 20 000 objects. For Select similar.
+     * @param {string} kind
+     * @param {number} layer
+     * @param {string} block
+     * @param {Uint8Array} layers_on
+     * @returns {string}
+     */
+    pick_like(kind, layer, block, layers_on) {
+        let deferred4_0;
+        let deferred4_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+            const len0 = WASM_VECTOR_LEN;
+            const ptr1 = passStringToWasm0(block, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+            const len1 = WASM_VECTOR_LEN;
+            const ptr2 = passArray8ToWasm0(layers_on, wasm.__wbindgen_export2);
+            const len2 = WASM_VECTOR_LEN;
+            wasm.caddoc_pick_like(retptr, this.__wbg_ptr, ptr0, len0, layer, ptr1, len1, ptr2, len2);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred4_0 = r0;
+            deferred4_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export(deferred4_0, deferred4_1, 1);
+        }
+    }
+    /**
+     * The objects inside (window) or touching (crossing) the rectangle with corners (x0, y0), (x1, y1) in any order, on
+     * shown layers and not erased, as JSON {objects: [ObjInfo with its id], truncated}. Window: every drawn segment and
+     * text box of the object lies inside; crossing: any segment or text box meets the rectangle. A block insert is one
+     * object. At most 20 000 objects. The grid finds the candidates, so a small box on a big drawing stays fast.
+     * @param {number} x0
+     * @param {number} y0
+     * @param {number} x1
+     * @param {number} y1
+     * @param {boolean} crossing
+     * @param {Uint8Array} layers_on
+     * @returns {string}
+     */
+    pick_window(x0, y0, x1, y1, crossing, layers_on) {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray8ToWasm0(layers_on, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.caddoc_pick_window(retptr, this.__wbg_ptr, x0, y0, x1, y1, crossing, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred2_0 = r0;
+            deferred2_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
      * Colour of each segment: 0xRRGGBB, or 0xFF000007 for the foreground (index 7).
      * @returns {Uint32Array}
      */

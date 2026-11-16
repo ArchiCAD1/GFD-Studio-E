@@ -23,7 +23,7 @@ type V3 = [number, number, number];
 
 /** The style of an exploded piece: its layer, and its colour (0xRRGGBB, or 0xFF000007 for the foreground) and linetype
  * where they differ from its layer's. */
-export interface PieceStyle { layer: string; color?: number; lt?: string }
+export interface PieceStyle { layer: string; color?: number; lt?: string; /** Lineweight in hundredths of a mm, when set on the entity itself. */ lw?: number }
 /** One piece of an exploded drawing object, in world coordinates (engines/cad-reader/src/doc/explode.rs). Arcs run
  * anticlockwise a0 → a1 (radians); polyline vertices are [x, y, bulge]. */
 export type CadPiece = PieceStyle & (

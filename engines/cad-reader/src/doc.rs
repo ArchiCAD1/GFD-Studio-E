@@ -775,6 +775,69 @@ impl CadDoc {
         v.to_string()
     }
 
+    /// The objects inside (window) or touching (crossing) the rectangle with corners (x0, y0), (x1, y1) in any order, on
+    /// shown layers and not erased, as JSON {objects: [ObjInfo with its id], truncated}. Window: every drawn segment and
+    /// text box of the object lies inside; crossing: any segment or text box meets the rectangle. A block insert is one
+    /// object. At most 20 000 objects. The grid finds the candidates, so a small box on a big drawing stays fast.
+    pub fn pick_window(&self, x0: f64, y0: f64, x1: f64, y1: f64, crossing: bool, layers_on: &[u8]) -> String {
+        const MAX: usize = 20_000;
+        let on = |l: u16| layers_on.get(l as usize).map_or(true, |v| *v != 0);
+        let (rx0, rx1, ry0, ry1) = (x0.min(x1), x0.max(x1), y0.min(y1), y0.max(y1));
+        let inside = |x: f64, y: f64| x >= rx0 && x <= rx1 && y >= ry0 && y <= ry1;
+        let boxes = |t: &TextItem| -> [(f64, f64); 4] {
+            let w = if t.w > 0.0 { t.w } else { CHAR_W * t.h * t.s.chars().count() as f64 };
+            let l = match t.align { 1 => -w / 2.0, 2 => -w, _ => 0.0 };
+            let (sin, cos) = t.rot.sin_cos();
+            [(l, 0.0), (l + w, 0.0), (l + w, t.h), (l, t.h)].map(|(u, v)| (t.x + u * cos - v * sin, t.y + u * sin + v * cos))
+        };
+        let seg_hits = |i: usize| { let (a, b, c, d) = self.seg_at(i); seg_meets_rect(a, b, c, d, rx0, ry0, rx1, ry1) };
+        let text_hits = |t: &TextItem| quad_meets_rect(&boxes(t), rx0, ry0, rx1, ry1);
+        let mut texts_of: std::collections::HashMap<u32, Vec<&TextItem>> = std::collections::HashMap::new();
+        for t in &self.texts { if t.h > 0.0 { texts_of.entry(t.o).or_default().push(t); } }
+        let mut found = std::collections::BTreeSet::new();
+        let g = &self.grid;
+        let (cx0, cy0) = g.cell_of(rx0, ry0);
+        let (cx1, cy1) = g.cell_of(rx1, ry1);
+        let mut seen = std::collections::HashSet::new();
+        let mut cand = std::collections::BTreeSet::new();
+        for cy in cy0..=cy1 {
+            for cx in cx0..=cx1 {
+                for &s in &g.segs[cy * g.nx + cx] {
+                    if !seen.insert(s) { continue; }
+                    let o = self.seg_obj[s as usize];
+                    if crossing { if !found.contains(&o) && seg_hits(s as usize) { found.insert(o); } } else { cand.insert(o); }
+                }
+            }
+        }
+        if crossing {
+            for t in &self.texts { if t.h > 0.0 && !found.contains(&t.o) && text_hits(t) { found.insert(t.o); } }
+        } else {
+            for t in &self.texts { if t.h > 0.0 { cand.insert(t.o); } }
+            for o in cand {
+                let Some(info) = self.objects.get(o as usize) else { continue };
+                let segs_in = (info.seg_start..info.seg_end).all(|i| { let (a, b, c, d) = self.seg_at(i as usize); inside(a, b) && inside(c, d) });
+                let texts_in = texts_of.get(&o).map_or(true, |v| v.iter().all(|t| boxes(t).iter().all(|p| inside(p.0, p.1))));
+                if segs_in && texts_in && (info.seg_end > info.seg_start || texts_of.contains_key(&o)) { found.insert(o); }
+            }
+        }
+        let ids: Vec<u32> = found.into_iter().filter(|o| self.objects.get(*o as usize).map_or(false, |i| on(i.layer)) && !self.gone(*o)).collect();
+        let truncated = ids.len() > MAX;
+        let objects: Vec<serde_json::Value> = ids.iter().take(MAX).map(|&id| { let mut v = serde_json::to_value(&self.objects[id as usize]).unwrap_or_default(); v["id"] = serde_json::json!(id); v }).collect();
+        serde_json::json!({ "objects": objects, "truncated": truncated }).to_string()
+    }
+
+    /// Every object of `kind` (ObjInfo `kind`, e.g. "Line", "Block") on layer index `layer`, shown and not erased, as JSON
+    /// {objects: [ObjInfo with its id], truncated}; for a block also the same block name (`block`, "" otherwise). At most
+    /// 20 000 objects. For Select similar.
+    pub fn pick_like(&self, kind: &str, layer: u16, block: &str, layers_on: &[u8]) -> String {
+        const MAX: usize = 20_000;
+        if !layers_on.get(layer as usize).map_or(true, |v| *v != 0) { return serde_json::json!({ "objects": [], "truncated": false }).to_string(); }
+        let mut hits = self.objects.iter().enumerate().filter(|(i, o)| o.kind == kind && o.layer == layer && (kind != "Block" || o.block.as_deref().unwrap_or("") == block) && !self.gone(*i as u32));
+        let objects: Vec<serde_json::Value> = hits.by_ref().take(MAX).map(|(id, o)| { let mut v = serde_json::to_value(o).unwrap_or_default(); v["id"] = serde_json::json!(id); v }).collect();
+        let truncated = hits.next().is_some();
+        serde_json::json!({ "objects": objects, "truncated": truncated }).to_string()
+    }
+
     /// Marks model-space objects erased in the app (CROP), by handle (hex, JSON array), replacing the last list: they
     /// are no longer picked or snapped to. Answers what the view leaves out, as JSON {objects: [id], ranges: [[seg_start,
     /// seg_end]]}; the drawing itself is not changed.
@@ -1321,6 +1384,31 @@ pub fn explode_objects(bytes: Vec<u8>, handles_json: &str) -> Result<String, JsE
     Ok(serde_json::json!({ "pieces": pieces, "truncated": truncated }).to_string())
 }
 
+/// Whether the segment (ax, ay)–(bx, by) touches the rectangle (inside it, or crossing its edge): Liang–Barsky clip.
+fn seg_meets_rect(ax: f64, ay: f64, bx: f64, by: f64, x0: f64, y0: f64, x1: f64, y1: f64) -> bool {
+    let (dx, dy) = (bx - ax, by - ay);
+    let (mut t0, mut t1) = (0.0f64, 1.0f64);
+    for (p, q) in [(-dx, ax - x0), (dx, x1 - ax), (-dy, ay - y0), (dy, y1 - ay)] {
+        if p == 0.0 { if q < 0.0 { return false; } }
+        else { let t = q / p; if p < 0.0 { t0 = t0.max(t); } else { t1 = t1.min(t); } if t0 > t1 { return false; } }
+    }
+    true
+}
+
+/// Whether a convex quadrilateral (a rotated text box) overlaps the axis-aligned rectangle: separating axes.
+fn quad_meets_rect(q: &[(f64, f64); 4], x0: f64, y0: f64, x1: f64, y1: f64) -> bool {
+    if q.iter().map(|p| p.0).fold(f64::MAX, f64::min) > x1 || q.iter().map(|p| p.0).fold(f64::MIN, f64::max) < x0 || q.iter().map(|p| p.1).fold(f64::MAX, f64::min) > y1 || q.iter().map(|p| p.1).fold(f64::MIN, f64::max) < y0 { return false; }
+    let r = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)];
+    for i in 0..2 {
+        let (ex, ey) = (q[i + 1].0 - q[i].0, q[i + 1].1 - q[i].1);
+        let proj = |p: &(f64, f64)| p.0 * -ey + p.1 * ex;
+        let (qa, qb) = (q.iter().map(proj).fold(f64::MAX, f64::min), q.iter().map(proj).fold(f64::MIN, f64::max));
+        let (ra, rb) = (r.iter().map(proj).fold(f64::MAX, f64::min), r.iter().map(proj).fold(f64::MIN, f64::max));
+        if qb < ra || rb < qa { return false; }
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1359,6 +1447,84 @@ mod tests {
     }
     fn fixture(name: &str) -> Vec<u8> { std::fs::read(format!("{}/../../tests/fixtures/cad/{}", env!("CARGO_MANIFEST_DIR"), name)).unwrap() }
     fn sample(name: &str) -> Vec<u8> { std::fs::read(format!("{}/../../electron/samples/{}", env!("CARGO_MANIFEST_DIR"), name)).unwrap() }
+
+    /// A hand-written DXF: lines A (0–10, 0), B (20–30, 0) on 0, C (5–25, 5) on OFF, TEXT "HELLO" at (40, 0) h 2, and
+    /// BLK (a 5 × 5 box) inserted at (50, 0).
+    fn window_dxf() -> Vec<u8> {
+        let ln = |l: &str, a: [f64; 4]| format!("0\nLINE\n8\n{l}\n10\n{}\n20\n{}\n11\n{}\n21\n{}\n", a[0], a[1], a[2], a[3]);
+        let mut e = ln("0", [0.0, 0.0, 10.0, 0.0]) + &ln("0", [20.0, 0.0, 30.0, 0.0]) + &ln("OFF", [5.0, 5.0, 25.0, 5.0]);
+        e += "0\nTEXT\n8\n0\n10\n40\n20\n0\n40\n2\n1\nHELLO\n0\nINSERT\n8\n0\n2\nBLK\n10\n50\n20\n0\n";
+        let b = ln("0", [0.0, 0.0, 5.0, 0.0]) + &ln("0", [5.0, 0.0, 5.0, 5.0]) + &ln("0", [5.0, 5.0, 0.0, 5.0]) + &ln("0", [0.0, 5.0, 0.0, 0.0]);
+        format!("0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n0\nLAYER\n2\n0\n70\n0\n62\n7\n6\nCONTINUOUS\n0\nLAYER\n2\nOFF\n70\n0\n62\n1\n6\nCONTINUOUS\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nBLOCKS\n0\nBLOCK\n8\n0\n2\nBLK\n70\n0\n10\n0\n20\n0\n3\nBLK\n{b}0\nENDBLK\n8\n0\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n{e}0\nENDSEC\n0\nEOF\n").into_bytes()
+    }
+    fn picked(d: &CadDoc, a: (f64, f64), b: (f64, f64), crossing: bool, on: &[u8]) -> Vec<String> {
+        let v: serde_json::Value = serde_json::from_str(&d.pick_window(a.0, a.1, b.0, b.1, crossing, on)).unwrap();
+        assert_eq!(v["truncated"], false);
+        let mut k: Vec<String> = v["objects"].as_array().unwrap().iter().map(|o| format!("{}:{}", o["kind"].as_str().unwrap(), o["layer"])).collect();
+        k.sort();
+        k
+    }
+
+    #[test]
+    fn window_and_crossing_pick() {
+        let d = CadDoc::new(window_dxf()).unwrap();
+        let on = vec![1u8; d.layers.len()];
+        let off = d.layers.iter().position(|l| l.name == "OFF").unwrap();
+        let (l0, loff) = (d.layers.iter().position(|l| l.name == "0").unwrap(), off);
+        let kinds = |a, b, c, o: &[u8]| picked(&d, a, b, c, o);
+        // Window over the first line and part of the second: only the first is whole inside.
+        assert_eq!(kinds((-1.0, -1.0), (15.0, 1.0), false, &on), [format!("Line:{l0}")]);
+        // The same rectangle crossing: the line on the OFF layer (y = 5) is outside it, the second line is not touched.
+        assert_eq!(kinds((-1.0, -1.0), (22.0, 1.0), true, &on), [format!("Line:{l0}"), format!("Line:{l0}")]);
+        assert_eq!(kinds((-1.0, -1.0), (22.0, 1.0), false, &on), [format!("Line:{l0}")]);
+        // Corners in reverse order give the same.
+        assert_eq!(kinds((22.0, 1.0), (-1.0, -1.0), true, &on), kinds((-1.0, -1.0), (22.0, 1.0), true, &on));
+        // A layer turned off is left out; on, it is picked by a crossing through it.
+        assert_eq!(kinds((12.0, 4.0), (14.0, 6.0), true, &on), [format!("Line:{loff}")]);
+        let mut hidden = on.clone();
+        hidden[off] = 0;
+        assert!(kinds((12.0, 4.0), (14.0, 6.0), true, &hidden).is_empty());
+        // The text is picked by its box (40, 0)–(43.3, 2): a crossing touching the box only, a window around it.
+        let t = d.texts.iter().find(|t| t.s == "HELLO").unwrap();
+        assert!(t.w > 0.0 || t.h > 0.0);
+        assert_eq!(kinds((41.0, 1.0), (41.5, 1.5), true, &on).len(), 1);
+        assert!(kinds((41.0, 1.0), (41.5, 1.5), false, &on).is_empty(), "a window inside the text box holds none of it");
+        assert_eq!(kinds((39.0, -1.0), (60.0, 3.0), false, &on).iter().filter(|k| k.starts_with("Text")).count(), 1);
+        // The block insert is one object, picked whole by a window and once by a crossing of one of its lines.
+        assert_eq!(kinds((49.0, -1.0), (56.0, 6.0), false, &on), [format!("Block:{l0}")]);
+        assert_eq!(kinds((52.0, 4.0), (53.0, 6.0), true, &on), [format!("Block:{l0}")]);
+        assert!(kinds((51.0, 1.0), (54.0, 4.0), true, &on).is_empty(), "inside the box but touching none of its lines");
+        // An empty area.
+        assert!(kinds((100.0, 100.0), (110.0, 110.0), true, &on).is_empty());
+    }
+
+    #[test]
+    fn pick_like_same_kind_layer_and_block() {
+        let mut d = CadDoc::new(window_dxf()).unwrap();
+        let mut on = vec![1u8; d.layers.len()];
+        let l0 = d.layers.iter().position(|l| l.name == "0").unwrap();
+        let like = |d: &CadDoc, k: &str, l: usize, b: &str, on: &[u8]| { let v: serde_json::Value = serde_json::from_str(&d.pick_like(k, l as u16, b, on)).unwrap(); assert_eq!(v["truncated"], false); v["objects"].as_array().unwrap().len() };
+        assert_eq!(like(&d, "Line", l0, "", &on), 2, "the two lines on layer 0, not the one on OFF");
+        assert_eq!(like(&d, "Block", l0, "BLK", &on), 1);
+        assert_eq!(like(&d, "Block", l0, "OTHER", &on), 0, "another block name");
+        let h = d.objects.iter().find(|o| o.kind == "Line").unwrap().handle.clone();
+        d.set_erased(&serde_json::to_string(&[h]).unwrap());
+        assert_eq!(like(&d, "Line", l0, "", &on), 1, "an erased object is left out");
+        on[l0] = 0;
+        assert_eq!(like(&d, "Line", l0, "", &on), 0, "a layer turned off");
+    }
+
+    #[test]
+    fn window_pick_leaves_erased_out() {
+        let mut d = CadDoc::new(window_dxf()).unwrap();
+        let on = vec![1u8; d.layers.len()];
+        let all = picked(&d, (-1.0, -1.0), (15.0, 1.0), false, &on);
+        assert_eq!(all.len(), 1);
+        let h = d.objects.iter().find(|o| o.kind == "Line").unwrap().handle.clone();
+        d.set_erased(&serde_json::to_string(&[h]).unwrap());
+        assert!(picked(&d, (-1.0, -1.0), (15.0, 1.0), false, &on).is_empty());
+        assert!(picked(&d, (-1.0, -1.0), (15.0, 1.0), true, &on).is_empty());
+    }
 
     /// Round trip: a drawing saved as DWG (nothing added) reads back with the same layers, lines, texts, blocks and
     /// closed objects; with additions, those come on top on their own layers.
