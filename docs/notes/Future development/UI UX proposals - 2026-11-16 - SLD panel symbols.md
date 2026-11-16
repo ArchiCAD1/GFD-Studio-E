@@ -1,6 +1,6 @@
 # UI UX proposal – SLD panel symbols (2026-11-16)
 
-Status: **proposal, waiting for the user's decisions.** Nothing is built.
+Status: **proposal, waiting for the user's decisions.** Nothing is built. Main boards changed on 2026-11-16 after the user's feedback: all filled is dropped (see Main boards under Option A, and mockup section 2b).
 
 Mockup: `docs/mockups/sld-panel-symbols-mockup.html` (image: `sld-panel-symbols-mockup.png`).
 
@@ -41,12 +41,12 @@ Also:
 
 ### 2. Option A – families (recommended)
 
-One rule: **the more black, the bigger the board (none = final board, half = sub-main or MCC, all = main board); a cross (X) = emergency supply; a split across the middle = motor control; letters for special panels.**
+One rule: **the fill shows the level (none = final board, half = sub-main or MCC) and a double frame marks a main board; a cross (X) = emergency supply; a split across the middle = motor control; letters for special panels.**
 
 | Kind | Board | Option A symbol |
 |---|---|---|
-| MDB, LV-MDB, LV-ACB | Main board | All filled |
-| EMDB, LV-EMDB | Emergency main board | All filled, white cross |
+| MDB, LV-MDB, LV-ACB | Main board | The SMDB symbol inside a second frame (double frame) |
+| EMDB, LV-EMDB | Emergency main board | The ESMDB symbol inside a second frame |
 | SMDB | Sub-main board | One diagonal, upper-left half filled (sketch 2) |
 | ESMDB (new kind, decision 5) | Emergency sub-main board | Cross, left and right filled (sketch 3) |
 | DB | Distribution board | One diagonal (sketch 1) |
@@ -57,7 +57,16 @@ One rule: **the more black, the bigger the board (none = final board, half = sub
 | UPS | UPS output board | Letters UPS |
 | MC | Meter cabinet | Letters MC |
 
-All seven of the user's sketches are used. Two symbols are added: all filled for a main board, and all filled with a white cross for an emergency main board.
+All seven of the user's sketches are used. The main boards add a second frame inside the outline, 3 units in.
+
+**Main boards (the user's feedback, 2026-11-16).** The first draft drew main boards all filled (emergency: all filled with a white cross). The user did not want it: a solid block prints as a heavy black patch, and its edge is lost in a black-and-white print. They suggested the ESMDB-style symbol with something to mark it as the main board, or another option. Four options are in mockup section 2b:
+
+- **M1 – double frame (recommended):** the sub-main symbol with a second frame. MDB comes from SMDB and EMDB from ESMDB, so a cross still means emergency. It uses half the ink of the block, and it is two rectangles in DXF.
+- **M2 – letters:** MDB and EMDB written in the box, like UPS and MC. Clear, but it is text at drawing size, and a main board then looks like a special panel.
+- **M3 – hatched:** thin 45° lines that print light grey and export to DXF as plain lines. Busy at small sizes, and the emergency cross is hard to see through the hatch.
+- **M4 – bow-tie:** the user's first idea taken literally: the main board takes the cross with its sides filled. Then a cross no longer means emergency, so EMDB and ESMDB need an E tag instead.
+
+An existing main board keeps the inner frame solid and draws the outer frame dashed.
 
 ### 3. Option B – pattern + E tag
 
@@ -106,6 +115,7 @@ The same set on the SLD end boards, in a new SLD legend row for each kind drawn,
 3. **Where:** everywhere at once: SLD end boards and legend, riser, feeder riser, library blocks and strip icons (recommended) / the SLD first, the rest later.
 4. **Design CAD plan symbols for boards:** the same patterns, with the tag beside them (recommended) / keep today's tagged rectangles.
 5. **New kinds:** ESMDB (recommended, completes the emergency family) / also PFC, ATS, FPL, CP, EV / none.
+6. **Main boards (MDB, LV-MDB, LV-ACB, EMDB, LV-EMDB):** M1 double frame (recommended) / M2 letters / M3 hatched / M4 bow-tie.
 
 ## Suggested steps after approval
 
