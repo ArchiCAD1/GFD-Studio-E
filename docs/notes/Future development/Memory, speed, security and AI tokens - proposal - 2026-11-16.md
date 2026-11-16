@@ -23,7 +23,7 @@ Leave alone: calculations, undo history, zoom, lazy loading of screens and expor
 
 | # | Proposal | Expected | Status |
 |---|---|---|---|
-| M1 | Store revisions as differences (shared table of panels and circuits), schema 3 → 4 with migration | File with ten revisions about 9–10 times smaller; open, save, recovery copy and backup shrink with it | **Needs approval of the schema step** |
+| M1 | Revisions in the file keep each distinct panel, circuit and section once, file format 3 → 4 | Ten revisions: 5.13 MB → 0.59 MB (200 panels), 25.78 MB → 3.02 MB (1,000 panels); recovery copy shrinks with it | **Approved 2026-11-16.** PR #625 |
 | M2 | Build the calculation report in a Web Worker, then cache the HTML per panel | No window freeze (today up to 10.8 s); rebuild after one edit 80–90 % faster (estimate) | Not started |
 | M3 | Memoise SLD panels so one edit redraws one panel | To be measured first: the SLD already draws only what is in view, so the gain is on what is on screen | Measure before starting |
 | M4 | Web version: projects in IndexedDB, not `localStorage` (about 5 MB per site) | No practical size cap | Not started |
@@ -39,10 +39,10 @@ local API on 127.0.0.1 with a token, secret scan, `npm audit` allowlist, privacy
 
 | # | Gap | Proposal | Status |
 |---|---|---|---|
-| S1 | Installers are unsigned | Sign releases; a free programme for open-source projects, as there are no paid services | **Needs a decision** |
-| S3 | A cloud AI on the MCP server reads real names and addresses | `lvds mcp --anonymize`, reusing `src/model/anonymize.ts` | **Needs a decision: default on or off** |
+| S1 | Installers are unsigned | Sign releases | **Decided 2026-11-16: stay unsigned while the app is a beta** (signing costs money on both systems); look again when the product is final |
+| S3 | A cloud AI on the MCP server reads real names and addresses | `lvds mcp --anonymize`, reusing `src/model/anonymize.ts` | **Approved 2026-11-16: names hidden by default for cloud models.** After PR #621 is merged (same files) |
 | S4 | Text from imported DWG, Excel and exchange files reaches the AI in tool results | One cleaning function with a length cap on every free-text field; a test that fails on raw text | Not started |
-| S5 | No Electron fuses set | `electronFuses` in the build: no `NODE_OPTIONS`, no inspect arguments, app only from ASAR; run-as-Node stays (the `lvds` launcher needs it) | **Waits for S1.** On Apple silicon a flipped fuse needs the app signed again (ad hoc), and `beta-release.yml` requires the Mac beta to fail `codesign --verify`. Decide together with signing |
+| S5 | No Electron fuses set | `electronFuses` in the build: no `NODE_OPTIONS`, no inspect arguments, app only from ASAR; run-as-Node stays (the `lvds` launcher needs it) | **Waits for S1 (when the product is final).** On Apple silicon a flipped fuse needs the app signed again (ad hoc), and `beta-release.yml` requires the Mac beta to fail `codesign --verify`. Decide together with signing |
 | S6 | Backups are plain files in a synced folder | Optional password on `.lvds-backup` (WebCrypto AES-GCM) | Not started |
 
 Dropped after checking the code: showing the checksum in the update prompt. The update manifest (`beta.json`) is
@@ -82,3 +82,7 @@ Estimated at 4 characters per token.
 2. Storage: M1, then M4.
 3. Responsiveness: M2, M5, M3 after measuring.
 4. AI and distribution: S3, S4, T6, T7, T1, S1 with S5, S6.
+
+## Later (not part of this work)
+
+- Compare two versions of a file — two CAD files, or two SLDs — and show the differences. To be planned in its own session and branch, with a UI proposal first.
