@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.163', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: right-click menus stay inside the drawing', text: 'A right-click near the bottom or right edge of the drawing now opens the menu upward or to the left, so every entry can be reached; a menu taller than the drawing scrolls. A list opens beside its row, and to the left at the right edge.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.161', date: '2026-11-16',
     items: [
       { title: 'Design CAD: clip a viewport to an outline', text: 'A viewport on a layout can now have any outline, not only a rectangle. Pick the viewport, then Output → Layout viewports → Clip (VPCLIP) and click the corners of the outline on the paper; Enter closes it, U takes the last corner back, Esc cancels. The plan is cut at the outline on screen, in the plot and in the PDF, and the outline is what prints as the frame when Frame prints is on. Remove the outline (VPCLIP D) makes it a rectangle again. It works on plan sheets and on layouts made with +, from the ribbon, the viewport\'s right-click menu and its properties, and a layout template keeps it.', action: 'cad' }

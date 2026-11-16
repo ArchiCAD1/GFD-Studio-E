@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { isPath } from '../../model/cadEdit';
 import { kindLabel } from '../../model/cadProps';
 import { TRAY_WIDTHS } from '../../model/cadSketch';
@@ -6,6 +6,7 @@ import { attachOf, NOTE_ATTACHES } from '../../model/cadMtext';
 import { DIM_TEXT_POS } from '../../model/cadStyles';
 import { ISO_TEXT_MM, TEXT_FRAMES, TEXT_JUSTS } from '../../model/cadText';
 import { toolAlias } from './cadCommands';
+import { useListPlace, useMenuPlace } from './cadMenuPlace';
 import type { SketchItem } from '../../types';
 
 /** Design CAD → Draw → Modify / Edit: the toolbar beside drawn objects picked, the side panel of several, and the
@@ -94,6 +95,8 @@ export function SketchToolbar({ items, devices, lengthM, left, top, place, canPa
   onEdit: (e: SketchEdit, arg?: string) => void;
 }) {
   const [open, setOpen] = useState<Opener | null>(null);
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null), listRef = useRef<HTMLDivElement>(null);
   const one = items.length === 1 && !devices ? items[0] : undefined;
   // The menu at the cursor adds Edit text for one text or dimension (S5 of the 2D gap plan), with Width… and Justify ▸
   // for a note (S6), Draw order ▸ for drawn objects (S7), Select similar and Quick select… (S3) and Clipboard ▸ (S1).
@@ -129,19 +132,23 @@ export function SketchToolbar({ items, devices, lengthM, left, top, place, canPa
     ? TRAY_WIDTHS.map((w) => ({ id: String(w), label: `${w} mm`, now: one?.tray?.widthMm === w }))
     : open === 'filter' ? [...(devices ? [{ id: 'devices', label: 'Devices only', key: String(devices) }, { id: 'drawn', label: 'Drawn only', key: String(items.length) }] : []),
       ...[...new Set(items.map(kindOf))].map((k) => ({ id: k, label: `${k} only`, key: String(items.filter((it) => kindOf(it) === k).length) }))] : [];
+  // As a menu at the cursor: kept inside the drawing, its list beside the row that opened it (cadMenuPlace.ts).
+  const asMenu = place === 'menu';
+  const fit = useMenuPlace(menuRef, left, top, edits.join(), asMenu);
+  const listFit = useListPlace(menuRef, asMenu && open ? opener : null, listRef, open);
   return (
-    <div className={`cad-ctx${place === 'above' ? ' above' : ''}${place === 'menu' ? ' vert' : ''}`} role={place === 'menu' ? 'menu' : 'toolbar'} aria-label="Edit drawn objects" style={{ left, top }}
+    <div ref={menuRef} className={`cad-ctx${place === 'above' ? ' above' : ''}${asMenu ? ' vert' : ''}`} role={asMenu ? 'menu' : 'toolbar'} aria-label="Edit drawn objects" style={asMenu ? fit : { left, top }}
       onMouseDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
       <span className="cad-ctx-what">{one ? `${kindOf(one)}${one.tray ? ` · ${one.tray.widthMm} mm` : lengthM !== undefined ? ` · ${lengthM.toFixed(2)} m` : ''}` : `${items.length + devices} selected`}</span>
       <span className="cad-ctx-bar" />
       {edits.map((e) => (
         <Fragment key={e}>
           {e === 'move' && <span className="cad-ctx-bar" />}
-          <button aria-expanded={OPENERS.has(e) ? open === e : undefined} onClick={() => (OPENERS.has(e) ? setOpen(open === e ? null : e as typeof open) : onEdit(e))}>{e === 'repeat' ? `Repeat ${repeat}` : e === 'plclose' && one?.closed ? 'Open' : e === 'txmask' && one?.mask ? 'Background mask off' : LABEL[e]}</button>
+          <button aria-expanded={OPENERS.has(e) ? open === e : undefined} onClick={(ev) => { if (OPENERS.has(e)) { setOpen(open === e ? null : e as typeof open); setOpener(ev.currentTarget); } else onEdit(e); }}>{e === 'repeat' ? `Repeat ${repeat}` : e === 'plclose' && one?.closed ? 'Open' : e === 'txmask' && one?.mask ? 'Background mask off' : LABEL[e]}</button>
         </Fragment>
       ))}
       {open && (
-        <div className="cad-ctx-list" role="listbox" aria-label={open === 'width' ? 'Width' : open === 'clipboard' ? 'Clipboard' : open === 'ntjust' ? 'Justify' : open === 'draworder' ? 'Draw order' : open === 'isolate' ? 'Isolate' : open === 'blkreplace' ? 'Replace with' : OPENERS.has(open) ? LABEL[open].replace(' ▸', '') : 'Filter'}>
+        <div ref={listRef} style={asMenu ? listFit : undefined} className="cad-ctx-list" role="listbox" aria-label={open === 'width' ? 'Width' : open === 'clipboard' ? 'Clipboard' : open === 'ntjust' ? 'Justify' : open === 'draworder' ? 'Draw order' : open === 'isolate' ? 'Isolate' : open === 'blkreplace' ? 'Replace with' : OPENERS.has(open) ? LABEL[open].replace(' ▸', '') : 'Filter'}>
           {list.map((x) => <button key={x.id} role="option" aria-selected={!!x.now} disabled={x.now || x.off} onClick={() => { setOpen(null); onEdit(open, x.id); }}><span>{x.label}</span><small>{x.now ? 'now' : x.key ?? ''}</small></button>)}
         </div>
       )}
