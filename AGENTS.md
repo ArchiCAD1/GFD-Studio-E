@@ -2,6 +2,13 @@
 
 LV Design Studio is an offline desktop app for LV electrical design and calculation. It uses Electron, React 18, TypeScript, Vite, Vitest, and Python engines under `engines/python`. The base branch is `main`.
 
+## Start of a session: read little
+
+- This file is the only start-up reading. Do not read `README.md`, `docs/notes/Status - archive to 2026-10-21.md` or `src/model/whatsNew.ts` to learn the app.
+- Find the module for the task in `docs/architecture/00-index.md`, then read only that module's document (`docs/architecture/NN-<module>.md`): it lists the files, functions and links. Never read `docs/architecture/99-integration-map.md` in full; search it with `rg`.
+- Do not read a large source file whole (`src/components/cad/CadPage.tsx`, `src/App.tsx`, `src/components/Ribbon.tsx`, `src/components/SystemDiagram.tsx`, `src/styles.css`): find the function with `rg -n` and read its line range.
+- While working, run the test file of the touched module (`npx vitest run <file> --reporter=dot`); run the full `npm test` once before the PR.
+
 ## Do not change UI or UX
 
 - Do not change the existing layout, styling, components, colours, spacing, wording, navigation, or interaction flow. This includes `src/styles.css`, `src/theme/`, and visual JSX.
