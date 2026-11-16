@@ -13,6 +13,8 @@
 
 All three call the same `callTool` (`src/headless/tools.ts:332`), which checks the arguments against the tool's input schema (zod = a library that checks the shape and range of each input; `.strict()` refuses unknown inputs) before the tool runs.
 
+The two servers can offer fewer tools: `lvds mcp --tools cad,export` (also `lvds serve` and `lvds mcp-config`) offers the core tools (projects, panels, circuits, checks, changes, buildings) and only the named groups — `calc`, `cad`, `exchange`, `elv`, `export` (`TOOL_GROUPS`, `groupOf`, `parseGroups` in `src/headless/tools.ts`). An AI client reads every offered tool's description and inputs at the start of each conversation: with `--write`, all 46 tools are about 13,100 tokens, the core tools alone (`--tools core`) about 4,900. Without `--tools`, every group is offered as before.
+
 The bundle is built by `npm run build:cli` (`vite.cli.config.ts`), and by `npm run build`, into one Node file `dist-cli/lvds.mjs` (dependencies and the CAD reader WebAssembly inlined).
 
 The installer carries it in `resources/lvds` (`package.json` `extraResources`) with a launcher per system (`build/lvds/lvds`, `lvds.cmd`). The launcher runs `lvds.mjs` with the app itself as Node (`ELECTRON_RUN_AS_NODE`), so no window opens and no separate Node is needed. `lvds mcp-config` prints the `mcpServers` entry an AI program needs to start this copy.

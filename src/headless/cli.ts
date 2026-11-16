@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { z } from 'zod';
-import { allTools, callTool, toolByName, type Tool, type ToolContext } from './tools';
+import { TOOL_GROUPS, allTools, callTool, parseGroups, toolByName, type Tool, type ToolContext } from './tools';
 import { projectsFolder } from './project';
 import { mcpConfig, startMcp, type Runtime } from './mcp';
 import { startApi } from './api';
@@ -121,6 +121,7 @@ function help(version: string): string {
     '  lvds mcp-config [--write]          Print the settings that AI program needs to start this MCP server',
     '  lvds serve [--port 8765] [--write] Run the local API on http://127.0.0.1 (needs its token: lvds help serve)',
     '  (--write also offers the tools that change a project; without it both are read only)',
+    `  (--tools <groups> offers the core tools and only these groups: ${TOOL_GROUPS.join(', ')}; e.g. --tools cad,export, or --tools core)`,
     '  lvds help <command>      Inputs of one command',
     '',
     'Options: --json (JSON output), --folder <path> (projects folder; default: the app\'s, or LVDS_PROJECTS)',
@@ -166,15 +167,20 @@ export async function main(argv: string[], version: string, io: { out: (s: strin
     return 0;
   }
   if (cmd === 'version' || cmd === '--version' || cmd === '-v') { io.out(version); return 0; }
-  if (cmd === 'mcp') { await startMcp({ ...ctx, anywhere: false, write: a.write }, version); return -1; }
+  // The servers may offer fewer tools (--tools cad,export): fewer words for an AI client to read in every conversation.
+  let groups: ToolContext['groups'];
+  if (cmd === 'mcp' || cmd === 'mcp-config' || cmd === 'serve') {
+    try { groups = parseGroups(a.flags.tools); } catch (e) { io.err(`Error: ${(e as Error).message}`); return 2; }
+  }
+  if (cmd === 'mcp') { await startMcp({ ...ctx, anywhere: false, write: a.write, groups }, version); return -1; }
   if (cmd === 'mcp-config') {
-    io.out(JSON.stringify(mcpConfig(runtime, a.write), null, 2));
+    io.out(JSON.stringify(mcpConfig(runtime, a.write, groups), null, 2));
     io.err(`Paste this into the MCP settings of your AI program. It starts LV Design Studio's MCP server on this computer (${a.write ? 'read and change: change tools preview first' : 'read only; add --write to also offer the tools that change a project'}).`);
     return 0;
   }
   if (cmd === 'serve') {
     const port = a.port ?? 8765;
-    const { server, tokenFile } = await startApi({ ...ctx, anywhere: false, write: a.write }, version, port);
+    const { server, tokenFile } = await startApi({ ...ctx, anywhere: false, write: a.write, groups }, version, port);
     const stop = () => server.close(() => process.exit(0));
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);

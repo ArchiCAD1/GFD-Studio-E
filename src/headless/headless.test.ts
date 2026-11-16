@@ -9,7 +9,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { sampleProject } from '../data/sampleProject';
 import type { Project } from '../types';
-import { TOOLS, callTool, offeredTools, toolByName, type ToolContext } from './tools';
+import { TOOLS, TOOL_GROUPS, allTools, callTool, groupOf, offeredTools, parseGroups, toolByName, type ToolContext } from './tools';
 import { listProjects, resolveProject } from './project';
 import { main, parseArgs } from './cli';
 import { createApi, newApiToken, tokenMatches, writeApiToken } from './api';
@@ -230,6 +230,36 @@ describe('MCP settings for the engineer\'s own AI program', () => {
     const w = await run(['mcp-config', '--write']);
     expect(JSON.parse(w.out).mcpServers['lv-design-studio'].args).toEqual([node.script, 'mcp', '--write']);
     expect(w.err).toMatch(/preview first/);
+  });
+
+  it('--tools offers the core tools and only the chosen groups', async () => {
+    const all = offeredTools({ folder: '.', anywhere: false, write: true });
+    expect(offeredTools({ folder: '.', anywhere: false, write: true, groups: [...TOOL_GROUPS] }).map((t) => t.name)).toEqual(all.map((t) => t.name));
+    const core = offeredTools({ folder: '.', anywhere: false, write: true, groups: [] });
+    expect(core.every((t) => groupOf(t) === 'core')).toBe(true);
+    expect(core.map((t) => t.name)).toEqual(expect.arrayContaining(['list_projects', 'project_summary', 'run_checks', 'circuit_results', 'size_circuits', 'add_panel', 'undo_change']));
+    const some = offeredTools({ folder: '.', anywhere: false, write: true, groups: ['cad', 'export'] }).map((t) => t.name);
+    expect(some).toEqual(expect.arrayContaining(['cad_plan', 'export_report', 'list_projects']));
+    expect(some).not.toEqual(expect.arrayContaining(['elv_estimate']));
+    expect(some).not.toContain('calc_current');
+    // Still read only without --write, whatever the groups.
+    expect(offeredTools({ folder: '.', anywhere: false, groups: ['export'] }).some((t) => t.writes)).toBe(false);
+    // Every group has tools, and every tool has one group.
+    for (const g of TOOL_GROUPS) expect(allTools().some((t) => groupOf(t) === g)).toBe(true);
+  });
+
+  it('--tools as typed: names checked, core and all understood, and carried into the settings', async () => {
+    expect(parseGroups(undefined)).toBeUndefined();
+    expect(parseGroups('all')).toBeUndefined();
+    expect(parseGroups('core')).toEqual([]);
+    expect(parseGroups(' CAD, export ,cad')).toEqual(['cad', 'export']);
+    expect(() => parseGroups('cad,drawings')).toThrow(/Unknown tool group "drawings"/);
+    const r = await run(['mcp-config', '--write', '--tools', 'cad,export']);
+    expect(JSON.parse(r.out).mcpServers['lv-design-studio'].args).toEqual([node.script, 'mcp', '--write', '--tools', 'cad,export']);
+    expect(JSON.parse((await run(['mcp-config', '--tools', 'core'])).out).mcpServers['lv-design-studio'].args).toEqual([node.script, 'mcp', '--tools', 'core']);
+    const bad = await run(['mcp-config', '--tools', 'everything']);
+    expect(bad.code).toBe(2);
+    expect(bad.err).toMatch(/Unknown tool group/);
   });
 
   it('in the installed app, the app itself runs it as Node: no window, no separate Node', () => {

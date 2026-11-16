@@ -28,6 +28,8 @@ export interface ToolContext {
   anywhere: boolean;
   /** Tools that change a project are offered (MCP / API started with --write; always on the command line, where they still preview by default). */
   write?: boolean;
+  /** MCP / API: only these tool groups besides the core tools (--tools); absent = every group. */
+  groups?: ToolGroup[];
   /** MCP: the AI client that called, from its own initialize message (clientLabel). Recorded on changes, proposals and
    * exports so the engineer can see which program made them. Absent on the command line and the local API. */
   client?: string;
@@ -324,8 +326,32 @@ export function circuitIssues(run: CalcRun, status: string): { circuit: string; 
 
 /** Every tool, read-only ones first. */
 export const allTools = (): Tool[] => [...TOOLS, ...EDIT_TOOLS, ...BUILDING_TOOLS, ...CAD_TOOLS, ...EXCHANGE_TOOLS, ...ELV_TOOLS, ...EXPORT_TOOLS];
-/** The tools a server offers: write tools only when it was started with --write. */
-export const offeredTools = (ctx: ToolContext): Tool[] => allTools().filter((t) => !t.writes || ctx.write);
+/** Tool groups a server can leave out (--tools): an AI client reads every offered tool's description and inputs at the
+ * start of each conversation, so a session that only designs panels need not pay for the CAD, ELV, exchange and export
+ * tools. The core tools (projects, panels, circuits, checks, changes, buildings) are always offered. */
+export const TOOL_GROUPS = ['calc', 'cad', 'exchange', 'elv', 'export'] as const;
+export type ToolGroup = (typeof TOOL_GROUPS)[number];
+export function groupOf(t: Tool): ToolGroup | 'core' {
+  if (CAD_TOOLS.includes(t)) return 'cad';
+  if (EXCHANGE_TOOLS.includes(t)) return 'exchange';
+  if (ELV_TOOLS.includes(t)) return 'elv';
+  if (EXPORT_TOOLS.includes(t)) return 'export';
+  return t.name.startsWith('calc_') ? 'calc' : 'core';
+}
+/** --tools as typed ("cad,export"; "core" alone = the core tools only; "all" or nothing = every group). */
+export function parseGroups(text: unknown): ToolGroup[] | undefined {
+  if (text === undefined || text === true || text === 'all') return undefined;
+  const names = String(text).split(',').map((x) => x.trim().toLowerCase()).filter((x) => x && x !== 'core');
+  const unknown = names.filter((n) => !(TOOL_GROUPS as readonly string[]).includes(n));
+  if (unknown.length) throw new Error(`Unknown tool group "${unknown.join(', ')}". Groups: core (always offered), ${TOOL_GROUPS.join(', ')}, or all.`);
+  return [...new Set(names)] as ToolGroup[];
+}
+/** The tools a server offers: write tools only when it was started with --write, and only the chosen groups. */
+export const offeredTools = (ctx: ToolContext): Tool[] => allTools().filter((t) => {
+  if (t.writes && !ctx.write) return false;
+  const g = groupOf(t);
+  return !ctx.groups || g === 'core' || ctx.groups.includes(g);
+});
 export const toolByName = (name: string, list: Tool[] = allTools()): Tool | undefined => list.find((t) => t.name === name || t.name.replace(/_/g, '-') === name);
 
 /** Checks the arguments against the tool's input (defaults filled in), then runs it. Some tools (exports) return a
