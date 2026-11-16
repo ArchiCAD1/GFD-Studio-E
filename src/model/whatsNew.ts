@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.163', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: right-click menus stay inside the drawing', text: 'A right-click near the bottom or right edge of the drawing now opens the menu upward or to the left, so every entry can be reached; a menu taller than the drawing scrolls. A list opens beside its row, and to the left at the right edge.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.162', date: '2026-11-16',
     items: [
       { title: 'Design CAD: adjust a revision cloud\'s arcs', text: 'REVCLOUD now has an Arc option: choose it, type the arc length in drawing units, then draw the cloud. To change a cloud already drawn, pick it and edit Geometry → Arc length in Properties.', action: 'cad' }
