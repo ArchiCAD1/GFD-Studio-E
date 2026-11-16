@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import CadCanvas, { type CadHover, type CadMarks, type CadToggles, type CanvasDevice, type CanvasWiring } from './CadCanvas';
 import { NO_ACTIONS, rememberedDrawing, SAMPLE_PLANS, type CadRibbonInfo, type CadState, type CadTool } from './cadState';
-import { cadCommand, type CadAction } from './cadCommands';
+import { cadCommand, toolName, type CadAction } from './cadCommands';
 import { getClip, hasClip, putClip } from './cadClipboardStore';
 import { hasPreviousView } from './cadViewHistory';
 import { QuickSelectDialog } from './CadQuickSelect';
@@ -15,13 +15,15 @@ import { parseZoomScale } from '../../model/cadView';
 import { selectSimilar, type SimilarOpts } from '../../model/cadQuickSelect';
 import { endTowards, linesCross, nearestPiece, nearestSegment, onRound, roundOfSegments } from '../../model/cadDims';
 import { clipPayload, clipText, lowerLeft, parseClip, pastedItems, withPasted, type ClipPayload } from '../../model/cadClipboard';
-import CadCommandLine, { CadPromptMenu } from './CadCommandLine';
-import { addSelectedTool, blankMenu, commandMenu, countLine, measureOf, shownBy, SNAP_OVERRIDES, type CtxEntry, type CtxItem, type ObjectHide } from './cadContextMenu';
+import CadCommandLine from './CadCommandLine';
+import CadMenu from './CadMenu';
+import { addSelectedTool, blankMenu, commandMenu, countLine, measureOf, shownBy, SNAP_OVERRIDES, TOOL_MENU_ICON, type CtxEntry, type CtxHead, type CtxItem, type MenuCommon, type ObjectHide } from './cadContextMenu';
 import { closeRefEdit, refEditOf, startRefEdit, workingSet } from '../../model/cadRefEdit';
 import { blockEditorChanged, blockEditorOf, closeBlockEditor, openBlockEditor, saveBlockEditor } from '../../model/cadBlockEditor';
 import { closedToggled, findCount, findReplace, gripMenu, withVertexAdded, withVertexRemoved } from './cadDrawnMenus';
-import { argOf, drawingObjectMenu, drawingPaperMenu, paperMenu, viewportMenu, xrefMenu } from './cadSheetMenus';
-import { deviceMenu, devArg, devicesInRoom, luxCheckLine, roomEntry, roomLoads, trayCheckLine, type CadShow, type DeviceMore } from './cadObjectMenus';
+import { argOf, drawingObjectHead, drawingObjectMenu, drawingPaperMenu, paperMenu, viewportHead, viewportMenu, xrefMenu } from './cadSheetMenus';
+import { drawnHead, drawnMenu } from './cadDrawnObjectMenu';
+import { deviceHead, deviceMenu, devArg, devicesInRoom, luxCheckLine, roomEntry, roomLoads, trayCheckLine, type CadShow, type DeviceMore } from './cadObjectMenus';
 import { isNumber, promptOptions, shortPrompt, spaceEnters, type SpaceMode } from './cadPrompt';
 import CadDynInput, { type DynBox } from './CadDynInput';
 import CadTextEdit from './CadTextEdit';
@@ -293,7 +295,7 @@ const DRAW_TOOLS: CadTool[] = ['point', 'line', 'xline', 'ray', 'pline', 'tray',
 /** The CAD view: a DWG / DXF drawing opened natively, as a CAD program shows it — model space, crosshair, snaps, layers,
  * a command line and a status bar. Engine in Rust (WebAssembly), desktop and web alike. Measure a distance, an area (by
  * corners, a closed object, or inside a room), and click any object to see what it is. */
-export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run: calcRun, onSheet, draft = DRAFT_DEFAULTS, autosaveMin = 2, onPrefs, onUndo, onRedo, canUndo = false, canRedo = false, onShow }: {
+export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run: calcRun, onSheet, draft = DRAFT_DEFAULTS, autosaveMin = 2, onPrefs, onUndo, onRedo, canUndo = false, canRedo = false, undoLabel, redoLabel, onShow }: {
   cad: CadState;
   /** Opens a board's load schedule, the SLD, the riser, the cable schedule or the ELV page (the right-click menus). */
   onShow?: (s: CadShow) => void;
@@ -302,6 +304,9 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  /** What Undo and Redo would take back and do again ("Move"), for the right-click menus. */
+  undoLabel?: string;
+  redoLabel?: string;
   /** Drafting settings (DS), and the project's recovery-copy minutes, kept in Preferences by the app. */
   draft?: DraftSettings;
   autosaveMin?: number;
@@ -359,7 +364,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [cloudArc, setCloudArc] = useState<number | null>(null);
   const [ellAxis, setEllAxis] = useState(false);
   const [circleDia, setCircleDia] = useState(false);
-  const [menuAt, setMenuAt] = useState<Pt | null>(null);
   const [arlSet, setArlSet] = useState<ArlSettings>(ARL_START);
   const [matchFrom, setMatchFrom] = useState<string | null>(null);
   // The rotation the next socket or switch is placed at (degrees anticlockwise).
@@ -385,7 +389,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** The object of the opened drawing, or the reference, the last right-click was on. */
   const ctxObj = useRef<{ dw?: CadObject; ref?: string; vp?: string; fvp?: number } | null>(null);
   /** The right-click menu on a layout's paper or one of its viewports (phase 3), at a point of the paper's stage. */
-  const [paperCtx, setPaperCtx] = useState<{ at: Pt; items: CtxEntry[] } | null>(null);
+  const [paperCtx, setPaperCtx] = useState<{ at: Pt; items: CtxEntry[]; head?: CtxHead; label?: string } | null>(null);
   const paperStage = useRef<HTMLDivElement>(null);
   // Edit tools: their settings, the first object picked (and where), objects picked first or points next, the Stretch
   // window, the grip being dragged, and a first pick set by the toolbar before the tool starts.
@@ -453,7 +457,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [dlg, setDlg] = useState<'edit' | 'style' | 'dimstyle' | 'qselect' | 'ptype' | null>(null);
   /** PASTECLIP: the objects following the cursor until they are placed. */
   const [pasting, setPasting] = useState<ClipPayload | null>(null);
-  const [promptMenu, setPromptMenu] = useState<{ at: Pt; items: CtxEntry[] } | null>(null);
+  const [promptMenu, setPromptMenu] = useState<{ at: Pt; items: CtxEntry[]; head?: CtxHead; label?: string } | null>(null);
   // ISOLATEOBJECTS / HIDEOBJECTS: the objects shown only, or hidden, on this view (not saved); Snap overrides ▸: the one
   // snap mode for the next point ('none': no snap); the values typed at prompts lately (Recent input ▸).
   const [objHide, setObjHide] = useState<ObjectHide | null>(null);
@@ -489,7 +493,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [showXR, setShowXR] = useState(false);
   const [xDraft, setXDraft] = useState<CadRef | null>(null);
   const [xClip, setXClip] = useState<{ name: string; outline: boolean } | null>(null);
-  if (pickedOn !== view) { setPickedOn(view); setResult(null); setPoints([]); setObjectMode(false); setLuxRoom(null); setEm({ routes: [], points: [], rooms: [] }); setPicked([]); setMenuAt(null); }
+  if (pickedOn !== view) { setPickedOn(view); setResult(null); setPoints([]); setObjectMode(false); setLuxRoom(null); setEm({ routes: [], points: [], rooms: [] }); setPicked([]); }
   const input = useRef<HTMLInputElement>(null);
   const last = rememberedDrawing(project.id);
   const units = planScale(project, view?.file, view?.info.units);
@@ -575,7 +579,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   // A tool chosen (ribbon or command line): start it afresh and say what it asks for.
   useEffect(() => {
     const pre = preset.current;
-    setPoints(pointsNext.current ?? []); pointsNext.current = null; setObjectMode(false); setLuxRoom(luxNext.current); luxNext.current = null; setMenuAt(null); if (tool !== 'match') setMatchFrom(null); cad.setTextAt(null);
+    setPoints(pointsNext.current ?? []); pointsNext.current = null; setObjectMode(false); setLuxRoom(luxNext.current); luxNext.current = null; if (tool !== 'match') setMatchFrom(null); cad.setTextAt(null);
     setCloudPoly(false); setCloudAsk(false); setEllAxis(false); setCircleDia(false);
     setEdStep(pre); preset.current = null; setStretchBox(null); const mp = mpNext.current; mpNext.current = null; setMpFrom(mp);
     const first = picked.some((k) => k.startsWith('sk:')) || !!cad.selected?.startsWith('sk:');
@@ -1618,7 +1622,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
 
   /** Picks devices and drawn objects: one (it is the selected object, its details on the right), several, or none. */
   function pick(items: PlacedItem[], sks: SketchItem[] = [], dws: CadObject[] = []) {
-    setMenuAt(null);
     if (dws.length === 1 && !items.length && !sks.length) { setPicked([]); cad.setSelected(null); setResult({ kind: 'object', o: dws[0] }); return; }
     if (dws.length) {
       for (const o of dws) dwObjects.current.set(`dw:${o.handle}`, { file: view?.file ?? '', o });
@@ -1653,11 +1656,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (it.kind === 'insert') {
       if (effective(it, styles).lock) { cad.say(`ATTEDIT  Block on layer ${it.layer}, which is locked: unlock it first (LAYULK).`); return; }
       if (!attdefsOf(blockDefOf(defs, it.block)).length) { cad.say(`ATTEDIT  Block "${it.block}" has no attributes to edit.`); return; }
-      setMenuAt(null); cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it }); setAttEdit(it.id); return;
+      cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it }); setAttEdit(it.id); return;
     }
     if (it.kind !== 'text' && it.kind !== 'dim' && it.kind !== 'mtext') { cad.say(`TEXTEDIT  That is a ${kindOf(it).toLowerCase()}, not a text or dimension. Select a text or dimension:`); return; }
     if (effective(it, styles).lock) { cad.say(`TEXTEDIT  ${kindOf(it)} on layer ${it.layer}, which is locked: unlock it first (LAYULK).`); return; }
-    setMenuAt(null); setPicked([]); cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it });
+    setPicked([]); cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it });
     // A note opens its own editor (MTEXT, S6).
     if (it.kind === 'mtext') { setEdNote({ id: it.id, draft: it }); cad.say(MTEXT_TYPE(false)); return; }
     setEdText({ id: it.id, value: it.text ?? '' });
@@ -1711,28 +1714,32 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** Right click: with a tool running, Enter (the command menu when the prompt has options, or with Shift: Recent
    * input, Snap overrides…); with none, the menu of edits for the device or drawn object under it (or what is picked),
    * Erase for an object of the opened drawing, else the blank-canvas menu (cadContextMenu.ts). */
-  async function contextAt(at: Pt, pixel: number, screen: Pt, shift = false) {
+  async function contextAt(at: Pt, pixel: number, screen: Pt, shift = false, byKey = false) {
     setPromptMenu(null);
+    const mc = menuCommon();
     if (tool !== 'none') {
       const opts = promptOptions(cad.history[cad.history.length - 1] ?? '');
       if (!opts.length && !shift) { run(''); return; }
-      setPromptMenu({ at: screen, items: commandMenu({ options: opts, inputs, toggles: cad.toggles, snapOnce: snapOnce === 'none' ? null : snapOnce }) });
+      const last = cad.history[cad.history.length - 1] ?? '', cmdName = toolName(tool) ?? tool.toUpperCase();
+      setPromptMenu({ at: screen, items: commandMenu({ options: opts, inputs, toggles: cad.toggles, snapOnce: snapOnce === 'none' ? null : snapOnce }), head: { icon: TOOL_MENU_ICON[tool] ?? 'enter', title: cmdName, detail: shortPrompt(last) || undefined }, label: 'Command menu' });
       return;
     }
     // A hot grip of a drawn object picked (phase 4): move, copy, rotate or mirror from it, and a polyline's vertices.
     const hotIt = hotGrip ? sketch.find((x) => x.id === hotGrip.id) : undefined;
     if (hotIt && hotGrip) {
       const g = gripsOf(hotIt)[hotGrip.i];
-      if (g) { setPromptMenu({ at: screen, items: gripMenu({ index: hotGrip.i, kind: g.kind, it: hotIt }) }); return; }
+      if (g) { setPromptMenu({ at: screen, items: gripMenu({ index: hotGrip.i, kind: g.kind, it: hotIt }), head: { icon: 'move', title: 'Grip', detail: kindOf(hotIt) } }); return; }
     }
-    const d = deviceAt(at, pixel), sk = d ? undefined : hitAt(pickable, at, pickR * pixel);
+    // From the keyboard with objects picked, the menu is theirs: nothing under the point is picked instead.
+    const noHit = byKey && pickedItems.length + pickedSk.length + pickedDw.length > 0;
+    const d = noHit ? undefined : deviceAt(at, pixel), sk = d || noHit ? undefined : hitAt(pickable, at, pickR * pixel);
     const room = floor ? roomAtPointOf(project, floor, at, units.factor) : undefined;
     ctxAt.current = { at, room: room?.id };
     if (d && !pickedKeys.has(d.key)) pick([d]);
     else if (sk && !pickedKeys.has(`sk:${sk.id}`)) pick([], [sk]);
     // Devices only (the one clicked, or those picked): the device, board or ELV menu.
     const devs = d && !pickedKeys.has(d.key) ? [d] : !sk && !pickedSk.length ? pickedItems : [];
-    if (devs.length && (d || !sk)) { setPromptMenu({ at: screen, items: devMenu(devs) }); return; }
+    if (devs.length && (d || !sk)) { setPromptMenu({ at: screen, items: devMenu(devs), head: deviceHead({ items: devs, circuit: devCircuit(devs) }) }); return; }
     if (!d && !sk && !pickedItems.length && !pickedSk.length) {
       // An object of the opened drawing: picked (if it was not), with Erase (run as it then stands, through the actions).
       const o = view ? await view.pick(at[0], at[1], pickR * pixel, pickOn) : null;
@@ -1740,12 +1747,13 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (o || pickedDw.length) {
         const one = o ?? (pickedDw.length === 1 ? pickedDw[0] : undefined), n = o && !pickedKeys.has(`dw:${o.handle}`) ? 1 : pickedDw.length;
         ctxObj.current = { dw: one };
-        setPromptMenu({ at: screen, items: drawingObjectMenu({ block: one?.kind === 'Block' ? one.block : undefined, picked: n }) }); return;
+        const zoomSel = !!one && !!view && one.seg_end > one.seg_start;
+        setPromptMenu({ at: screen, items: drawingObjectMenu({ ...mc, block: one?.kind === 'Block' ? one.block : undefined, picked: n, zoomSel }), head: drawingObjectHead({ kind: one?.kind ?? 'Object', layer: one ? view?.info.layers[one.layer]?.name : undefined, picked: n }) }); return;
       }
       // A reference drawing's lines (phase 3).
       const r = refNear(xr.placed, at, pickR * pixel);
       if (r) { ctxObj.current = { ref: r.name }; setPromptMenu({ at: screen, items: xrefMenu(r) }); return; }
-      const blank = blankMenu({ recent: recent.map((x) => x.label), canPaste: hasClip(), canUndo, canRedo, objectsHidden: !!objHide && objHide.file === view?.file });
+      const blank = blankMenu({ ...mc, recent: recent.map((x) => x.label), objectsHidden: !!objHide && objHide.file === view?.file });
       // Inside a room with an outline: the room's tools first (phase 2).
       const rt = room ? roomTypesOf(buildingInfoOf(project)).find((t) => t.id === room.type) : undefined;
       const editing = blockEditorOf(view?.file);
@@ -1754,7 +1762,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       setPromptMenu({ at: screen, items: room ? [...top, roomEntry({ room, typeLabel: rt?.label, elv: elvItem?.label }), '-', ...blank] : [...top, ...blank] });
       return;
     }
-    setMenuAt(screen);
+    // Drawn objects (and devices with them): the one menu of every picked object.
+    const fresh = sk && !pickedKeys.has(`sk:${sk.id}`) ? sk : undefined, sks = fresh ? [fresh] : pickedSk, one = sks.length === 1 && !pickedItems.length && isPath(sks[0]) ? sks[0] : undefined;
+    const st = { ...mc, items: sks, devices: fresh ? 0 : pickedItems.length, repeat: recent[0]?.label, canShow: !!onShow, blocks: defs.map((x) => x.name), dimStyles: dimStylesOf(project).styles.map((x) => x.name),
+      withAtts: (it: SketchItem) => attdefsOf(blockDefOf(defs, it.block)).length > 0, lengthM: one ? toM(pathLength(one.pts)) : undefined };
+    setPromptMenu({ at: screen, items: drawnMenu(st), head: drawnHead(st), label: 'Edit drawn objects' });
   }
   /** ISOLATEOBJECTS / HIDEOBJECTS: the drawn objects and devices picked shown alone, or hidden (more hidden join those
    * hidden already); this view only, not saved. Objects of the opened drawing stay as they are. */
@@ -1765,7 +1777,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const before = objHide && objHide.file === view.file ? objHide.keys : [], keep = new Set(keys);
     const all = [...placed.map((d) => d.key), ...sketch.map((it) => `sk:${it.id}`)];
     setObjHide({ file: view.file, mode, keys: [...new Set([...before, ...(mode === 'hide' ? keys : all.filter((k) => !keep.has(k)))])] });
-    setPicked([]); cad.setSelected(null); setResult(null); setMenuAt(null);
+    setPicked([]); cad.setSelected(null); setResult(null);
     cad.say(`${cmd}  ${keys.length} object${keys.length === 1 ? '' : 's'} ${mode === 'isolate' ? 'shown alone' : 'hidden'} · UNISOLATEOBJECTS shows all again`);
   }
   /** ADDSELECTED: the tool that draws the object picked, with its layer current (a device: the same device type). */
@@ -1785,18 +1797,25 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   }
   /** The LV circuit of a placed device (none for a board or an ELV device). */
   const feederOfDev = (d: PlacedItem) => (d.what === 'lv' ? (project.lvPoints ?? []).find((x) => x.id === d.id)?.feederId : undefined);
+  /** What the right-click menus need of the page: undo and redo (with the step's name), the Properties palette, the clipboard. */
+  const menuCommon = (): MenuCommon => ({ canUndo, canRedo, undoLabel, redoLabel, propsOn: showProps, canPaste: hasClip() });
+  /** The circuit all the LV devices picked are on (wired: its home run is drawn), if they are on one. */
+  function devCircuit(items: PlacedItem[]): { id: string; board: string; wired: boolean } | undefined {
+    const fs = new Set(items.map(feederOfDev)), fid = fs.size === 1 ? [...fs][0] : undefined, f = fid ? project.feeders.find((x) => x.id === fid) : undefined;
+    return f ? { id: f.id, board: f.boardId, wired: isWired(project, f.id) } : undefined;
+  }
   /** The right-click menu of the devices picked (src/components/cad/cadObjectMenus.ts). */
   function devMenu(items: PlacedItem[]): CtxEntry[] {
     const fs = new Set(items.map(feederOfDev)), types = new Map<string, { label: string; count: number }>();
     for (const it of items) { const t = typeOf(project, it); types.set(t, { label: it.label, count: (types.get(t)?.count ?? 0) + 1 }); }
-    const fid = fs.size === 1 ? [...fs][0] : undefined, f = fid ? project.feeders.find((x) => x.id === fid) : undefined;
+    const fid = fs.size === 1 ? [...fs][0] : undefined, circuit = devCircuit(items);
     const swapNow = types.size === 1 ? [...types.keys()][0] : undefined;
     return deviceMenu({
-      items, edits: editsFor(project, items), oneType: types.size === 1, canShow: !!onShow, repeat: recent[0]?.label,
+      ...menuCommon(), items, edits: editsFor(project, items), oneType: types.size === 1, canShow: !!onShow, repeat: recent[0]?.label,
       circuits: circuits.map((c) => ({ id: c.id, label: circuitLabel(project, c), now: c.id === fid })),
       swaps: replacements(project, items).map((x) => ({ id: x.id, label: x.label, now: x.id === swapNow })),
       types: [...types].map(([id, v]) => ({ id, ...v })),
-      ...(f ? { circuit: { id: f.id, board: f.boardId, wired: isWired(project, f.id) } } : {})
+      ...(circuit ? { circuit } : {})
     });
   }
   /** Wire one: the circuit's home run drawn, or taken off. */
@@ -1959,7 +1978,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     ctxObj.current = { fvp: i ?? undefined };
     if (dwgL && i !== null) cad.setVpSel(dvId(i));
     const dv = dwgL && i !== null ? dwgL.viewports[i] : undefined;
-    setPaperCtx({ at, items: drawingPaperMenu({ inside: !!v, editable: !!dwgL, scale: v && v.h > 0 ? Math.round((v.vh * mpu) / v.h) : undefined, scales: scalesOf(project), locked: !!dv?.locked, frame: !!dv?.frame, clipped: !!dv?.clip }) });
+    const scale = v && v.h > 0 ? Math.round((v.vh * mpu) / v.h) : undefined;
+    setPaperCtx({ at, items: drawingPaperMenu({ inside: !!v, editable: !!dwgL, scale, scales: scalesOf(project), locked: !!dv?.locked, frame: !!dv?.frame, clipped: !!dv?.clip }), head: v ? { icon: 'viewport', title: 'Viewport', detail: scale ? `1:${scale}` : undefined } : undefined });
   }
   /** An entry of that menu. */
   function filePaperAct(a: string) {
@@ -1991,7 +2011,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (!sheetL) return;
     const r = paperStage.current?.getBoundingClientRect(), at: Pt = [x - (r?.left ?? 0), y - (r?.top ?? 0)];
     const v = id ? vps.find((q) => q.id === id) : undefined;
-    if (v) { cad.setVpSel(v.id); ctxObj.current = { vp: v.id }; setPaperCtx({ at, items: viewportMenu(v, scalesOf(project)) }); return; }
+    if (v) { cad.setVpSel(v.id); ctxObj.current = { vp: v.id }; setPaperCtx({ at, items: viewportMenu(v, scalesOf(project), showProps), head: viewportHead(v) }); return; }
     ctxObj.current = null; setPaperCtx({ at, items: paperMenu({ status: sheetL.status }) });
   }
   /** A right-click menu entry picked: its command typed, or the page action. */
@@ -2001,7 +2021,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const a = x.arg ?? '';
     switch (x.act) {
       case 'repeat': { const r = recent[Number(a)]; if (r) repeat(r); return; }
-      case 'properties': setShowProps(true); return;
+      case 'properties': setShowProps((v) => !v); return;
+      case 'sk': { const { action, value } = argOf(a); editSketch(action as SketchEdit, value); return; }
       case 'enter': run(''); return;
       case 'cancel': cancel(); return;
       case 'option': case 'input': run(a); return;
@@ -2011,7 +2032,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         cad.say(m === 'none' ? 'No snap for the next point.' : `${SNAP_OVERRIDES.find((q) => q.mode === m)?.label ?? m} snap for the next point.`);
         return;
       }
-      case 'deselect': setPicked([]); cad.setSelected(null); setResult(null); setMenuAt(null); return;
+      case 'deselect': setPicked([]); cad.setSelected(null); setResult(null); return;
       case 'dev': { const d = devArg(a); deviceAct(d.edit, d.value); return; }
       case 'room': roomAct(a); return;
       case 'dw': void dwAct(a); return;
@@ -2033,7 +2054,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const failed = (r: Edit, cmd: string) => { if (r.error) cad.say(`${cmd}  ${r.error}`); return !!r.error; };
   /** An edit from the toolbar, the menu or the side panel, on the drawn objects picked. */
   function editSketch(e: SketchEdit, arg?: string) {
-    setMenuAt(null);
     const sks = pickedSk, one = sks.length === 1 && !pickedItems.length ? sks[0] : undefined;
     if (e === 'filter' && arg) {
       if (arg === 'devices') pick(pickedItems); else if (arg === 'drawn') pick([], sks); else pick([], sks.filter((it) => kindOf(it) === arg));
@@ -2062,8 +2082,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (e === 'similar') { run('SELECTSIMILAR'); return; }
     if (e === 'qselect') { run('QSELECT'); return; }
     if (e === 'isolate') { run(arg === 'hide' ? 'HIDEOBJECTS' : arg === 'end' ? 'UNISOLATEOBJECTS' : 'ISOLATEOBJECTS'); return; }
-    if (e === 'deselect') { setPicked([]); cad.setSelected(null); setResult(null); setMenuAt(null); return; }
-    if (e === 'addsel') { setMenuAt(null); run('ADDSELECTED'); return; }
+    if (e === 'deselect') { setPicked([]); cad.setSelected(null); setResult(null); return; }
+    if (e === 'addsel') { run('ADDSELECTED'); return; }
     if (e === 'qmeasure') { run('QUICKMEASURE'); return; }
     if (e === 'count') { run('COUNT'); return; }
     if (e === 'traysize' || e === 'traycables' || e === 'trayfill' || e === 'reverse' || e === 'trace' || e === 'routesld') { if (one) routeEdit(e, one); return; }
@@ -2252,7 +2272,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** INSERT: the block chosen (in the palette, by name, or from Insert's arrow) waits at the cursor for its insertion point. */
   function startInsert(def: CadBlockDef) {
     if (!view) { cad.say('INSERT  Open a drawing first.'); return; }
-    setInsBlock(def); setInsAsk(null); setMenuAt(null);
+    setInsBlock(def); setInsAsk(null);
     if (tool === 'insert') cad.say(PROMPT.insert); else cad.setTool('insert');
   }
   /** The block placed: into the drawing's blocks when it is not there yet, then one insert at the point (or, with
@@ -2311,7 +2331,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   function openBlockDialog() {
     if (!view) { cad.say('BLOCK  Open a drawing first.'); return; }
     const items = pickedSk.filter(blockable), pts = items.flatMap((it) => it.pts);
-    setMenuAt(null);
     setBlockDlg({ name: '', base: pts.length ? [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1]))] : null, ids: items.map((it) => it.id), mode: 'convert', description: '' });
     cad.say(`BLOCK  Block definition${items.length ? `: ${picks(items.length)}` : ''}`);
   }
@@ -2511,7 +2530,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** An edit from the toolbar, the menu or the side panel, on the devices picked. */
   function editDevices(e: DeviceEdit, arg?: string) {
     const items = pickedItems;
-    setMenuAt(null);
     if (!floor || !items.length) return;
     const what = items.length === 1 ? items[0].label : `${items.length} devices`;
     try {
@@ -3103,7 +3121,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     }
     if (tool === 'none') {
       const d = deviceAt(at, pixel);
-      setMenuAt(null);
       const skHit = shiftKey && !d ? hitAt(pickable, at, pickR * pixel) : undefined;
       if (d && shiftKey) {
         const items = pickedKeys.has(d.key) ? pickedItems.filter((x) => x.key !== d.key) : [...pickedItems, d];
@@ -3764,6 +3781,23 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         pick(devs, pickable);
         cad.say(`SELECTALL  ${picks(devs.length + pickable.length)}`);
       },
+      selectInvert: () => {
+        if (!view) { cad.say('SELECTINVERT  Open a drawing first.'); return; }
+        const devs = cad.showDevices ? placed.filter((d) => shown(d.key) && !pickedKeys.has(d.key)) : [], sks = pickable.filter((it) => !pickedKeys.has(`sk:${it.id}`));
+        pick(devs, sks);
+        cad.say(`SELECTINVERT  ${picks(devs.length + sks.length)}`);
+      },
+      zoomSel: () => {
+        if (zoomRefused() || !view) return;
+        // The objects picked: drawn ones by their segments, devices by their point, objects of the opened drawing by theirs.
+        const pts: Pt[] = [...pickedItems.map((d): Pt => [d.x / units.factor, d.y / units.factor]), ...pickedSk.flatMap((it) => { const sg = segmentsOf(it, 0.001, defs); return sg.length ? sg.flat() : it.pts; }),
+          ...pickedDw.flatMap((o) => { const q: Pt[] = []; for (let i = o.seg_start; i < o.seg_end; i += 1) q.push([view.segs[i * 4] + view.info.origin[0], view.segs[i * 4 + 1] + view.info.origin[1]], [view.segs[i * 4 + 2] + view.info.origin[0], view.segs[i * 4 + 3] + view.info.origin[1]]); return q; })];
+        if (!pts.length) { cad.say('ZOOM  Pick the objects first.'); return; }
+        const x0 = Math.min(...pts.map((q) => q[0])), x1 = Math.max(...pts.map((q) => q[0])), y0 = Math.min(...pts.map((q) => q[1])), y1 = Math.max(...pts.map((q) => q[1]));
+        const pad = Math.max(0.1 * Math.max(x1 - x0, y1 - y0), 1 / units.factor);
+        zoomTo({ kind: 'window', a: [x0 - pad, y0 - pad], b: [x1 + pad, y1 + pad] });
+        cad.say(`ZOOM  ${picks(pickedItems.length + pickedSk.length + pickedDw.length)} filled the view`);
+      },
       count: () => {
         const any = pickedSk.length + pickedItems.length > 0;
         const sks = any ? pickedSk : pickable, devs = any ? pickedItems : cad.showDevices ? placed.filter((d) => shown(d.key)) : [];
@@ -3947,7 +3981,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (edNote) { setEdNote(null); cad.say('*Cancel*'); if (tool === 'mtext') cad.setTool('none'); }
     else if (points.length || objectMode || cad.textAt || mtAsk) { setPoints([]); setObjectMode(false); cad.setTextAt(null); setTextAsk(null); setEdAsk(null); setMtAsk(null); cad.say('*Cancel*'); }
     else if (edStep || edAsk === 'radius' || edAsk === 'd1' || edAsk === 'd2') { setEdStep(null); setEdAsk(null); cad.say('*Cancel*'); cad.say(tool === 'offset' ? PROMPT.offset : editPrompt(tool, edSet)); }
-    else if (menuAt) setMenuAt(null); else if (renaming || roomAsk || findAsk || beClose || reClose) { setRenaming(null); setRoomAsk(null); setFindAsk(null); setBeClose(false); setReClose(false); cad.say('*Cancel*'); } else if (tool !== 'none') cad.setTool('none'); else { setResult(null); cad.setSelected(null); setPicked([]); }
+    else if (renaming || roomAsk || findAsk || beClose || reClose) { setRenaming(null); setRoomAsk(null); setFindAsk(null); setBeClose(false); setReClose(false); cad.say('*Cancel*'); } else if (tool !== 'none') cad.setTool('none'); else { setResult(null); cad.setSelected(null); setPicked([]); }
   }
   /** What Space does in the command line: types a space in text (a name, TEXT contents, a leader's text); at TEXT's
    * height and rotation, where a word is the text, ends only an empty input or a number; else ends a whole word. */
@@ -3965,11 +3999,24 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   // (with no tool, repeats the last command), Esc cancels the command (and the tool), F2 the taller history, F1 the
   // command list.
   const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  // The drawing's world-to-screen map as the overlay last had it, for a menu opened from the keyboard.
+  const toScreenRef = useRef<((p: Pt) => Pt) | null>(null);
+  /** Shift+F10 or the menu key: the right-click menu at the objects picked (the centre of their extents), else at the
+   * cursor's last point. */
+  function menuFromKeyboard() {
+    const ts = toScreenRef.current;
+    const pts: Pt[] = [...pickedItems.map((d): Pt => [d.x / units.factor, d.y / units.factor]), ...pickedSk.flatMap((it) => { const sg = segmentsOf(it, 0.001, defs); return sg.length ? sg.flat() : it.pts; })];
+    const at: Pt | null = pts.length ? [(Math.min(...pts.map((q) => q[0])) + Math.max(...pts.map((q) => q[0]))) / 2, (Math.min(...pts.map((q) => q[1])) + Math.max(...pts.map((q) => q[1]))) / 2] : cursor.at;
+    if (!ts || !at) { cad.say('Move the cursor over the drawing first.'); return; }
+    const k = Math.abs(ts([1, 0])[0] - ts([0, 0])[0]);
+    void contextAt(at, k > 0 ? 1 / k : 1e-3, ts(at), false, true);
+  }
   keyRef.current = (e: KeyboardEvent) => {
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
     const mods = e.metaKey || e.ctrlKey || e.altKey;
     const fn: Record<string, keyof CadToggles> = { F3: 'osnap', F7: 'grid', F8: 'ortho', F9: 'snap', F10: 'polar', F11: 'otrack', F12: 'dyn' };
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key === '1') { e.preventDefault(); setShowProps((v) => !v); return; }
+    if ((e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && !(e.target instanceof Element && e.target.closest('[aria-modal="true"], [role="dialog"]'))) { e.preventDefault(); if (!e.repeat) menuFromKeyboard(); return; }
     if (fn[e.key]) { e.preventDefault(); if (fn[e.key] === 'grid') cad.cycleGrid(); else cad.toggle(fn[e.key]); return; }
     // Keys in a dialog over the page (the layer manager, references…) are the dialog's.
     if (e.defaultPrevented || (e.target instanceof Element && e.target.closest('[aria-modal="true"], [role="dialog"]'))) return;
@@ -4160,6 +4207,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                 change(updateSketch(project, fileOf(), next), `GRIP  ${kindOf(it)} ${gr.kind === 'mid' ? 'side moved' : 'changed'}${isPath(next) ? ` — now ${m(toM(next.pts.slice(1).reduce((t, q, k) => t + distance(next.pts[k], q), 0)))}` : ''} · ⌘Z to undo`);
               }}
               overlay={(toScreen, moving) => {
+                toScreenRef.current = toScreen;
                 if (edNote) {
                   // The note's editor over its box: its top left corner, width, letter and line heights on the screen, at its angle.
                   const d = edNote.draft, b = noteBox(d), o = toScreen(b.tl), e = toScreen([b.tl[0] + b.w * b.u[0], b.tl[1] + b.w * b.u[1]]), up = toScreen([b.tl[0] - b.h * b.v[0], b.tl[1] - b.h * b.v[1]]);
@@ -4195,16 +4243,16 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                       else if (/^[a-zA-Z@]$/.test(e.key) && !e.metaKey && !e.ctrlKey) input.current?.focus();
                     }} />;
                 })() : null;
-                if (promptMenu && !moving) return <CadPromptMenu left={promptMenu.at[0] + 4} top={promptMenu.at[1] + 4} items={promptMenu.items} onPick={ctxPick} />;
+                if (promptMenu && !moving) return <CadMenu left={promptMenu.at[0] + 4} top={promptMenu.at[1] + 4} head={promptMenu.head} items={promptMenu.items} label={promptMenu.label ?? 'Command menu'} onPick={ctxPick} onClose={() => setPromptMenu(null)} />;
                 if (tool !== 'none' || moving || grip !== null || (!pickedItems.length && !pickedSk.length)) return dyn;
                 if (!pickedSk.length && (!floor || !cad.showDevices)) return null;
                 const skPts = pickedSk.flatMap((it) => { const sg = segmentsOf(it, 0.001, defs); return sg.length ? sg.flat() : it.pts; });
                 const xs = [...pickedItems.map((d) => d.x / units.factor), ...skPts.map((q) => q[0])], ys = [...pickedItems.map((d) => d.y / units.factor), ...skPts.map((q) => q[1])], pad = rUnits * 2;
                 const [l, t] = toScreen([Math.min(...xs) - pad, Math.max(...ys) + pad]), [, b] = toScreen([0, Math.min(...ys) - pad]);
-                const at = menuAt ? { left: menuAt[0] + 4, top: menuAt[1] + 4, place: 'menu' as const } : t < 60 ? { left: Math.max(4, l), top: b + 8, place: 'below' as const } : { left: Math.max(4, l), top: t - 8, place: 'above' as const };
+                const at = t < 60 ? { left: Math.max(4, l), top: b + 8, place: 'below' as const } : { left: Math.max(4, l), top: t - 8, place: 'above' as const };
                 if (pickedSk.length) {
                   const one = pickedSk.length === 1 && !pickedItems.length && isPath(pickedSk[0]) ? pickedSk[0] : undefined;
-                  return <SketchToolbar key={[...pickedKeys].join()} items={pickedSk} devices={pickedItems.length} canShow={!!onShow} blocks={defs.map((d) => d.name)} dimStyles={dimStylesOf(project).styles.map((x) => x.name)} repeat={recent[0]?.label} lengthM={one ? toM(pathLength(one.pts)) : undefined} {...at} canPaste={hasClip()} withAtts={(it) => attdefsOf(blockDefOf(defs, it.block)).length > 0} onEdit={editSketch} />;
+                  return <SketchToolbar key={[...pickedKeys].join()} items={pickedSk} devices={pickedItems.length} lengthM={one ? toM(pathLength(one.pts)) : undefined} {...at} onEdit={editSketch} />;
                 }
                 return <DeviceToolbar key={[...pickedKeys].join()} project={project} items={pickedItems} edits={editsFor(project, pickedItems)} circuits={circuits} {...at} onEdit={editDevices} />;
               }} {...vpProps} />
@@ -4523,7 +4571,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         {view && paperL ? (
           <div className="cad-stage cad-paper" ref={paperStage} onMouseDown={() => setPaperCtx(null)}>
             <CadFilePaper layout={paperL} model={view} layersOn={layersOn} design={paperDesign} edit={paperEdit} onContext={filePaperContext} onDblClick={() => cad.say(fileL ? `LAYOUT  ${fileL.name} is shown as the drawing file has it: work in the model on the Model tab.` : `LAYOUT  ${paperL.name} shows the model: work in it on the Model tab.`)} />
-            {paperCtx && <CadPromptMenu left={paperCtx.at[0] + 4} top={paperCtx.at[1] + 4} items={paperCtx.items} onPick={(x) => { setPaperCtx(null); ctxPick(x); }} />}
+            {paperCtx && <CadMenu left={paperCtx.at[0] + 4} top={paperCtx.at[1] + 4} head={paperCtx.head} items={paperCtx.items} label={paperCtx.label ?? 'Command menu'} onPick={(x) => { setPaperCtx(null); ctxPick(x); }} onClose={() => setPaperCtx(null)} />}
           </div>
         ) : view && sheetL ? (
           <div className="cad-stage cad-paper" ref={paperStage} onMouseDown={() => setPaperCtx(null)}>
@@ -4558,7 +4606,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                 });
               }
             })} /> : <p className="m">Layouts open from the app's sheets.</p>}
-            {paperCtx && <CadPromptMenu left={paperCtx.at[0] + 4} top={paperCtx.at[1] + 4} items={paperCtx.items} onPick={(x) => { setPaperCtx(null); ctxPick(x); }} />}
+            {paperCtx && <CadMenu left={paperCtx.at[0] + 4} top={paperCtx.at[1] + 4} head={paperCtx.head} items={paperCtx.items} label={paperCtx.label ?? 'Command menu'} onPick={(x) => { setPaperCtx(null); ctxPick(x); }} onClose={() => setPaperCtx(null)} />}
           </div>
         ) : view ? (
           <div className="cad-stage">

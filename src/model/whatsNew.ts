@@ -15,6 +15,15 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.164', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: right-click menus with icons and one order', text: 'Every right-click menu now shows the ribbon\'s icon for each tool, its shortcut or typed command on the right, and a header naming what is picked. Picked objects get one order everywhere: the object\'s own tools, clipboard and undo, modify, view, select, then Properties and Options. A line\'s own tools are under Line tools, electrical tools show in amber, and Copy (CO) is now Copy selection.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: Invert selection and Zoom to selection', text: 'SELECTINVERT picks everything that was not picked and drops what was. Z O zooms to the objects picked. Both are also on the right-click menu.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: Undo says what it undoes', text: 'The right-click menu names the step, for example Undo Offset or Redo Move.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: right-click menus from the keyboard', text: 'Up and Down move over the rows, Right opens a list, Left closes it, Enter runs the row, Esc closes the list and then the menu, and a letter jumps to the next row that starts with it. Shift+F10 or the menu key opens the menu at the objects picked.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.163', date: '2026-11-16',
     items: [
       { title: 'Design CAD: right-click menus stay inside the drawing', text: 'A right-click near the bottom or right edge of the drawing now opens the menu upward or to the left, so every entry can be reached; a menu taller than the drawing scrolls. A list opens beside its row, and to the left at the right edge.', action: 'cad', actionLabel: 'Open Design CAD' }
