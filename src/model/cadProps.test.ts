@@ -91,6 +91,7 @@ describe('properties palette: several objects, shown and typed values', () => {
   it('metres to 2 decimals, degrees to 1; typed values take a comma and the unit', () => {
     expect(shownValue(def('ex'), 4.2)).toBe('4.20');
     expect(shownValue(def('len'), 3.5)).toBe('3.50 m');
+    expect(shownValue(geometryRows('cloud', [])[3], 0.75)).toBe('0.75 m');
     expect(shownValue(def('a0'), 45.04)).toBe('45.0°');
     expect(parseTyped(def('ex'), '4,25')).toBe(4.25);
     expect(parseTyped(def('ang'), '30°')).toBe(30);

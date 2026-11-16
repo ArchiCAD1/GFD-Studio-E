@@ -367,11 +367,15 @@ describe('CAD view', () => {
     expect(last()).toMatchObject({ kind: 'ellipse', pts: [[X, 15000]], ax: [2000, 0], ratio: 0.25 });
     esc(); await command('EL'); await command('A'); await at(X, 18000); await at(X + 4000, 18000); await command('1000');
     expect(last()).toMatchObject({ kind: 'ellipse', pts: [[X + 2000, 18000]], ax: [2000, 0], ratio: 0.5 });
-    // Revision clouds on the annotation layer: a rectangle with arcs typed 500 long; then round points (P).
-    esc(); await command('REVCLOUD'); await command('500'); await at(X, 21000); await at(X + 3000, 23000);
+    // Revision clouds on the annotation layer: Arc makes their length adjustable; P draws round picked points.
+    esc(); await command('REVCLOUD');
+    expect(document.querySelector('.cad-hist')?.textContent).toContain('[Arc/Polygonal]');
+    await command('A');
+    expect(document.querySelector('.cad-hist')?.textContent).toContain('Specify arc length in drawing units');
+    await command('500'); await at(X, 21000); await at(X + 3000, 23000);
     expect(last()).toMatchObject({ kind: 'pline', layer: 'LV-ANNO', closed: true, cloud: 500, pts: [[X, 21000], [X + 3000, 21000], [X + 3000, 23000], [X, 23000]] });
     esc(); await command('REVCLOUD'); await command('P'); await at(X, 25000); await at(X + 2000, 25000); await at(X + 1000, 27000); await command('');
-    expect(last()).toMatchObject({ kind: 'pline', layer: 'LV-ANNO', closed: true, pts: [[X, 25000], [X + 2000, 25000], [X + 1000, 27000]] });
+    expect(last()).toMatchObject({ kind: 'pline', layer: 'LV-ANNO', closed: true, cloud: 500, pts: [[X, 25000], [X + 2000, 25000], [X + 1000, 27000]] });
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toMatch(/^Revision cloud, arcs [\d.]+ m long · ⌘Z to undo$/);
     // Saved: an ELLIPSE, and the clouds as polylines with their arcs (bulges, group 42).
     esc(); await saveCmd('save');

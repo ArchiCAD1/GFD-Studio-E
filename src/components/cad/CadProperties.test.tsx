@@ -121,6 +121,16 @@ describe('Properties palette', () => {
     expect(vi.mocked(p.onItems).mock.calls[1][0][0].tray).toEqual({ widthMm: 450, route: 'TR-1' });
   });
 
+  it('a revision cloud exposes an adjustable arc length', () => {
+    const cloud: SketchItem = { id: 'C1', kind: 'pline', layer: 'LV-ANNO', pts: [[0, 0], [4000, 0], [4000, 2000], [0, 2000]], closed: true, cloud: 500 };
+    const p = render([cloud]);
+    expect(rowText().slice(5)).toEqual(['X=0.00', 'Y=0.00', 'Outline length=12.00 m', 'Arc length=0.50 m']);
+    act(() => { (el('Arc length') as HTMLButtonElement).click(); });
+    type(el('Arc length') as HTMLInputElement, '0.75');
+    key(el('Arc length'), 'Enter');
+    expect(vi.mocked(p.onItems).mock.calls[0]).toEqual([[{ ...cloud, cloud: 750 }], 'Revision cloud: arc length 0.75 m']);
+  });
+
   it('an angular dimension is measured in degrees, a radius one in metres', () => {
     render([{ id: 'an', kind: 'dim', dimKind: 'angular', layer: 'LV-ANNO', pts: [[0, 0], [1000, 0], [0, 1000], [500, 500]], h: 250 }]);
     expect(rowText().slice(5)).toEqual(['Measured=90.0°', 'Text override=', 'Text height=0.25']);
