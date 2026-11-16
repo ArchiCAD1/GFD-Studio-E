@@ -11,7 +11,8 @@ panels, circuits and about 100 optional sections) and keeps that project safe:
 - **Open / save**: one JSON file per project in the projects folder (desktop, via the Electron main process,
   `electron/main.cjs` + `electron/projectFiles.cjs`), or the browser's own storage (`localStorage`) in the web version
   (`src/model/projectStore.ts`).
-- **Migration** = bringing an older file up to the current file format (`migrateProject`, `CURRENT_SCHEMA = 3`).
+- **Migration** = bringing an older file up to the current file format (`migrateProject`, `CURRENT_SCHEMA = 4`).
+- **Revisions in the file** (version 4, `src/model/revisionStore.ts` `packRevisions` / `unpackRevisions`): the file keeps each distinct panel, circuit and section of the issued revisions once (`revisionStore.items`) and each revision as references to them or to the design as it is now, not a whole copy per revision. Packed only where a project is written (`saveProjectFile`, `writeRecovery`, headless `commitProject`) and unpacked where one is read (`loadProjectStamped`, `readRecoveries`, `pickProject`, `migrateProject`); in the app a revision is a whole snapshot as before. With ten revisions a 200-panel file is 0.59 MB, not 5.13 MB.
   A file from a *newer* app opens read-only.
 - **Trash** (30 days), **portable backup** (`.lvds-backup` zip with checkpoints and SHA-256 checks), **project list**
   (search, filter, archive, details), **anonymized sample** export, and **project folder templates** (model only so far).
