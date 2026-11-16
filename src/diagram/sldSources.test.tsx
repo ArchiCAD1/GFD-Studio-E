@@ -62,19 +62,19 @@ describe('SLD sources, instruments and relays from the symbol library', () => {
     expect(inst[0].querySelectorAll('circle[r="3"]')).toHaveLength(3); // three lamps
   });
 
-  it('draws a feeder UVR as the library relay, and a separate RCCB as its toroid on the cable', () => {
+  it('draws a feeder UVR as the library relay, and an RCCB as the ELCB unit under the breaker', () => {
     const wp = host.querySelector('[data-lv-id="feeder:MCC-WP"]')!;
     expect(texts(wp)).toContain('U<');
     expect(texts(wp)).not.toContain('UVR');
     const fp = host.querySelector('[data-lv-id="feeder:MCC-FP"]')!;
-    expect(texts(fp)).toContain('RCCB'); // a separate RCCB after the breaker keeps its name box
-    expect(fp.querySelectorAll('ellipse[rx="3"]')).toHaveLength(1); // library RCD toroid on the line
+    expect(texts(fp)).toContain('RCCB'); // the ELCB unit's box carries the written word
+    expect(fp.querySelectorAll('[data-sym="cbct"]')).toHaveLength(1); // core-balance CT on the cable
   });
 
   it('lists the same library symbols in the legend', () => {
     const entries = legendEntries(project);
     const keys = entries.map((e) => e.key);
-    expect(keys).toEqual(expect.arrayContaining(['tx', 'gen', 'ats', 'pfr', 'am', 'lamps', 'uvr', 'rcd']));
+    expect(keys).toEqual(expect.arrayContaining(['tx', 'gen', 'ats', 'pfr', 'am', 'lamps', 'uvr', 'elcb']));
     const svg = (k: string) => renderToStaticMarkup(<svg>{entries.find((e) => e.key === k)!.draw(0, 0)}</svg>);
     expect(svg('gen')).toContain('>3~<');
     expect(svg('pfr')).toContain('>PFR<');
