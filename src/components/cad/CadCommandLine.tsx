@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { commandList, matchingCommands, promptOptions, promptParts, spaceEnters, type SpaceMode } from './cadPrompt';
 import type { CtxEntry, CtxItem } from './cadContextMenu';
+import { useListPlace, useMenuPlace } from './cadMenuPlace';
 
 /** Design CAD's command line: three lines of history, the prompt with its options (a click works as typing the key),
  * the input with the commands matching what is typed (Tab or the arrows pick one), Up / Down in the empty input for
@@ -82,17 +83,21 @@ export default function CadCommandLine({ history, live, cmd, setCmd, inputRef, t
 /** The right-click menu on the drawing (cadContextMenu.ts builds its entries): separators, entries not available
  * now, and flyouts (▸) opened by a click or by hovering. */
 export function CadPromptMenu({ left, top, items, onPick }: { left: number; top: number; items: CtxEntry[]; onPick: (x: CtxItem) => void }) {
-  const [open, setOpen] = useState<number | null>(null);
-  const sub = open !== null ? items[open] : undefined;
+  const [open, setOpen] = useState<{ i: number; row: HTMLElement } | null>(null);
+  const sub = open ? items[open.i] : undefined;
+  // Kept inside the drawing (cadMenuPlace.ts): opened up or to the left near the edges, its list beside its row.
+  const menu = useRef<HTMLDivElement>(null), list = useRef<HTMLDivElement>(null);
+  const place = useMenuPlace(menu, left, top, items);
+  const listPlace = useListPlace(menu, open?.row ?? null, list, open?.i);
   return (
-    <div className="cad-ctx vert" role="menu" aria-label="Command menu" style={{ left, top }} onMouseDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
+    <div ref={menu} className="cad-ctx vert" role="menu" aria-label="Command menu" style={place} onMouseDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
       {items.map((x, i) => (x === '-' ? <span key={`-${i}`} className="cad-ctx-bar" />
-        : <button key={x.label} role="menuitem" disabled={x.off} aria-haspopup={x.sub ? 'menu' : undefined} aria-expanded={x.sub ? open === i : undefined}
-          onMouseEnter={() => setOpen(x.sub ? i : null)} onClick={() => (x.sub ? setOpen(open === i ? null : i) : onPick(x))}>
+        : <button key={x.label} role="menuitem" disabled={x.off} aria-haspopup={x.sub ? 'menu' : undefined} aria-expanded={x.sub ? open?.i === i : undefined}
+          onMouseEnter={(e) => setOpen(x.sub ? { i, row: e.currentTarget } : null)} onClick={(e) => (x.sub ? setOpen(open?.i === i ? null : { i, row: e.currentTarget }) : onPick(x))}>
           <span>{x.label}</span>{x.sub ? <small className="m">▸</small> : x.key && <small className="m">{x.key}</small>}
         </button>))}
       {sub && sub !== '-' && sub.sub && (
-        <div className="cad-ctx-list" role="menu" aria-label={sub.label}>
+        <div ref={list} className="cad-ctx-list" role="menu" aria-label={sub.label} style={listPlace}>
           {sub.sub.map((y) => <button key={y.label} role="menuitem" disabled={y.off} onClick={() => onPick(y)}><span>{y.label}</span><small>{y.key ?? ''}</small></button>)}
         </div>
       )}
