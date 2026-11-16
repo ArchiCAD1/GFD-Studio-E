@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { newProject } from '../types';
 import { sampleProject } from '../data/sampleProject';
 import { applyDefaults, applyProfile, defaultsFromProject, DEFAULT_PREFS, initialsOf, loadPrefs, savePrefs, signature, type Preferences } from './profile';
-import { clearRecovery, deleteProjectFile, emptyTrash, keepUnsavedWork, listProjects, listTrash, restoreProject, loadProject, metaOf, readRecoveries, recentFiles, saveProjectFile, touchRecent, whenText, writeRecovery } from './projectStore';
+import { clearRecovery, deleteProjectFile, emptyTrash, keepUnsavedWork, listProjects, listTrash, restoreProject, loadProject, metaOf, readRecoveries, recentFiles, recoveryIsCurrent, saveProjectFile, touchRecent, whenText, writeRecovery } from './projectStore';
 import { titleBlockOf } from '../docs/sldSheet';
 
 // A small in-memory localStorage (the store falls back to it without the desktop app).
@@ -113,6 +113,21 @@ describe('saving, recovery and recent (web version storage)', () => {
     expect(left[0]).toMatchObject({ projectId: 'a', file: 'a.json' });
     await clearRecovery('a');
     expect(await readRecoveries()).toEqual([]);
+  });
+
+  it('knows when the recovery copy already holds this state, until an edit or a clear', async () => {
+    const a = { ...sampleProject, id: 'a' };
+    expect(recoveryIsCurrent(a)).toBe(false);
+    await writeRecovery({ file: 'a.json', at: 1, project: a });
+    expect(recoveryIsCurrent(a)).toBe(true);
+    expect(recoveryIsCurrent({ ...a, name: 'Edited' })).toBe(false); // an edit is a new project object
+    await clearRecovery('a'); // saved or discarded: the copy is gone, so the same state is written again
+    expect(recoveryIsCurrent(a)).toBe(false);
+    await writeRecovery({ at: 2, project: a });
+    await writeRecovery({ at: 3, project: { ...sampleProject, id: 'b' } });
+    expect(recoveryIsCurrent(a)).toBe(false); // only the copy written last is remembered: A is written again (same content)
+    await clearRecovery('a');
+    await clearRecovery('b');
   });
 
   it('after a crash, keeps unsaved work by the same rules as closing the window', async () => {

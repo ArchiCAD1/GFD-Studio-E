@@ -103,6 +103,9 @@ it('edit and output benchmark', () => {
     projectFingerprint(issued);
     const checks = [2, 3, 4, 5, 6].map((i) => { const p = edit(issued, i), c = performance.now(); projectFingerprint(p); return performance.now() - c; }).sort((a, b) => a - b);
     lines.push(`  unsaved-changes check, ten revisions: ${ms(checks[2])}`);
+    // What ten issued revisions add to the saved file (each keeps a whole copy of the project).
+    const plain = JSON.stringify(base).length, withRevs = JSON.stringify(issued).length;
+    lines.push(`  project file with ten revisions: ${mb(withRevs)} (${(withRevs / plain).toFixed(1)} × the ${mb(plain)} without)`);
     const stale = edit(base, 2), s = performance.now(); staleStudies(run, stale);
     lines.push(`  stale check: ${ms(performance.now() - s)}`);
     // Memory the undo history keeps: every step's project, with what the screens read after that edit.
