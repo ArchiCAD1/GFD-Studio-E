@@ -168,6 +168,13 @@ export function bulgeArc(a: Pt, b: Pt, bulge: number): { c: Pt; r: number; a0: n
   const ang = (q: Pt) => Math.atan2(q[1] - c[1], q[0] - c[0]);
   return bulge > 0 ? { c, r, a0: ang(a), a1: ang(b) } : { c, r, a0: ang(b), a1: ang(a) };
 }
+/** True when a polyline has arc segments (a non-zero bulge): the tools that only handle straight sides refuse it. */
+export const hasArcs = (it: Pick<SketchItem, 'bulges'>) => !!it.bulges?.some((b) => Math.abs(b) > 1e-12);
+/** The middle of the arc from a to b of a bulge, on the arc itself. */
+export function arcMid(a: Pt, b: Pt, bulge: number): Pt {
+  const q = bulgeArc(a, b, bulge), m = q.a0 + 2 * Math.atan(Math.abs(bulge));
+  return [q.c[0] + q.r * Math.cos(m), q.c[1] + q.r * Math.sin(m)];
+}
 
 /** The ends a dimension line can have: the usual CAD arrowheads, drawn as lines (filled ones filled with lines) so
  * they print and save the same. */
@@ -484,6 +491,11 @@ export function segmentsOf(it: SketchItem, metresPerUnit = 0.001, defs: CadBlock
     poly(pts, false);
   };
   if (it.cloud) { const { pts, bulge } = cloudLobes(it); pts.forEach((a, i) => { const q = bulgeArc(a, pts[(i + 1) % pts.length], bulge); arc(q.c, q.r, q.a0, q.a1); }); }
+  // A polyline with arc segments: each arc stepped, the straight sides as they are.
+  else if (it.kind === 'pline' && hasArcs(it)) {
+    const n = it.pts.length, m = it.closed && n > 2 ? n : n - 1;
+    for (let i = 0; i < m; i += 1) { const a = it.pts[i], b = it.pts[(i + 1) % n], k = it.bulges?.[i] ?? 0; if (Math.abs(k) > 1e-12) { const q = bulgeArc(a, b, k); arc(q.c, q.r, q.a0, q.a1); } else out.push([a, b]); }
+  }
   else if (it.kind === 'line' || it.kind === 'pline') poly(it.pts, !!it.closed);
   else if (it.kind === 'ellipse') poly(ellipsePoints(it), true);
   else if (it.kind === 'circle') arc(it.pts[0], it.r ?? 0, 0, 2 * Math.PI);
@@ -541,7 +553,12 @@ export function snapPoints(items: SketchItem[], defs: CadBlockDef[] = []): { x: 
       it.pts.forEach((q) => out.push({ x: q[0], y: q[1], kind: 1 }));
       const n = it.pts.length;
       // A cloud's sides are arcs: no middles of its outline.
-      if (!it.cloud) for (let i = 0; i + 1 < n + (it.closed ? 1 : 0); i += 1) { const a = it.pts[i], b = it.pts[(i + 1) % n]; out.push({ x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, kind: 2 }); }
+      if (!it.cloud) for (let i = 0; i + 1 < n + (it.closed ? 1 : 0); i += 1) {
+        const a = it.pts[i], b = it.pts[(i + 1) % n], k = it.kind === 'pline' ? it.bulges?.[i] ?? 0 : 0;
+        // An arc segment: its middle on the arc, and its centre.
+        if (Math.abs(k) > 1e-12) { const m = arcMid(a, b, k), c = bulgeArc(a, b, k).c; out.push({ x: m[0], y: m[1], kind: 2 }, { x: c[0], y: c[1], kind: 4 }); }
+        else out.push({ x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, kind: 2 });
+      }
     } else if (it.kind === 'circle') out.push({ x: it.pts[0][0], y: it.pts[0][1], kind: 4 });
     else if (it.kind === 'ellipse') {
       const c = it.pts[0], [ux, uy] = it.ax ?? [0, 0], k = it.ratio ?? 1;
@@ -640,6 +657,8 @@ export function shapesOut(items: SketchItem[], metresPerUnit: number, defs: CadB
         { layer: it.layer, kind: 'text', pts: it.pts, text: it.text, h: it.h, rot: it.rot, ...(it.just ? { just: it.just } : {}) },
         ...(f?.circle ? [{ layer: it.layer, kind: 'circle' as const, pts: [f.circle.c], r: f.circle.r }] : f?.pts ? [{ layer: it.layer, kind: 'pline' as const, pts: f.pts, closed: true }] : [])];
     }
+    // A polyline with arc segments: written with its bulges (one per point).
+    if (it.kind === 'pline' && hasArcs(it)) return [{ layer: it.layer, kind: 'pline', pts: it.pts, closed: it.closed, bulges: it.pts.map((_, i) => it.bulges?.[i] ?? 0) }];
     return [{ layer: it.layer, kind: it.kind, pts: it.pts, closed: it.closed, r: it.r, a0: it.a0, a1: it.a1 }];
   };
   // Each shape carries its object's id (an associative hatch names the shapes it follows).
