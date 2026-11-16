@@ -1,6 +1,6 @@
 # UI UX proposal – SLD panel symbols (2026-11-16)
 
-Status: **proposal; decision 6 answered, decisions 1–5 waiting.** Nothing is built. Main boards changed on 2026-11-16 after the user's feedback: all filled is dropped, and the user chose M1, the double frame (see Main boards under Option A, and mockup section 2b).
+Status: **approved by the user on 2026-11-16** ("Yes, all recommended" for decisions 1–5; M1 for decision 6). Being built. Main boards changed on 2026-11-16 after the user's feedback: all filled is dropped, and the user chose M1, the double frame (see Main boards under Option A, and mockup section 2b).
 
 Mockup: `docs/mockups/sld-panel-symbols-mockup.html` (image: `sld-panel-symbols-mockup.png`).
 
@@ -110,11 +110,11 @@ The same set on the SLD end boards, in a new SLD legend row for each kind drawn,
 
 ## Decisions
 
-1. **Symbol set:** A families (recommended) / B pattern + E tag / C letters.
-2. **Colours:** Colour by → Supply, screen only, prints black (recommended) / always coloured on screen / none.
-3. **Where:** everywhere at once: SLD end boards and legend, riser, feeder riser, library blocks and strip icons (recommended) / the SLD first, the rest later.
-4. **Design CAD plan symbols for boards:** the same patterns, with the tag beside them (recommended) / keep today's tagged rectangles.
-5. **New kinds:** ESMDB (recommended, completes the emergency family) / also PFC, ATS, FPL, CP, EV / none.
+1. **Symbol set:** answered: **A families**.
+2. **Colours:** answered: **Colour by → Supply, screen only, prints black**.
+3. **Where:** answered: **everywhere at once** (SLD end boards and legend, riser, feeder riser, library blocks and strip icons).
+4. **Design CAD plan symbols for boards:** answered: **the same patterns, with the tag beside them**.
+5. **New kinds:** answered: **ESMDB** only.
 6. **Main boards (MDB, LV-MDB, LV-ACB, EMDB, LV-EMDB):** answered 2026-11-16: **M1 double frame** (not M2 letters, M3 hatched or M4 bow-tie).
 
 ## Suggested steps after approval
