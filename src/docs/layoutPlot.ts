@@ -6,8 +6,8 @@ import { fileDesignOf, fileDesignSvg } from './planLayout';
 
 /** A layout of the drawing (the file's own, or one made in Design CAD with +) as it plots: its paper with what is drawn
  * on it and the model through each viewport that is on, clipped to its frame, black on white — what the paper view
- * shows (src/components/cad/CadFilePaper.tsx), as one SVG the size of the paper. A viewport's frame prints only when
- * asked (`frames`, by its place in layout.viewports). The design made in the app (devices, DBs, wiring, containment and
+ * shows (src/components/cad/CadFilePaper.tsx), as one SVG the size of the paper. A viewport's frame — its outline when it
+ * is clipped — prints only when asked (`frames`, by its place in layout.viewports). The design made in the app (devices, DBs, wiring, containment and
  * drawn work) goes over the model in each viewport (`design`, from layoutDesign). */
 
 type Pt = [number, number];
@@ -71,7 +71,9 @@ export function layoutDesign(p: Project, file: string, insunits: number | undefi
     if (!shown(v)) return '';
     const map = viewportMap(v), hw = v.w / 2 / map.scale, hh = v.h / 2 / map.scale;
     const X = (x: number) => paper.mm(map.ps(x, v.cy)[0], 0)[0], Y = (y: number) => paper.h - paper.mm(0, map.ps(v.cx, y)[1])[1];
-    return fileDesignSvg(p, d, [v.cx - hw, v.cy - hh, v.cx + hw, v.cy + hh], X, Y, map.scale * k, `ld${i}`, v === first || map.scale * 2 > s0);
+    // A clipped viewport's outline in the model: its design is cut there, symbols and tags outside it left out.
+    const poly = v.clip?.map(([fx, fy]): Pt => [v.cx + ((fx - 0.5) * v.w) / map.scale, v.cy + ((0.5 - fy) * v.h) / map.scale]);
+    return fileDesignSvg(p, d, [v.cx - hw, v.cy - hh, v.cx + hw, v.cy + hh], X, Y, map.scale * k, `ld${i}`, v === first || map.scale * 2 > s0, poly);
   });
 }
 
@@ -87,7 +89,8 @@ export function layoutPlotSvg(layout: FileLayout, model: Pick<CadView, 'segs' | 
     if (!v.on || !(v.w > 0) || !(v.h > 0)) return;
     const map = viewportMap(v);
     const [ax, ay] = at(v.x, v.y + v.h), [bx, by] = at(v.x + v.w, v.y);
-    const rect = `x="${n2(ax)}" y="${n2(ay)}" width="${n2(bx - ax)}" height="${n2(by - ay)}"`;
+    // Its frame, or its outline when it is clipped (VPCLIP): what the model is cut at, and what prints as its frame.
+    const shape = v.clip ? `<polygon points="${v.clip.map(([fx, fy]) => at(v.x + fx * v.w, v.y + v.h - fy * v.h).map(n2).join(',')).join(' ')}"` : `<rect x="${n2(ax)}" y="${n2(ay)}" width="${n2(bx - ax)}" height="${n2(by - ay)}"`;
     // The part of the model in the frame (drawing units, relative to the model's origin), to skip the rest.
     const hw = v.w / 2 / map.scale, hh = v.h / 2 / map.scale;
     const x0 = v.cx - hw - mox, x1 = v.cx + hw - mox, y0 = v.cy - hh - moy, y1 = v.cy + hh - moy;
@@ -105,8 +108,8 @@ export function layoutPlotSvg(layout: FileLayout, model: Pick<CadView, 'segs' | 
       const p = map.ps(t.x, t.y);
       texts += textSvg(t, at(p[0], p[1]), t.h * map.scale * k, (t.w ?? 0) * map.scale * k);
     }
-    out.push(`<clipPath id="vp${i}"><rect ${rect}/></clipPath><g clip-path="url(#vp${i})"><g fill="none" stroke="#000" stroke-width="${MODEL_LINE_MM}" stroke-linecap="round" stroke-linejoin="round">${lines.svg()}</g>${texts}${design[i] ?? ''}</g>`);
-    if (frames[i]) out.push(`<rect ${rect} fill="none" stroke="#000" stroke-width="${PAPER_LINE_MM}"/>`);
+    out.push(`<clipPath id="vp${i}">${shape}${v.clip ? ' clip-rule="evenodd"' : ''}/></clipPath><g clip-path="url(#vp${i})"><g fill="none" stroke="#000" stroke-width="${MODEL_LINE_MM}" stroke-linecap="round" stroke-linejoin="round">${lines.svg()}</g>${texts}${design[i] ?? ''}</g>`);
+    if (frames[i]) out.push(`${shape} fill="none" stroke="#000" stroke-width="${PAPER_LINE_MM}"/>`);
   });
   // What is drawn on the paper itself.
   const [pox, poy] = layout.origin, ps = layout.segs, lines = pathsOf();

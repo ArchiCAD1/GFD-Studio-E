@@ -172,7 +172,7 @@ function tableRects(frame: HTMLIFrameElement | null, pageMmPerPx: number): Recor
 
 /** The viewport frames over a layout's page, the frames of the tables placed on it (LEGEND / NOTES, moved by their
  * edges), and the viewport worked in with the drawing inside it. */
-export function layoutOverlay({ project, sheet, sel, ms, mv, onSelect, onMs, onBox, onNew, canvas, place = null, onPlace, onTableAt, onContext }: {
+export function layoutOverlay({ project, sheet, sel, ms, mv, onSelect, onMs, onBox, onNew, outline = null, onOutlinePoint, canvas, place = null, onPlace, onTableAt, onContext }: {
   project: Project;
   sheet: DrawingSheet;
   sel: string | null;
@@ -189,13 +189,17 @@ export function layoutOverlay({ project, sheet, sel, ms, mv, onSelect, onMs, onB
   /** A frame moved or resized (paper mm, drawing area). */
   onBox: (id: string, box: PlanViewport['box']) => void;
   onNew: (box: PlanViewport['box']) => void;
+  /** VPCLIP: the corners of the outline picked so far (paper mm, drawing area); null: not picking. */
+  outline?: Pt[] | null;
+  /** A corner picked on the paper (mm, to 0.1). */
+  onOutlinePoint?: (at: Pt) => void;
   /** The drawing, fitted to the viewport worked in. */
   canvas: (v: PlanViewport, pxPerMm: number) => ReactNode;
   /** A right-click on the paper: inside a viewport (its id; not the one worked in) or on the paper (null), at the
    * screen point. */
   onContext?: (id: string | null, x: number, y: number) => void;
 }): PaperOverlay {
-  return ({ pxPerMm, frame, loaded }) => <Frames key={`${sheet.id}-${loaded}`} {...{ project, sheet, sel, ms, mv, onSelect, onMs, onBox, onNew, canvas, pxPerMm, frame, place, onPlace, onTableAt, onContext }} />;
+  return ({ pxPerMm, frame, loaded }) => <Frames key={`${sheet.id}-${loaded}`} {...{ project, sheet, sel, ms, mv, onSelect, onMs, onBox, onNew, outline, onOutlinePoint, canvas, pxPerMm, frame, place, onPlace, onTableAt, onContext }} />;
 }
 
 /** On screen only (never plotted): how far in from the paper's edge a printer can print, as the dashed line. */
@@ -211,7 +215,7 @@ function PaperMarks({ edge }: { edge: number }) {
   );
 }
 
-function Frames({ project, sheet, sel, ms, mv, onSelect, onMs, onBox, onNew, canvas, pxPerMm, frame, place, onPlace, onTableAt, onContext }: Omit<Parameters<typeof layoutOverlay>[0], never> & { pxPerMm: number; frame: HTMLIFrameElement | null }) {
+function Frames({ project, sheet, sel, ms, mv, onSelect, onMs, onBox, onNew, outline = null, onOutlinePoint, canvas, pxPerMm, frame, place, onPlace, onTableAt, onContext }: Omit<Parameters<typeof layoutOverlay>[0], never> & { pxPerMm: number; frame: HTMLIFrameElement | null }) {
   const root = useRef<HTMLDivElement>(null);
   const paper = layoutPaper(project, sheet);
   const vps = layoutViewports(project, sheet);
@@ -270,9 +274,9 @@ function Frames({ project, sheet, sel, ms, mv, onSelect, onMs, onBox, onNew, can
   const tMove = (e: React.PointerEvent) => { if (!tDrag) return; const [x, y] = mmAt(e), t = tables.find((q) => q.id === tDrag.id)!; setTDrag({ ...tDrag, at: [+(t.at[0] + x - tDrag.from[0]).toFixed(1), +(t.at[1] + y - tDrag.from[1]).toFixed(1)] }); };
   const tEnd = () => { if (tDrag && tDrag.at.join() !== tables.find((q) => q.id === tDrag.id)?.at.join()) onTableAt?.(tDrag.id, tDrag.at); setTDrag(null); };
   return (
-    <div ref={root} className={`cad-vps${mv || place ? ' mv' : ''}`} style={{ cursor: mv || place ? 'crosshair' : undefined }}
-      onPointerMove={(e) => { moveTo(e); tMove(e); if (mv) setHover(mmAt(e)); }} onPointerUp={() => { endDrag(); tEnd(); }}
-      onPointerDown={place ? (e) => { e.stopPropagation(); const at = mmAt(e); onPlace?.(place, [+at[0].toFixed(1), +at[1].toFixed(1)]); } : mv ? (e) => {
+    <div ref={root} className={`cad-vps${mv || place || outline ? ' mv' : ''}`} style={{ cursor: mv || place || outline ? 'crosshair' : undefined }}
+      onPointerMove={(e) => { moveTo(e); tMove(e); if (mv || outline) setHover(mmAt(e)); }} onPointerUp={() => { endDrag(); tEnd(); }}
+      onPointerDown={outline ? (e) => { if (e.button !== 0) return; e.stopPropagation(); const at = mmAt(e); onOutlinePoint?.([+at[0].toFixed(1), +at[1].toFixed(1)]); } : place ? (e) => { e.stopPropagation(); const at = mmAt(e); onPlace?.(place, [+at[0].toFixed(1), +at[1].toFixed(1)]); } : mv ? (e) => {
         e.stopPropagation();
         const at = mmAt(e);
         if (!first) { setFirst(at); return; }
@@ -283,12 +287,12 @@ function Frames({ project, sheet, sel, ms, mv, onSelect, onMs, onBox, onNew, can
       {marks}
       {vps.map((v) => {
         const [l, t, w, h] = shown(v), on = sel === v.id, inside = ms === v.id;
-        const grab = (how: 'move' | 'nw' | 'ne' | 'sw' | 'se') => (e: React.PointerEvent) => { if (mv) return; e.stopPropagation(); e.currentTarget.setPointerCapture?.(e.pointerId); onSelect(v.id); setDrag({ id: v.id, how, from: mmAt(e), box: v.box }); };
+        const grab = (how: 'move' | 'nw' | 'ne' | 'sw' | 'se') => (e: React.PointerEvent) => { if (mv || outline) return; e.stopPropagation(); e.currentTarget.setPointerCapture?.(e.pointerId); onSelect(v.id); setDrag({ id: v.id, how, from: mmAt(e), box: v.box }); };
         return (
           <div key={v.id} className={`cad-vp${on ? ' on' : ''}${inside ? ' ms' : ''}`} aria-label={vpName(vps, v.id)}
             style={{ left: px(origin[0] + l), top: px(origin[1] + t), width: px(w), height: px(h) }}>
-            {inside && <div className="cad-vp-model">{canvas(v, pxPerMm)}</div>}
-            {!inside && (['t', 'b', 'l', 'r'] as const).map((k) => <span key={k} className={`cad-vp-edge ${k}`} onPointerDown={grab('move')} onPointerMove={moveTo} onPointerUp={endDrag} title={`${vpName(vps, v.id)} · 1:${v.scale}${isLocked(v) ? ' · locked' : ''} — drag to move, double-click inside to work in it`} />)}
+            {inside && <div className="cad-vp-model" style={v.clip ? { clipPath: `polygon(${v.clip.map(([fx, fy]) => `${+(fx * 100).toFixed(2)}% ${+(fy * 100).toFixed(2)}%`).join(', ')})` } : undefined}>{canvas(v, pxPerMm)}</div>}
+            {!inside && (['t', 'b', 'l', 'r'] as const).map((k) => <span key={k} className={`cad-vp-edge ${k}`} onPointerDown={grab('move')} onPointerMove={moveTo} onPointerUp={endDrag} title={`${vpName(vps, v.id)} · 1:${v.scale}${isLocked(v) ? ' · locked' : ''}${v.clip ? ' · clipped' : ''} — drag to move, double-click inside to work in it`} />)}
             {on && !inside && (['nw', 'ne', 'sw', 'se'] as const).map((k) => <span key={k} className={`cad-vp-grip ${k}`} onPointerDown={grab(k)} onPointerMove={moveTo} onPointerUp={endDrag} />)}
           </div>
         );
@@ -303,6 +307,13 @@ function Frames({ project, sheet, sel, ms, mv, onSelect, onMs, onBox, onNew, can
           </div>
         );
       })}
+      {outline && (
+        <svg aria-label="Outline being picked" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+          {outline.length + (hover ? 1 : 0) > 1 && <polyline points={(hover ? [...outline, hover] : outline).map(([x, y]) => `${px(origin[0] + x)},${px(origin[1] + y)}`).join(' ')} fill="none" stroke="var(--acc)" strokeWidth="1.5" />}
+          {outline.length >= 2 && hover && <line x1={px(origin[0] + hover[0])} y1={px(origin[1] + hover[1])} x2={px(origin[0] + outline[0][0])} y2={px(origin[1] + outline[0][1])} stroke="var(--acc)" strokeWidth="1" strokeDasharray="4 3" />}
+          {outline.map(([x, y], i) => <circle key={i} cx={px(origin[0] + x)} cy={px(origin[1] + y)} r="3" fill="var(--acc)" />)}
+        </svg>
+      )}
       {mv && first && hover && (() => { const [l, t, w, h] = boxFrom(first, hover); return <div className="cad-vp new" style={{ left: px(origin[0] + l), top: px(origin[1] + t), width: px(w), height: px(h) }} />; })()}
     </div>
   );
@@ -349,7 +360,7 @@ export function TablePanel({ sheet, table, labels, onChange, onDelete }: {
 }
 
 /** Viewport properties (its frame picked): scale, lock, plan type shown, references, frame printed, delete. */
-export function ViewportPanel({ project, sheet, vp, refs, onChange, onDelete, onLayers }: {
+export function ViewportPanel({ project, sheet, vp, refs, onChange, onDelete, onLayers, onClip, onUnclip }: {
   project: Project;
   sheet: DrawingSheet;
   vp: PlanViewport;
@@ -358,6 +369,8 @@ export function ViewportPanel({ project, sheet, vp, refs, onChange, onDelete, on
   onChange: (patch: Partial<PlanViewport>, what: string) => void;
   onDelete: () => void;
   onLayers: () => void;
+  onClip: () => void;
+  onUnclip: () => void;
 }) {
   const vps = layoutViewports(project, sheet), scales = scalesOf(project);
   const [custom, setCustom] = useState('');
@@ -384,13 +397,14 @@ export function ViewportPanel({ project, sheet, vp, refs, onChange, onDelete, on
         return <label key={r}><input type="checkbox" checked={!off} onChange={() => { const next = off ? (vp.refsOff ?? []).filter((x) => x !== r) : [...(vp.refsOff ?? []), r]; onChange({ refsOff: next.length ? next : undefined }, `reference ${r} ${off ? 'shown' : 'hidden'} here`); }} /> {r}</label>;
       })}</div>}
       <label><input type="checkbox" checked={!!vp.frame} onChange={() => onChange({ frame: vp.frame ? undefined : true }, vp.frame ? 'frame not printed' : 'frame printed')} /> Frame prints</label>
+      <div className="cad-devbtns"><span>Outline: <span className="m">{vp.clip ? `clipped, ${vp.clip.length} corners` : 'its frame'}</span></span><button className="chip" onClick={onClip}>Clip…</button>{vp.clip && <button className="chip" onClick={onUnclip}>Remove</button>}</div>
       <div className="cad-devbtns"><button className="chip" onClick={onLayers}>Layers in this viewport…</button><button className="chip" onClick={onDelete}>Delete viewport</button></div>
     </div>
   );
 }
 
 /** Viewport properties of a layout made here (its frame picked): scale, lock, frame printed, delete. */
-export function DrawingViewportPanel({ name, index, scale, scales, locked, frame, onScale, onLocked, onFrame, onDelete }: {
+export function DrawingViewportPanel({ name, index, scale, scales, locked, frame, clip, onScale, onLocked, onFrame, onClip, onUnclip, onDelete }: {
   name: string;
   /** The viewport's place in the layout (0 is Viewport 1). */
   index: number;
@@ -398,9 +412,13 @@ export function DrawingViewportPanel({ name, index, scale, scales, locked, frame
   scales: number[];
   locked: boolean;
   frame: boolean;
+  /** The corners of the viewport's outline (none: it is its frame). */
+  clip?: number;
   onScale: (n: number) => void;
   onLocked: (locked: boolean) => void;
   onFrame: (on: boolean) => void;
+  onClip: () => void;
+  onUnclip: () => void;
   onDelete: () => void;
 }) {
   const [custom, setCustom] = useState('');
@@ -420,6 +438,7 @@ export function DrawingViewportPanel({ name, index, scale, scales, locked, frame
         <button className={!locked ? 'on' : ''} onClick={() => locked && onLocked(false)}>Unlocked</button>
       </div>
       <label><input type="checkbox" checked={frame} onChange={() => onFrame(!frame)} /> Frame prints</label>
+      <div className="cad-devbtns"><span>Outline: <span className="m">{clip ? `clipped, ${clip} corners` : 'its frame'}</span></span><button className="chip" onClick={onClip}>Clip…</button>{clip && <button className="chip" onClick={onUnclip}>Remove</button>}</div>
       <div className="cad-devbtns"><button className="chip" onClick={onDelete}>Delete viewport</button></div>
     </div>
   );

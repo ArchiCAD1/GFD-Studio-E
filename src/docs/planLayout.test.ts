@@ -365,6 +365,25 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
       expect(circles(power.svg)).toHaveLength(3); // the key plan shows the power layout: no lights there
     });
 
+    it('a clipped viewport (VPCLIP) is cut at its outline: lines end there, symbols outside it are left out, and its frame prints as the outline', () => {
+      const p = villa(), { set, sheets: [s] } = sheetOf(p), [v] = layoutViewports(p, s);
+      // The frame's top right is cut away from 0.6 across and 0.6 down: on the paper from 168, 122; in the model beyond x 12.2 m above y 4.6 m.
+      const cut: PlanViewport = { ...v, frame: true, clip: [[0, 0], [0.6, 0], [0.6, 0.6], [1, 0.6], [1, 1], [0, 1]] };
+      const d = planDrawing(p, withVps(s, [cut]))!.svg, shape = 'M36 38L168 38L168 122L256 122L256 178L36 178Z';
+      expect(d).toMatch(new RegExp(`<clipPath id="vp-[\\w-]+"><path d="${shape}" clip-rule="evenodd"/></clipPath>`));
+      expect(d).toContain(`<path d="${shape}" fill="none" stroke="#000" stroke-width="0.35"/>`);
+      expect(d).not.toContain('<rect x="36" y="38" width="220" height="140"');
+      // The light at 14 m is in the part cut away; the two at 6 and 10 m stay.
+      expect(circles(d).map(([x]) => x)).toEqual([106, 146]);
+      expect(circles(planDrawing(p, withVps(s, [{ ...v, frame: true }]))!.svg)).toHaveLength(3);
+      // The room's outline and the wiring stop at the outline: no point of a line lies in the part cut away.
+      const pts = [...d.matchAll(/<path (?:class="ln" )?d="([^"]+)" fill="none"/g)].filter((m) => m[1] !== shape).flatMap((m) => pathPts(m[1]));
+      expect(pts.length).toBeGreaterThan(8);
+      expect(pts.filter(([x, y]) => x > 168.01 && y < 121.99)).toEqual([]);
+      expect(pts.some(([x, y]) => Math.abs(x - 168) < 0.01 && y < 122)).toBe(true); // cut on the notch's side
+      expect(sheetHash(p, set, withVps(s, [cut]))).not.toBe(sheetHash(p, set, withVps(s, [{ ...v, frame: true }])));
+    });
+
     it('viewports are fingerprinted only where set', () => {
       const p = villa(), { set, sheets: [s] } = sheetOf(p), [v] = layoutViewports(p, s);
       expect(sheetHash(p, set, withVps(s, [v]))).not.toBe(sheetHash(p, set, s));

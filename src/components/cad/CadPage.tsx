@@ -8,7 +8,7 @@ import { QuickSelectDialog } from './CadQuickSelect';
 import { CadStatusToggles } from './CadStatusToggles';
 import { CadFilePaper, type PaperEdit } from './CadFilePaper';
 import { fileLayoutId, fileLayoutOf, fileLayoutTitle, paperOf } from '../../model/fileLayouts';
-import { addDrawingViewport, alignDrawingView, arrangeDrawingViewports, asFileLayout, copyDrawingViewport, drawingLayoutId, drawingLayoutOf, drawingLayoutsOf, dvId, dvIndex, fitDrawingViewports, newDrawingLayout, nextLayoutName, panDrawingView, paperName, patchDrawingViewport, removeDrawingViewport, scaleDrawingViewport, viewportScaleN, withDrawingLayouts, withPaper, withViewportBox, zoomDrawingView, type DrawingLayout } from '../../model/drawingLayouts';
+import { addDrawingViewport, alignDrawingView, arrangeDrawingViewports, asFileLayout, clipDrawingViewport, copyDrawingViewport, drawingLayoutId, drawingLayoutOf, drawingLayoutsOf, dvId, dvIndex, fitDrawingViewports, newDrawingLayout, nextLayoutName, panDrawingView, paperName, patchDrawingViewport, removeDrawingViewport, scaleDrawingViewport, viewportScaleN, unclipDrawingViewport, withDrawingLayouts, withPaper, withViewportBox, zoomDrawingView, type DrawingLayout } from '../../model/drawingLayouts';
 import type { ZoomReq } from './CadCanvas';
 import type { ZoomMenuKey } from '../drawingView';
 import { parseZoomScale } from '../../model/cadView';
@@ -87,7 +87,7 @@ import { layoutDesign, layoutPlotHtml } from '../../docs/layoutPlot';
 import { ImportLayoutsDialog, LayoutManagerDialog, LayoutPaperDialog, LayoutPlotDialog, LayoutTemplatesDialog, ScaleListDialog } from './CadLayoutDialogs';
 import { applySetupManaged, copyManaged, deleteManaged, managerRows, moveManaged, renameManaged, type ManagerCtx } from './cadLayoutManager';
 import { setupsOf } from '../../model/plotSetup';
-import { alignView, arrangementOf, arrangeViewports, copyViewport, fitView, isFrozen, isLocked, scalesOf, toggleFrozen, vpName, vpToModel, vpWindow, withScales, type PlanViewport } from '../../model/planViewports';
+import { alignView, arrangementOf, arrangeViewports, clipViewport, copyViewport, fitView, isFrozen, isLocked, scalesOf, toggleFrozen, unclipViewport, vpName, vpToModel, vpWindow, withScales, type PlanViewport } from '../../model/planViewports';
 import { renumber, setOf, type PlanType } from '../../model/drawingSet';
 import { PublishDialog, SheetWorkspace } from '../sld/SheetWorkspace';
 import type { MarkupTool } from '../sld/markupTools';
@@ -853,6 +853,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   // Model and layouts (paper space, src/components/cad/CadLayouts.tsx): the level's layouts, the one showing, its
   // viewports, the one picked and the one worked in (MS).
   const [mv, setMv] = useState(false);
+  const [vpClip, setVpClip] = useState<{ layout: string | null; id: string; pts: Pt[] } | null>(null); // VPCLIP: the viewport (as cad.vpSel holds it) and the corners of its outline picked so far
   const [placing, setPlacing] = useState<TableKind | null>(null); // LEGEND / NOTES: the next click on the paper places the table
   const [renamingLayout, setRenamingLayout] = useState<string | null>(null);
   const [layoutDlg, setLayoutDlg] = useState<'templates' | 'paper' | 'scales' | 'plot' | 'manager' | null>(null); // Output → Layout: templates, the paper, the scale list, plot, the layout manager
@@ -938,6 +939,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const dvSel = dvIndex(dwgL, cad.vpSel), dvMs = dvIndex(dwgL, cad.msVp);
   /** The viewport of a layout made here that a command acts on: the one worked in, else the one picked, else the only one (-1: none). */
   const dvTarget = dvMs >= 0 ? dvMs : dvSel >= 0 ? dvSel : dwgL?.viewports.length === 1 ? 0 : -1;
+  useEffect(() => { if (vpClip && (vpClip.layout !== cad.layout || !(sheetL ? vps.some((v) => v.id === vpClip.id) : dwgL && dvIndex(dwgL, vpClip.id) >= 0))) setVpClip(null); }, [cad.layout, sheetL, dwgL, vps.length]); // eslint-disable-line react-hooks/exhaustive-deps -- another layout, or the viewport gone: picking ends
   const setDwgL = (next: DrawingLayout, what: string) => { if (dwgL) setDwgLayouts(dwgLayouts.map((l) => (l === dwgL ? next : l)), `${dwgL.name}: ${what}`); };
   const dvT = dwgL && dvTarget >= 0 ? dwgL.viewports[dvTarget] : undefined;
   const vpState = vpTarget ? { locked: isLocked(vpTarget), frame: !!vpTarget.frame } : dvT ? { locked: !!dvT.locked, frame: !!dvT.frame } : undefined;
@@ -982,9 +984,32 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   };
   const dvScaleTo = (i: number, n: number) => { if (dwgL && dwgL.viewports[i] && n > 0) setDwgL(scaleDrawingViewport(dwgL, i, n, units.factor * 1000), `Viewport ${i + 1} at 1:${n}`); };
   const dvErase = (i: number) => { if (dwgL && dwgL.viewports[i]) { setDwgL(removeDrawingViewport(dwgL, i), `Viewport ${i + 1} deleted`); cad.setVpSel(null); cad.setMsVp(null); } };
+  // VPCLIP: a viewport cut to an outline clicked corner by corner on the paper (Enter closes it, U takes a corner back).
+  const clipName = (id: string) => (sheetL ? vpName(vps, id) : `Viewport ${dvIndex(dwgL, id) + 1}`);
+  const clipHas = (id: string) => (sheetL ? !!vps.find((v) => v.id === id)?.clip : !!dwgL?.viewports[dvIndex(dwgL, id)]?.clip);
+  const clipStart = (id: string) => { cad.setMsVp(null); cad.setVpSel(id); setVpClip({ layout: cad.layout, id, pts: [] }); cad.say('VPCLIP  Click the corners of the outline on the paper. Enter closes it (three corners or more), U takes the last corner back, Esc cancels.'); };
+  const clipOff = (id: string) => {
+    if (!clipHas(id)) { cad.say(`VPCLIP  ${clipName(id)} has no outline.`); return; }
+    const what = `${clipName(id)}: outline removed, it is its frame again`;
+    if (sheetL) setVps((l) => unclipViewport(l, id), what); else if (dwgL) setDwgL(unclipDrawingViewport(dwgL, dvIndex(dwgL, id)), what);
+  };
+  const clipPoint = (at: Pt) => { if (!vpClip) return; const pts = [...vpClip.pts, at]; setVpClip({ ...vpClip, pts }); cad.say(`VPCLIP  Corner ${pts.length}: click the next, Enter to close, U to take it back.`); };
+  const clipBack = () => {
+    if (!vpClip) return;
+    const pts = vpClip.pts.slice(0, -1);
+    if (pts.length === vpClip.pts.length) { cad.say('VPCLIP  No corner to take back.'); return; }
+    setVpClip({ ...vpClip, pts }); cad.say(`VPCLIP  Corner taken back: ${pts.length} left.`);
+  };
+  const clipClose = () => {
+    if (!vpClip) return;
+    const { id, pts } = vpClip, what = (n: number) => `${clipName(id)} clipped to an outline of ${n} corners`;
+    if (sheetL) { const n = clipViewport(vps, id, pts)?.find((v) => v.id === id)?.clip?.length; if (!n) { cad.say('VPCLIP  An outline needs three corners that enclose an area: click more corners, or Esc.'); return; } setVps((l) => clipViewport(l, id, pts) ?? l, what(n)); }
+    else if (dwgL) { const i = dvIndex(dwgL, id), next = clipDrawingViewport(dwgL, i, pts), n = next?.viewports[i].clip?.length; if (!next || !n) { cad.say('VPCLIP  An outline needs three corners that enclose an area: click more corners, or Esc.'); return; } setDwgL(next, what(n)); }
+    setVpClip(null);
+  };
   /** Editing the viewports of the layout made here, over its paper (CadFilePaper). */
   const paperEdit: PaperEdit | undefined = dwgL ? {
-    sel: dvSel >= 0 ? dvSel : null, ms: dvMs >= 0 ? dvMs : null, mv,
+    sel: dvSel >= 0 ? dvSel : null, ms: dvMs >= 0 ? dvMs : null, mv, outline: vpClip?.layout === cad.layout ? vpClip?.pts : null, onOutlinePoint: clipPoint,
     onSelect: (i) => cad.setVpSel(i === null ? null : dvId(i)),
     onMs: (i) => { if (i === null) { cad.setMsVp(null); cad.say('PSPACE  On the paper.'); } else dvWorkIn(i); },
     onBox: (i, box, how) => setDwgL(withViewportBox(dwgL, i, box, how), `Viewport ${i + 1} ${how === 'move' ? 'moved' : 'resized'}`),
@@ -1033,6 +1058,14 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       return true;
     }
     if ((w === 'LAYOUT' || w === 'LO') && (arg === 'I' || arg === 'IMPORT')) { void importLayouts(); return true; }
+    if (w === 'VPCLIP' && (sheetL || dwgL)) {
+      const id = sheetL ? vpTarget?.id : dvTarget >= 0 ? dvId(dvTarget) : undefined;
+      if (!id) cad.say('VPCLIP  Pick a viewport first: click its frame.');
+      else if (arg === 'D' || arg === 'DELETE') clipOff(id);
+      else if (!arg || arg === 'P' || arg === 'POLYGONAL') clipStart(id);
+      else cad.say('VPCLIP  Type VPCLIP to click the corners of an outline, or VPCLIP D to take it off.');
+      return true;
+    }
     if (dwgL) {
       const t = dvTarget, vs = dwgL.viewports, ext = view!.info.extents;
       if (w === 'VPORTS') {
@@ -1096,7 +1129,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (w === 'MODEL') { cad.setLayout(null); return true; }
     if (fileL && w === 'PLOT') { setLayoutDlg('plot'); return true; }
     if (fileL && w === 'PAGESETUP') { cad.say(`PAGESETUP  ${fileL.name} is the drawing file's own layout: its paper (${paperName([paperOf(fileL).w, paperOf(fileL).h])}) is as the file has it. A layout made with + takes its own paper.`); return true; }
-    if (fileL && /^(MV|MVIEW|MS|MSPACE|PS|PSPACE|VPSCALE|VPLOCK|LEGEND|LG|NOTES|VPORTS|VPFIT|VPCOPY|VPALIGN|VPFRAME|VPMAX)$/.test(w)) {
+    if (fileL && /^(MV|MVIEW|MS|MSPACE|PS|PSPACE|VPSCALE|VPLOCK|LEGEND|LG|NOTES|VPORTS|VPFIT|VPCOPY|VPALIGN|VPFRAME|VPCLIP|VPMAX)$/.test(w)) {
       cad.say(`${w}  ${fileL.name} is the drawing file's own layout, shown as it was saved. To change its viewports, save it as a template (LAYOUT S) and make a layout from it, or make one with +.`);
       return true;
     }
@@ -1909,6 +1942,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       case 'scale': patchVp(v, { scale: Number(value) }, `scale 1:${value}`); return;
       case 'lock': patchVp(v, isLocked(v) ? { locked: false } : { locked: undefined }, isLocked(v) ? 'unlocked: pan and zoom inside it move its view' : 'locked'); return;
       case 'frame': patchVp(v, { frame: v.frame ? undefined : true }, v.frame ? 'frame on screen only' : 'frame prints'); return;
+      case 'clip': clipStart(v.id); return;
+      case 'unclip': clipOff(v.id); return;
       case 'layers': cad.setVpSel(v.id); setShowLM(true); return;
       case 'erase': setVps((l) => l.filter((x) => x.id !== v.id), `${name} deleted${vps.length === 1 ? ' (the layout shows the level as worked out again)' : ''}`); cad.setVpSel(null); cad.setMsVp(null); return;
     }
@@ -1921,7 +1956,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     ctxObj.current = { fvp: i ?? undefined };
     if (dwgL && i !== null) cad.setVpSel(dvId(i));
     const dv = dwgL && i !== null ? dwgL.viewports[i] : undefined;
-    setPaperCtx({ at, items: drawingPaperMenu({ inside: !!v, editable: !!dwgL, scale: v && v.h > 0 ? Math.round((v.vh * mpu) / v.h) : undefined, scales: scalesOf(project), locked: !!dv?.locked, frame: !!dv?.frame }) });
+    setPaperCtx({ at, items: drawingPaperMenu({ inside: !!v, editable: !!dwgL, scale: v && v.h > 0 ? Math.round((v.vh * mpu) / v.h) : undefined, scales: scalesOf(project), locked: !!dv?.locked, frame: !!dv?.frame, clipped: !!dv?.clip }) });
   }
   /** An entry of that menu. */
   function filePaperAct(a: string) {
@@ -1936,6 +1971,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (action === 'ms') { dvWorkIn(i); return; }
       if (action === 'lock') { dvLock(i); return; }
       if (action === 'frame') { dvFrame(i); return; }
+      if (action === 'clip') { clipStart(dvId(i)); return; }
+      if (action === 'unclip') { clipOff(dvId(i)); return; }
       if (action === 'erase') { dvErase(i); return; }
     }
     if (action === 'max') {
@@ -3329,6 +3366,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     // PP and PRINT are PLOT everywhere, on layouts and sheets too.
     const c = typedC === 'PP' || typedC === 'PRINT' ? 'PLOT' : typedC;
     setPromptMenu(null);
+    if (vpClip) {
+      if (c === '' || c === 'C' || c === 'CLOSE') { clipClose(); return; }
+      if (c === 'U' || c === 'UNDO') { clipBack(); return; }
+      setVpClip(null); // another command: picking stops first
+    }
     if (tool === 'pan' && !c) { cad.setTool('none'); cad.say('PAN  Ended.'); return; }
     // A value typed at a prompt (a number, a point, a distance) is kept for Recent input ▸ on the command menu.
     if (tool !== 'none' && /\d/.test(raw) && !cadCommand(c)) setInputs((l) => [raw, ...l.filter((x) => x !== raw)].slice(0, 8));
@@ -3878,6 +3920,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** Esc: the step, then the tool, then what is picked (the history or command list, and a menu, close first). */
   function cancel() {
     setCmd(''); input.current?.blur(); setPromptMenu(null);
+    if (vpClip) { setVpClip(null); cad.say('VPCLIP  Cancelled.'); return; }
     if (mv) { setMv(false); cad.say('MVIEW  Cancelled.'); return; }
     if (tool === 'hatchedit' && hePhase) { setHePhase(null); cad.say('*Cancel*'); cad.say(hatchEditSay(null, heIds.length)); return; }
     if (edNote) { setEdNote(null); cad.say('*Cancel*'); if (tool === 'mtext') cad.setTool('none'); }
@@ -4169,11 +4212,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       <div className="cad-dock-b">
             {sheetL && selT && <TablePanel sheet={sheetL} table={selT} labels={legendLabels} onChange={(patch, what) => setTables((l) => patchTable(l, selT.id, patch), `${tableName(tables, selT.id)}: ${what}`)}
             onDelete={() => { setTables((l) => l.filter((x) => x.id !== selT.id), `${tableName(tables, selT.id)} deleted`); cad.setVpSel(null); }} />}
-            {dwgL && dvSel >= 0 && <DrawingViewportPanel name={dwgL.name} index={dvSel} scale={dvScale(dwgL.viewports[dvSel])} scales={scalesOf(project)} locked={!!dwgL.viewports[dvSel].locked} frame={!!dwgL.viewports[dvSel].frame}
-              onScale={(n) => dvScaleTo(dvSel, n)} onLocked={(b) => { if (!!dwgL.viewports[dvSel].locked !== b) dvLock(dvSel); }} onFrame={(b) => { if (!!dwgL.viewports[dvSel].frame !== b) dvFrame(dvSel); }} onDelete={() => dvErase(dvSel)} />}
+            {dwgL && dvSel >= 0 && <DrawingViewportPanel name={dwgL.name} index={dvSel} scale={dvScale(dwgL.viewports[dvSel])} scales={scalesOf(project)} locked={!!dwgL.viewports[dvSel].locked} frame={!!dwgL.viewports[dvSel].frame} clip={dwgL.viewports[dvSel].clip?.length}
+              onClip={() => clipStart(dvId(dvSel))} onUnclip={() => clipOff(dvId(dvSel))} onScale={(n) => dvScaleTo(dvSel, n)} onLocked={(b) => { if (!!dwgL.viewports[dvSel].locked !== b) dvLock(dvSel); }} onFrame={(b) => { if (!!dwgL.viewports[dvSel].frame !== b) dvFrame(dvSel); }} onDelete={() => dvErase(dvSel)} />}
             {sheetL && selV && <ViewportPanel project={project} sheet={sheetL} vp={selV} refs={xr.refs.map((r) => r.name)} onChange={(patch, what) => patchVp(selV, patch, what)}
             onDelete={() => { setVps((l) => l.filter((x) => x.id !== selV.id), `${vpName(vps, selV.id)} deleted${vps.length === 1 ? ' (the layout shows the level as worked out again)' : ''}`); cad.setVpSel(null); cad.setMsVp(null); }}
-            onLayers={() => setShowLM(true)} />}
+            onLayers={() => setShowLM(true)} onClip={() => clipStart(selV.id)} onUnclip={() => clipOff(selV.id)} />}
           {view && (pickedSk.length > 0 || !pickedName) && <PropertiesPalette blocks={defs} key={pickedSk.map((it) => it.id).join()} items={pickedSk} devices={pickedItems.length} layers={drawnLayers(sketch, [...(layerFile.layers ?? []), curLayer])} styles={styles} current={curLayer} textMm={anno.textMm} k={units.factor}
                   onItems={(next, what) => change(next.reduce((q, it) => updateSketch(q, fileOf(), it), project), `${what} · ⌘Z to undo`)}
                   onCurrent={setCurrentLayer} newProps={newProps} onNewProps={setProps} onTextMm={(mm) => change({ ...project, cadAnno: { ...anno, textMm: mm } }, `Annotation: ${mm} mm text at 1:${anno.scale} · ⌘Z to undo`)}
@@ -4463,7 +4506,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         ) : view && sheetL ? (
           <div className="cad-stage cad-paper" ref={paperStage} onMouseDown={() => setPaperCtx(null)}>
             {sheetUi ? <SheetWorkspace bare project={project} run={calcRun} sheetId={sheetL.id} design={null} ui={sheetUi} onChange={(next) => change(next, `${sheetL.number || 'Layout'}  paper changed · ⌘Z to undo`)} onStatus={onStatus} onActive={() => {}} overlay={layoutOverlay({
-              project, sheet: sheetL, sel: cad.vpSel, ms: cad.msVp, mv, place: placing,
+              project, sheet: sheetL, sel: cad.vpSel, ms: cad.msVp, mv, outline: vpClip?.layout === cad.layout ? vpClip?.pts : null, onOutlinePoint: clipPoint, place: placing,
               onSelect: cad.setVpSel,
               onPlace: (kind, at) => {
                 setPlacing(null);
@@ -4544,7 +4587,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       </div>
       {layoutDlg === 'templates' && view && <LayoutTemplatesDialog canSheet={!!lv} onStatus={(m) => cad.say(m)} onClose={() => setLayoutDlg(null)}
         current={sheetL ? { name: sheetL.title || sheetL.number, make: (n) => templateFromSheet(project, sheetL, n) }
-          : dwgL ? { name: dwgL.name, make: (n) => templateFromPaper(n, dwgL.paper, dwgL.viewports.map((v) => ({ x: v.x, y: v.y, w: v.w, h: v.h, scale: viewportScaleN(v, units.factor * 1000) || undefined, frame: v.frame }))) }
+          : dwgL ? { name: dwgL.name, make: (n) => templateFromPaper(n, dwgL.paper, dwgL.viewports.map((v) => ({ x: v.x, y: v.y, w: v.w, h: v.h, scale: viewportScaleN(v, units.factor * 1000) || undefined, frame: v.frame, clip: v.clip }))) }
           : fileL ? { name: fileL.name, make: (n) => {
             const g = paperOf(fileL), k = fileL.mm_per_unit || 1;
             return templateFromPaper(n, [g.w, g.h], fileL.viewports.filter((v) => v.on).map((v) => { const [x, y] = g.mm(v.x, v.y), sc = v.h > 0 ? Math.round((v.vh * units.factor * 1000) / (v.h * k)) : 0; return { x, y, w: v.w * k, h: v.h * k, scale: sc > 0 ? sc : undefined }; }));

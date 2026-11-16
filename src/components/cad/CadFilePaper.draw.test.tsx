@@ -13,6 +13,7 @@ type P = [number, number];
 function recorder() {
   let pts: P[] = [];
   const texts: { s: string; font: string }[] = [], fills: { pts: P[]; alpha: number }[] = [], alphas: unknown[] = [];
+  const clips: { pts: P[]; rule?: string }[] = [], strokes: P[][] = [];
   const state: Record<string | symbol, unknown> = { globalAlpha: 1 };
   const own: Record<string, unknown> = {
     save: () => { alphas.push(state.globalAlpha); },
@@ -22,13 +23,15 @@ function recorder() {
     beginPath: () => { pts = []; },
     moveTo: (x: number, y: number) => { pts.push([x, y]); },
     lineTo: (x: number, y: number) => { pts.push([x, y]); },
-    fill: () => { fills.push({ pts, alpha: state.globalAlpha as number }); }
+    fill: () => { fills.push({ pts, alpha: state.globalAlpha as number }); },
+    clip: (rule?: string) => { clips.push({ pts, rule }); },
+    stroke: () => { strokes.push(pts); }
   };
   const ctx = new Proxy({}, {
     get: (_, k) => (typeof k === 'string' && k in own ? own[k] : k in state ? state[k] : () => {}),
     set: (_, k, v) => { state[k] = v; return true; }
   });
-  return { ctx, texts, fills };
+  return { ctx, texts, fills, clips, strokes };
 }
 
 const text = (s: string, h: number, w?: number): CadText => ({ x: 20, y: 20, h, rot: 0, s, layer: 0, rgb: 0, align: 0, ...(w ? { w } : {}) });
@@ -78,3 +81,24 @@ describe('file layout paper view: texts', () => {
     expect(fitted[0]).toBeCloseTo(40 * k);
   });
 });
+
+describe('file layout paper view: a clipped viewport (VPCLIP)', () => {
+  const k = (600 - 56) / 297, ox = (900 - 420 * k) / 2, oy = (600 + 297 * k) / 2;
+  const px = ([x, y]: P): P => [ox + x * k, oy - y * k];
+  it('cuts the model at the viewport\'s outline and draws the outline as its frame', () => {
+    // A viewport 200 × 100 mm from 10, 10 (mm from the paper's lower left) whose top right quarter is cut away.
+    const clip: P[] = [[0, 0], [0.5, 0], [0.5, 0.5], [1, 0.5], [1, 1], [0, 1]];
+    const l = { ...layout([]), viewports: [{ x: 10, y: 10, w: 200, h: 100, cx: 0, cy: 0, vh: 10000, locked: false, on: true, clip }] } as FileLayout;
+    act(() => root.render(<CadFilePaper layout={l} model={model} />));
+    const want = ([[10, 110], [110, 110], [110, 60], [210, 60], [210, 10], [10, 10]] as P[]).map(px);
+    const cut = rec.clips.find((c) => c.rule === 'evenodd')!;
+    expect(cut.pts).toHaveLength(6);
+    cut.pts.forEach((q, i) => { expect(q[0]).toBeCloseTo(want[i][0]); expect(q[1]).toBeCloseTo(want[i][1]); });
+    expect(rec.strokes.some((s) => s.length === 6 && s.every((q, i) => Math.abs(q[0] - want[i][0]) < 1e-6 && Math.abs(q[1] - want[i][1]) < 1e-6))).toBe(true);
+    // Without an outline the viewport is cut at its frame, a rectangle (no corners noted).
+    rec.clips.length = 0;
+    act(() => root.render(<CadFilePaper layout={{ ...l, viewports: l.viewports.map(({ clip: _c, ...v }) => v) }} model={model} />));
+    expect(rec.clips.filter((c) => c.rule === 'evenodd').every((c) => c.pts.length === 0)).toBe(true);
+  });
+});
+

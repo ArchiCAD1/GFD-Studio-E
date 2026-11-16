@@ -442,7 +442,7 @@ describe('Design CAD ribbon: sheets and layouts', () => {
     expect(tool('Layout viewports: its tools').textContent).toBe('Layout viewports');
     act(() => { tool('Layout viewports: its tools').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); });
     act(() => { vi.advanceTimersByTime(400); });
-    expect(document.querySelector('#ribbon-tip')!.textContent).toBe('Layout viewportsIts tools: Viewport, Arrange, Legend, Notes, Scale, Lock, Fit, Copy, Align, Maximise, Frame prints');
+    expect(document.querySelector('#ribbon-tip')!.textContent).toBe('Layout viewportsIts tools: Viewport, Arrange, Legend, Notes, Scale, Lock, Fit, Copy, Align, Maximise, Frame prints, Clip');
     // A tool that only opens a list is there as its list.
     click(tool('Layout: its tools'));
     expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent)).toEqual(['New layout: New layout', 'New layout: From template…', 'New layout: From another drawing…', 'New layout: Lighting layout', 'New layout: Power layout', 'New layout: ELV layout', 'New layout: Containment layout', 'Page setup', 'Save as template', 'Layout manager']);
@@ -479,7 +479,7 @@ describe('Output: layout, viewports, plot, publish, export', () => {
     expect(groups()).toEqual(['Layout', 'Layout viewports', 'Plot', 'Publish', 'Export']);
     // Every tool of Output is named, the small ones beside their icons (it fits a 1,366 px window: 1,281 px).
     expect(document.querySelector('.ribbon')!.className).toContain('small-named');
-    expect([...group('Layout viewports').querySelectorAll('button')].map((b) => b.querySelector('span')?.textContent).filter(Boolean)).toEqual(['Viewport', 'Arrange', 'Legend', 'Notes', 'Scale', 'Lock', 'Fit', 'Copy', 'Align', 'Maximise', 'Frame prints']);
+    expect([...group('Layout viewports').querySelectorAll('button')].map((b) => b.querySelector('span')?.textContent).filter(Boolean)).toEqual(['Viewport', 'Arrange', 'Legend', 'Notes', 'Scale', 'Lock', 'Fit', 'Copy', 'Align', 'Maximise', 'Frame prints', 'Clip']);
     act(() => root.unmount()); root = createRoot(host);
     show({}, { sheets: sheets({ open: false, kind: 'plan' }), view: 'drawings' });
     pick('Output');
@@ -491,11 +491,11 @@ describe('Output: layout, viewports, plot, publish, export', () => {
     pick('Output');
     expect(tool('Page setup').disabled).toBe(false);
     click(tool('Page setup')); click(tool('Save as template')); click(tool('Layout manager'));
-    expect(tools('Layout viewports')).toEqual(['Viewport', 'Arrange', 'Legend', 'Notes', 'Scale', 'Lock', 'Fit', 'Copy', 'Align', 'Maximise', 'Frame prints']);
-    for (const t of ['Fit', 'Copy', 'Maximise', 'Frame prints', 'Viewport', 'Legend', 'Notes', 'Lock']) click(tool(t));
+    expect(tools('Layout viewports')).toEqual(['Viewport', 'Arrange', 'Legend', 'Notes', 'Scale', 'Lock', 'Fit', 'Copy', 'Align', 'Maximise', 'Frame prints', 'Clip']);
+    for (const t of ['Fit', 'Copy', 'Maximise', 'Frame prints', 'Clip', 'Viewport', 'Legend', 'Notes', 'Lock']) click(tool(t));
     click(tool('Align')); click(item('Side by side'));
     click(tool('Align')); click(item('Stacked'));
-    expect(cmds(cad)).toEqual(['PAGESETUP', 'LAYOUT S', 'LAYOUTMANAGER', 'VPFIT', 'VPCOPY', 'VPMAX', 'VPFRAME', 'MV', 'LEGEND', 'NOTES', 'VPLOCK', 'VPALIGN H', 'VPALIGN V']);
+    expect(cmds(cad)).toEqual(['PAGESETUP', 'LAYOUT S', 'LAYOUTMANAGER', 'VPFIT', 'VPCOPY', 'VPMAX', 'VPFRAME', 'VPCLIP', 'MV', 'LEGEND', 'NOTES', 'VPLOCK', 'VPALIGN H', 'VPALIGN V']);
   });
 
   it('Arrange lists the nine arrangements; Scale lists the project\'s scales and the scale list', () => {

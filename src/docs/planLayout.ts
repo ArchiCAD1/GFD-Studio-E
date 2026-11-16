@@ -5,7 +5,8 @@ import { cableLabel, EMERGENCY_ITEMS, lvItemOf } from '../model/cadDevices';
 import { levelOfPlan, planOfLevel } from '../model/cadPlans';
 import { printedRefs } from '../model/cadRefs';
 import type { LevelRef } from '../model/levels';
-import { isFrozen, vpWindow, type PlanViewport } from '../model/planViewports';
+import { isFrozen, vpOutline, vpToModel, vpWindow, type PlanViewport } from '../model/planViewports';
+import { insidePolygon, segmentInPolygon } from '../model/viewportClip';
 import { dimOf, scaleLook, segmentsOf, sketchOf, trayLabel, trayLength, trayLine } from '../model/cadSketch';
 import { effective, layerStylesOf, styleOf } from '../model/cadLayerStyle';
 import { annoOf, SYMBOL_R_MM } from '../model/cadAnnotate';
@@ -229,17 +230,21 @@ function clip(a: Pt, b: Pt, w: Box): [Pt, Pt] | undefined {
 const within = ([x, y]: Pt, w: Box) => x >= w.x0 - 1e-9 && x <= w.x1 + 1e-9 && y >= w.y0 - 1e-9 && y <= w.y1 + 1e-9;
 const n = (v: number) => +v.toFixed(2);
 
-/** The pieces of a drawn run showing in the window, each with its length and whether it takes a label `width` long: a
- * run split over sheets is labelled on each, unless too little of it shows there for the label to fit. */
-function shownPieces(it: SketchItem, win: Box, width: number): { run: SketchItem; m: number; labelled: boolean }[] {
+/** The pieces of a drawn run showing in the window (and inside `poly`, a clipped viewport's outline), each with its
+ * length and whether it takes a label `width` long: a run split over sheets is labelled on each, unless too little of
+ * it shows there for the label to fit. */
+function shownPieces(it: SketchItem, win: Box, width: number, poly?: Pt[]): { run: SketchItem; m: number; labelled: boolean }[] {
   const paths: Pt[][] = [];
   for (let i = 0; i + 1 < it.pts.length; i++) {
     const k = clip(it.pts[i], it.pts[i + 1], win);
     if (!k) continue;
-    const last = paths[paths.length - 1], end = last?.[last.length - 1];
-    if (end && Math.hypot(end[0] - k[0][0], end[1] - k[0][1]) < 1e-9) last.push(k[1]); else paths.push([k[0], k[1]]);
+    for (const piece of poly ? segmentInPolygon(k[0], k[1], poly) : [k]) {
+      const last = paths[paths.length - 1], end = last?.[last.length - 1];
+      if (end && Math.hypot(end[0] - piece[0][0], end[1] - piece[0][1]) < 1e-9) last.push(piece[1]); else paths.push([piece[0], piece[1]]);
+    }
   }
-  const whole = paths.length === 1 && within(it.pts[0], win) && within(it.pts[it.pts.length - 1], win);
+  const inside = (q: Pt) => within(q, win) && (!poly || insidePolygon(q, poly));
+  const whole = paths.length === 1 && inside(it.pts[0]) && inside(it.pts[it.pts.length - 1]);
   return paths.map((pts) => { const run = { ...it, pts }, m = trayLength(run); return { run, m, labelled: whole || m >= width }; });
 }
 
@@ -377,9 +382,13 @@ function drawnSvg(items: Drawn[], X: (x: number) => number, Y: (y: number) => nu
 /** The design of the level for one window of the model (metres), `f` paper mm per metre, placed by X and Y: references,
  * the architect's plan, the drawn work, containment, wiring and devices, clipped to the window. `frozen` leaves out
  * layers (drawn, and references' NAME|LAYER) for a viewport; without `tags` (a key plan) the circuit, tray and route
- * tags and the DB names are left out, too big to read there. Returns the SVG pieces and what the legend counts. */
-function contentSvg(p: Project, s: Pick<DrawingSheet, 'plot'> | undefined, c: Content, drawn: Drawn[], refs: ReturnType<typeof refsOnSheet>, rooms: { name: string; outline: Pt[] }[], win: Box, X: (x: number) => number, Y: (y: number) => number, f: number, id: string, frozen?: (layer: string) => boolean, tags = true) {
-  const seg = (a: Pt, b: Pt) => { const k = clip(a, b, win); return k ? `M${X(k[0][0])} ${Y(k[0][1])}L${X(k[1][0])} ${Y(k[1][1])}` : ''; };
+ * tags and the DB names are left out, too big to read there. `poly`: a clipped viewport's outline (metres): lines are
+ * cut at it and symbols and tags outside it left out, so a sheet exported as DXF is cut there too. Returns the SVG
+ * pieces and what the legend counts. */
+function contentSvg(p: Project, s: Pick<DrawingSheet, 'plot'> | undefined, c: Content, drawn: Drawn[], refs: ReturnType<typeof refsOnSheet>, rooms: { name: string; outline: Pt[] }[], win: Box, X: (x: number) => number, Y: (y: number) => number, f: number, id: string, frozen?: (layer: string) => boolean, tags = true, poly?: Pt[]) {
+  const line = ([a, b]: [Pt, Pt]) => `M${X(a[0])} ${Y(a[1])}L${X(b[0])} ${Y(b[1])}`;
+  const seg = (a: Pt, b: Pt) => { const k = clip(a, b, win); return !k ? '' : poly ? segmentInPolygon(k[0], k[1], poly).map(line).join('') : line(k); };
+  const inside = (q: Pt) => within(q, win) && (!poly || insidePolygon(q, poly));
   const path = (pts: Pt[], closed = false) => (closed ? [...pts, pts[0]] : pts).slice(1).map((q, i, all) => seg(i ? all[i - 1] : pts[0], q)).join('');
   const out: string[] = [];
   // The pens of the sheet's page setup (src/model/plotSetup.ts); by default as below.
@@ -397,7 +406,7 @@ function contentSvg(p: Project, s: Pick<DrawingSheet, 'plot'> | undefined, c: Co
   if (arch) out.push(`<path d="${arch}" fill="none" stroke="${archInk}" stroke-width="${w(pen.arch)}"/>`);
   for (const r of rooms) {
     const at: Pt = [r.outline.reduce((t, q) => t + q[0], 0) / r.outline.length, r.outline.reduce((t, q) => t + q[1], 0) / r.outline.length];
-    if (within(at, win)) out.push(`<text x="${X(at[0])}" y="${n(Y(at[1]) + 3.5)}" font-size="2.6" text-anchor="middle" fill="${archInk}">${esc(r.name.toUpperCase())}</text>`);
+    if (inside(at)) out.push(`<text x="${X(at[0])}" y="${n(Y(at[1]) + 3.5)}" font-size="2.6" text-anchor="middle" fill="${archInk}">${esc(r.name.toUpperCase())}</text>`);
   }
   // The drawn work, over the architect's plan and under the design.
   out.push(drawnSvg(frozen ? drawn.filter((d) => !frozen(d.it.layer)) : drawn, X, Y, f, win, pen, plotOf(p, s).weights === 'thin', id));
@@ -416,7 +425,7 @@ function contentSvg(p: Project, s: Pick<DrawingSheet, 'plot'> | undefined, c: Co
   let trays = '', routes = '';
   for (const it of c.trays) {
     const text = trayLabel(it).text;
-    for (const { run, m, labelled } of shownPieces(it, win, textWidth(text, h))) {
+    for (const { run, m, labelled } of shownPieces(it, win, textWidth(text, h), poly)) {
       trayM.set(text, (trayM.get(text) ?? 0) + m);
       trays += (labelled ? trayLine(run, h).pieces : [run.pts]).map((q) => path(q)).join('');
       if (!labelled) continue;
@@ -426,7 +435,7 @@ function contentSvg(p: Project, s: Pick<DrawingSheet, 'plot'> | undefined, c: Co
     }
   }
   for (const it of c.cables) {
-    for (const { run, labelled } of shownPieces(it, win, textWidth(it.text!, h))) {
+    for (const { run, labelled } of shownPieces(it, win, textWidth(it.text!, h), poly)) {
       routes += clearOf(run.pts, breaks, h).map(([a, b]) => seg(a, b)).join('');
       if (labelled) { const l = trayLabel(run); along(l.at, l.rot, 1.4, it.text!, LINE_FACTOR * TAG); }
     }
@@ -442,18 +451,18 @@ function contentSvg(p: Project, s: Pick<DrawingSheet, 'plot'> | undefined, c: Co
     if (!d) continue;
     out.push(`<path class="ln" d="${d}" fill="none" stroke="${inkOf(pen.routes)}" stroke-width="${w(pen.routes, 1.4)}"/>`);
     const [a, b] = [h[h.length - 2], h[h.length - 1]];
-    if (!within(b, win)) continue;
+    if (!inside(b)) continue;
     const ang = Math.atan2(-(b[1] - a[1]), b[0] - a[0]), bx = X(b[0]), by = Y(b[1]), back = 3.2; // stops short of the DB symbol
     const tx = bx - back * Math.cos(ang), ty = by - back * Math.sin(ang);
     out.push(`<path d="M${n(tx)} ${n(ty)}L${n(tx - 1.6 * Math.cos(ang - 0.4))} ${n(ty - 1.6 * Math.sin(ang - 0.4))}L${n(tx - 1.6 * Math.cos(ang + 0.4))} ${n(ty - 1.6 * Math.sin(ang + 0.4))}Z" fill="#000" stroke="#000" stroke-width="0.2"/>`);
   }
-  if (tags) for (const t of c.tags) if (within(t.at, win)) out.push(`<text x="${n(X(t.at[0]) + 1)}" y="${n(Y(t.at[1]) - 1)}" font-size="2.5" fill="#000">${esc(t.text)}</text>`);
+  if (tags) for (const t of c.tags) if (inside(t.at)) out.push(`<text x="${n(X(t.at[0]) + 1)}" y="${n(Y(t.at[1]) - 1)}" font-size="2.5" fill="#000">${esc(t.text)}</text>`);
   // Devices and DBs at the devices pen (their symbols are drawn at 0.25 mm in black).
   const dev = (svg: string) => (pen.devices.w === 0.25 && pen.devices.grey >= 100 ? svg : svg.replace(/stroke="#000" stroke-width="0\.25"/g, `stroke="${inkOf(pen.devices)}" stroke-width="${w(pen.devices)}"`));
-  for (const d of c.boards) if (within([d.x, d.y], win)) out.push(dev(boardSymbol(X(d.x), Y(d.y))), tags ? `<text x="${n(X(d.x) + 3.2)}" y="${n(Y(d.y) - 1.8)}" font-size="2.8" font-weight="700" fill="#000">${esc(d.id)}</text>` : '');
+  for (const d of c.boards) if (inside([d.x, d.y])) out.push(dev(boardSymbol(X(d.x), Y(d.y))), tags ? `<text x="${n(X(d.x) + 3.2)}" y="${n(Y(d.y) - 1.8)}" font-size="2.8" font-weight="700" fill="#000">${esc(d.id)}</text>` : '');
   const counts = new Map<string, { label: string; n: number; svg: Mark['svg'] }>();
   for (const m of c.marks) {
-    if (!within([m.x, m.y], win)) continue;
+    if (!inside([m.x, m.y])) continue;
     out.push(dev(m.svg(X(m.x), Y(m.y), R)));
     const k = counts.get(m.key) ?? { label: m.label, n: 0, svg: m.svg };
     counts.set(m.key, { ...k, n: k.n + 1 });
@@ -485,10 +494,11 @@ export function fileDesignOf(p: Project, file: string, insunits?: number, level:
  * SVG pieces in mm on the page. `win`: the window in drawing units (x0, y0, x1, y1); X and Y: a model coordinate
  * (drawing units) → mm on the page; `mm`: mm on the page per drawing unit. Symbols and tags are at their paper sizes
  * and the lines at the set's default pens, as on a plan sheet; without `tags` (a key plan) the circuit, tray and route
- * tags and the DB names are left out. The architect's plan is the drawing itself, so no room outlines are drawn. */
-export function fileDesignSvg(p: Project, d: FileDesign, win: [number, number, number, number], X: (x: number) => number, Y: (y: number) => number, mm: number, id: string, tags = true): string {
+ * tags and the DB names are left out. `poly`: a clipped viewport's outline in the model (drawing units). The architect's
+ * plan is the drawing itself, so no room outlines are drawn. */
+export function fileDesignSvg(p: Project, d: FileDesign, win: [number, number, number, number], X: (x: number) => number, Y: (y: number) => number, mm: number, id: string, tags = true, poly?: Pt[]): string {
   const k = d.k;
-  return contentSvg(p, undefined, d.c, d.drawn, d.refs, [], { x0: win[0] * k, y0: win[1] * k, x1: win[2] * k, y1: win[3] * k }, (x) => n(X(x / k)), (y) => n(Y(y / k)), mm / k, id, undefined, tags).out.join('');
+  return contentSvg(p, undefined, d.c, d.drawn, d.refs, [], { x0: win[0] * k, y0: win[1] * k, x1: win[2] * k, y1: win[3] * k }, (x) => n(X(x / k)), (y) => n(Y(y / k)), mm / k, id, undefined, tags, poly?.map(([x, y]): Pt => [x * k, y * k])).out.join('');
 }
 
 /** A legend or notes table placed on the sheet, drawn (src/model/sheetTables.ts): where it goes (mm, drawing area) and its
@@ -583,7 +593,7 @@ export function layoutExtent(p: Project, s: DrawingSheet): { x0: number; y0: num
 }
 
 /** A plan sheet drawn through its viewports: each shows the model in its window at its scale, its plan type, without
- * the layers frozen in it and the references off in it, cut at its frame (printed only when asked); a key plan (twice
+ * the layers frozen in it and the references off in it, cut at its frame or its outline (printed only when asked); a key plan (twice
  * the first viewport's scale or more) without tags or DB names. The title strip
  * and the legend follow the first viewport; no match lines (a layout places its own viewports). */
 function viewportDrawing(p: Project, s: DrawingSheet, lay: NonNullable<ReturnType<typeof layoutOf>>): PlanDrawing | undefined {
@@ -598,10 +608,13 @@ function viewportDrawing(p: Project, s: DrawingSheet, lay: NonNullable<ReturnTyp
     const X = (x: number) => n(cx + (x - v.at[0]) * f), Y = (y: number) => n(cy - (y - v.at[1]) * f);
     const id = `vp-${s.id}-${v.id}`.replace(/[^\w-]/g, '_');
     // A viewport at twice the first one's scale or more is a key plan: no tags or DB names there (they would print over each other).
-    const r = contentSvg(p, s, c, lay.drawn, refs, lay.rooms, win, X, Y, f, `dw-${id}`, v.frozen?.length ? (l) => isFrozen(v, l) : undefined, i === 0 || v.scale < 2 * s.viewports![0].scale);
-    defs.push(`<clipPath id="${id}"><rect x="${v.box[0]}" y="${v.box[1]}" width="${v.box[2]}" height="${v.box[3]}"/></clipPath>`);
+    // A clipped viewport (VPCLIP): cut at its outline, which is what prints as its frame.
+    const outline = v.clip ? vpOutline(v) : undefined;
+    const r = contentSvg(p, s, c, lay.drawn, refs, lay.rooms, win, X, Y, f, `dw-${id}`, v.frozen?.length ? (l) => isFrozen(v, l) : undefined, i === 0 || v.scale < 2 * s.viewports![0].scale, outline?.map((q) => vpToModel(v, q)));
+    const shape = outline ? `<path d="M${outline.map(([x, y]) => `${n(x)} ${n(y)}`).join('L')}Z"` : `<rect x="${v.box[0]}" y="${v.box[1]}" width="${v.box[2]}" height="${v.box[3]}"`;
+    defs.push(`<clipPath id="${id}">${shape}${outline ? ' clip-rule="evenodd"' : ''}/></clipPath>`);
     out.push(`<g class="vp" data-vp="${esc(v.id)}" clip-path="url(#${id})">${r.out.join('')}</g>`);
-    if (v.frame) out.push(`<rect x="${v.box[0]}" y="${v.box[1]}" width="${v.box[2]}" height="${v.box[3]}" fill="none" stroke="#000" stroke-width="0.35"/>`);
+    if (v.frame) out.push(`${shape} fill="none" stroke="#000" stroke-width="0.35"/>`);
     if (i === 0) { main = r; mainWin = win; mainC = c; }
   });
   const first = s.viewports![0], lv = planLevels(p, s.plan!).find((x) => x.buildingId === s.buildingId && x.levelId === s.levelId);

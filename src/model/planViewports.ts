@@ -1,5 +1,6 @@
 import type { DrawingSet, DrawingSheet, PlanType } from './drawingSet';
 import type { Project } from '../types';
+import { clipFromPaper, clipOnPaper, insidePolygon, type VpClip } from './viewportClip';
 
 /** Design CAD → layouts (paper space): a plan sheet is a layout of its level's model, a paper with its title block and
  * one or more viewports. A viewport is a rectangle on the paper (mm, in the sheet's drawing area, y down) showing the
@@ -8,6 +9,7 @@ import type { Project } from '../types';
  * viewports has one, worked out from the level (src/docs/planLayout.ts layoutViewports), and prints as before. 2D only. */
 
 type Pt = [number, number];
+const r1 = (x: number) => Math.round(x * 10) / 10;
 export interface PlanViewport {
   id: string;
   /** On the paper: left, top, width, height (mm, in the drawing area). */
@@ -26,6 +28,8 @@ export interface PlanViewport {
   refsOff?: string[];
   /** Its frame prints (default: on screen only). */
   frame?: boolean;
+  /** Its outline when it is not its frame's rectangle (VPCLIP, src/model/viewportClip.ts): corners in fractions of the frame. */
+  clip?: VpClip;
 }
 
 /** Scales offered for a viewport. */
@@ -48,8 +52,21 @@ export function vpToModel(v: PlanViewport, [x, y]: Pt): Pt {
   const k = v.scale / 1000;
   return [v.at[0] + (x - v.box[0] - v.box[2] / 2) * k, v.at[1] - (y - v.box[1] - v.box[3] / 2) * k];
 }
-/** Whether a paper point is inside the viewport's frame. */
-export const insideVp = (v: PlanViewport, [x, y]: Pt) => x >= v.box[0] && x <= v.box[0] + v.box[2] && y >= v.box[1] && y <= v.box[1] + v.box[3];
+/** Whether a paper point is inside the viewport: its frame, and its outline when it has one. */
+export const insideVp = (v: PlanViewport, [x, y]: Pt) => x >= v.box[0] && x <= v.box[0] + v.box[2] && y >= v.box[1] && y <= v.box[1] + v.box[3] && (!v.clip || insidePolygon([x, y], clipOnPaper(v.clip, v.box)));
+/** A viewport's outline on the paper (mm, drawing area, y down): its clip's corners, else its frame's four. */
+export const vpOutline = (v: Pick<PlanViewport, 'box' | 'clip'>): Pt[] =>
+  (v.clip ? clipOnPaper(v.clip, v.box) : [[v.box[0], v.box[1]], [v.box[0] + v.box[2], v.box[1]], [v.box[0] + v.box[2], v.box[1] + v.box[3]], [v.box[0], v.box[1] + v.box[3]]]);
+/** A viewport cut to a polygon picked on the paper (VPCLIP; mm, drawing area): its frame becomes the polygon's bounding
+ * box and the model stays where it is on the paper, at the same scale. Undefined when the points make no polygon. */
+export function clipViewport(list: PlanViewport[], id: string, picked: Pt[]): PlanViewport[] | undefined {
+  const c = clipFromPaper(picked), v = list.find((x) => x.id === id);
+  if (!c || !v) return undefined;
+  const box = c.box.map(r1) as PlanViewport['box'];
+  return list.map((x) => (x === v ? { ...v, box, at: vpToModel(v, [box[0] + box[2] / 2, box[1] + box[3] / 2]), clip: c.clip } : x));
+}
+/** The outline taken off: the viewport is its frame's rectangle again. */
+export const unclipViewport = (list: PlanViewport[], id: string): PlanViewport[] => list.map((v) => { if (v.id !== id || !v.clip) return v; const { clip: _c, ...rest } = v; return rest; });
 
 /** A rectangle from two corners picked on the paper (mm). */
 export const boxFrom = (a: Pt, b: Pt): PlanViewport['box'] => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])];
@@ -102,7 +119,6 @@ export const VP_ARRANGEMENTS: VpArrangement[] = [
 /** The gap left between the viewports of an arrangement (mm). */
 export const VP_GAP_MM = 5;
 export const arrangementOf = (id: string) => VP_ARRANGEMENTS.find((a) => a.id === id.toUpperCase());
-const r1 = (x: number) => Math.round(x * 10) / 10;
 /** An arrangement's frames in a region of the paper (mm: left, top, width, height), a gap between neighbours (edges on the region's edge stay there). Rounded to 0.1 mm. */
 export function arrangeBoxes(a: VpArrangement, region: [number, number, number, number], gap = VP_GAP_MM): PlanViewport['box'][] {
   const [rx, ry, rw, rh] = region, e = 1e-9;

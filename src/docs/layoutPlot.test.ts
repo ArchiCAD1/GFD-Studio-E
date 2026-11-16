@@ -205,6 +205,25 @@ describe('the design made in the app, through the viewports of a layout of the d
     } finally { dropRefGeometry('STR-GF.dxf'); }
   });
 
+  it('a clipped viewport (VPCLIP) is cut at its outline: the model and the design on the page, its frame printed as the outline', () => {
+    // The frame's top right is cut away from 0.6 across and 0.6 down: on the page from 220, 199; in the model beyond x 12 m above y 4.8 m.
+    const cut = { ...plan(), viewports: plan().viewports.map((v) => ({ ...v, clip: [[0, 0], [0.6, 0], [0.6, 0.6], [1, 0.6], [1, 1], [0, 1]] as [number, number][] })) };
+    const points = '100,127 220,127 220,199 300,199 300,247 100,247';
+    const design = layoutDesign(villa(), 'GF.dwg', 4, cut);
+    // The light at 14 m is in the part cut away; the socket at 19, 1 m and the DB are in what is left.
+    expect(circles(design[0])).toEqual([[160, 187], [200, 187]]);
+    expect(design[0]).toContain('<path d="M287.6 237L292.4 237" fill="none"/>');
+    expect(design[0]).toContain('>DB-GF1<');
+    // The wiring stops at the outline.
+    const pts = [...design[0].matchAll(/<path class="ln" d="([^"]+)"/g)].flatMap((m) => [...m[1].matchAll(/[ML]([\d.-]+) ([\d.-]+)/g)].map((q) => [Number(q[1]), Number(q[2])]));
+    expect(pts.length).toBeGreaterThan(8);
+    expect(pts.filter(([x, y]) => x > 220.01 && y < 198.99)).toEqual([]);
+    const { svg } = layoutPlotSvg(cut, model(), { design, frames: [true] });
+    expect(svg).toContain(`<clipPath id="vp0"><polygon points="${points}" clip-rule="evenodd"/></clipPath><g clip-path="url(#vp0)">`);
+    expect(svg).toContain(`<polygon points="${points}" fill="none" stroke="#000" stroke-width="0.25"/>`);
+    expect(svg).not.toContain('<rect x="100" y="127"');
+  });
+
   it('plots inside its viewport, over the model', () => {
     const design = layoutDesign(villa(), 'GF.dwg', 4, plan());
     const { svg } = layoutPlotSvg(plan(), model(), { design });

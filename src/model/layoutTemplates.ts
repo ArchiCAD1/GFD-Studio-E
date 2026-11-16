@@ -7,6 +7,7 @@ import { fitScale, nextLayoutName, VIEWPORT_INSET_MM, type DrawingLayout } from 
 import { paperOf } from './fileLayouts';
 import type { DrawingSheet, PlanType, SheetSize } from './drawingSet';
 import type { PlanViewport } from './planViewports';
+import { isVpClip, type VpClip } from './viewportClip';
 import { setupsOf, sheetWithSetup } from './plotSetup';
 import { tableId, tablesOf, type PlacedTable, type TableKind } from './sheetTables';
 
@@ -18,7 +19,7 @@ export interface LayoutTemplate {
   /** The sheet size of a plan sheet made from it. */
   size: SheetSize;
   /** Viewport frames as fractions of the working area (left, top, width, height; the drawing area of a plan sheet, the paper inside its margin on a layout of the drawing) and their scale 1:n (blank: the scale the drawing fits at). */
-  viewports: { box: [number, number, number, number]; scale?: number; locked?: boolean; frame?: boolean; shows?: PlanType }[];
+  viewports: { box: [number, number, number, number]; scale?: number; locked?: boolean; frame?: boolean; shows?: PlanType; clip?: VpClip }[];
   /** A plan sheet's tables: the top left corner as fractions of the drawing area. */
   tables?: { kind: TableKind; at: [number, number]; widthMm: number; textMm?: 2.5 | 3.5; cols?: 1 | 2; title?: string }[];
   /** The named page setup it was saved with (its name). */
@@ -57,7 +58,7 @@ export function parseLayoutTemplate(v: unknown): LayoutTemplate | undefined {
     viewports.push({
       box: [b[0], b[1], b[2], b[3]],
       ...(num(o.scale) && o.scale > 0 ? { scale: o.scale } : {}),
-      ...(o.locked === false ? { locked: false } : {}), ...(o.frame === true ? { frame: true } : {}),
+      ...(o.locked === false ? { locked: false } : {}), ...(o.frame === true ? { frame: true } : {}), ...(isVpClip(o.clip) ? { clip: o.clip } : {}),
       ...(typeof o.shows === 'string' && PLANS.includes(o.shows as PlanType) ? { shows: o.shows as PlanType } : {})
     });
   }
@@ -95,7 +96,7 @@ export function templateFromSheet(p: Project, s: DrawingSheet, name: string, now
   const { w, h } = SHEET_MM[size];
   const viewports = layoutViewports(p, s).map((v) => ({
     box: [r4(v.box[0] / area.w), r4(v.box[1] / area.h), r4(v.box[2] / area.w), r4(v.box[3] / area.h)] as [number, number, number, number], scale: v.scale,
-    ...(v.locked === false ? { locked: false } : {}), ...(v.frame ? { frame: true } : {}), ...(v.shows ? { shows: v.shows } : {})
+    ...(v.locked === false ? { locked: false } : {}), ...(v.frame ? { frame: true } : {}), ...(v.shows ? { shows: v.shows } : {}), ...(v.clip ? { clip: v.clip } : {})
   }));
   const tables = tablesOf(s).map((t) => ({
     kind: t.kind, at: [r4(t.at[0] / area.w), r4(t.at[1] / area.h)] as [number, number], widthMm: t.widthMm,
@@ -106,11 +107,11 @@ export function templateFromSheet(p: Project, s: DrawingSheet, name: string, now
 }
 
 /** A layout of the drawing (made with +, or the file's own) as a template: frames in mm from the paper's lower left corner, with their scales. */
-export function templateFromPaper(name: string, paper: [number, number], vps: { x: number; y: number; w: number; h: number; scale?: number; frame?: boolean }[], now = new Date()): LayoutTemplate {
+export function templateFromPaper(name: string, paper: [number, number], vps: { x: number; y: number; w: number; h: number; scale?: number; frame?: boolean; clip?: VpClip }[], now = new Date()): LayoutTemplate {
   const [pw, ph] = paper, I = VIEWPORT_INSET_MM, aw = pw - 2 * I, ah = ph - 2 * I;
   return {
     id: newId(now), name: name.trim(), savedAt: now.toISOString(), paper, size: sizeOfPaper(paper),
-    viewports: vps.map((v) => ({ box: [r4((v.x - I) / aw), r4((ph - (v.y + v.h) - I) / ah), r4(v.w / aw), r4(v.h / ah)] as [number, number, number, number], ...(v.scale && v.scale > 0 ? { scale: v.scale } : {}), ...(v.frame ? { frame: true } : {}) }))
+    viewports: vps.map((v) => ({ box: [r4((v.x - I) / aw), r4((ph - (v.y + v.h) - I) / ah), r4(v.w / aw), r4(v.h / ah)] as [number, number, number, number], ...(v.scale && v.scale > 0 ? { scale: v.scale } : {}), ...(v.frame ? { frame: true } : {}), ...(v.clip ? { clip: v.clip } : {}) }))
   };
 }
 
@@ -119,7 +120,7 @@ export function templateFromFileLayout(name: string, l: FileLayout, mmPerDrawing
   const g = paperOf(l), k = l.mm_per_unit > 0 ? l.mm_per_unit : 1;
   return templateFromPaper(name, [g.w, g.h], l.viewports.filter((v) => v.on && v.w > 0 && v.h > 0).map((v) => {
     const [x, y] = g.mm(v.x, v.y), sc = Math.round((v.vh * mmPerDrawingUnit) / (v.h * k));
-    return { x, y, w: v.w * k, h: v.h * k, scale: sc > 0 ? sc : undefined };
+    return { x, y, w: v.w * k, h: v.h * k, scale: sc > 0 ? sc : undefined, clip: v.clip };
   }), now);
 }
 
@@ -132,7 +133,7 @@ export function drawingLayoutFromTemplate(t: LayoutTemplate, name: string, ext: 
     viewports: t.viewports.map((v) => {
       const w = r1(v.box[2] * aw), h = r1(v.box[3] * ah), x = r1(I + v.box[0] * aw), y = r1(ph - I - (v.box[1] + v.box[3]) * ah);
       const n = v.scale && v.scale > 0 ? v.scale : fitScale(ext, w, h, mmPerUnit);
-      return { x, y, w, h, cx: ok ? (ext[0] + ext[2]) / 2 : 0, cy: ok ? (ext[1] + ext[3]) / 2 : 0, vh: (h * n) / mpu, ...(v.frame ? { frame: true } : {}) };
+      return { x, y, w, h, cx: ok ? (ext[0] + ext[2]) / 2 : 0, cy: ok ? (ext[1] + ext[3]) / 2 : 0, vh: (h * n) / mpu, ...(v.frame ? { frame: true } : {}), ...(v.clip ? { clip: v.clip } : {}) };
     })
   };
 }
@@ -156,7 +157,7 @@ export function sheetWithTemplate(p: Project, s: DrawingSheet, t: LayoutTemplate
   const at: [number, number] = ext ? [(ext.x0 + ext.x1) / 2, (ext.y0 + ext.y1) / 2] : [0, 0];
   const viewports: PlanViewport[] = t.viewports.map((v, i) => ({
     id: `vp${i + 1}`, box: [r1(v.box[0] * area.w), r1(v.box[1] * area.h), r1(v.box[2] * area.w), r1(v.box[3] * area.h)], at, scale: v.scale ?? planScale(base.scale),
-    ...(v.locked === false ? { locked: false } : {}), ...(v.frame ? { frame: true } : {}), ...(v.shows ? { shows: v.shows } : {})
+    ...(v.locked === false ? { locked: false } : {}), ...(v.frame ? { frame: true } : {}), ...(v.shows ? { shows: v.shows } : {}), ...(v.clip ? { clip: v.clip } : {})
   }));
   const tables: PlacedTable[] = [];
   for (const x of t.tables ?? []) tables.push({ id: tableId(tables), kind: x.kind, at: [r1(x.at[0] * area.w), r1(x.at[1] * area.h)], widthMm: x.widthMm, ...(x.textMm ? { textMm: x.textMm } : {}), ...(x.cols ? { cols: x.cols } : {}), ...(x.title ? { title: x.title } : {}) });

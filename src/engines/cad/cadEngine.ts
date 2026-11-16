@@ -62,7 +62,7 @@ export interface CadObject {
 }
 /** A viewport on a file's layout: its frame in paper-space units (lower left, size), and the model it shows: the view's
  * centre and height (drawing units). */
-export interface FileViewport { x: number; y: number; w: number; h: number; cx: number; cy: number; vh: number; locked: boolean; on: boolean }
+export interface FileViewport { x: number; y: number; w: number; h: number; cx: number; cy: number; vh: number; locked: boolean; on: boolean; /** Its outline when it is not its frame's rectangle: corners in fractions of the frame, across from its left and down from its top (a layout made here; src/model/viewportClip.ts). */ clip?: [number, number][] }
 /** A paper-space layout of the drawing file (Layout1, A1 Lighting…), with what is drawn on its paper. */
 export interface FileLayout {
   name: string;

@@ -2280,7 +2280,7 @@ describe('file tabs', () => {
     // Right-click inside Viewport 2 picks it; Lock display, then Erase viewport.
     await rightAt(70, 60);
     expect(state.vpSel).toBe('dv1');
-    expect(labels()).toEqual(['Activate (model space)', 'Show on the Model tab', 'Viewport scale', 'Lock display', 'Frame prints', 'Erase viewport', 'Plot this layout…', 'Page setup…']);
+    expect(labels()).toEqual(['Activate (model space)', 'Show on the Model tab', 'Viewport scale', 'Lock display', 'Frame prints', 'Clip to an outline…', 'Erase viewport', 'Plot this layout…', 'Page setup…']);
     await act(async () => { entry('Lock display').click(); });
     expect(mine().viewports[1].locked).toBe(true);
     await rightAt(70, 60);
@@ -2296,6 +2296,191 @@ describe('file tabs', () => {
     expect(document.querySelector('[aria-label="Plot"]')!.textContent).toMatch(/^Plot Layout2/);
     act(() => button('Cancel').click());
     expect(document.querySelector('[aria-label="Plot"]')).toBeNull();
+  });
+
+  it('Layout viewports on a plan sheet: VPCLIP cuts the viewport picked to an outline clicked on the paper, the model worked in is cut at it, VPCLIP D takes it off, the menu and the panel offer both', async () => {
+    const gf = { building: 'V', level: 'GF' };
+    let start: Project = { ...villa, cadPlans: [{ building: 'V', level: 'GF', file: 'sample-villa-gf.dxf', units: 4 }] };
+    for (const [x, y] of [[3, 9], [6, 9.4], [9, 8.8]]) start = placeLvPoint(start, gf, 'ltg', 'DB-GF1-B2', x, y).project;
+    act(() => root.render(<Host start={start} />));
+    await flush();
+    await command('LAYOUT L');
+    const sheet = () => project.drawingSet!.sheets.find((x) => x.kind === 'plan')!;
+    await until(() => !!document.querySelector('.cad-vp'));
+    await command('VPORTS 2V');
+    const vps = () => sheet().viewports!;
+    expect(vps()).toHaveLength(2);
+    const START = 'VPCLIP  Click the corners of the outline on the paper. Enter closes it (three corners or more), U takes the last corner back, Esc cancels.';
+    await until(() => document.querySelectorAll('.cad-vp').length === 2);
+    // Where a point of the drawing area (mm, y down) is on screen: from Viewport 1's frame.
+    const f1 = document.querySelector<HTMLElement>('.cad-vp[aria-label="Viewport 1"]')!, b1 = vps()[0].box;
+    const k = parseFloat(f1.style.width) / b1[2], left = parseFloat(f1.style.left) - b1[0] * k, top = parseFloat(f1.style.top) - b1[1] * k;
+    const px = (mx: number, my: number) => ({ clientX: left + mx * k, clientY: top + my * k });
+    const press = (mx: number, my: number) => act(() => { document.querySelector('.cad-vps')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, ...px(mx, my) })); });
+    const rightAt = (mx: number, my: number) => act(async () => { document.querySelector('.cad-vps')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...px(mx, my) })); });
+    const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
+    const labels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => b.firstElementChild?.textContent ?? b.textContent);
+    const band = () => document.querySelector('svg[aria-label="Outline being picked"]');
+    act(() => state.setVpSel(null));
+    await command('VPCLIP');
+    expect(hist()).toBe('VPCLIP  Pick a viewport first: click its frame.');
+    act(() => state.setVpSel('vp2'));
+    const [bx, by, bw, bh] = vps()[1].box, n = onChange.mock.calls.length;
+    await command('VPCLIP');
+    expect(hist()).toBe(START);
+    expect(document.querySelector('.cad-vps.mv')).not.toBeNull();
+    expect(band()).not.toBeNull();
+    press(bx + 10, by + 10); press(bx + bw - 10, by + 10);
+    expect(band()!.querySelectorAll('circle')).toHaveLength(2); // a dot on each corner so far
+    await command('');
+    expect(hist()).toBe('VPCLIP  An outline needs three corners that enclose an area: click more corners, or Esc.');
+    expect(onChange.mock.calls.length).toBe(n);
+    press(bx + bw / 2, by + bh - 10);
+    expect(hist()).toBe('VPCLIP  Corner 3: click the next, Enter to close, U to take it back.');
+    await command('U');
+    expect(hist()).toBe('VPCLIP  Corner taken back: 2 left.');
+    press(bx + bw / 2, by + bh - 10);
+    await command('');
+    expect(lastMsg()).toBe('E-LTG-001  Viewport 2 clipped to an outline of 3 corners · ⌘Z to undo');
+    expect(onChange.mock.calls.length).toBe(n + 1);
+    expect(vps()[1].clip).toHaveLength(3);
+    expect(vps()[1].box[2]).toBeCloseTo(bw - 20, 0);
+    expect(document.querySelector('.cad-vps.mv')).toBeNull();
+    expect(document.querySelector('[aria-label="Viewport properties"]')!.textContent).toContain('Outline: clipped, 3 corners');
+    // Worked in, the model is cut at the outline.
+    await command('MS');
+    expect(state.msVp).toBe('vp2');
+    expect(document.querySelector<HTMLElement>('.cad-vp[aria-label="Viewport 2"] .cad-vp-model')!.getAttribute('style')).toMatch(/clip-path: polygon\(0% 0%, 100% 0%, 49\.96% 100%\)/);
+    await command('PS');
+    // The menu inside it offers both; a corner of its frame cut away is not inside.
+    await rightAt(bx + bw / 2, by + 20);
+    expect(labels()).toEqual(expect.arrayContaining(['Clip to an outline…', 'Remove the outline']));
+    await act(async () => { entry('Remove the outline').click(); });
+    expect(lastMsg()).toBe('E-LTG-001  Viewport 2: outline removed, it is its frame again · ⌘Z to undo');
+    expect('clip' in vps()[1]).toBe(false);
+    await command('VPCLIP D');
+    expect(hist()).toBe('VPCLIP  Viewport 2 has no outline.');
+    // Clip… on the panel starts picking; Esc stops it; VPCLIP D after clipping again.
+    act(() => button('Clip…').click());
+    expect(hist()).toBe(START);
+    press(bx + 10, by + 10);
+    await act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect(hist()).toBe('VPCLIP  Cancelled.');
+    expect(document.querySelector('.cad-vps.mv')).toBeNull();
+    await command('VPCLIP P');
+    press(bx + 10, by + 10); press(bx + bw - 10, by + 10); press(bx + bw / 2, by + bh - 10);
+    await command('C');
+    expect(vps()[1].clip).toHaveLength(3);
+    act(() => button('Remove').click());
+    expect('clip' in vps()[1]).toBe(false);
+  });
+
+  it('Layouts made with +: VPCLIP cuts the viewport picked to an outline clicked on the paper (Enter closes it, U takes a corner back, Esc stops it), VPCLIP D takes it off; the right-click menu and the properties panel offer both', async () => {
+    act(() => root.render(<Host start={{ ...villa, building: undefined }} />));
+    await flush();
+    const v = await openDrawing('paper-layouts.dxf', bytes('tests/fixtures/cad/paper-layouts.dxf'));
+    act(() => state.open(v));
+    await flush();
+    const hist = () => document.querySelector('.cad-hist')!.textContent;
+    const mine = () => project.cadLayouts![v.file.toLowerCase()][0];
+    const panel = () => document.querySelector('[aria-label="Viewport properties"]');
+    await command('LAYOUT');
+    const f1 = document.querySelector<HTMLElement>('.cad-vp[aria-label="Viewport 1"]')!;
+    const k = parseFloat(f1.style.width) / 400, left = parseFloat(f1.style.left) - 10 * k, bottom = parseFloat(f1.style.top) + 287 * k;
+    const px = (mx: number, my: number) => ({ clientX: left + mx * k, clientY: bottom - my * k });
+    const press = (mx: number, my: number) => act(() => { document.querySelector('.cad-vps')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, ...px(mx, my) })); });
+    const rightAt = (mx: number, my: number) => act(async () => { document.querySelector('.cad-filepaper')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...px(mx, my) })); });
+    const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
+    const labels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => b.firstElementChild?.textContent ?? b.textContent);
+    const band = () => document.querySelector('svg[aria-label="Outline being picked"]');
+    const esc = () => act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    const START = 'VPCLIP  Click the corners of the outline on the paper. Enter closes it (three corners or more), U takes the last corner back, Esc cancels.';
+    await command('MV');
+    press(20, 20);
+    press(120, 100);
+    expect(mine().viewports).toHaveLength(2);
+    // Two viewports and none picked: it asks for one.
+    act(() => state.setVpSel(null));
+    await command('VPCLIP');
+    expect(hist()).toBe('VPCLIP  Pick a viewport first: click its frame.');
+    expect(document.querySelector('.cad-vps.mv')).toBeNull();
+    act(() => state.setVpSel('dv1'));
+    let n = onChange.mock.calls.length;
+    // Three corners and Enter: one project change; the frame becomes the corners' bounding box.
+    await command('VPCLIP');
+    expect(hist()).toBe(START);
+    expect(document.querySelector('.cad-vps.mv')).not.toBeNull();
+    expect(band()).not.toBeNull();
+    press(30, 30);
+    expect(hist()).toBe('VPCLIP  Corner 1: click the next, Enter to close, U to take it back.');
+    press(110, 30);
+    press(70, 90);
+    expect(hist()).toBe('VPCLIP  Corner 3: click the next, Enter to close, U to take it back.');
+    expect(band()!.querySelectorAll('circle')).toHaveLength(3);
+    expect(onChange.mock.calls.length).toBe(n);
+    // U takes a corner back; Enter with two says an outline needs three and goes on.
+    await command('U');
+    expect(hist()).toBe('VPCLIP  Corner taken back: 2 left.');
+    expect(band()!.querySelectorAll('circle')).toHaveLength(2);
+    await command('');
+    expect(hist()).toBe('VPCLIP  An outline needs three corners that enclose an area: click more corners, or Esc.');
+    expect(document.querySelector('.cad-vps.mv')).not.toBeNull();
+    expect(onChange.mock.calls.length).toBe(n);
+    press(70, 90);
+    await command('');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 2 clipped to an outline of 3 corners · ⌘Z to undo');
+    expect(onChange.mock.calls.length).toBe(n + 1);
+    const w = mine().viewports[1];
+    expect(w.clip).toHaveLength(3);
+    [w.x, w.y, w.w, w.h].forEach((got, i) => expect(got).toBeCloseTo([30, 30, 80, 60][i], 0));
+    expect(document.querySelector('.cad-vps.mv')).toBeNull();
+    expect(band()).toBeNull();
+    // The properties panel says so and offers Clip… and Remove.
+    expect(panel()!.textContent).toContain('Outline: clipped, 3 corners');
+    expect(button('Remove')).toBeDefined();
+    // Esc stops picking and changes nothing.
+    n = onChange.mock.calls.length;
+    await command('VPCLIP');
+    press(40, 40);
+    await esc();
+    expect(hist()).toBe('VPCLIP  Cancelled.');
+    expect(document.querySelector('.cad-vps.mv')).toBeNull();
+    expect(onChange.mock.calls.length).toBe(n);
+    // The right-click menu inside the clipped viewport offers both; Remove the outline takes it off.
+    await rightAt(70, 60);
+    expect(labels()).toEqual(['Activate (model space)', 'Show on the Model tab', 'Viewport scale', 'Lock display', 'Frame prints', 'Clip to an outline…', 'Remove the outline', 'Erase viewport', 'Plot this layout…', 'Page setup…']);
+    await act(async () => { entry('Remove the outline').click(); });
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 2: outline removed, it is its frame again · ⌘Z to undo');
+    expect('clip' in mine().viewports[1]).toBe(false);
+    expect(panel()!.textContent).toContain('Outline: its frame');
+    await command('VPCLIP D');
+    expect(hist()).toBe('VPCLIP  Viewport 2 has no outline.');
+    // Clip to an outline… from the menu, and Clip… on the panel, start picking the same way.
+    await rightAt(70, 60);
+    expect(labels()).not.toContain('Remove the outline');
+    await act(async () => { entry('Clip to an outline…').click(); });
+    expect(hist()).toBe(START);
+    await esc();
+    act(() => button('Clip…').click());
+    expect(hist()).toBe(START);
+    press(30, 30); press(110, 30); press(70, 90);
+    await command('CLOSE');
+    expect(mine().viewports[1].clip).toHaveLength(3);
+    await command('VPCLIP D');
+    expect(lastMsg()).toBe('LAYOUT  Layout2: Viewport 2: outline removed, it is its frame again · ⌘Z to undo');
+    expect('clip' in mine().viewports[1]).toBe(false);
+    // Another command typed while picking stops it first.
+    await command('VPCLIP');
+    press(30, 30);
+    await command('VPLOCK');
+    expect(document.querySelector('.cad-vps.mv')).toBeNull();
+    expect(mine().viewports[1].locked).toBe(true);
+    // Going to another tab ends picking silently.
+    await command('VPCLIP');
+    expect(document.querySelector('.cad-vps.mv')).not.toBeNull();
+    await command('MODEL');
+    await command('LAYOUT');
+    expect(document.querySelector('.cad-vps.mv')).toBeNull();
   });
 
   it('LAYOUT I: the layouts of another drawing, picked in a dialog, are added to this one; a name taken becomes the next LayoutN; the other drawing is closed', async () => {
@@ -4726,7 +4911,7 @@ describe('right-click menus: fixes from the audit of 2026-11-11', () => {
     const paperRight = (x: number, y: number) => act(async () => { document.querySelector('.cad-filepaper')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y })); });
     // jsdom lays the pane out at 0 × 0: the paper is fitted round (0, 0), its viewport over that point.
     await paperRight(0, 0);
-    expect(labels()).toEqual(['Activate (model space)', 'Show on the Model tab', 'Viewport scale', 'Lock display', 'Frame prints', 'Erase viewport', 'Plot this layout…', 'Page setup…']);
+    expect(labels()).toEqual(['Activate (model space)', 'Show on the Model tab', 'Viewport scale', 'Lock display', 'Frame prints', 'Clip to an outline…', 'Erase viewport', 'Plot this layout…', 'Page setup…']);
     await pickEntry('Viewport scale', '1:50');
     const v = drawingLayoutsOf(project, F)[0].viewports[0];
     expect(v.vh).toBeCloseTo(v.h * 50, 6); // mm drawing: vh = h × 50 drawing units

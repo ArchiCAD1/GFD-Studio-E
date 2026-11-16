@@ -1007,7 +1007,8 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
           menu: [{ label: 'Side by side', title: 'The same height of the plan on one line across both viewports', onClick: () => a.cad?.onLayoutCmd?.('VPALIGN H') },
             { label: 'Stacked', title: 'The same part of the plan one above the other', onClick: () => a.cad?.onLayoutCmd?.('VPALIGN V') }] }),
         sm({ label: 'Maximise', icon: Maximize2, cmd: 'VPMAX', title: 'The viewport\'s area on the Model tab, to work at full size; VPMIN or the layout\'s tab comes back (VPMAX)', onClick: () => a.cad?.onLayoutCmd?.('VPMAX') }),
-        sm({ label: 'Frame prints', icon: Square, cmd: 'VPFRAME', title: 'The frame of the viewport picked prints, or shows on screen only (VPFRAME)', onClick: () => a.cad?.onLayoutCmd?.('VPFRAME'), active: a.cad?.info?.vp?.frame })
+        sm({ label: 'Frame prints', icon: Square, cmd: 'VPFRAME', title: 'The frame of the viewport picked prints, or shows on screen only (VPFRAME)', onClick: () => a.cad?.onLayoutCmd?.('VPFRAME'), active: a.cad?.info?.vp?.frame }),
+        sm({ label: 'Clip', icon: Crop, cmd: 'VPCLIP', title: 'Cut the viewport picked to an outline you click on the paper, corner by corner; Enter closes it. VPCLIP D takes the outline off (VPCLIP)', onClick: () => a.cad?.onLayoutCmd?.('VPCLIP') })
       ],
       // Output: plot one layout or sheet and its setup; publish many; export files for others. In model space the
       // drawing's own view, Publish and Save As stand in for the sheet's.
