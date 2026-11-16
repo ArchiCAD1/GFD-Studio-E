@@ -46,7 +46,7 @@ ol li{font-size:15px;line-height:22px;margin:4px 0}
 <div class="tiles" id="s2"></div>
 <div class="box"><b>Option A rule: the fill shows the level (none = final board, half = sub-main or MCC), and a double frame = main board.</b> A cross (X) = emergency supply. A split across the middle = motor control. Letters for special panels (UPS, MC).</div>
 
-<h2>2b. Main boards: four options instead of all filled (your feedback)</h2>
+<h2>2b. Main boards: four options instead of all filled (your feedback; M1 chosen)</h2>
 <p>An all-filled block prints as a heavy black patch, and its edge is lost in a black-and-white print. M1 builds on your idea: the sub-main symbol (SMDB, or ESMDB for emergency) with a mark that says "main board", here a second frame.</p>
 <div id="s2b"></div>
 
@@ -80,7 +80,7 @@ ol li{font-size:15px;line-height:22px;margin:4px 0}
 <li>Where: <b>everywhere at once: SLD end boards and legend, riser, feeder riser, library blocks, strip icons (recommended)</b> / the SLD first, the rest later.</li>
 <li>Design CAD plan symbols for boards: <b>the same patterns, tag beside (recommended)</b> / keep today's tagged rectangles.</li>
 <li>New kinds: <b>ESMDB (recommended)</b> / also PFC, ATS, FPL, CP, EV / none.</li>
-<li>Main boards (MDB, LV-MDB, LV-ACB, EMDB, LV-EMDB): <b>M1 double frame (recommended)</b> / M2 letters / M3 hatched / M4 bow-tie.</li>
+<li>Main boards (MDB, LV-MDB, LV-ACB, EMDB, LV-EMDB): <b>M1 double frame – chosen 2026-11-16</b>.</li>
 </ol>
 </div>
 <script>
@@ -250,7 +250,7 @@ $('s2').innerHTML = seven.map(([p, c, n]) =>
   const cols = [250, 210, 210, 190, 230, 740];
   const heads = ['Option', 'MDB, LV-MDB, LV-ACB', 'EMDB, LV-EMDB', 'At drawing size', 'On screen', 'What it means'];
   const opts = [
-    ['<b>M1 – double frame (recommended)</b>', ['mainDiag'], ['mainBow'], 'The sub-main symbol with a second frame inside: MDB from SMDB, EMDB from ESMDB. Half the ink of the block, and a cross still means emergency.'],
+    ['<b>M1 – double frame (chosen)</b>', ['mainDiag'], ['mainBow'], 'The sub-main symbol with a second frame inside: MDB from SMDB, EMDB from ESMDB. Half the ink of the block, and a cross still means emergency.'],
     ['<b>M2 – letters</b>', ['letters', 'MDB'], ['letters', 'EMDB'], 'MDB and EMDB written in the box, like UPS and MC. Clear, but it is text at drawing size, and a main board then looks like a special panel.'],
     ['<b>M3 – hatched</b>', ['hatch'], ['hatchX'], 'Thin 45° lines that print light grey; in DXF they are plain lines. Busy at small sizes, and the emergency cross is hard to see through the hatch.'],
     ['<b>M4 – bow-tie</b>', ['bowtie'], ['bowtie', 'E'], 'The main board takes the cross with its sides filled. Then a cross no longer means emergency, so EMDB and ESMDB need an E tag instead.'],
