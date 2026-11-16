@@ -75,6 +75,11 @@ export interface CalcRun {
   ms: number;
 }
 
+/** Auto-run: how long to wait for a pause in editing before running again. A run that was quick (most projects)
+ * runs at once, as before; after a slow one (a very large network) a burst of edits — typing a value — is one run. */
+export const AUTO_RUN_SLOW_MS = 50, AUTO_RUN_PAUSE_MS = 150;
+export const autoRunDelayMs = (lastRunMs: number | undefined): number => (lastRunMs !== undefined && lastRunMs > AUTO_RUN_SLOW_MS ? AUTO_RUN_PAUSE_MS : 0);
+
 export function runCalculations(project: Project, now = Date.now()): CalcRun {
   const t0 = performance.now();
   // One network index for the whole run: every study reuses the same walks of the board tree.

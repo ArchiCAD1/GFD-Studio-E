@@ -94,7 +94,7 @@ import { EXTERNAL_ENGINES } from './engines';
 import type { StudyResults } from './engines/types';
 import { deleteBoard } from './model/edit';
 import { useHistory } from './model/history';
-import { runCalculations, staleStudies, STUDY_LABEL, type CalcRun } from './calc/runs';
+import { autoRunDelayMs, runCalculations, staleStudies, STUDY_LABEL, type CalcRun } from './calc/runs';
 import { StaleBanner } from './components/ui';
 import { generatorScenario, transformerOutage, type SupplyMode } from './calc/scenario';
 import { removeTie, TIE_OPERATION, tieRatings, updateTie } from './model/sldEdit';
@@ -124,7 +124,7 @@ import { pasteBoard } from './model/copyBoard';
 import { draftFromOffer, onSubmissionOffer, type Submission, type SubmissionOffer } from './model/submissions';
 import { applyDefaults, applyProfile, initialsOf, loadPrefs, savePrefs, signature, type Preferences } from './model/profile';
 import { applyPalette, applyTheme } from './theme/theme';
-import { clearRecovery, deleteProjectFile, inDesktop, keepUnsavedWork, listProjects, loadProject, emptyTrash, listTrash, loadProjectStamped, readRecoveries, recentFiles, restoreProject, saveProjectFile, statProject, touchRecent, whenText, writeRecovery, type ProjectMeta, type Recovery, type TrashedProject } from './model/projectStore';
+import { clearRecovery, deleteProjectFile, inDesktop, keepUnsavedWork, listProjects, loadProject, emptyTrash, listTrash, loadProjectStamped, readRecoveries, recentFiles, recoveryIsCurrent, restoreProject, saveProjectFile, statProject, touchRecent, whenText, writeRecovery, type ProjectMeta, type Recovery, type TrashedProject } from './model/projectStore';
 import { applyDetails, withArchived, type ProjectDetails } from './model/projectList';
 const ProjectDetailsDialog = onDemand(() => import('./components/ProjectDetailsDialog'));
 const BriefDialog = onDemand(async () => ({ default: (await import('./components/BriefEditor')).BriefDialog }));
@@ -457,7 +457,14 @@ export default function App() {
   // inputs changes. Auto-run (project setting) runs them on every change.
   const [run, setRun] = useState<CalcRun | undefined>(() => runCalculations(project));
   const autoRun = !!project.calc?.autoRun;
-  useEffect(() => { if (autoRun && run?.project !== project) setRun(runCalculations(project)); }, [autoRun, project, run?.project]);
+  useEffect(() => {
+    if (!autoRun || run?.project === project) return;
+    // At once after a quick run; after a slow one (a very large network) wait for a pause, so typing is one run.
+    const wait = autoRunDelayMs(run?.ms);
+    if (!wait) { setRun(runCalculations(project)); return; }
+    const t = setTimeout(() => setRun(runCalculations(project)), wait);
+    return () => clearTimeout(t);
+  }, [autoRun, project, run?.project, run?.ms]);
   const staleKeys = useMemo(() => staleStudies(run, project), [run, project]);
   const stale = staleKeys.map((k) => STUDY_LABEL[k]);
   // What the studies show: the project as last run while out of date,
@@ -555,7 +562,8 @@ export default function App() {
     const t = setInterval(() => {
       const { project: p, saved: s, currentFile: f, recoveries: pending } = live.current;
       // Not while a recovered copy of this same project is still waiting to be restored or discarded.
-      if (p !== s && !pending.some((r) => r.projectId === p.id)) writeRecovery({ file: f, at: Date.now(), project: p });
+      // Nor when the copy written last time is still this project (no edit since): the whole project is written each time.
+      if (p !== s && !pending.some((r) => r.projectId === p.id) && !recoveryIsCurrent(p)) writeRecovery({ file: f, at: Date.now(), project: p });
     }, min * 60000);
     return () => clearInterval(t);
   }, [prefs.app.autosaveMin]);

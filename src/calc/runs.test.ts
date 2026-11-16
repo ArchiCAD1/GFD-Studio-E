@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import { evaluateProject } from './electrical';
-import { fingerprint, runCalculations, staleStudies, STUDY_KEYS } from './runs';
+import { AUTO_RUN_PAUSE_MS, autoRunDelayMs, fingerprint, runCalculations, staleStudies, STUDY_KEYS } from './runs';
 import { network } from '../../tests/fixtures/networks';
 import type { Feeder, Project } from '../types';
 
@@ -21,6 +21,12 @@ describe('calculations on demand', () => {
     expect(staleStudies(run, sampleProject)).toEqual([]);
   });
 
+  it('auto-run waits for a pause only after a slow run', () => {
+    expect(autoRunDelayMs(undefined)).toBe(0);
+    expect(autoRunDelayMs(12)).toBe(0);
+    expect(autoRunDelayMs(50)).toBe(0);
+    expect(autoRunDelayMs(154)).toBe(AUTO_RUN_PAUSE_MS);
+  });
   it('before any run everything is out of date', () => {
     expect(staleStudies(undefined, sampleProject)).toEqual(STUDY_KEYS);
   });

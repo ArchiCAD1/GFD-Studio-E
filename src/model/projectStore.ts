@@ -196,11 +196,18 @@ export async function writeRecovery(r: Recovery): Promise<boolean> {
       localStorage.setItem(recoveryKey(id), JSON.stringify({ ...r, projectId: id }));
       if (!readIds().includes(id)) localStorage.setItem(RECOVERY_IDS, JSON.stringify([...readIds(), id]));
     }
+    lastCopy = { id, project: r.project };
     return true;
   } catch {
     return false;
   }
 }
+
+// The project of the recovery copy written last in this session. A project is only ever replaced, never changed
+// in place, so the same object is the same content.
+let lastCopy: { id: string; project: Project } | undefined;
+/** Whether this project's recovery copy already holds exactly this state (written this session, not cleared since). */
+export const recoveryIsCurrent = (p: Project): boolean => !!lastCopy && lastCopy.project === p && lastCopy.id === p.id;
 
 export type CrashKept = 'kept' | 'waiting' | 'nothing' | 'failed';
 /** After a crash: the unsaved work as a recovery copy, unless there is none, or a recovered copy of this project is still
@@ -232,6 +239,7 @@ export async function readRecoveries(): Promise<Recovery[]> {
 /** Forgets one project's recovery copy (after it is saved, restored or discarded). */
 export async function clearRecovery(projectId: string | undefined): Promise<void> {
   if (!projectId) return;
+  if (lastCopy?.id === projectId) lastCopy = undefined;
   try {
     const b = bridge();
     if (b?.recovery) await b.recovery.clear(projectId);
