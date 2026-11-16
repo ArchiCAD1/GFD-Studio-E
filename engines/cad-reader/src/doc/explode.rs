@@ -5,10 +5,16 @@
 //! within a small chord tolerance. The same rules as the view: layer 0 and ByBlock children take the insert's layer,
 //! colour and linetype; nested blocks and MINSERT arrays are expanded. Each piece has its layer, and its colour and
 //! linetype only where they differ from its layer's.
+//!
+//! The exact mode (the take-over of an opened drawing's objects) keeps more of what an object is: a full ellipse stays
+//! an ellipse, a paragraph text its raw string with its box and attachment, a text its alignment, a patterned hatch its
+//! pattern lines, and a dimension of a known kind its definition points. Splines and partial ellipses still come as
+//! polylines, marked `sampled` so the page can say so.
 
-use super::{rgb_of, spline_points, Affine, INK, MAX_DEPTH};
+use super::{rgb_of, spline_points, Affine, PatLine, INK, MAX_DEPTH};
 use acadrust::entities::mtext_format::parse_mtext;
-use acadrust::entities::{BoundaryEdge, EntityType};
+use acadrust::entities::mtext::AttachmentPoint;
+use acadrust::entities::{BoundaryEdge, Dimension, EntityType, TextHorizontalAlignment as H, TextVerticalAlignment as V};
 use acadrust::types::{Color, LineWeight};
 use acadrust::CadDocument;
 use serde::Serialize;
@@ -37,13 +43,37 @@ pub(crate) enum Piece {
     Line { #[serde(flatten)] s: Style, a: [f64; 2], b: [f64; 2] },
     Arc { #[serde(flatten)] s: Style, c: [f64; 2], r: f64, a0: f64, a1: f64 },
     Circle { #[serde(flatten)] s: Style, c: [f64; 2], r: f64 },
-    Pline { #[serde(flatten)] s: Style, pts: Vec<[f64; 3]>, closed: bool },
-    Text { #[serde(flatten)] s: Style, at: [f64; 2], h: f64, rot: f64, text: String, #[serde(skip_serializing_if = "Option::is_none")] tag: Option<String> },
-    Hatch { #[serde(flatten)] s: Style, loops: Vec<Vec<[f64; 3]>>, solid: bool, pattern: String },
+    /// `sampled` (exact mode): what curve this polyline stands in for ("spline", "ellipse").
+    Pline { #[serde(flatten)] s: Style, pts: Vec<[f64; 3]>, closed: bool, #[serde(skip_serializing_if = "Option::is_none")] sampled: Option<&'static str> },
+    /// `just` (exact mode): the app's text justification (L / C / R on the baseline, TL … BR); then `at` is the alignment point.
+    Text { #[serde(flatten)] s: Style, at: [f64; 2], h: f64, rot: f64, text: String, #[serde(skip_serializing_if = "Option::is_none")] tag: Option<String>, #[serde(skip_serializing_if = "Option::is_none")] just: Option<&'static str> },
+    /// A patterned hatch in exact mode also has its `scale`, `angle`, `origin` and pattern `lines` (as stored, placed).
+    Hatch { #[serde(flatten)] s: Style, loops: Vec<Vec<[f64; 3]>>, solid: bool, pattern: String,
+        #[serde(skip_serializing_if = "Option::is_none")] scale: Option<f64>, #[serde(skip_serializing_if = "Option::is_none")] angle: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")] origin: Option<[f64; 2]>, #[serde(skip_serializing_if = "Vec::is_empty")] lines: Vec<PatLine> },
+    /// A full ellipse (exact mode): centre, major axis from the centre, minor / major.
+    Ellipse { #[serde(flatten)] s: Style, c: [f64; 2], axis: [f64; 2], ratio: f64 },
+    /// A paragraph text (exact mode): its raw string with codes, box width (0: none), attachment (1–9 as DXF) and line spacing factor.
+    MText { #[serde(flatten)] s: Style, at: [f64; 2], h: f64, rot: f64, w: f64, attach: u8, lsp: f64, text: String },
     Solid { #[serde(flatten)] s: Style, pts: Vec<[f64; 2]> },
     Point { #[serde(flatten)] s: Style, at: [f64; 2] },
     /// A dimension: its lines, arrows and text, kept or left out as one.
-    Group { #[serde(flatten)] s: Style, items: Vec<Piece> },
+    Group { #[serde(flatten)] s: Style, items: Vec<Piece>, #[serde(skip_serializing_if = "Option::is_none")] dim: Option<DimInfo> },
+}
+
+/// What a dimension is made of (exact mode): its kind, its definition points in the app's order for that kind
+/// (aligned / linear: the two measured points and a point on the dimension line; radius / diameter: the centre, a point
+/// on the curve and the text's place; angular: the vertex, a point on each line and the arc's place), the dimension
+/// line's angle (linear), the text when overridden, and the text height, arrow size and decimals the drawing gives it.
+#[derive(Serialize, Clone, Debug)]
+pub(crate) struct DimInfo {
+    pub kind: &'static str,
+    pub pts: Vec<[f64; 2]>,
+    #[serde(skip_serializing_if = "Option::is_none")] pub dir: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")] pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")] pub height: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")] pub arrow: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")] pub decimals: Option<i16>,
 }
 
 /// The layer, colour, linetype and lineweight (None = by layer) an entity is drawn with (resolved).
@@ -56,6 +86,7 @@ struct Ex<'a> {
     layers: HashMap<String, (u32, String)>,
     count: usize,
     truncated: bool,
+    exact: bool,
 }
 
 /// Whether the transform keeps shapes (rotation, uniform or mirrored scale, translation).
@@ -92,7 +123,7 @@ fn bulge_arc(a: (f64, f64), b: (f64, f64), bulge: f64) -> Option<((f64, f64), f6
 fn pt(t: &Affine, p: (f64, f64)) -> [f64; 2] { let (x, y) = t.apply(p.0, p.1); [x, y] }
 
 impl<'a> Ex<'a> {
-    fn new(doc: &'a CadDocument) -> Self {
+    fn new(doc: &'a CadDocument, exact: bool) -> Self {
         let mut blocks = HashMap::new();
         for rec in doc.block_records.iter() {
             if let Some(EntityType::Block(blk)) = doc.get_entity(rec.block_entity_handle) {
@@ -100,7 +131,7 @@ impl<'a> Ex<'a> {
             }
         }
         let layers = doc.layers.iter().map(|l| (l.name.clone(), (rgb_of(&l.color).unwrap_or(INK), l.line_type.trim().to_uppercase()))).collect();
-        Ex { doc, blocks, layers, count: 0, truncated: false }
+        Ex { doc, blocks, layers, count: 0, truncated: false, exact }
     }
 
     fn layer_of(&self, name: &str) -> (u32, String) { self.layers.get(name).cloned().unwrap_or((INK, String::new())) }
@@ -141,7 +172,7 @@ impl<'a> Ex<'a> {
         } else {
             let n = steps(sweep, r * stretch(t));
             let pts = (0..=n).map(|i| { let a = a0 + sweep * i as f64 / n as f64; let p = pt(t, (c.0 + r * a.cos(), c.1 + r * a.sin())); [p[0], p[1], 0.0] }).collect();
-            self.push(out, Piece::Pline { s, pts, closed: false });
+            self.push(out, Piece::Pline { s, pts, closed: false, sampled: None });
         }
     }
 
@@ -151,7 +182,7 @@ impl<'a> Ex<'a> {
         } else {
             let n = steps(2.0 * PI, r * stretch(t));
             let pts = (0..n).map(|i| { let a = 2.0 * PI * i as f64 / n as f64; let p = pt(t, (c.0 + r * a.cos(), c.1 + r * a.sin())); [p[0], p[1], 0.0] }).collect();
-            self.push(out, Piece::Pline { s, pts, closed: true });
+            self.push(out, Piece::Pline { s, pts, closed: true, sampled: None });
         }
     }
 
@@ -181,13 +212,53 @@ impl<'a> Ex<'a> {
     fn polyline(&mut self, out: &mut Vec<Piece>, s: Style, t: &Affine, v: &[(f64, f64, f64)], closed: bool) {
         if v.len() < 2 { return; }
         let pts = Self::vertices(t, v, closed);
-        self.push(out, Piece::Pline { s, pts, closed });
+        self.push(out, Piece::Pline { s, pts, closed, sampled: None });
     }
 
-    fn sampled(&mut self, out: &mut Vec<Piece>, s: Style, t: &Affine, pts: &[(f64, f64)], closed: bool) {
+    /// A curve as points; in exact mode marked as standing in for `what`.
+    fn sampled(&mut self, out: &mut Vec<Piece>, s: Style, t: &Affine, pts: &[(f64, f64)], closed: bool, what: &'static str) {
         if pts.len() < 2 { return; }
         let pts = pts.iter().map(|p| { let q = pt(t, *p); [q[0], q[1], 0.0] }).collect();
-        self.push(out, Piece::Pline { s, pts, closed });
+        let sampled = self.exact.then_some(what);
+        self.push(out, Piece::Pline { s, pts, closed, sampled });
+    }
+
+    /// What a dimension of a known kind is made of, in the world; none for the other kinds (ordinate, arc length…) or
+    /// when two angular lines are parallel. The text height comes from the dimension's own text, the arrow size and
+    /// decimals from its style.
+    fn dim_info(&self, d: &Dimension, t: &Affine, items: &[Piece]) -> Option<DimInfo> {
+        let p = |v: &acadrust::types::Vector3| pt(t, (v.x, v.y));
+        let b = d.base();
+        let text_at = |near: [f64; 2], far: [f64; 2]| if b.text_middle_point.x != 0.0 || b.text_middle_point.y != 0.0 { p(&b.text_middle_point) } else { [far[0] + (far[0] - near[0]) * 0.5, far[1] + (far[1] - near[1]) * 0.5] };
+        let (kind, pts, dir): (&'static str, Vec<[f64; 2]>, Option<f64>) = match d {
+            Dimension::Aligned(x) => ("aligned", vec![p(&x.first_point), p(&x.second_point), p(&x.definition_point)], None),
+            Dimension::Linear(x) => ("linear", vec![p(&x.first_point), p(&x.second_point), p(&x.definition_point)], Some(x.rotation + t.angle())),
+            Dimension::Radius(x) => { let (c, q) = (p(&x.angle_vertex), p(&x.definition_point)); ("radius", vec![c, q, text_at(c, q)], None) }
+            Dimension::Diameter(x) => {
+                let (a, q) = (p(&x.angle_vertex), p(&x.definition_point));
+                let c = [(a[0] + q[0]) / 2.0, (a[1] + q[1]) / 2.0];
+                ("diameter", vec![c, q, text_at(c, q)], None)
+            }
+            Dimension::Angular3Pt(x) => ("angular", vec![p(&x.angle_vertex), p(&x.first_point), p(&x.second_point), p(&x.definition_point)], None),
+            Dimension::Angular2Ln(x) => {
+                // Line 1: first → second point; line 2: definition point → vertex point. The vertex is where they meet.
+                let (a, b2, c, e) = (p(&x.first_point), p(&x.second_point), p(&x.definition_point), p(&x.angle_vertex));
+                let (r, q) = ([b2[0] - a[0], b2[1] - a[1]], [e[0] - c[0], e[1] - c[1]]);
+                let den = r[0] * q[1] - r[1] * q[0];
+                if den.abs() < 1e-12 * (r[0].hypot(r[1]) * q[0].hypot(q[1])).max(1e-300) { return None; }
+                let u = ((c[0] - a[0]) * q[1] - (c[1] - a[1]) * q[0]) / den;
+                let v = [a[0] + r[0] * u, a[1] + r[1] * u];
+                let far = |x: [f64; 2], y: [f64; 2]| if (x[0] - v[0]).hypot(x[1] - v[1]) >= (y[0] - v[0]).hypot(y[1] - v[1]) { x } else { y };
+                ("angular", vec![v, far(a, b2), far(c, e), p(&x.dimension_arc)], None)
+            }
+            _ => return None,
+        };
+        let own = d.base().text_override().map(|s| s.trim()).filter(|s| !s.is_empty() && *s != "<>").map(|s| s.to_string());
+        let height = items.iter().find_map(|i| match i { Piece::Text { h, .. } | Piece::MText { h, .. } => Some(*h), _ => None });
+        let style = self.doc.dim_styles.get(&b.style_name);
+        let k = style.map_or(1.0, |s| if s.dimscale > 0.0 { s.dimscale } else { 1.0 }) * t.size();
+        let height = height.or_else(|| style.filter(|s| s.dimtxt > 0.0).map(|s| s.dimtxt * k));
+        Some(DimInfo { kind, pts, dir, text: own, height, arrow: style.filter(|s| s.dimasz > 0.0).map(|s| s.dimasz * k), decimals: style.map(|s| s.dimdec) })
     }
 
     fn entity(&mut self, out: &mut Vec<Piece>, e: &EntityType, t: &Affine, parent: Option<&Ctx>, depth: u32) {
@@ -211,10 +282,15 @@ impl<'a> Ex<'a> {
                 let mut p1 = x.end_parameter;
                 while p1 <= x.start_parameter { p1 += 2.0 * PI; }
                 let full = (p1 - x.start_parameter - 2.0 * PI).abs() < 1e-9;
+                if self.exact && full && similar(t) && x.minor_axis_ratio > 0.0 {
+                    // A full ellipse stays one: its major axis turned by the transform (a mirror keeps the ellipse as it is).
+                    self.push(out, Piece::Ellipse { s, c: pt(t, (x.center.x, x.center.y)), axis: [t.a * mx + t.c * my, t.b * mx + t.d * my], ratio: x.minor_axis_ratio.min(1.0) });
+                    return;
+                }
                 let n = steps(p1 - x.start_parameter, (mx * mx + my * my).sqrt() * stretch(t));
                 let at = |p: f64| (x.center.x + mx * p.cos() + nx * p.sin(), x.center.y + my * p.cos() + ny * p.sin());
                 let pts: Vec<_> = (0..if full { n } else { n + 1 }).map(|i| at(x.start_parameter + (p1 - x.start_parameter) * i as f64 / n as f64)).collect();
-                self.sampled(out, s, t, &pts, full);
+                self.sampled(out, s, t, &pts, full, "ellipse");
             }
             EntityType::LwPolyline(x) => {
                 let t = mirror(&x.normal, t);
@@ -230,7 +306,7 @@ impl<'a> Ex<'a> {
                 let v: Vec<_> = x.vertices.iter().map(|v| (v.position.x, v.position.y, 0.0)).collect();
                 self.polyline(out, s, t, &v, x.is_closed());
             }
-            EntityType::Spline(x) => { let pts = spline_points(x); self.sampled(out, s, t, &pts, false); }
+            EntityType::Spline(x) => { let pts = spline_points(x); self.sampled(out, s, t, &pts, false, "spline"); }
             EntityType::Solid(x) => {
                 let mut pts = vec![pt(t, (x.first_corner.x, x.first_corner.y)), pt(t, (x.second_corner.x, x.second_corner.y)), pt(t, (x.fourth_corner.x, x.fourth_corner.y)), pt(t, (x.third_corner.x, x.third_corner.y))];
                 pts.dedup_by(|a, b| (a[0] - b[0]).abs() < 1e-12 && (a[1] - b[1]).abs() < 1e-12);
@@ -274,20 +350,54 @@ impl<'a> Ex<'a> {
                     if v.len() > 1 { let (f, l) = (v[0], v[v.len() - 1]); if (f.0 - l.0).abs() < 1e-12 && (f.1 - l.1).abs() < 1e-12 { v.pop(); } }
                     if v.len() >= 2 { loops.push(Self::vertices(t, &v, true)); }
                 }
-                if !loops.is_empty() { self.push(out, Piece::Hatch { s, loops, solid: x.is_solid, pattern: x.pattern.name.clone() }); }
+                if !loops.is_empty() {
+                    let patterned = self.exact && !x.is_solid;
+                    // The pattern lines as stored (scale and angle applied), moved with the transform; its origin is where (0, 0) goes.
+                    let (ox, oy) = t.apply(0.0, 0.0);
+                    let lines = if patterned { x.pattern.lines.iter().map(|pl| {
+                        let (b, o) = (t.apply(pl.base_point.x, pl.base_point.y), t.apply(pl.offset.x, pl.offset.y));
+                        PatLine { angle: pl.angle + t.angle(), base: [b.0, b.1], offset: [o.0 - ox, o.1 - oy], dashes: pl.dash_lengths.iter().map(|d| d * t.size()).collect() }
+                    }).collect() } else { vec![] };
+                    self.push(out, Piece::Hatch { s, loops, solid: x.is_solid, pattern: x.pattern.name.clone(), scale: patterned.then(|| x.pattern_scale * t.size()), angle: patterned.then(|| x.pattern_angle + t.angle()), origin: patterned.then_some([ox, oy]), lines });
+                }
             }
             EntityType::Text(x) => {
                 if x.value.trim().is_empty() { return; }
-                self.push(out, Piece::Text { s, at: pt(t, (x.insertion_point.x, x.insertion_point.y)), h: x.height * t.size(), rot: x.rotation + t.angle(), text: x.value.clone(), tag: None });
+                let (h, rot) = (x.height * t.size(), x.rotation + t.angle());
+                // Exact: a text aligned to a point (centre, right, top, middle…) is anchored there, with the app's justification.
+                if let (true, Some(p)) = (self.exact && !matches!(x.horizontal_alignment, H::Fit | H::Aligned), x.alignment_point) {
+                    let col = match x.horizontal_alignment { H::Left => 'L', H::Right => 'R', _ => 'C' };
+                    let just = match (x.vertical_alignment, x.horizontal_alignment) {
+                        (_, H::Middle) => Some("MC"),
+                        (V::Baseline, H::Left) => None,
+                        (V::Baseline, H::Right) => Some("R"),
+                        (V::Baseline, _) => Some("C"),
+                        (V::Bottom, _) => Some(match col { 'L' => "BL", 'R' => "BR", _ => "BC" }),
+                        (V::Middle, _) => Some(match col { 'L' => "ML", 'R' => "MR", _ => "MC" }),
+                        (V::Top, _) => Some(match col { 'L' => "TL", 'R' => "TR", _ => "TC" }),
+                    };
+                    if let Some(j) = just {
+                        self.push(out, Piece::Text { s, at: pt(t, (p.x, p.y)), h, rot, text: x.value.clone(), tag: None, just: Some(j) });
+                        return;
+                    }
+                }
+                self.push(out, Piece::Text { s, at: pt(t, (x.insertion_point.x, x.insertion_point.y)), h, rot, text: x.value.clone(), tag: None, just: None });
             }
             EntityType::MText(x) => {
                 let text = parse_mtext(&x.value, true).to_plain_text();
+                if self.exact {
+                    if text.trim().is_empty() { return; }
+                    let attach = match x.attachment_point { AttachmentPoint::TopLeft => 1, AttachmentPoint::TopCenter => 2, AttachmentPoint::TopRight => 3, AttachmentPoint::MiddleLeft => 4, AttachmentPoint::MiddleCenter => 5, AttachmentPoint::MiddleRight => 6, AttachmentPoint::BottomLeft => 7, AttachmentPoint::BottomCenter => 8, AttachmentPoint::BottomRight => 9 };
+                    let lsp = if x.line_spacing_factor > 0.0 { x.line_spacing_factor } else { 1.0 };
+                    self.push(out, Piece::MText { s, at: pt(t, (x.insertion_point.x, x.insertion_point.y)), h: x.height * t.size(), rot: x.rotation + t.angle(), w: x.rectangle_width.max(0.0) * t.size(), attach, lsp, text: x.value.clone() });
+                    return;
+                }
                 for (i, line) in text.lines().enumerate() {
                     if line.trim().is_empty() { continue; }
                     let dy = -(i as f64 + 1.0) * x.height * 1.66 + x.height * 0.66;
                     let (sin, cos) = x.rotation.sin_cos();
                     let at = (x.insertion_point.x - dy * sin, x.insertion_point.y + dy * cos);
-                    self.push(out, Piece::Text { s: s.clone(), at: pt(t, at), h: x.height * t.size(), rot: x.rotation + t.angle(), text: line.to_string(), tag: None });
+                    self.push(out, Piece::Text { s: s.clone(), at: pt(t, at), h: x.height * t.size(), rot: x.rotation + t.angle(), text: line.to_string(), tag: None, just: None });
                 }
             }
             EntityType::Point(x) => self.push(out, Piece::Point { s, at: pt(t, (x.location.x, x.location.y)) }),
@@ -311,7 +421,7 @@ impl<'a> Ex<'a> {
                     if a.common.invisible || a.value.trim().is_empty() { continue; }
                     let ac = self.ctx(&a.common.layer, &a.common.color, &a.common.linetype, a.common.line_weight, Some(&cx));
                     let s = self.style(&ac);
-                    self.push(out, Piece::Text { s, at: pt(t, (a.insertion_point.x, a.insertion_point.y)), h: a.height * t.size(), rot: a.rotation + t.angle(), text: a.value.clone(), tag: Some(a.tag.clone()) });
+                    self.push(out, Piece::Text { s, at: pt(t, (a.insertion_point.x, a.insertion_point.y)), h: a.height * t.size(), rot: a.rotation + t.angle(), text: a.value.clone(), tag: Some(a.tag.clone()), just: None });
                 }
             }
             EntityType::Dimension(x) => {
@@ -321,7 +431,10 @@ impl<'a> Ex<'a> {
                 let children: Vec<&EntityType> = self.doc.entities_in_block(&name).collect();
                 let mut items = vec![];
                 for child in children { self.entity(&mut items, child, t, Some(&cx), depth + 1); }
-                if !items.is_empty() { self.push(out, Piece::Group { s, items }); }
+                if !items.is_empty() {
+                    let dim = if self.exact { self.dim_info(x, t, &items) } else { None };
+                    self.push(out, Piece::Group { s, items, dim });
+                }
             }
             _ => {}
         }
@@ -330,8 +443,8 @@ impl<'a> Ex<'a> {
 
 /// The pieces of the model-space objects with these handles (hex), by handle: a block insert gives what it draws
 /// (its own pieces, not itself), any other object itself. A handle not found is left out.
-pub(crate) fn explode(doc: &CadDocument, handles: &[String]) -> (HashMap<String, Vec<Piece>>, bool) {
-    let mut ex = Ex::new(doc);
+pub(crate) fn explode(doc: &CadDocument, handles: &[String], exact: bool) -> (HashMap<String, Vec<Piece>>, bool) {
+    let mut ex = Ex::new(doc, exact);
     let mut found = HashMap::new();
     let wanted: Vec<String> = handles.iter().map(|h| h.trim().to_uppercase()).collect();
     for e in doc.model_space_entities() {
@@ -347,6 +460,7 @@ pub(crate) fn explode(doc: &CadDocument, handles: &[String]) -> (HashMap<String,
 #[cfg(test)]
 mod tests {
     use super::*;
+    use acadrust::entities::BoundaryPath;
 
     fn drawing() -> CadDocument {
         let bytes = std::fs::read(format!("{}/../../tests/fixtures/cad/crop-block.dxf", env!("CARGO_MANIFEST_DIR"))).unwrap();
@@ -358,7 +472,7 @@ mod tests {
             EntityType::Insert(x) if (x.insert_point.x - 1000.0 * k as f64).abs() < 1e-9 => Some(format!("{:X}", x.common.handle.value())),
             _ => None,
         }).unwrap();
-        let (mut m, truncated) = explode(doc, &[h.clone()]);
+        let (mut m, truncated) = explode(doc, &[h.clone()], false);
         assert!(!truncated);
         m.remove(&h).unwrap()
     }
@@ -392,7 +506,7 @@ mod tests {
         doc.add_entity(EntityType::Line(set)).unwrap();
         doc.add_entity(EntityType::Line(by_layer)).unwrap();
         let hs: Vec<String> = doc.model_space_entities().map(|e| format!("{:X}", e.common().handle.value())).collect();
-        let (m, _) = explode(&doc, &hs);
+        let (m, _) = explode(&doc, &hs, false);
         let lw = |h: &String| match &m[h][0] { Piece::Line { s, .. } => s.lw, _ => panic!("a line") };
         assert_eq!((lw(&hs[0]), lw(&hs[1])), (Some(35), None));
         assert!(serde_json::to_string(&m[&hs[1]][0]).unwrap().find("\"lw\"").is_none(), "ByLayer: no lw in the JSON");
@@ -504,5 +618,239 @@ mod tests {
         let after: Vec<serde_json::Value> = serde_json::from_str(&super::super::CadDoc::new(out).unwrap().blocks()).unwrap();
         assert_eq!(after.len(), before.len() - 1);
         assert!(after.iter().all(|b| b["handle"] != before[0]["handle"]));
+    }
+
+    // ---- exact mode (the take-over)
+
+    fn one(doc: &CadDocument, e: EntityType, exact: bool) -> Vec<Piece> {
+        let mut doc = doc.clone();
+        let h = doc.add_entity(e).unwrap();
+        let hex = format!("{:X}", h.value());
+        let (mut m, truncated) = explode(&doc, &[hex.clone()], exact);
+        assert!(!truncated);
+        m.remove(&hex).unwrap()
+    }
+    fn json(p: &Piece) -> serde_json::Value { serde_json::to_value(p).unwrap() }
+    fn v3(x: f64, y: f64) -> acadrust::types::Vector3 { acadrust::types::Vector3::new(x, y, 0.0) }
+
+    #[test]
+    fn ellipse_full_and_partial() {
+        use acadrust::entities::Ellipse;
+        let doc = CadDocument::new();
+        let mut e = Ellipse::from_center_axes(v3(10.0, 5.0), v3(0.0, 4.0), 0.5);
+        let p = one(&doc, EntityType::Ellipse(e.clone()), true);
+        assert!(matches!(&p[..], [Piece::Ellipse { c, axis, ratio, .. }] if near(*c, [10.0, 5.0]) && near(*axis, [0.0, 4.0]) && (*ratio - 0.5).abs() < 1e-12));
+        assert_eq!(json(&p[0])["kind"], "ellipse");
+        // Not exact: the polyline it always was, with no flag in the JSON.
+        let q = one(&doc, EntityType::Ellipse(e.clone()), false);
+        assert!(matches!(&q[..], [Piece::Pline { closed: true, sampled: None, .. }]));
+        assert!(json(&q[0]).get("sampled").is_none());
+        // A part of one stays a polyline, marked.
+        e.start_parameter = 0.0; e.end_parameter = PI;
+        let r = one(&doc, EntityType::Ellipse(e), true);
+        assert!(matches!(&r[..], [Piece::Pline { closed: false, sampled: Some("ellipse"), .. }]));
+        assert_eq!(json(&r[0])["sampled"], "ellipse");
+    }
+
+    #[test]
+    fn ellipse_in_a_turned_scaled_insert_keeps_its_axis() {
+        // The insert's transform turns and scales the ellipse's axis; a non-uniform scale samples it.
+        let t = Affine::translate(100.0, 0.0).then(&Affine::rotate(PI / 2.0)).then(&Affine::scale(2.0, 2.0));
+        let doc = CadDocument::new();
+        let mut ex = Ex::new(&doc, true);
+        let mut out = vec![];
+        let e = acadrust::entities::Ellipse::from_center_axes(v3(1.0, 0.0), v3(3.0, 0.0), 0.25);
+        ex.entity(&mut out, &EntityType::Ellipse(e.clone()), &t, None, 0);
+        assert!(matches!(&out[..], [Piece::Ellipse { c, axis, .. }] if near(*c, [100.0, 2.0]) && near(*axis, [0.0, 6.0])), "{out:?}");
+        let mut out = vec![];
+        ex.entity(&mut out, &EntityType::Ellipse(e), &Affine::scale(2.0, 1.0), None, 0);
+        assert!(matches!(&out[..], [Piece::Pline { sampled: Some("ellipse"), closed: true, .. }]));
+    }
+
+    #[test]
+    fn spline_is_flagged() {
+        use acadrust::entities::Spline;
+        let doc = CadDocument::new();
+        let mut sp = Spline::new();
+        sp.degree = 1;
+        sp.control_points = vec![v3(0.0, 0.0), v3(5.0, 5.0), v3(10.0, 0.0)];
+        sp.knots = vec![0.0, 0.0, 0.5, 1.0, 1.0];
+        let p = one(&doc, EntityType::Spline(sp.clone()), true);
+        assert!(matches!(&p[..], [Piece::Pline { sampled: Some("spline"), pts, .. }] if pts.len() > 2));
+        assert!(matches!(&one(&doc, EntityType::Spline(sp), false)[..], [Piece::Pline { sampled: None, .. }]));
+    }
+
+    #[test]
+    fn mtext_keeps_box_attachment_and_codes() {
+        use acadrust::entities::MText;
+        let doc = CadDocument::new();
+        let mut m = MText::new();
+        m.value = "{\\fArial|b1;Notes}\\PSecond line".into();
+        m.insertion_point = v3(10.0, 20.0); m.height = 2.5; m.rotation = 0.5; m.rectangle_width = 60.0;
+        m.attachment_point = AttachmentPoint::BottomRight; m.line_spacing_factor = 1.5;
+        let p = one(&doc, EntityType::MText(Box::new(m.clone())), true);
+        match &p[..] {
+            [Piece::MText { at, h, rot, w, attach, lsp, text, .. }] => {
+                assert!(near(*at, [10.0, 20.0]) && (*h - 2.5).abs() < 1e-12 && (*rot - 0.5).abs() < 1e-12 && (*w - 60.0).abs() < 1e-12);
+                assert_eq!((*attach, *lsp), (9, 1.5));
+                assert_eq!(text, &m.value, "the raw string, codes and all");
+            }
+            _ => panic!("{p:?}"),
+        }
+        // Not exact: one text per line, as before.
+        assert_eq!(texts(&one(&doc, EntityType::MText(Box::new(m)), false)).len(), 2);
+    }
+
+    #[test]
+    fn text_alignment_anchors_at_the_alignment_point() {
+        use acadrust::entities::{Text, TextHorizontalAlignment as H, TextVerticalAlignment as V};
+        let doc = CadDocument::new();
+        let mk = |h: H, v: V| { let mut t = Text::new(); t.value = "DB-1".into(); t.height = 2.0; t.insertion_point = v3(0.0, 0.0); t.alignment_point = Some(v3(50.0, 30.0)); t.horizontal_alignment = h; t.vertical_alignment = v; EntityType::Text(t) };
+        let got = |h: H, v: V| match &one(&doc, mk(h, v), true)[..] { [Piece::Text { at, just, .. }] => (*at, *just), p => panic!("{p:?}") };
+        assert_eq!(got(H::Center, V::Baseline), ([50.0, 30.0], Some("C")));
+        assert_eq!(got(H::Right, V::Baseline).1, Some("R"));
+        assert_eq!(got(H::Left, V::Top).1, Some("TL"));
+        assert_eq!(got(H::Center, V::Middle).1, Some("MC"));
+        assert_eq!(got(H::Right, V::Bottom).1, Some("BR"));
+        assert_eq!(got(H::Middle, V::Baseline).1, Some("MC"));
+        // Left on the baseline: at the insertion point, no justification; and not exact: as before.
+        assert_eq!(got(H::Left, V::Baseline), ([0.0, 0.0], None));
+        assert!(matches!(&one(&doc, mk(H::Center, V::Baseline), false)[..], [Piece::Text { at, just: None, .. }] if near(*at, [0.0, 0.0])));
+        assert!(json(&one(&doc, mk(H::Center, V::Baseline), false)[0]).get("just").is_none());
+    }
+
+    fn square(x: f64) -> BoundaryPath {
+        let mut path = BoundaryPath::external();
+        path.add_edge(BoundaryEdge::Polyline(acadrust::entities::PolylineEdge::new(vec![acadrust::types::Vector2::new(x, 0.0), acadrust::types::Vector2::new(x + 10.0, 0.0), acadrust::types::Vector2::new(x + 10.0, 10.0), acadrust::types::Vector2::new(x, 10.0)], true)));
+        path
+    }
+
+    #[test]
+    fn patterned_hatch_keeps_its_lines() {
+        use acadrust::entities::{Hatch, HatchPattern, HatchPatternLine};
+        let doc = CadDocument::new();
+        let mut pat = HatchPattern::new("ANSI31");
+        pat.add_line(HatchPatternLine { angle: PI / 4.0, base_point: acadrust::types::Vector2::new(0.0, 0.0), offset: acadrust::types::Vector2::new(-1.5, 1.5), dash_lengths: vec![] });
+        let mut h = Hatch::with_pattern(pat);
+        h.pattern_scale = 1.5; h.pattern_angle = 0.0;
+        h.paths.push(square(0.0));
+        let p = one(&doc, EntityType::Hatch(Box::new(h.clone())), true);
+        match &p[..] {
+            [Piece::Hatch { solid: false, pattern, scale, angle, origin, lines, loops, .. }] => {
+                assert_eq!(pattern, "ANSI31");
+                assert_eq!((*scale, *angle, *origin), (Some(1.5), Some(0.0), Some([0.0, 0.0])));
+                assert_eq!(loops.len(), 1);
+                assert_eq!(lines.len(), 1);
+                assert!((lines[0].angle - PI / 4.0).abs() < 1e-12 && near(lines[0].offset, [-1.5, 1.5]) && lines[0].dashes.is_empty());
+            }
+            _ => panic!("{p:?}"),
+        }
+        let j = json(&p[0]);
+        assert_eq!(j["lines"][0]["angle"].as_f64().unwrap(), PI / 4.0);
+        // Not exact, or solid: none of it.
+        let q = json(&one(&doc, EntityType::Hatch(Box::new(h)), false)[0]);
+        assert!(q.get("lines").is_none() && q.get("scale").is_none() && q.get("origin").is_none());
+        let mut solid = Hatch::solid();
+        solid.paths.push(square(0.0));
+        let s = json(&one(&doc, EntityType::Hatch(Box::new(solid)), true)[0]);
+        assert!(s.get("lines").is_none() && s["solid"] == true);
+    }
+
+    /// A dimension block "*D1" with a line and a text 3 high, and the dimension using it.
+    fn dim_doc(mut dim: acadrust::entities::Dimension) -> (CadDocument, EntityType) {
+        use acadrust::entities::{Block, Line, Text};
+        use acadrust::tables::BlockRecord;
+        let mut doc = CadDocument::new();
+        let mut rec = BlockRecord::new("*D1");
+        rec.handle = doc.allocate_handle();
+        rec.block_entity_handle = doc.allocate_handle();
+        rec.block_end_handle = doc.allocate_handle();
+        let owner = rec.handle;
+        let mut b = Block::new("*D1", v3(0.0, 0.0));
+        b.common.handle = rec.block_entity_handle;
+        b.common.owner_handle = owner;
+        doc.block_records.add(rec).unwrap();
+        doc.add_entity(EntityType::Block(b)).unwrap();
+        let mut l = Line::from_coords(0.0, 0.0, 0.0, 10.0, 0.0, 0.0);
+        l.common.owner_handle = owner;
+        doc.add_entity(EntityType::Line(l)).unwrap();
+        let mut t = Text::new();
+        t.value = "7.5".into(); t.height = 3.0; t.common.owner_handle = owner;
+        doc.add_entity(EntityType::Text(t)).unwrap();
+        dim.base_mut().block_name = "*D1".into();
+        (doc, EntityType::Dimension(Box::new(dim)))
+    }
+    fn dim_of(p: &[Piece]) -> DimInfo { match p { [Piece::Group { dim: Some(d), items, .. }] => { assert_eq!(items.len(), 2, "the pieces stay"); d.clone() } _ => panic!("{p:?}") } }
+
+    #[test]
+    fn aligned_and_linear_dimensions() {
+        use acadrust::entities::{Dimension, DimensionAligned, DimensionLinear};
+        let mut a = DimensionAligned::new(v3(0.0, 0.0), v3(10.0, 0.0));
+        a.definition_point = v3(10.0, 4.0);
+        a.base.set_text_override(Some("<> mm".into()));
+        let (doc, e) = dim_doc(Dimension::Aligned(a));
+        let d = dim_of(&one(&doc, e.clone(), true));
+        assert_eq!(d.kind, "aligned");
+        assert!(d.pts.len() == 3 && near(d.pts[0], [0.0, 0.0]) && near(d.pts[1], [10.0, 0.0]) && near(d.pts[2], [10.0, 4.0]));
+        assert_eq!((d.dir, d.text.as_deref(), d.height), (None, Some("<> mm"), Some(3.0)));
+        assert!(d.decimals.is_some(), "from the style");
+        // Not exact: the pieces alone.
+        assert!(matches!(&one(&doc, e, false)[..], [Piece::Group { dim: None, .. }]));
+        let mut l = DimensionLinear::rotated(v3(0.0, 0.0), v3(10.0, 6.0), PI / 2.0);
+        l.definition_point = v3(12.0, 3.0);
+        let (doc, e) = dim_doc(Dimension::Linear(l));
+        let d = dim_of(&one(&doc, e, true));
+        assert_eq!((d.kind, d.text), ("linear", None));
+        assert!((d.dir.unwrap() - PI / 2.0).abs() < 1e-12 && d.pts.len() == 3);
+    }
+
+    #[test]
+    fn radius_and_diameter_dimensions() {
+        use acadrust::entities::{Dimension, DimensionDiameter, DimensionRadius};
+        let mut r = DimensionRadius::new(v3(5.0, 5.0), v3(15.0, 5.0));
+        r.base.text_middle_point = v3(18.0, 5.0);
+        let (doc, e) = dim_doc(Dimension::Radius(r));
+        let d = dim_of(&one(&doc, e, true));
+        assert_eq!(d.kind, "radius");
+        assert!(near(d.pts[0], [5.0, 5.0]) && near(d.pts[1], [15.0, 5.0]) && near(d.pts[2], [18.0, 5.0]));
+        let mut g = DimensionDiameter::new(v3(0.0, 0.0), v3(20.0, 0.0));
+        g.base.set_text_override(Some("Ø20".into()));
+        let (doc, e) = dim_doc(Dimension::Diameter(g));
+        let d = dim_of(&one(&doc, e, true));
+        assert_eq!((d.kind, d.text.as_deref()), ("diameter", Some("Ø20")));
+        assert!(near(d.pts[0], [10.0, 0.0]), "the centre is the middle of the chord");
+        assert!(near(d.pts[1], [20.0, 0.0]));
+        assert_eq!(d.pts.len(), 3);
+    }
+
+    #[test]
+    fn angular_dimensions() {
+        use acadrust::entities::{Dimension, DimensionAngular2Ln, DimensionAngular3Pt};
+        // Two lines meeting at (10, 10): along +X from (20, 10) and along +Y from (10, 20).
+        let mut a = DimensionAngular2Ln::default();
+        a.first_point = v3(14.0, 10.0); a.second_point = v3(20.0, 10.0);
+        a.definition_point = v3(10.0, 14.0); a.angle_vertex = v3(10.0, 20.0);
+        a.dimension_arc = v3(15.0, 15.0);
+        let (doc, e) = dim_doc(Dimension::Angular2Ln(a));
+        let d = dim_of(&one(&doc, e, true));
+        assert_eq!(d.kind, "angular");
+        assert!(d.pts.len() == 4 && near(d.pts[0], [10.0, 10.0]) && near(d.pts[1], [20.0, 10.0]) && near(d.pts[2], [10.0, 20.0]) && near(d.pts[3], [15.0, 15.0]), "{:?}", d.pts);
+        let mut b = DimensionAngular3Pt::new(v3(0.0, 0.0), v3(8.0, 0.0), v3(0.0, 8.0));
+        b.definition_point = v3(5.0, 5.0);
+        let (doc, e) = dim_doc(Dimension::Angular3Pt(b));
+        let d = dim_of(&one(&doc, e, true));
+        assert!(near(d.pts[0], [0.0, 0.0]) && near(d.pts[1], [8.0, 0.0]) && near(d.pts[2], [0.0, 8.0]) && near(d.pts[3], [5.0, 5.0]));
+        // Parallel lines have no vertex: the pieces stay.
+        let mut p = DimensionAngular2Ln::default();
+        p.first_point = v3(0.0, 0.0); p.second_point = v3(10.0, 0.0); p.definition_point = v3(0.0, 5.0); p.angle_vertex = v3(10.0, 5.0);
+        let (doc, e) = dim_doc(Dimension::Angular2Ln(p));
+        assert!(matches!(&one(&doc, e, true)[..], [Piece::Group { dim: None, .. }]));
+    }
+
+    #[test]
+    fn other_dimension_kinds_keep_their_pieces() {
+        use acadrust::entities::{Dimension, DimensionOrdinate};
+        let (doc, e) = dim_doc(Dimension::Ordinate(DimensionOrdinate::new(v3(5.0, 5.0), v3(5.0, 9.0), true)));
+        assert!(matches!(&one(&doc, e, true)[..], [Piece::Group { dim: None, items, .. }] if items.len() == 2));
     }
 }

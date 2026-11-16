@@ -25,7 +25,7 @@ export function engineOps() {
     /** Objects of the open drawing erased in the app (CROP): no longer picked or snapped to. */
     erase: (handles: string) => (doc ? doc.set_erased(handles) : '{"objects":[],"ranges":[]}'),
     /** The exact pieces of objects of a drawing (its bytes), by handle (CROP). */
-    explode: (bytes: Uint8Array, handles: string) => explodeObjects(bytes, handles),
+    explode: (bytes: Uint8Array, handles: string, exact?: boolean) => explodeObjects(bytes, handles, !!exact),
     free() { doc?.free(); doc = null; }
   };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { drawnFromPieces, standInHandle, standInsFor } from './cadTakeOver';
+import { drawnFromPieces, standInHandle, standInsFor, takeOverNote, takeOverSummary } from './cadTakeOver';
+import { placedLines } from './cadHatch';
 import { linetypeIdOf, lineweightOf } from './cadLayerStyle';
 import type { CadPiece } from './cadCrop';
 
@@ -51,6 +52,88 @@ describe('drawnFromPieces: an opened drawing\'s object as drawn objects', () => 
   });
   it('groups (dimensions, nested blocks) are flattened into their pieces', () => {
     const r = drawnFromPieces([{ ...S, kind: 'group', items: [{ ...S, kind: 'line', a: [0, 0] as P2, b: [1, 0] as P2 }, { ...S, kind: 'group', items: [{ ...S, kind: 'text', at: [0, 0] as P2, h: 1, rot: 0, text: '5' }] }] }]);
+    expect(r.map((x) => x.kind)).toEqual(['line', 'text']);
+  });
+});
+
+describe('drawnFromPieces: what is taken over whole', () => {
+  it('a full ellipse stays an ellipse; a sampled one is a polyline and is counted', () => {
+    const [e] = drawnFromPieces([{ ...S, kind: 'ellipse', c: [10, 5], axis: [0, 4], ratio: 0.5, color: 0xff0000 }]);
+    expect(e).toEqual({ layer: 'E-LIGHT', kind: 'ellipse', pts: [[10, 5]], ax: [0, 4], ratio: 0.5, color: '#ff0000' });
+    const pieces: CadPiece[] = [{ ...S, kind: 'pline', pts: [[0, 0, 0], [1, 1, 0]], closed: false, sampled: 'spline' }, { ...S, kind: 'pline', pts: [[0, 0, 0], [1, 1, 0]], closed: false, sampled: 'ellipse' },
+      { ...S, kind: 'group', items: [{ ...S, kind: 'pline', pts: [[0, 0, 0], [1, 1, 0]], closed: false, sampled: 'spline' }] }];
+    expect(drawnFromPieces(pieces).map((x) => x.kind)).toEqual(['pline', 'pline', 'pline']);
+    const sum = takeOverSummary(pieces);
+    expect(sum).toEqual({ splines: 2, ellipses: 1, hatches: 0 });
+    expect(takeOverNote(sum)).toBe('2 splines as polylines · 1 partial ellipse as polylines');
+    expect(takeOverNote({ splines: 1, ellipses: 0, hatches: 0 })).toBe('1 spline as polylines');
+    expect(takeOverNote({ splines: 0, ellipses: 0, hatches: 0 })).toBe('');
+  });
+  it('a paragraph text is a note with its box, attachment and line spacing; codes become runs', () => {
+    const [n] = drawnFromPieces([{ ...S, kind: 'mtext', at: [1, 2], h: 2.5, rot: 0.5, w: 40, attach: 9, lsp: 1.5, text: '{\\fArial|b1;Head}\\Pbody' }]);
+    expect(n).toMatchObject({ kind: 'mtext', pts: [[1, 2]], h: 2.5, rot: 0.5, w: 40, just: 'BR', lsp: 1.5 });
+    expect(n.note?.map((q) => q.runs.map((r) => [r.s, !!r.b]))).toEqual([[['Head', true]], [['body', false]]]);
+    // Defaults left out: top left, no box, spacing 1; an empty text is dropped.
+    const [d] = drawnFromPieces([{ ...S, kind: 'mtext', at: [0, 0], h: 2, rot: 0, w: 0, attach: 1, lsp: 1, text: 'x' }]);
+    expect(d).not.toHaveProperty('just'); expect(d).not.toHaveProperty('w'); expect(d).not.toHaveProperty('lsp'); expect(d).not.toHaveProperty('rot');
+    expect(drawnFromPieces([{ ...S, kind: 'mtext', at: [0, 0], h: 2, rot: 0, w: 0, attach: 1, lsp: 1, text: '' }])).toEqual([]);
+  });
+  it('a text keeps its justification (its anchor is the alignment point)', () => {
+    expect(drawnFromPieces([{ ...S, kind: 'text', at: [5, 5], h: 2, rot: 0, text: 'A', just: 'MC' }])[0]).toMatchObject({ pts: [[5, 5]], just: 'MC' });
+  });
+  const sq: [number, number, number][] = [[0, 0, 0], [10, 0, 0], [10, 10, 0], [0, 10, 0]];
+  it('a patterned hatch is one hatch with its built-in pattern, spacing, angle and origin', () => {
+    // ANSI31 at 3 paper mm, 4 drawing units per paper mm, turned 30°: the drawing keeps 45° + 30° lines 12 apart.
+    const a = Math.PI / 4 + Math.PI / 6, step = 12;
+    const lines = [{ angle: a, base: [100, 50] as [number, number], offset: [-step * Math.sin(a), step * Math.cos(a)] as [number, number], dashes: [] }];
+    const hole: [number, number, number][] = [[2, 2, 0], [4, 2, 0], [4, 4, 0]];
+    const r = drawnFromPieces([{ ...S, kind: 'hatch', loops: [hole, sq], solid: false, pattern: 'ANSI31', scale: 1, angle: 0.5, origin: [0, 0], lines }], { unit: 4 });
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ kind: 'pline', closed: true, pts: [[0, 0], [10, 0], [10, 10], [0, 10]], holes: [[[2, 2], [4, 2], [4, 4]]] });
+    expect(r[0].hatch?.pattern).toBe('ansi31');
+    expect(r[0].hatch?.scale).toBeCloseTo(3, 6);
+    expect(r[0].hatch?.angle).toBeCloseTo(30, 6);
+    expect(r[0].hatch?.custom).toBeUndefined();
+    expect(r[0].hatch?.origin).toEqual([100, 50]);
+    // The app draws the same lines the drawing has.
+    const mine = placedLines(r[0].hatch!, 4)[0];
+    expect(mine.angle).toBeCloseTo(a, 9); expect(mine.offset[0]).toBeCloseTo(lines[0].offset[0], 9); expect(mine.offset[1]).toBeCloseTo(lines[0].offset[1], 9);
+  });
+  it('a pattern the app has no name for becomes a pattern of its own, with its dashes', () => {
+    const lines = [{ angle: 0, base: [0, 0] as [number, number], offset: [0, 2] as [number, number], dashes: [1, -1] }, { angle: Math.PI / 2, base: [0, 0] as [number, number], offset: [-3, 0] as [number, number], dashes: [] }];
+    const r = drawnFromPieces([{ ...S, kind: 'hatch', loops: [sq], solid: false, pattern: 'MY-FILL', scale: 1, angle: 0, origin: [0, 0], lines }], { unit: 1 });
+    expect(r[0].hatch?.pattern).toBe('MY-FILL');
+    expect(r[0].hatch?.custom?.lines).toHaveLength(2);
+    expect(r[0].hatch?.scale).toBeCloseTo(2, 9);
+    expect(r[0].hatch?.custom?.lines[0].dashes).toEqual([0.5, -0.5]);
+    expect(takeOverSummary([{ ...S, kind: 'hatch', loops: [sq], solid: false, pattern: 'MY-FILL', scale: 1, angle: 0, lines }]).hatches).toBe(0);
+  });
+  it('lines the app cannot draw fall back to ANSI31 and are counted', () => {
+    const p: CadPiece = { ...S, kind: 'hatch', loops: [sq], solid: false, pattern: 'WEIRD', scale: 1, angle: 0, origin: [0, 0], lines: [{ angle: 0, base: [0, 0], offset: [5, 0], dashes: [] }] };
+    expect(drawnFromPieces([p])[0].hatch?.pattern).toBe('ansi31');
+    expect(takeOverSummary([p]).hatches).toBe(1);
+    expect(takeOverNote(takeOverSummary([p]))).toBe('1 hatch pattern not readable, ANSI31 used');
+  });
+  it('a hatch of a drawing read without its lines stays its outlines; a solid one is as before', () => {
+    expect(drawnFromPieces([{ ...S, kind: 'hatch', loops: [sq], solid: false, pattern: 'ANSI31' }])[0].hatch).toBeUndefined();
+    expect(drawnFromPieces([{ ...S, kind: 'hatch', loops: [sq], solid: true, pattern: 'SOLID', scale: undefined }])[0].hatch?.pattern).toBe('solid');
+  });
+  const look = { arrow: 'tick' as const, size: 2, off: 1, ext: 1.5, unit: 'mm' as const, decimals: 2 };
+  it('a dimension with its definition is one drawn dimension in the style\'s look, with the drawing\'s sizes', () => {
+    const base = { ...S, kind: 'group' as const, items: [{ ...S, kind: 'line' as const, a: [0, 0] as P2, b: [1, 0] as P2 }] };
+    const [al] = drawnFromPieces([{ ...base, dim: { kind: 'aligned', pts: [[0, 0], [10, 0], [10, 3]], height: 3, arrow: 2.5, decimals: 1 } }], { dim: { look, textH: 2.5 } });
+    expect(al).toMatchObject({ kind: 'dim', layer: 'E-LIGHT', pts: [[0, 0], [10, 0], [10, 3]], h: 3, look: { arrow: 'tick', size: 2.5, off: 1, ext: 1.5, decimals: 1 } });
+    expect(al).not.toHaveProperty('dir'); expect(al).not.toHaveProperty('dimKind'); expect(al).not.toHaveProperty('text');
+    const [li] = drawnFromPieces([{ ...base, dim: { kind: 'linear', pts: [[0, 0], [10, 6], [12, 3]], dir: Math.PI / 2, text: '6 m' } }], { dim: { look, textH: 2.5 } });
+    expect(li).toMatchObject({ kind: 'dim', dir: Math.PI / 2, text: '6 m', h: 2.5, look: { size: 2 } });
+    const kinds = (['radius', 'diameter'] as const).map((k) => drawnFromPieces([{ ...base, dim: { kind: k, pts: [[5, 5], [15, 5], [18, 5]] } }])[0].dimKind);
+    expect(kinds).toEqual(['radius', 'diameter']);
+    const [an] = drawnFromPieces([{ ...base, dim: { kind: 'angular', pts: [[0, 0], [8, 0], [0, 8], [5, 5]] } }]);
+    expect(an).toMatchObject({ dimKind: 'angular', pts: [[0, 0], [8, 0], [0, 8], [5, 5]] });
+    expect((an.look?.size ?? 0) > 0 && (an.h ?? 0) > 0).toBe(true); // a plain look without a style
+  });
+  it('a dimension without its definition is flattened into its pieces as before', () => {
+    const r = drawnFromPieces([{ ...S, kind: 'group', items: [{ ...S, kind: 'line', a: [0, 0], b: [1, 0] }, { ...S, kind: 'text', at: [0, 0], h: 1, rot: 0, text: '5' }] }]);
     expect(r.map((x) => x.kind)).toEqual(['line', 'text']);
   });
 });

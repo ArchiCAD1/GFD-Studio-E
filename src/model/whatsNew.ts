@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.166', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: taken-over notes, ellipses, hatches and dimensions stay themselves', text: 'When an object of an opened drawing is taken over for editing, its paragraph text becomes a note, an ellipse an ellipse, a patterned hatch keeps its pattern, and a dimension becomes a drawn dimension. Splines become polylines, and the command line says so.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.165', date: '2026-11-16',
     items: [
       { title: 'Design CAD: edit the objects of an opened drawing', text: 'The first edit of an object of the drawing you opened (Move, Rotate, Scale, Offset, Trim, a grip drag, a property…) takes it over as a drawn object with the same layer, colour, linetype, lineweight and arcs; one ⌘Z undoes both the take-over and the edit. Copy keeps the original and adds a drawn copy. An object on a locked layer is refused. The drawing file itself changes only when you save.', action: 'cad', actionLabel: 'Open Design CAD' },

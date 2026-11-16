@@ -11,8 +11,9 @@ import { cadFileMenu } from './cadFileMenu';
 import { buildingInfoOf, DEFAULT_ROOM_TYPES } from '../../calc/building';
 import type { CadShow } from './cadObjectMenus';
 import { sizeRoute, trayPlanOf } from '../../calc/cableTray';
-import { openDrawing } from '../../engines/cad/cadEngine';
+import { explodeObjects, openDrawing } from '../../engines/cad/cadEngine';
 import { dropRefGeometry, keepRefGeometry } from '../../model/cadRefs';
+vi.mock('../../engines/cad/cadEngine', async (orig) => { const m = await orig<typeof import('../../engines/cad/cadEngine')>(); return { ...m, explodeObjects: vi.fn(m.explodeObjects) }; });
 import '../../engines/cad/cadOps'; // loaded ahead: the engine loads it on demand, which a busy test run can make slow
 import { sampleProject } from '../../data/sampleProject';
 import { placeBoard, placeLvPoint } from '../../model/cadDevices';
@@ -5332,6 +5333,44 @@ describe('Objects of an opened drawing edit like drawn ones (taken over on the f
     expect(onChange.mock.calls[1][2]).toBe(true); // joins the take-over: one ⌘Z for both
     expect(items()[0].pts[0][0]).toBeCloseTo(was[0] + 500, 3);
     expect(onUndo).not.toHaveBeenCalled();
+  });
+
+  /** The next explode answers with these pieces for the object asked about (the take-over asks for the exact ones). */
+  const asPieces = (pieces: unknown[]) => vi.mocked(explodeObjects).mockImplementationOnce(async (_v, handles) => ({ pieces: { [handles[0]]: pieces as never }, truncated: false }));
+  const L = { layer: 'A-WALL' }, sq = [[0, 0, 0], [3000, 0, 0], [3000, 3000, 0], [0, 3000, 0]];
+
+  it('a paragraph text of the drawing is taken over as a note; the engine is asked for exact pieces', async () => {
+    await begin();
+    asPieces([{ ...L, kind: 'mtext', at: [100, 200], h: 250, rot: 0, w: 3000, attach: 5, lsp: 1, text: '{\\fArial|b1;Notes}\\PSecond' }]);
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => onChange.mock.calls.length > 0);
+    const asked = vi.mocked(explodeObjects).mock.calls; expect(asked[asked.length - 1][2]).toEqual({ exact: true });
+    expect(items().map((x) => [x.kind, x.layer, x.just, x.w, x.h])).toEqual([['mtext', 'A-WALL', 'MC', 3000, 250]]);
+    expect(items()[0].note?.map((q) => q.runs.map((r) => r.s).join(''))).toEqual(['Notes', 'Second']);
+    expect(items()[0].note?.[0].runs[0].b).toBe(true);
+  });
+
+  it('a patterned hatch keeps its pattern; splines taken over as polylines are counted in the message', async () => {
+    await begin();
+    asPieces([{ ...L, kind: 'hatch', loops: [sq], solid: false, pattern: 'ANSI31', scale: 1, angle: 0, origin: [0, 0], lines: [{ angle: Math.PI / 4, base: [0, 0], offset: [-300 / Math.SQRT2, 300 / Math.SQRT2], dashes: [] }] }, // 3 paper mm at 100 units per mm
+      { ...L, kind: 'pline', pts: [[0, 0, 0], [10, 10, 0], [20, 0, 0]], closed: false, sampled: 'spline' }, { ...L, kind: 'pline', pts: [[0, 0, 0], [5, 5, 0]], closed: false, sampled: 'spline' }]);
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => onChange.mock.calls.length > 0);
+    expect(onChange.mock.calls[0][1]).toBe(`MOVE  1 object of ${F} taken over as drawn objects · 2 splines as polylines`);
+    expect(items().map((x) => [x.kind, x.hatch?.pattern, x.hatch?.custom])).toEqual([['pline', 'ansi31', undefined], ['pline', undefined, undefined], ['pline', undefined, undefined]]);
+    expect(items()[0].hatch?.angle).toBeCloseTo(0, 6);
+    expect(items()[0].hatch?.scale).toBeCloseTo(3, 6);
+  });
+
+  it('an aligned dimension of the drawing is taken over as one drawn dimension in the current style', async () => {
+    await begin();
+    asPieces([{ ...L, kind: 'group', items: [{ ...L, kind: 'line', a: [0, 0], b: [1, 0] }], dim: { kind: 'aligned', pts: [[0, 0], [5000, 0], [5000, 800]], text: '<> mm', height: 150, arrow: 120, decimals: 0 } }]);
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => onChange.mock.calls.length > 0);
+    expect(items().map((x) => [x.kind, x.layer, x.pts, x.text, x.h, x.look?.size, x.look?.decimals])).toEqual([['dim', 'A-WALL', [[0, 0], [5000, 0], [5000, 800]], '<> mm', 150, 120, 0]]);
   });
 
   it('a tool given up after the take-over undoes it', async () => {

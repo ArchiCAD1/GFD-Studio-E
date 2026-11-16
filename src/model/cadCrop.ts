@@ -31,12 +31,20 @@ export type CadPiece = PieceStyle & (
   | { kind: 'line'; a: P2; b: P2 }
   | { kind: 'arc'; c: P2; r: number; a0: number; a1: number }
   | { kind: 'circle'; c: P2; r: number }
-  | { kind: 'pline'; pts: V3[]; closed: boolean }
+  | { kind: 'pline'; pts: V3[]; closed: boolean; /** Exact mode: the curve this polyline stands in for. */ sampled?: 'spline' | 'ellipse' }
   | { kind: 'text'; at: P2; h: number; rot: number; text: string; tag?: string; just?: import('./cadText').TextJust; frame?: import('./cadText').TextFrame; mask?: boolean }
-  | { kind: 'hatch'; loops: V3[][]; solid: boolean; pattern: string }
+  | { kind: 'hatch'; loops: V3[][]; solid: boolean; pattern: string; /** Exact mode, patterned: scale, angle (radians), origin and the pattern's lines as the drawing keeps them. */ scale?: number; angle?: number; origin?: P2; lines?: PieceHatchLine[] }
+  | { kind: 'ellipse'; c: P2; axis: P2; ratio: number }
+  | { kind: 'mtext'; at: P2; h: number; rot: number; w: number; attach: number; lsp: number; text: string }
   | { kind: 'solid'; pts: P2[] }
   | { kind: 'point'; at: P2 }
-  | { kind: 'group'; items: CadPiece[] });
+  | { kind: 'group'; items: CadPiece[]; dim?: PieceDim });
+
+/** A pattern line family of a drawing's hatch: angle (radians), base point, step to the next line and dashes (drawing units, placed). */
+export interface PieceHatchLine { angle: number; base: P2; offset: P2; dashes: number[] }
+/** A dimension's definition (exact mode): its points in the app's order for the kind (see `SketchItem.dimKind`), its
+ * line's angle (linear), the text when overridden, and the text height, arrow size and decimals the drawing gives it. */
+export interface PieceDim { kind: 'aligned' | 'linear' | 'radius' | 'diameter' | 'angular'; pts: P2[]; dir?: number; text?: string; height?: number; arrow?: number; decimals?: number }
 
 /** A crop outline: corners (a polygon), a circle, or polyline vertices [x, y, bulge] (closed). */
 export type CropBoundary = { kind: 'polygon'; pts: P2[] } | { kind: 'circle'; c: P2; r: number } | { kind: 'pline'; pts: V3[]; closed: boolean };
@@ -330,7 +338,8 @@ function piecePoints(p: CadPiece): P2[] {
     case 'line': return [p.a, p.b];
     case 'arc': case 'circle': return [[p.c[0] - p.r, p.c[1] - p.r], [p.c[0] + p.r, p.c[1] + p.r]];
     case 'pline': return p.pts.map(([x, y]): P2 => [x, y]);
-    case 'text': case 'point': return [p.at];
+    case 'text': case 'point': case 'mtext': return [p.at];
+    case 'ellipse': { const r = Math.hypot(p.axis[0], p.axis[1]); return [[p.c[0] - r, p.c[1] - r], [p.c[0] + r, p.c[1] + r]]; }
     case 'hatch': return p.loops.flat().map(([x, y]): P2 => [x, y]);
     case 'solid': return p.pts;
     case 'group': return p.items.flatMap(piecePoints);
@@ -354,6 +363,8 @@ function cropPiece(p: CadPiece, edges: Curve[], keepIn: boolean, tol: number, sk
     case 'pline': return curves(plineCurves(p.pts, p.closed), p.closed);
     case 'text': return inside(edges, p.at, tol) === keepIn ? [{ ...base, kind: 'text', pts: [p.at], text: p.text, h: p.h, rot: p.rot, ...(p.just ? { just: p.just } : {}), ...(p.frame ? { frame: p.frame } : {}), ...(p.mask ? { mask: true } : {}) }] : [];
     case 'point': if (inside(edges, p.at, tol) === keepIn) skipped.push('point'); return [];
+    // CROP asks the engine for pieces that are not exact, so these only come with the take-over's: left as they are.
+    case 'ellipse': case 'mtext': skipped.push(p.kind === 'ellipse' ? 'ellipse' : 'note'); return [];
     case 'solid': {
       const loop = plineCurves(p.pts.map(([x, y]): V3 => [x, y, 0]), true);
       return loop.length >= 3 && keptShare(loop, edges, keepIn, tol) > 1 - 1e-9 ? [{ ...base, kind: 'pline', pts: p.pts, closed: true, hatch: { pattern: 'solid', scale: 1, angle: 0 } }] : [];

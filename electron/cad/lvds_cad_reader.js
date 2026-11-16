@@ -350,11 +350,13 @@ if (Symbol.dispose) CadDoc.prototype[Symbol.dispose] = CadDoc.prototype.free;
 /**
  * The exact pieces of model-space objects (CROP), by handle, as JSON {pieces: {handle: [piece]}, truncated} — see
  * doc/explode.rs. Read from the drawing's bytes, like saving, so the open view keeps no second copy of the drawing.
+ * `exact` (the take-over of objects): ellipses, paragraph texts, text alignment, hatch patterns and dimensions are kept whole.
  * @param {Uint8Array} bytes
  * @param {string} handles_json
+ * @param {boolean} exact
  * @returns {string}
  */
-export function explodeObjects(bytes, handles_json) {
+export function explodeObjects(bytes, handles_json, exact) {
     let deferred4_0;
     let deferred4_1;
     try {
@@ -363,7 +365,7 @@ export function explodeObjects(bytes, handles_json) {
         const len0 = WASM_VECTOR_LEN;
         const ptr1 = passStringToWasm0(handles_json, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
         const len1 = WASM_VECTOR_LEN;
-        wasm.explodeObjects(retptr, ptr0, len0, ptr1, len1);
+        wasm.explodeObjects(retptr, ptr0, len0, ptr1, len1, exact);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);

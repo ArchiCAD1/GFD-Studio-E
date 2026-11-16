@@ -110,7 +110,7 @@ import { isTbFile, LOGO_BOX, logoItems, saveTitleBlockFromCad, TB_FIELDS, TB_LAY
 import { LOGO_FIELD } from '../../model/titleBlock';
 import { AttachDialog, RefLayersList, RefManager, useCadRefs } from './CadRefs';
 import { refGeometry, refNear, type CadRef } from '../../model/cadRefs';
-import { standInHandle, standInsFor } from '../../model/cadTakeOver';
+import { standInHandle, standInsFor, takeOverNote, takeOverSummary, type TakeOverCtx } from '../../model/cadTakeOver';
 import { drawnLayers, effective, layerStylesOf, LINETYPES, matchedProps, styleOf, withProps, type ObjectProps } from '../../model/cadLayerStyle';
 import { colourCss, colourLabel } from '../../model/cadColours';
 import { applyLayerPatch, archOnOf, currentLayerOf, extentsOf, isolate, layerFileOf, layersToChange, newLayerName, newPropsOf, renameLayer, restoreState, unisolate, withCurrentLayer, withNewLayer, withNewProps, withoutLayer, withoutState, withSavedState, type LayerPatch } from '../../model/cadLayerState';
@@ -345,6 +345,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [editTick, setEditTick] = useState(0);
   /** The pieces of the drawing's objects as drawn objects, by handle, while the file and its erased list stay as they are. */
   const standCache = useRef(new Map<string, SketchItem[]>());
+  /** What each cached object could not keep as it was (splines and partial ellipses as polylines…), for the take-over's message. */
+  const standNotes = useRef(new Map<string, ReturnType<typeof takeOverSummary>>());
   /** The last reason a take-over was refused, said again once the tool it stopped has ended. */
   const refused = useRef('');
   // Objects of the drawing erased by CROP: the engine no longer picks or snaps to them, the canvas leaves them out, and
@@ -720,7 +722,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   // grips work on them as on drawn ones. The first edit takes them over.
   const dwKey = pickedDw.map((o) => o.handle).join(',');
   const [dwStand, setDwStand] = useState<{ key: string; items: SketchItem[] }>({ key: '', items: [] });
-  useEffect(() => { standCache.current.clear(); }, [view, projErased]);
+  useEffect(() => { standCache.current.clear(); standNotes.current.clear(); }, [view, projErased]);
   useEffect(() => {
     if (!view || !pickedDw.length) { setDwStand((c) => (c.key ? { key: '', items: [] } : c)); return; }
     let live = true;
@@ -1478,14 +1480,22 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** What an object of the opened drawing is called in a message: "Line on A-WALL", "Block L1 on E-LIGHT". */
   const dwLabel = (o: CadObject) => `${o.kind}${o.block ? ` ${o.block}` : ''} on ${view?.info.layers[o.layer]?.name ?? '?'}`;
   /** The pieces of these objects of the drawing as drawn stand-ins (read once per object, kept while the file and its erased list stay). */
-  async function standInsOf(objs: CadObject[]): Promise<{ items: SketchItem[]; by: Map<string, SketchItem[]> }> {
+  async function standInsOf(objs: CadObject[]): Promise<{ items: SketchItem[]; by: Map<string, SketchItem[]>; note: string }> {
     const cache = standCache.current, need = objs.filter((o) => !cache.has(o.handle));
     if (need.length && view) {
-      const { pieces } = await explodeObjects(view, need.map((o) => o.handle));
-      for (const o of need) cache.set(o.handle, standInsFor(o.handle, pieces[o.handle] ?? pieces[o.handle.toUpperCase()] ?? (need.length === 1 ? Object.values(pieces).flat() : [])));
+      // Exact pieces: ellipses, notes, hatch patterns and dimensions come whole; sized in the current annotation scale and dimension style.
+      const { pieces } = await explodeObjects(view, need.map((o) => o.handle), { exact: true });
+      const p = projRef.current, st = currentDimStyle(p), k = unitsPerPaperMm(annoOf(p), units.factor), ctx: TakeOverCtx = { unit: k, dim: { look: lookOf(st, k), textH: st.textMm * k } };
+      for (const o of need) {
+        const mine = pieces[o.handle] ?? pieces[o.handle.toUpperCase()] ?? (need.length === 1 ? Object.values(pieces).flat() : []);
+        cache.set(o.handle, standInsFor(o.handle, mine, ctx));
+        standNotes.current.set(o.handle, takeOverSummary(mine, ctx));
+      }
     }
     const by = new Map(objs.map((o): [string, SketchItem[]] => [o.handle, cache.get(o.handle) ?? []]));
-    return { items: objs.flatMap((o) => by.get(o.handle)!), by };
+    const sum = { splines: 0, ellipses: 0, hatches: 0 };
+    for (const o of objs) { const n = standNotes.current.get(o.handle); if (n) { sum.splines += n.splines; sum.ellipses += n.ellipses; sum.hatches += n.hatches; } }
+    return { items: objs.flatMap((o) => by.get(o.handle)!), by, note: takeOverNote(sum) };
   }
   /** Why objects of the drawing cannot become drawn ones now (nothing the app can draw, or a locked layer), said on the command line. */
   function takeOverRefusal(cmd: string, objs: CadObject[], by: Map<string, SketchItem[]>): boolean {
@@ -1515,7 +1525,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       const r = await standInsOf(objs);
       if (takeOverRefusal(cmd, objs, r.by)) return null;
       const t = withTakenOver(projRef.current, objs, r.by);
-      change(t.next, `${cmd}  ${objs.length} object${objs.length === 1 ? '' : 's'} of ${view.file} taken over as drawn objects`, true);
+      change(t.next, `${cmd}  ${objs.length} object${objs.length === 1 ? '' : 's'} of ${view.file} taken over as drawn objects${r.note ? ` · ${r.note}` : ''}`, true);
       takenRef.current = { file: view.file, handle: objs[0].handle.toUpperCase(), cmd, seen: false };
       pick(pickedItems, [...pickedSk, ...t.items]);
       return t;
@@ -2067,7 +2077,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       case 'crop': { const c = cropOf(o); cropNext.current = c.state; cad.setTool('crop'); setTimeout(() => cad.say(c.say)); return; }
       case 'explode': {
         try {
-          const { pieces, truncated } = await explodeObjects(view, [o.handle]);
+          const { pieces, truncated } = await explodeObjects(view, [o.handle], { exact: true });
           const list = pieces[o.handle] ?? Object.values(pieces).flat();
           const items = defFromPieces(name ?? 'block', list, [0, 0], view.info.units).items;
           if (!items.length) { cad.say(`EXPLODE  ${what} has nothing the app can draw.`); return; }
