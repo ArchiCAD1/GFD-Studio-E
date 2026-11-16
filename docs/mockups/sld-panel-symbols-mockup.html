@@ -1,0 +1,376 @@
+<!doctype html><html><head><meta charset="utf-8"><title>SLD panel symbols: today and proposed</title><style>
+body{margin:0;width:1952px;font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff}
+.wrap{padding:22px 24px}
+h1{font-size:26px;line-height:32px;margin:0 0 4px}
+h2{font-size:19px;line-height:24px;margin:24px 0 8px;padding-bottom:4px;border-bottom:1px solid #999}
+p,li{font-size:14px;line-height:20px;margin:3px 0}
+ul{margin:6px 0 0 0;padding-left:20px}
+.sub{font-size:14px;line-height:20px;color:#444}
+figure{margin:0}
+figcaption{font-size:13px;line-height:18px;color:#333;margin-top:4px}
+.row{display:flex;gap:16px;align-items:flex-start}
+.tiles{display:flex;gap:8px;align-items:flex-start}
+.tile{width:200px;height:200px;overflow:hidden}
+.tile .c{font-size:14px;line-height:18px;font-weight:700;margin:6px 0 0 0;color:#111}
+.tile .n{font-size:13px;line-height:16px;margin:2px 0 0 0;color:#333}
+.box{border:1px solid #999;padding:10px;margin-top:10px;font-size:14px;line-height:20px}
+.box b{font-size:15px}
+table{border-collapse:collapse;table-layout:fixed}
+td,th{border:1px solid #ccc;padding:0;vertical-align:middle;font-size:14px;line-height:18px;color:#000;background:#fff;overflow:hidden}
+th{background:#fff;font-weight:700;text-align:left;padding:6px 8px;height:32px;box-sizing:border-box}
+td.t{padding:0 8px}
+td.dark{background:#15171A;color:#E6E8EB}
+td svg,.tile svg,figure svg{display:block}
+.ncap{font-size:13px;line-height:18px;color:#333;margin:6px 0 4px 0}
+.sc{display:flex;gap:16px;align-items:stretch}
+.sc>div{width:300px;box-sizing:border-box;border:1px solid #ccc;padding:8px 10px 10px 10px}
+.sc .c{font-size:14px;line-height:18px;font-weight:700;margin:4px 0 0 0}
+.sc .n{font-size:14px;line-height:18px;margin:0}
+.sc .d{font-size:13px;line-height:17px;color:#333;margin:4px 0 0 0}
+ol{margin:6px 0 0 0;padding-left:24px}
+ol li{font-size:15px;line-height:22px;margin:4px 0}
+</style></head><body><div class="wrap">
+<h1>SLD panel symbols – today and proposed</h1>
+<div class="sub">Proposal, 2026-11-16. Nothing is built. Screen drawings use the app's dark canvas; print drawings are black and white, as the app prints them.</div>
+
+<h2>1. A board drawn as an end point: today and proposed</h2>
+<div class="row">
+<figure><div id="s1a"></div><figcaption>(a) Today on screen: a 44 × 44 square in the card colours, with a busbar and a way inside and the status dot in its corner.</figcaption></figure>
+<figure><div id="s1b"></div><figcaption>(b) Today in print: the same square; its status dot prints in colour.</figcaption></figure>
+<figure><div id="s1c"></div><figcaption>(c) Proposed on screen: 44 × 22, in the drawing ink.</figcaption></figure>
+<figure><div id="s1d"></div><figcaption>(d) Proposed in print: black and white, no dot.</figcaption></figure>
+</div>
+<p style="margin-top:8px">Same 44-unit width as today and half the height, so nothing else on the SLD moves. In DEWA style the dashed panel frame stays around it (section 4). Boards drawn with their busbar and ways do not change.</p>
+
+<h2>2. Your seven symbols, and what Option A uses them for</h2>
+<div class="tiles" id="s2"></div>
+<div class="box"><b>Option A rule: the more black, the bigger the board (none = final board, half = sub-main or MCC, all = main board).</b> A cross (X) = emergency supply. A split across the middle = motor control. Letters for special panels (UPS, MC).</div>
+
+<h2>3. Three options for our 13 board kinds</h2>
+<div id="s3"></div>
+<p style="margin-top:8px">A: every kind has its own pattern and all seven of your sketches are used. It needs a legend, which the SLD and riser print on their own with the kinds drawn.</p>
+<p>B: fewer patterns; the E reads without a legend; it adds a text mark to every emergency board and leaves the crossed sketches unused.</p>
+<p>C: no legend needed, but it is a box with text, hard to read at drawing size and close to today's square.</p>
+
+<h2>4. On the SLD (DEWA style): screen with Colour by → Supply, and print</h2>
+<p class="ncap">On screen, Colour by → Supply (off by default): emergency red, UPS blue, existing grey; status dots after the names.</p>
+<div id="s4a"></div>
+<p class="ncap" style="margin-top:14px">Printed (sheet, PDF, DXF): black and white; the legend lists the board symbols drawn.</p>
+<div id="s4b"></div>
+
+<h2>5. Combinations (Option A)</h2>
+<div id="s5"></div>
+<p style="margin-top:8px">Special panels (FP, UPS, MC) take the same existing and selected marks. UPS boards show blue in the Supply view. The kind decides the symbol, so the print shows what the designer set; the Supply view shows what the network really feeds, so a DB drawn red under an EMDB is a board whose kind should be EDB.</p>
+
+<h2>6. One symbol everywhere (SMDB, DB, EDB, MCC)</h2>
+<div id="s6"></div>
+<p style="margin-top:8px">Boards drawn with their busbar, ways and DEWA frame do not change.</p>
+
+<h2>7. Panels we could add as kinds (decision 5)</h2>
+<div class="sc" id="s7"></div>
+
+<h2>Decisions</h2>
+<ol>
+<li>Symbol set: <b>A families (recommended)</b> / B pattern + E tag / C letters.</li>
+<li>Colours: <b>Colour by → Supply, screen only, prints black (recommended)</b> / always coloured on screen / none.</li>
+<li>Where: <b>everywhere at once: SLD end boards and legend, riser, feeder riser, library blocks, strip icons (recommended)</b> / the SLD first, the rest later.</li>
+<li>Design CAD plan symbols for boards: <b>the same patterns, tag beside (recommended)</b> / keep today's tagged rectangles.</li>
+<li>New kinds: <b>ESMDB (recommended)</b> / also PFC, ATS, FPL, CP, EV / none.</li>
+</ol>
+</div>
+<script>
+const SCREEN = { bg: '#15171A', ink: '#E6E8EB', mut: '#A3ABB5', bus: '#ffb347', sel: '#F5B301', ok: '#37d67a', warn: '#f5c04a', card: '#26292E', cardEdge: '#353A41' };
+const PRINT  = { bg: '#ffffff', ink: '#000000', mut: '#444444', bus: '#000000' };
+const SUPPLY = { normal: '#E6E8EB', emergency: '#ff5d6c', ups: '#4aa8ff', existing: '#7d8590' };
+
+// Proposed board symbol: 44 x 22 units centred on (cx, cy).
+function boardSym(pattern, cx, cy, o = {}) {
+  const ink = o.ink ?? '#000', bg = o.bg ?? '#fff';
+  const W = 44, H = 22, x0 = cx - W / 2, y0 = cy - H / 2;
+  const ins = o.existing ? 2.5 : 0; // existing: the pattern sits inside a dashed outline
+  const a0 = x0 + ins, b0 = y0 + ins, a1 = x0 + W - ins, b1 = y0 + H - ins, mx = cx, my = cy;
+  const P = (pts) => `<polygon points="${pts.map((p) => p.join(',')).join(' ')}" fill="${ink}"/>`;
+  const L = (ax, ay, bx, by, col = ink, w = 1.2) => `<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="${col}" stroke-width="${w}"/>`;
+  const X = (col = ink, w = 1.2) => L(a0, b0, a1, b1, col, w) + L(a0, b1, a1, b0, col, w);
+  let s = `<rect x="${x0}" y="${y0}" width="${W}" height="${H}" fill="${bg}"/>`;
+  switch (pattern) {
+    case 'solid': s += P([[a0, b0], [a1, b0], [a1, b1], [a0, b1]]); break;
+    case 'solidX': s += P([[a0, b0], [a1, b0], [a1, b1], [a0, b1]]) + X(bg, 1.8); break;
+    case 'diag': s += L(a0, b1, a1, b0); break;
+    case 'diagHalf': s += P([[a0, b0], [a1, b0], [a0, b1]]) + L(a0, b1, a1, b0); break;
+    case 'cross': s += X(); break;
+    case 'bowtie': s += P([[a0, b0], [mx, my], [a0, b1]]) + P([[a1, b0], [mx, my], [a1, b1]]) + X(); break;
+    case 'hourglass': s += P([[a0, b0], [a1, b0], [mx, my]]) + P([[a0, b1], [a1, b1], [mx, my]]) + X(); break;
+    case 'hsplit': s += L(a0, my, a1, my); break;
+    case 'hhalf': s += P([[a0, b0], [a1, b0], [a1, my], [a0, my]]) + L(a0, my, a1, my); break;
+    case 'letters': {
+      const t = o.text ?? '', fs = t.length <= 2 ? 10 : t.length === 3 ? 9 : 7.5;
+      s += `<text x="${mx}" y="${my + fs * 0.36}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="${fs}" fill="${ink}">${t}</text>`;
+      break;
+    }
+  }
+  s += `<rect x="${x0}" y="${y0}" width="${W}" height="${H}" fill="none" stroke="${o.sel ?? ink}" stroke-width="${o.sel ? 2 : 1.5}"${o.existing ? ' stroke-dasharray="4 2.5"' : ''}/>`;
+  if (o.eTag) {
+    const tx = x0 + W - 10, ty = y0 - 10;
+    s += `<rect x="${tx}" y="${ty}" width="10" height="10" fill="${bg}" stroke="${ink}" stroke-width="1.2"/>` +
+      `<text x="${tx + 5}" y="${ty + 7.9}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="8" fill="${ink}">E</text>`;
+  }
+  return s;
+}
+
+// Option C: the IEC library's panel symbol today (upright 28 x 32 box, filled top strip, code).
+function libPanel(code, cx, cy, o = {}) {
+  const ink = o.ink ?? '#000', bg = o.bg ?? '#fff', x0 = cx - 14, y0 = cy - 16;
+  const fs = Math.min(9, 21 / (code.length * 0.68));
+  return `<rect x="${x0}" y="${y0}" width="28" height="32" fill="${bg}" stroke="${ink}" stroke-width="1.5"/>` +
+    `<rect x="${x0}" y="${y0}" width="28" height="5" fill="${ink}"/>` +
+    `<text x="${cx}" y="${cy + 2 + fs * 0.36}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="${code.length <= 2 ? 700 : 400}" font-size="${fs}" fill="${ink}">${code}</text>`;
+}
+
+// Today's SLD end board (SystemDiagram BoardSymbol): 44 x 44 square, top edge at `top`, centre x `cx`.
+function todaySquare(kind, cx, top, c) {
+  const kk = 44 / 16, at = (u) => cx + (u - 12) * kk, bus = top + 6 * kk;
+  let inner;
+  if (kind === 'DB' || kind === 'EDB') inner = `<line x1="${cx}" y1="${bus}" x2="${cx}" y2="${top + 13 * kk}" stroke="${c.mut}" stroke-width="1.5"/>`;
+  else if (kind === 'MCC' || kind === 'EMCC' || kind === 'FP') inner = `<path d="M${at(8)} ${top + 10 * kk}H${at(16)}M${at(8)} ${top + 13 * kk}H${at(16)}" stroke="${c.mut}" stroke-width="1.5" fill="none"/>`;
+  else inner = `<path d="M${at(9)} ${bus}V${top + 14 * kk}M${at(15)} ${bus}V${top + 14 * kk}" stroke="${c.mut}" stroke-width="1.5" fill="none"/>`;
+  return `<rect x="${cx - 22}" y="${top}" width="44" height="44" rx="2" fill="${c.fill}" stroke="${c.edge}" stroke-width="1.2"/>` +
+    `<line x1="${at(5.5)}" y1="${bus}" x2="${at(18.5)}" y2="${bus}" stroke="${c.mut}" stroke-width="2.2"/>` + inner +
+    (c.dot ? `<circle cx="${cx + 16}" cy="${top + 6}" r="3" fill="${c.dot}"/>` : '');
+}
+
+// Today's riser board (all boards) and the feeder riser's half-filled SMDB: 48 x 27, lower-right half filled.
+function riserToday(cx, cy, ink = '#000') {
+  return `<rect x="${cx - 24}" y="${cy - 13.5}" width="48" height="27" fill="#fff" stroke="${ink}" stroke-width="1.5"/>` +
+    `<polygon points="${cx - 24},${cy + 13.5} ${cx + 24},${cy + 13.5} ${cx + 24},${cy - 13.5}" fill="${ink}"/>`;
+}
+// Feeder riser today: DB and EDB crossed; MCC lettered "M".
+function feederRiserToday(kind, cx, cy, ink = '#000') {
+  if (kind === 'SMDB') return riserToday(cx, cy, ink);
+  const box = `<rect x="${cx - 24}" y="${cy - 13.5}" width="48" height="27" fill="#fff" stroke="${ink}" stroke-width="1.5"/>`;
+  if (kind === 'MCC') return box + `<text x="${cx}" y="${cy + 4.5}" text-anchor="middle" font-family="Arial" font-weight="700" font-size="12" fill="${ink}">M</text>`;
+  return box + `<path d="M${cx - 24} ${cy - 13.5}L${cx + 24} ${cy + 13.5}M${cx + 24} ${cy - 13.5}L${cx - 24} ${cy + 13.5}" stroke="${ink}" stroke-width="1.2"/>`;
+}
+// Design CAD plan symbol today: rectangle with its tag inside.
+function planToday(tag, cx, cy, ink = '#000') {
+  return `<rect x="${cx - 24}" y="${cy - 14}" width="48" height="28" fill="#fff" stroke="${ink}" stroke-width="1.2"/>` +
+    `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-family="Arial" font-size="11" fill="${ink}">${tag}</text>`;
+}
+// Circuit breaker (library 'cb'), 16 units tall: top contact at (x, y), bottom contact at (x, y + 16). Stroke = cable colour.
+function breaker(x, y, col) {
+  return `<path d="M30 24V28M26 24L34 32M34 24L26 32M30 56L19 30" transform="translate(${x - 15},${y - 12}) scale(0.5)" stroke="${col}" stroke-width="3" fill="none"/>`;
+}
+// Gland mark where a cable crosses a DEWA dashed frame line at (x, y).
+function gland(x, y, col) {
+  return `<path d="M${x - 5} ${y - 4} q3 4 0 8 M${x + 5} ${y - 4} q-3 4 0 8" stroke="${col}" stroke-width="1.5" fill="none"/>`;
+}
+
+// ---- Option maps ----
+const A = { MDB: 'solid', 'LV-MDB': 'solid', 'LV-ACB': 'solid', EMDB: 'solidX', 'LV-EMDB': 'solidX', SMDB: 'diagHalf', ESMDB: 'bowtie',
+  DB: 'diag', EDB: 'cross', MCC: 'hhalf', EMCC: 'hourglass', FP: 'hsplit', UPS: ['letters', 'UPS'], MC: ['letters', 'MC'] };
+const B = { MDB: 'solid', 'LV-MDB': 'solid', 'LV-ACB': 'solid', EMDB: ['solid', 'E'], 'LV-EMDB': ['solid', 'E'], SMDB: 'diagHalf', ESMDB: ['diagHalf', 'E'],
+  DB: 'diag', EDB: ['diag', 'E'], MCC: 'hhalf', EMCC: ['hhalf', 'E'], FP: 'hsplit', UPS: ['letters', 'UPS'], MC: ['letters', 'MC'] };
+const NAMES = { MDB: 'Main distribution board', 'LV-MDB': 'LV main distribution board', 'LV-ACB': 'LV ACB at the substation (main board remote)',
+  EMDB: 'Emergency main distribution board', 'LV-EMDB': 'LV emergency main distribution board', SMDB: 'Sub-main distribution board',
+  ESMDB: 'Emergency sub-main distribution board (not a kind yet: decision 5)', DB: 'Distribution board', EDB: 'Emergency distribution board',
+  MCC: 'Motor control centre (package panel)', EMCC: 'Emergency motor control centre (package panel)', FP: 'Fire pump panel',
+  UPS: 'UPS output board', MC: 'Meter cabinet (authority supply)' };
+const KINDS = Object.keys(NAMES);
+
+// ---- helpers ----
+const F = 'font-family="Arial, Helvetica, sans-serif"';
+const T = (x, y, s, o = {}) => `<text x="${x}" y="${y}" ${F} font-size="${o.size ?? 11}"${o.bold ? ' font-weight="700"' : ''} fill="${o.fill ?? '#000'}"${o.anchor ? ` text-anchor="${o.anchor}"` : ''}${o.italic ? ' font-style="italic"' : ''}>${s}</text>`;
+const LN = (x1, y1, x2, y2, col, w = 1.5, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
+const G = (tx, ty, k, inner) => `<g transform="translate(${tx},${ty}) scale(${k})">${inner}</g>`;
+const SVG = (w, h, inner, extra = '') => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" ${extra}>${inner}</svg>`;
+const pat = (m, kind) => { const v = m[kind]; return Array.isArray(v) ? v : [v, null]; };
+function symOf(m, kind, cx, cy, base) {
+  const [p, x] = pat(m, kind);
+  const o = { ...base };
+  if (p === 'letters') o.text = x; else if (x === 'E') o.eTag = true;
+  return boardSym(p, cx, cy, o);
+}
+const cv = document.createElement('canvas').getContext('2d');
+const textW = (s, size, bold) => { cv.font = `${bold ? 'bold ' : ''}${size}px Arial`; return cv.measureText(s).width; };
+const $ = (id) => document.getElementById(id);
+const scr = { ink: SCREEN.ink, bg: SCREEN.bg };
+const prn = { ink: '#000', bg: '#fff' };
+
+// ---- Section 1 ----
+function callout(x1, y1, x2, y2, text, tx, ty, anchor, col = '#333') {
+  return LN(x1, y1, x2, y2, col, 1) + T(tx, ty, text, { size: 13, fill: col, anchor });
+}
+function fig1(mode) {
+  const S = mode === 'a' || mode === 'c';
+  const col = S ? SCREEN.mut : '#444', ink = S ? SCREEN.ink : '#000', mut = S ? SCREEN.mut : '#444';
+  const sq = S ? { fill: SCREEN.card, edge: SCREEN.cardEdge, mut: SCREEN.mut, dot: SCREEN.ok } : { fill: '#fff', edge: '#000', mut: '#444', dot: '#13803d' };
+  const today = mode === 'a' || mode === 'b';
+  let g = LN(60, 0, 60, 14, col) + breaker(60, 14, col) + LN(60, 30, 60, 58, col) +
+    T(70, 24, '63 A TP MCCB', { bold: true, fill: ink }) + T(70, 35, '25 kA', { size: 10, fill: mut });
+  if (today) g += todaySquare('DB', 60, 58, sq);
+  else g += boardSym('diag', 60, 69, S ? scr : prn);
+  g += T(90, 74, 'DB-GF-01', { size: 12, bold: true, fill: ink }) + T(90, 88, 'DB', { fill: mut }) +
+    T(90, 102, 'Elec. room G.01', { fill: mut }) + T(90, 115, '18 circuits', { size: 10.5, fill: mut });
+  if (mode === 'c') g += `<circle cx="${90 + 62}" cy="70" r="3" fill="${SCREEN.ok}"/>`;
+  let inner = `<rect x="0" y="0" width="460" height="290" fill="${S ? SCREEN.bg : '#fff'}"${S ? '' : ' stroke="#ccc" stroke-width="1"'}/>` + G(20, 16, 2, g);
+  if (mode === 'b') inner += callout(176, 142, 206, 118, 'Prints green today: a bug, fixed in step 1', 206, 114, 'start');
+  if (mode === 'c') inner += callout(324, 150, 324, 122, 'Status dot after the name, screen only', 190, 118, 'start', SCREEN.ink);
+  return SVG(460, 290, inner);
+}
+$('s1a').innerHTML = fig1('a'); $('s1b').innerHTML = fig1('b'); $('s1c').innerHTML = fig1('c'); $('s1d').innerHTML = fig1('d');
+
+// ---- Section 2 ----
+const seven = [
+  ['diag', '1 · DB', 'Distribution board'], ['diagHalf', '2 · SMDB', 'Sub-main distribution board'],
+  ['bowtie', '3 · ESMDB', 'Emergency sub-main (new kind)'], ['hourglass', '4 · EMCC', 'Emergency motor control centre'],
+  ['cross', '5 · EDB', 'Emergency distribution board'], ['hsplit', '6 · FP', 'Fire pump panel'],
+  ['hhalf', '7 · MCC', 'Motor control centre'], ['solid', '+ · MDB, LV-MDB, LV-ACB', 'Main boards (added)'],
+  ['solidX', '+ · EMDB, LV-EMDB', 'Emergency main boards (added)'] ];
+$('s2').innerHTML = seven.map(([p, c, n]) =>
+  `<div class="tile">${SVG(200, 120, `<rect width="200" height="120" fill="${SCREEN.bg}"/>` + G(100, 60, 3, boardSym(p, 0, 0, scr)))}<div class="c">${c}</div><div class="n">${n}</div></div>`).join('');
+
+// ---- Section 3 ----
+(function () {
+  const cols = [90, 330, 300, 300, 300, 170];
+  const heads = ['Code', 'Board', 'A – families (recommended)', "B – pattern + E tag", "C – letters (today's library style)", 'A at drawing size'];
+  let h = `<table style="width:${cols.reduce((a, b) => a + b, 0)}px"><colgroup>${cols.map((c) => `<col style="width:${c}px">`).join('')}</colgroup><tr>${heads.map((x) => `<th>${x}</th>`).join('')}</tr>`;
+  for (const k of KINDS) {
+    const it = k === 'ESMDB' ? ' style="font-style:italic"' : '';
+    const code = k === 'LV-ACB' ? 'ACB' : k;
+    h += `<tr style="height:76px"><td class="t"${it}><b>${k}</b></td><td class="t"${it}>${NAMES[k]}</td>` +
+      `<td>${SVG(300, 76, G(150, 46, 2, symOf(A, k, 0, 0, prn)))}</td>` +
+      `<td>${SVG(300, 76, G(150, 46, 2, symOf(B, k, 0, 0, prn)))}</td>` +
+      `<td>${SVG(300, 76, G(150, 46, 1.6, libPanel(code, 0, 0)))}</td>` +
+      `<td>${SVG(170, 76, G(85, 46, 1, symOf(A, k, 0, 0, prn)))}</td></tr>`;
+  }
+  $('s3').innerHTML = h + '</table>';
+})();
+
+// ---- Section 4 ----
+function sld(mode) {
+  const S = mode === 'screen';
+  const cInk = S ? SCREEN.ink : '#000', cMut = S ? SCREEN.mut : '#444', bus = S ? SCREEN.bus : '#000';
+  const base = S ? scr : prn;
+  const frame = (x1, y1, x2, y2) => `<rect x="${x1}" y="${y1}" width="${x2 - x1}" height="${y2 - y1}" fill="none" stroke="${cMut}" stroke-width="1" stroke-dasharray="5 4"/>`;
+  const cable = '#' + '';
+  let s = S ? `<rect width="1740" height="400" fill="${SCREEN.bg}"/>` : `<rect x="0.5" y="0.5" width="1739" height="399" fill="#fff" stroke="#ccc" stroke-width="1"/>`;
+  const nameBox = (x, y, w, name, sub) =>
+    `<rect x="${x}" y="${y}" width="${w}" height="40" fill="${S ? SCREEN.card : '#fff'}" stroke="${S ? SCREEN.cardEdge : '#000'}" stroke-width="1.2"/>` +
+    T(x + 8, y + 16, name, { size: 12, bold: true, fill: cInk }) + T(x + 8, y + 31, sub, { fill: cMut });
+  const supCol = (sup) => (S ? (sup === 'normal' ? SCREEN.mut : SUPPLY[sup]) : '#444');
+  const symCol = (sup) => (S ? SUPPLY[sup] : '#000');
+  // way: busbar tap, breaker, cable, frame, end board
+  function way(x, e) {
+    const col = supCol(e.sup), sw = e.fire ? 2.6 : 1.5, dash = e.fire ? '7 3' : e.existing ? '5 3' : undefined;
+    let r = LN(x, 150, x, 158, col, 1.5) + breaker(x, 158, col) + LN(x, 174, x, 322, col, sw, dash) +
+      T(x + 10, 168, e.dev, { bold: true, fill: cInk }) + T(x + 10, 180, e.ka, { size: 10, fill: cMut }) +
+      gland(x, 205, cMut) + T(x + 8, 262, '4C 95 mm²', { size: 10, fill: cMut }) +
+      frame(x - 36, 306, x + 118, 380) + gland(x, 306, cMut);
+    r += symOf(e.map ?? A, e.kind, x, 333, { ...base, ink: symCol(e.sup), existing: e.existing });
+    r += T(x + 30, 338, e.name, { size: 12, bold: true, fill: cInk }) + T(x + 30, 352, e.label, { fill: cMut }) + T(x + 30, 366, e.third, { size: 10.5, fill: cMut });
+    if (S) r += `<circle cx="${x + 30 + textW(e.name, 12, true) + 7}" cy="334" r="3" fill="${e.kind === 'MCC' ? SCREEN.warn : SCREEN.ok}"/>`;
+    return r;
+  }
+  // main board
+  s += frame(30, 30, 860, 205) + nameBox(36, 36, 170, 'MDB-01', '1600 A TPN · 50 kA');
+  s += LN(340, 0, 340, 150, cMut === SCREEN.mut ? SCREEN.mut : '#444', 1.5) + gland(340, 30, cMut) + T(350, 18, 'FROM TX-1 · 1500 kVA', { fill: cMut });
+  s += `<line x1="60" y1="150" x2="820" y2="150" stroke="${bus}" stroke-width="4" stroke-linecap="round"/>` + T(820, 142, '1600 A TPN+E COPPER BUSBAR', { bold: true, fill: bus, anchor: 'end' });
+  const ways1 = [
+    [100, { kind: 'SMDB', name: 'SMDB-01', label: 'SMDB', dev: '250 A TP MCCB', ka: '36 kA', third: '4 ways', sup: 'normal' }],
+    [260, { kind: 'DB', name: 'DB-01', label: 'DB', dev: '100 A TP MCCB', ka: '36 kA', third: '18 circuits', sup: 'normal' }],
+    [420, { kind: 'MCC', name: 'MCC-01', label: 'MCC', dev: '400 A TP MCCB', ka: '36 kA', third: '6 motors', sup: 'normal' }],
+    [580, { kind: 'UPS', name: 'UPS-01', label: 'UPS', dev: '125 A TP MCCB', ka: '36 kA', third: 'UPS 40 kVA', sup: 'ups' }],
+    [740, { kind: 'DB', name: 'DB-02', label: 'DB · EXISTING', dev: '63 A TP MCCB', ka: '36 kA', third: 'recorded 14 kW', sup: 'existing', existing: true }] ];
+  for (const [x, e] of ways1) s += way(x, e);
+  // emergency main board
+  s += frame(900, 30, 1420, 205) + nameBox(906, 36, 130, 'EMDB-01', '800 A TPN · 36 kA');
+  s += gland(1060, 30, cMut) + `<circle cx="1060" cy="14" r="13" fill="none" stroke="${cInk}" stroke-width="1.5"/>` + T(1060, 18, 'G', { size: 12, bold: true, fill: cInk, anchor: 'middle' }) +
+    T(1080, 18, 'G1 · 500 kVA', { fill: cMut }) + LN(1060, 27, 1060, 92, cMut, 1.5) +
+    `<rect x="1045" y="92" width="30" height="17" fill="${S ? SCREEN.bg : '#fff'}" stroke="${cInk}" stroke-width="1.2"/>` + T(1060, 104, 'ATS', { size: 9, bold: true, fill: cInk, anchor: 'middle' }) +
+    T(1082, 104, '800 A 4P', { size: 10, fill: cMut }) + LN(1060, 109, 1060, 150, cMut, 1.5) +
+    LN(1014, 100, 1045, 100, cMut, 1, '4 3') + T(906, 104, 'MAINS FROM MDB-01', { size: 10, fill: cMut });
+  s += `<line x1="930" y1="150" x2="1350" y2="150" stroke="${bus}" stroke-width="4" stroke-linecap="round"/>` + T(1350, 142, '800 A TPN+E COPPER BUSBAR', { bold: true, fill: bus, anchor: 'end' });
+  const ways2 = [
+    [980, { kind: 'EDB', name: 'EDB-01', label: 'EDB', dev: '100 A TP MCCB', ka: '36 kA', third: '12 circuits', sup: 'emergency' }],
+    [1140, { kind: 'EMCC', name: 'EMCC-01', label: 'EMCC', dev: '250 A TP MCCB', ka: '36 kA', third: '4 fans', sup: 'emergency' }],
+    [1300, { kind: 'FP', name: 'FP-01', label: 'FP', dev: '160 A TP MCCB', ka: '36 kA', third: 'fire pump 75 kW', sup: 'emergency', fire: true }] ];
+  for (const [x, e] of ways2) s += way(x, e);
+  // legend
+  s += `<rect x="1440" y="20" width="290" height="236" fill="none" stroke="${S ? SCREEN.mut : '#000'}" stroke-width="1"/>` + T(1452, 40, 'LEGEND', { size: 12, bold: true, fill: cInk }) + LN(1440, 50, 1730, 50, S ? SCREEN.mut : '#000', 1);
+  const leg = [['diagHalf', 'Sub-main distribution board (SMDB)'], ['diag', 'Distribution board (DB)'], ['cross', 'Emergency distribution board (EDB)'],
+    ['hhalf', 'Motor control centre (MCC)'], ['hourglass', 'Emergency motor control centre (EMCC)'], ['hsplit', 'Fire pump panel (FP)'],
+    ['letters', 'UPS output board (UPS)'], ['diag', 'Existing board: dashed outline']];
+  leg.forEach(([p, l], i) => {
+    const y = 72 + 24 * i;
+    s += G(1470, y, 0.7, boardSym(p, 0, 0, { ...base, text: 'UPS', existing: i === 7 })) + T(1500, y + 4, l, { fill: cInk });
+  });
+  if (S) {
+    s += `<rect x="1440" y="270" width="290" height="70" fill="none" stroke="${SCREEN.mut}" stroke-width="1"/>` + T(1452, 288, 'Colour by: Supply', { size: 12, bold: true, fill: SCREEN.ink });
+    [['Normal', SUPPLY.normal, 1452, 308], ['Emergency', SUPPLY.emergency, 1582, 308], ['UPS', SUPPLY.ups, 1452, 326], ['Existing', SUPPLY.existing, 1582, 326]].forEach(([l, c, x, y]) => {
+      s += LN(x, y, x + 18, y, c, 3) + T(x + 24, y + 4, l, { fill: SCREEN.ink });
+    });
+  }
+  return SVG(1740, 400, s, 'width="1900" height="' + Math.round(400 * 1900 / 1740) + '"').replace(/^<svg ([^>]*?) width="1740" height="400"/, '<svg $1');
+}
+$('s4a').innerHTML = sld('screen'); $('s4b').innerHTML = sld('print');
+
+// ---- Section 5 ----
+(function () {
+  const heads = ['', 'New', 'Existing', 'Emergency', 'Existing emergency', 'Selected (screen)', 'Colour by → Supply (screen)'];
+  const rows = [['Main board', 'MDB', 'EMDB'], ['Sub-main board', 'SMDB', 'ESMDB'], ['Final board', 'DB', 'EDB'], ['Motor control', 'MCC', 'EMCC']];
+  let h = `<table style="width:1400px"><colgroup>${heads.map(() => '<col style="width:200px">').join('')}</colgroup><tr>${heads.map((x) => `<th>${x}</th>`).join('')}</tr>`;
+  const cell = (inner, cap, dark) => `<td class="${dark ? 'dark' : ''}" style="height:112px">${SVG(200, 112, (dark ? `<rect width="200" height="112" fill="${SCREEN.bg}"/>` : '') + inner + T(100, 102, cap, { size: 12, fill: dark ? SCREEN.ink : '#000', anchor: 'middle' }))}</td>`;
+  for (const [lab, n, e] of rows) {
+    h += `<tr><td class="t"><b>${lab}</b></td>` +
+      cell(G(100, 40, 2, symOf(A, n, 0, 0, prn)), n) +
+      cell(G(100, 40, 2, symOf(A, n, 0, 0, { ...prn, existing: true })), n + ' · EXISTING') +
+      cell(G(100, 40, 2, symOf(A, e, 0, 0, prn)), e) +
+      cell(G(100, 40, 2, symOf(A, e, 0, 0, { ...prn, existing: true })), e + ' · EXISTING') +
+      cell(G(100, 40, 2, symOf(A, n, 0, 0, { ...scr, sel: SCREEN.sel })), n + ' selected', true) +
+      cell(G(100, 40, 2, symOf(A, e, 0, 0, { ...scr, ink: SUPPLY.emergency })), e + ', emergency supply', true) + '</tr>';
+  }
+  $('s5').innerHTML = h + '</table>';
+})();
+
+// ---- Section 6 ----
+(function () {
+  const four = ['SMDB', 'DB', 'EDB', 'MCC'];
+  const sqc = { fill: '#fff', edge: '#000', mut: '#444', dot: null };
+  const cx = (i) => 90 + 180 * i;
+  const lab = (i, y, k) => T(cx(i), y, k, { size: 12, fill: '#000', anchor: 'middle' });
+  const cellSvg = (fn, note, labelY = 84) => SVG(760, 104, four.map((k, i) => fn(k, i) + lab(i, labelY, k)).join('') + (note ? T(10, 100, note, { size: 13, fill: '#444' }) : ''));
+  const legLines = { SMDB: ['Sub-main distribution', 'board (SMDB)'], DB: ['Distribution board', '(DB)'], EDB: ['Emergency distribution', 'board (EDB)'], MCC: ['Motor control centre', '(MCC)'] };
+  const planTag = { SMDB: 'P', DB: 'DB', EDB: 'DB', MCC: 'M/C' };
+  const planName = { SMDB: 'SMDB-01', DB: 'DB-01', EDB: 'EDB-01', MCC: 'MCC-01' };
+  const rows = [
+    ['SLD end board', cellSvg((k, i) => G(cx(i), 40, 1.3, todaySquare(k, 0, -22, sqc))), cellSvg((k, i) => G(cx(i), 40, 1.6, symOf(A, k, 0, 0, prn)))],
+    ['SLD legend', SVG(760, 104, T(10, 56, 'No board rows today', { size: 13, fill: '#666' })),
+      SVG(760, 104, four.map((k, i) => { const x = 10 + 185 * i; return G(x + 20, 50, 0.9, symOf(A, k, 0, 0, prn)) + T(x + 48, 47, legLines[k][0]) + T(x + 48, 61, legLines[k][1]); }).join(''))],
+    ['Riser', cellSvg((k, i) => riserToday(cx(i), 36), null, 70), cellSvg((k, i) => G(cx(i), 36, 1.1, symOf(A, k, 0, 0, prn)), 'same patterns; the riser keeps its own size', 70)],
+    ['Feeder riser', cellSvg((k, i) => feederRiserToday(k, cx(i), 40)), cellSvg((k, i) => G(cx(i), 40, 1.1, symOf(A, k, 0, 0, prn)))],
+    ['Library blocks (DXF) and riser legends', cellSvg((k, i) => G(cx(i), 40, 1.4, libPanel(k, 0, 0))), cellSvg((k, i) => G(cx(i), 40, 1.6, symOf(A, k, 0, 0, prn)))],
+    ['Equipment strip icon', cellSvg((k, i) => G(cx(i), 40, 0.55, todaySquare(k, 0, -22, sqc))), cellSvg((k, i) => G(cx(i), 40, 0.6, symOf(A, k, 0, 0, prn)))],
+    ['Design CAD plan symbol (decision 4)', SVG(760, 104, four.map((k, i) => planToday(planTag[k], 60 + 180 * i, 38) + T(60 + 180 * i, 80, k, { size: 12, anchor: 'middle' })).join('')),
+      SVG(760, 104, four.map((k, i) => { const x = 60 + 180 * i; return G(x, 38, 1.1, symOf(A, k, 0, 0, prn)) + T(x + 30, 42, planName[k], { size: 11 }) + T(x, 80, k, { size: 12, anchor: 'middle' }); }).join(''))] ];
+  let h = `<table style="width:1780px"><colgroup><col style="width:260px"><col style="width:760px"><col style="width:760px"></colgroup><tr><th>Place</th><th>Today</th><th>Proposed</th></tr>`;
+  for (const [p, t, n] of rows) h += `<tr style="height:104px"><td class="t"><b>${p}</b></td><td>${t}</td><td>${n}</td></tr>`;
+  $('s6').innerHTML = h + '</table>';
+})();
+
+// ---- Section 7 ----
+(function () {
+  const items = [
+    ['bowtie', 'ESMDB', 'Emergency sub-main board', 'Completes the emergency family (recommended).'],
+    ['PFC', 'PFC', 'Capacitor bank panel (APFC)', 'Today APFC is a part of a board.'],
+    ['ATS', 'ATS', 'Changeover panel on its own', "Today the ATS is drawn on a board's incomer."],
+    ['FPL', 'FPL', 'Feeder pillar', 'External lighting and landscape. On Gulf drawings FP often means feeder pillar; ours is the fire pump panel.'],
+    ['CP', 'CP', 'Control panel', 'Lighting control, pump control.'],
+    ['EV', 'EV', 'EV charger board', 'Chargers fed from their own board.'] ];
+  $('s7').innerHTML = items.map(([p, c, n, d]) => {
+    const sym = p === 'bowtie' ? boardSym('bowtie', 0, 0, prn) : boardSym('letters', 0, 0, { ...prn, text: p });
+    return `<div>${SVG(278, 56, G(139, 30, 2, sym))}<div class="c">${c}</div><div class="n">${n}</div><div class="d">${d}</div></div>`;
+  }).join('');
+})();
+
+document.head.appendChild(document.createElement('style')).textContent = '@page{size:1952px ' + (Math.ceil(document.documentElement.scrollHeight) + 4) + 'px;margin:0}';
+</script></body></html>
