@@ -28,7 +28,7 @@ Leave alone: calculations, undo history, zoom, lazy loading of screens and expor
 | M3 | Memoise SLD panels so one edit redraws one panel | To be measured first: the SLD already draws only what is in view, so the gain is on what is on screen | Measure before starting |
 | M4 | Web version: projects in IndexedDB, not `localStorage` (about 5 MB per site) | No practical size cap | Not started |
 | M5 | Load revision content and old release notes only when their screen opens | Smaller start-up memory | Not started |
-| M6 | Auto-run waits for a pause on large projects; recovery copy only when the project changed; revision file size in the benchmark | Typing stays responsive on 1,000-panel projects | PR opened |
+| M6 | Auto-run waits for a pause on large projects; recovery copy only when the project changed; revision file size in the benchmark | Typing stays responsive on 1,000-panel projects | PR #622 |
 
 ## Security
 
@@ -42,7 +42,7 @@ local API on 127.0.0.1 with a token, secret scan, `npm audit` allowlist, privacy
 | S1 | Installers are unsigned | Sign releases; a free programme for open-source projects, as there are no paid services | **Needs a decision** |
 | S3 | A cloud AI on the MCP server reads real names and addresses | `lvds mcp --anonymize`, reusing `src/model/anonymize.ts` | **Needs a decision: default on or off** |
 | S4 | Text from imported DWG, Excel and exchange files reaches the AI in tool results | One cleaning function with a length cap on every free-text field; a test that fails on raw text | Not started |
-| S5 | No Electron fuses set | `electronFuses` in the build: no `NODE_OPTIONS`, no inspect arguments, app only from ASAR; run-as-Node stays (the `lvds` launcher needs it) | PR opened as a draft: needs a launch test on Windows and Mac |
+| S5 | No Electron fuses set | `electronFuses` in the build: no `NODE_OPTIONS`, no inspect arguments, app only from ASAR; run-as-Node stays (the `lvds` launcher needs it) | **Waits for S1.** On Apple silicon a flipped fuse needs the app signed again (ad hoc), and `beta-release.yml` requires the Mac beta to fail `codesign --verify`. Decide together with signing |
 | S6 | Backups are plain files in a synced folder | Optional password on `.lvds-backup` (WebCrypto AES-GCM) | Not started |
 
 Dropped after checking the code: showing the checksum in the update prompt. The update manifest (`beta.json`) is
@@ -59,7 +59,7 @@ Estimated at 4 characters per token.
 | T2 | One start-up note: `AGENTS.md`; old status list archived | about 5,400 tokens, partly out of date | about 1,000 | Done in this PR |
 | T3 | Read the module document for the task only | — | — | Done in this PR (rule in `AGENTS.md`) |
 | T4 | Module test file with a short reporter while working, full suite once | — | — | Done in this PR (rule in `AGENTS.md`) |
-| T5 | `lvds mcp --tools <groups>` | about 13,000 tokens of tool definitions with `--write` | about half or less for a design session | PR opened |
+| T5 | `lvds mcp --tools <groups>` | about 13,000 tokens of tool definitions with `--write` | about 4,900 with `--tools core` (19 tools) | PR #621 |
 | T6 | `fields` option and header + value rows in list results | full object per row | 40–60 % fewer (estimate) | Not started |
 | T7 | High-level build tools first ([[AI agent proposal]]) | about 3,000 calls per G+10 | about 150 | Not started |
 
@@ -78,7 +78,7 @@ Estimated at 4 characters per token.
 
 ## Order
 
-1. Quick wins: T2–T5, M6, S5.
+1. Quick wins: T2–T5, M6 (PRs #620, #621, #622).
 2. Storage: M1, then M4.
 3. Responsiveness: M2, M5, M3 after measuring.
-4. AI and distribution: S3, S4, T6, T7, T1, S1, S6.
+4. AI and distribution: S3, S4, T6, T7, T1, S1 with S5, S6.
