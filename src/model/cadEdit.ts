@@ -1,4 +1,4 @@
-import { moved, rotated, scaleLook, segmentsOf } from './cadSketch';
+import { constructionSegment, moved, rotated, scaleLook, segmentsOf } from './cadSketch';
 import type { SketchItem } from '../types';
 import { explodeNote, noteBox, noteCorners, noteWithWidth } from './cadMtext';
 import { explodeInsert, type CadBlockDef } from './cadBlocks';
@@ -24,7 +24,7 @@ const EPS = 1e-9;
 
 /** Lines and polylines (trays and cable routes are polylines): the ones Trim, Extend, Break and Fillet work on. */
 /** A line or polyline the path tools work on (a revision cloud's sides are arcs: it is not one). */
-export const isPath = (it: Pick<SketchItem, 'kind' | 'cloud'>) => (it.kind === 'line' || it.kind === 'pline') && !it.cloud;
+export const isPath = (it: Pick<SketchItem, 'kind' | 'cloud' | 'infinite'>) => (it.kind === 'line' || it.kind === 'pline') && !it.cloud && !it.infinite;
 /** The points of a path, the first repeated at the end when closed. */
 const pathOf = (it: SketchItem): Pt[] => (it.closed && it.pts.length > 2 ? [...it.pts, it.pts[0]] : it.pts);
 const chain = (pts: Pt[]) => pts.reduce<number[]>((c, q, i) => [...c, i ? c[i - 1] + len(sub(q, pts[i - 1])) : 0], []);
@@ -70,7 +70,17 @@ const withPts = (it: SketchItem, pts: Pt[], closed = false): Omit<SketchItem, 'i
 const box = (pts: Pt[]) => pts.reduce(([x0, y0, x1, y1], q) => [Math.min(x0, q[0]), Math.min(y0, q[1]), Math.max(x1, q[0]), Math.max(y1, q[1])], [Infinity, Infinity, -Infinity, -Infinity]);
 
 /** The other lines an item can be cut at or extended to: the drawn items' pieces and the architect's lines. */
-export const edgesFor = (items: SketchItem[], except: string, drawing: Seg[]): Seg[] => [...items.filter((x) => x.id !== except).flatMap((x) => segmentsOf(x)), ...drawing];
+export const edgesFor = (items: SketchItem[], except: string, drawing: Seg[]): Seg[] => {
+  const all = [...items.flatMap((x) => x.pts), ...drawing.flat()];
+  const [x0, y0, x1, y1] = all.reduce((b, p) => [Math.min(b[0], p[0]), Math.min(b[1], p[1]), Math.max(b[2], p[0]), Math.max(b[3], p[1])], [0, 0, 1, 1]);
+  const span = Math.max(x1 - x0, y1 - y0, 1);
+  const box: [number, number, number, number] = [x0 - span, y0 - span, x1 + span, y1 + span];
+  const drawn = items.filter((x) => x.id !== except).flatMap((x): Seg[] => {
+    const s = x.infinite ? constructionSegment(x, box) : undefined;
+    return x.infinite ? (s ? [s] : []) : segmentsOf(x);
+  });
+  return [...drawn, ...drawing];
+};
 
 /** Trim: the part of the path clicked, between the nearest crossings on either side of the click, is cut away. */
 export function trim(it: SketchItem, click: Pt, edges: Seg[]): Edit & { cut?: number } {
@@ -337,6 +347,7 @@ export type Grip = { at: Pt; kind: 'point' | 'mid' | 'radius' | 'width' | 'end';
 /** Grips of a drawn item: its points (ends and corners, a centre, a text's place) and each segment's middle (with the
  * direction of its side in `along`); a circle's centre and four quadrants; an arc's centre, ends and middle. */
 export function gripsOf(it: SketchItem): Grip[] {
+  if (it.infinite) return it.pts.slice(0, 2).map((at) => ({ at, kind: 'point' as const }));
   if (isPath(it)) {
     const pts = pathOf(it);
     return [...it.pts.map((at) => ({ at, kind: 'point' as const })), ...pts.slice(1).map((q, i) => ({ at: mul(add(pts[i], q), 0.5), kind: 'mid' as const, along: unit(sub(q, pts[i])) }))];
@@ -362,6 +373,7 @@ export function gripMoved(it: SketchItem, i: number, to: Pt): SketchItem {
   const g = gripsOf(it)[i];
   if (!g) return it;
   const d = sub(to, g.at);
+  if (it.infinite) return { ...it, pts: it.pts.map((q, k) => (k === i ? to : q)) };
   if (it.kind === 'ellipse' && it.ax && g.kind === 'radius') {
     // The major axis's grip turns and sizes it (the minor keeps its length); the minor's sizes the minor.
     const a = len(it.ax), b = a * (it.ratio ?? 1), v = i === 3 ? sub(it.pts[0], to) : sub(to, it.pts[0]);
@@ -388,6 +400,7 @@ export function sketchInWindow(items: SketchItem[], a: Pt, b: Pt, crossing: bool
   const inBox = (q: Pt) => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1;
   const sides: Seg[] = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]];
   return items.filter((it) => {
+    if (it.infinite) return crossing && !!constructionSegment(it, [x0, y0, x1, y1]);
     const segs = segmentsOf(it, 0.001, defs), pts = segs.length ? segs.flat() : it.kind === 'mtext' ? noteCorners(it) : it.pts;
     if (pts.every(inBox)) return true;
     if (!crossing) return false;

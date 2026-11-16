@@ -22,6 +22,18 @@ describe('properties palette: geometry in metres and degrees', () => {
     expect(withProp(zig, 'len', 5, k)).toBeUndefined();
   });
 
+  it('construction lines and rays show their base, through point and direction, but no finite length', () => {
+    const xline: SketchItem = { ...line, id: 'XL', infinite: 'xline', pts: [[1000, 2000], [1000, 5000]] };
+    const ray: SketchItem = { ...xline, id: 'R', infinite: 'ray' };
+    expect([geomKind(xline), kindLabel(xline), geomKind(ray), kindLabel(ray)]).toEqual(['xline', 'Construction line', 'ray', 'Ray']);
+    expect(geometryRows('xline', [xline]).map((d) => [d.key, d.label])).toEqual([
+      ['sx', 'Base X'], ['sy', 'Base Y'], ['ex', 'Through X'], ['ey', 'Through Y'], ['ang', 'Angle']
+    ]);
+    expect(propValue(xline, 'ang', k)).toBe(90);
+    expect(withProp(xline, 'len', 4, k)).toBeUndefined();
+    expect(withProp(ray, 'ang', 0, k)!.pts).toEqual([[1000, 2000], [4000, 2000]]);
+  });
+
   it('a circle and an arc: centre, radius, start and end angles', () => {
     const arc: SketchItem = { id: 'A1', kind: 'arc', layer: 'LV-SKETCH', pts: [[0, 0]], r: 2000, a0: 0, a1: Math.PI / 2 };
     expect(propValue(arc, 'r', k)).toBe(2);

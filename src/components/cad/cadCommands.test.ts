@@ -56,6 +56,8 @@ const ADDED: Record<string, string> = { ST: '!textStyle', STYLE: '!textStyle', D
   // Command aliases (2026-11-14): A and B of the proposal.
   N: '!new', AT: '!attDef', AE: 'attedit', '-I': 'insert', ISOLATE: '!isolateObjects', UNISOLATE: '!unisolateObjects', PT: 'point', RC: 'revcloud',
   BS: '!bsave', BC: '!bclose', '-B': 'block', SA: '!save', EXP: '!export', OR: '!ortho', SN: '!snap', AL: 'align', ALIGNH: '!alignDevices',
+  // Infinite construction geometry (2026-11-16): the conventional AutoCAD-compatible names and shortcut.
+  XL: 'xline', XLINE: 'xline', RAY: 'ray',
   PLOT: '!plot', PP: '!plot', PRINT: '!plot', OP: '!options', OPTIONS: '!options', UN: '!unitsTab', UNITS: '!unitsTab',
   PR: '!properties', PROPS: '!properties', PROPERTIES: '!properties', CH: '!properties', RE: '!regen', REGEN: '!regen', REA: '!regen', REGENALL: '!regen' };
 const outcome = (c: string) => { const x = cadCommand(c); return x && ('tool' in x ? x.tool : `!${x.action}`); };

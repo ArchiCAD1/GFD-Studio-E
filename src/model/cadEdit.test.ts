@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  aligned, alignOf, arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, join, mirrored, offset, pathLength,
+  aligned, alignOf, arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, isPath, join, mirrored, offset, pathLength,
   scaled, sketchInWindow, stretched, trim, type Seg
 } from './cadEdit';
 import type { SketchItem } from '../types';
@@ -44,6 +44,13 @@ describe('Trim and Extend — at drawn lines and the architect\'s walls', () => 
     const t = extend(tray, [6.9, 4], walls);
     expect(t.items![0]).toMatchObject({ kind: 'pline', tray: { widthMm: 300, route: 'TR-1' }, pts: [[3, 4], [9, 4]] });
     expect(extend(line('S2', [2, 7], [6, 7]), [5, 7], [])).toEqual({ error: 'No line ahead of that end to reach.' });
+  });
+
+  it('uses an infinite construction line as a trim edge, beyond its two defining points', () => {
+    const target = line('S1', [0, 0], [10, 0]);
+    const xline = line('XL', [5, 10], [5, 11], { infinite: 'xline' });
+    expect(pts(trim(target, [8, 0], edgesFor([target, xline], target.id, [])))).toEqual([[[0, 0], [5, 0]]]);
+    expect(isPath(xline)).toBe(false);
   });
 });
 
@@ -176,6 +183,14 @@ describe('Mirror, Scale, Stretch, Array, grips, window', () => {
     expect(sketchInWindow(items, [0, 0], [4, 6], false).map((x) => x.id)).toEqual(['S1', 'S3']);
     expect(sketchInWindow(items, [4, 6], [0, 0], true).map((x) => x.id)).toEqual(['S1', 'S2', 'S3']);
     expect(pathLength(items[1])).toBe(6);
+  });
+
+  it('only crossing windows pick infinite construction geometry that crosses them', () => {
+    const xline = line('XL', [10, 10], [11, 11], { infinite: 'xline' });
+    const ray = line('R', [10, 10], [11, 10], { infinite: 'ray' });
+    expect(sketchInWindow([xline, ray], [0, 0], [4, 4], false)).toEqual([]);
+    expect(sketchInWindow([xline, ray], [4, 4], [0, 0], true).map((x) => x.id)).toEqual(['XL']);
+    expect(sketchInWindow([ray], [4, 12], [0, 8], true)).toEqual([]); // the box is behind the ray
   });
 
   it('mirrors, scales and grips an ellipse by its axis; the path tools leave a revision cloud alone', () => {

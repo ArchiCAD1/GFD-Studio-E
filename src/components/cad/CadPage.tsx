@@ -128,8 +128,8 @@ const hex = (rgb: number) => (rgb === 0xff000007 ? 'var(--cad-ink)' : `#${rgb.to
 /** The properties dock's width: default and limits (px), and where its side and width are kept. */
 const DOCK_W = 280, DOCK_MIN = 220, DOCK_MAX = 480, DOCK_KEY = 'lvds.cad.dock';
 /** Tools whose next point has a length and angle from the last one: the boxes of dynamic input. */
-const POINT_TOOLS: CadTool[] = ['line', 'pline', 'tray', 'cable', 'dim', 'dimlin', 'move', 'copy', 'dist', 'area', 'trace', 'leader'];
-const HELP = 'Commands: OPEN · CLOSE · CLOSEALL · SAVE (DXF) · SAVEDWG · ROOMS (add found rooms) · RA (click inside a room) · TRACE (trace a room) · PN (pick its name) · CT (cable tray run) · CR (cable route) · LR (link a line as a cable route) · SCHED (update schedules) · WC (wire circuits) · W1 (wire one) · TAGS · FILL (fill a room with an ELV device) · LUX (light a room by the lumen method) · EM (emergency lighting) · SEL (select devices: Shift-click, or a window) · QS (quick select) · SELECTSIMILAR · ARL (array on line) · MA (match) · ALIGNH / ALIGNV / SPACE (the devices selected) · AL (align objects by points) · TR (trim) · EX (extend) · O (offset) · F (fillet) · CHA (chamfer) · BR (break) · J (join) · X (explode) · B (block from drawn objects: the dialog; -BLOCK on the command line) · I (the Blocks palette: this drawing, Recent, Library; -INSERT by name) · ATT (attribute definition for a block) · ATE (edit a block\'s attributes; or double-click it) · ATTEXT (the attributes as a table) · PO (point) · DIV (points at the divisions of an object) · ME (points every length along it) · PTYPE (point style) · DR (draw order: Front, Back, Above or Under an object) · TEXTTOFRONT (texts, dimensions, leaders over the rest) · MI (mirror) · SC (scale) · S (stretch) · AR (array) · CROP (BCROP, cut a block along an outline) · MP (match properties) · H (hatch) · HE (edit a hatch: pattern, spacing, angle, origin, islands; or double-click it) · BO (boundary: a closed polyline round an area) · LE (leader) · RT (room tag) · NORTH · LA (layer palette) · CLAYER (current layer) · LAYISO / LAYUNISO · RESTOREDWG (erased drawing objects back) · COV (coverage) · L (line) · PL (polyline, C closes) · REC · C (circle) · A (arc, 3 points) · T (text) · MT (notes in a box, lines wrapped to its width) · ED (edit a text or dimension in place, or double-click it) · TJ (justify texts) · TH (text height) · TA (align or space texts) · TC (text case) · TPREFIX / TSUFFIX · TOR (readable text) · TCEN (centre between two points) · TCOPY (words of another text) · TFRAME (circle, box or hexagon round texts) · TMASK (mask under texts) · TCOUNT (numbered texts) · KN (keynote with a legend) · RTALL (tag all rooms) · DIM · DRA (radius) · DDI (diameter) · DAN (angular) · ST (text style) · D (dimension style) · M (move) · CO (copy) · COPYCLIP (Ctrl+C) · COPYBASE (Ctrl+Shift+C) · PASTECLIP (Ctrl+V) · PASTEORIG · RO (rotate) · E (erase) · DI (distance) · AREA (O = object) · RA (room area) · DEV (add device) · M (move) · E (delete) · LI (inspect) · FIT (ZE) · Z (zoom: W window, P previous, S scale) · LAYERS (layers panel) · OSNAP (F3) · GRID (F7) · ORTHO (F8) · SNAP (F9) · POLAR (F10) · OTRACK (F11) · DYN (F12) · LWT · DS (drafting settings) · LEGEND (LG) / NOTES (a legend or notes table on a layout, moved by its frame) · SAVEAS · EXPORT · PUBLISH · F2 history · Esc cancels, Enter or Space ends a step or repeats the last command.';
+const POINT_TOOLS: CadTool[] = ['line', 'xline', 'ray', 'pline', 'tray', 'cable', 'dim', 'dimlin', 'move', 'copy', 'dist', 'area', 'trace', 'leader'];
+const HELP = 'Commands: OPEN · CLOSE · CLOSEALL · SAVE (DXF) · SAVEDWG · ROOMS (add found rooms) · RA (click inside a room) · TRACE (trace a room) · PN (pick its name) · CT (cable tray run) · CR (cable route) · LR (link a line as a cable route) · SCHED (update schedules) · WC (wire circuits) · W1 (wire one) · TAGS · FILL (fill a room with an ELV device) · LUX (light a room by the lumen method) · EM (emergency lighting) · SEL (select devices: Shift-click, or a window) · QS (quick select) · SELECTSIMILAR · ARL (array on line) · MA (match) · ALIGNH / ALIGNV / SPACE (the devices selected) · AL (align objects by points) · TR (trim) · EX (extend) · O (offset) · F (fillet) · CHA (chamfer) · BR (break) · J (join) · X (explode) · B (block from drawn objects: the dialog; -BLOCK on the command line) · I (the Blocks palette: this drawing, Recent, Library; -INSERT by name) · ATT (attribute definition for a block) · ATE (edit a block\'s attributes; or double-click it) · ATTEXT (the attributes as a table) · PO (point) · DIV (points at the divisions of an object) · ME (points every length along it) · PTYPE (point style) · DR (draw order: Front, Back, Above or Under an object) · TEXTTOFRONT (texts, dimensions, leaders over the rest) · MI (mirror) · SC (scale) · S (stretch) · AR (array) · CROP (BCROP, cut a block along an outline) · MP (match properties) · H (hatch) · HE (edit a hatch: pattern, spacing, angle, origin, islands; or double-click it) · BO (boundary: a closed polyline round an area) · LE (leader) · RT (room tag) · NORTH · LA (layer palette) · CLAYER (current layer) · LAYISO / LAYUNISO · RESTOREDWG (erased drawing objects back) · COV (coverage) · L (line) · XL (XLINE, construction line) · RAY · PL (polyline, C closes) · REC · C (circle) · A (arc, 3 points) · T (text) · MT (notes in a box, lines wrapped to its width) · ED (edit a text or dimension in place, or double-click it) · TJ (justify texts) · TH (text height) · TA (align or space texts) · TC (text case) · TPREFIX / TSUFFIX · TOR (readable text) · TCEN (centre between two points) · TCOPY (words of another text) · TFRAME (circle, box or hexagon round texts) · TMASK (mask under texts) · TCOUNT (numbered texts) · KN (keynote with a legend) · RTALL (tag all rooms) · DIM · DRA (radius) · DDI (diameter) · DAN (angular) · ST (text style) · D (dimension style) · M (move) · CO (copy) · COPYCLIP (Ctrl+C) · COPYBASE (Ctrl+Shift+C) · PASTECLIP (Ctrl+V) · PASTEORIG · RO (rotate) · E (erase) · DI (distance) · AREA (O = object) · RA (room area) · DEV (add device) · M (move) · E (delete) · LI (inspect) · FIT (ZE) · Z (zoom: W window, P previous, S scale) · LAYERS (layers panel) · OSNAP (F3) · GRID (F7) · ORTHO (F8) · SNAP (F9) · POLAR (F10) · OTRACK (F11) · DYN (F12) · LWT · DS (drafting settings) · LEGEND (LG) / NOTES (a legend or notes table on a layout, moved by its frame) · SAVEAS · EXPORT · PUBLISH · F2 history · Esc cancels, Enter or Space ends a step or repeats the last command.';
 /** Bind's count in the Save line: reference lines, texts and hatches. */
 const boundText = (shapes: { kind: string }[]) => {
   const n = (k: string) => shapes.filter((x) => x.kind === k).length, en = (v: number) => v.toLocaleString('en-GB');
@@ -198,6 +198,8 @@ const PROMPT: Record<CadTool, string> = {
   explode: 'EXPLODE  Select a polyline or rectangle:',
   array: 'ARRAY  Select objects (click them), then Enter:',
   line: 'LINE  Specify first point:',
+  xline: 'XLINE  Specify a point:',
+  ray: 'RAY  Specify start point:',
   pline: 'PLINE  Specify start point:',
   rect: 'RECTANG  Specify first corner point:',
   circle: 'CIRCLE  Specify center point or [2P/3P]:',
@@ -286,7 +288,7 @@ const TCASE_PROMPT = 'TCASE  Case [Upper/Lower/Title/Sentence] <Upper>:';
 const TORIENT_PROMPT = 'TORIENT  Readable from [Bottom/Right/Both] <Both>:';
 const TJUST_PROMPT = (now: string) => `TJUST  Justify [Left/Centre/Right/TL/TC/TR/ML/MC/MR/BL/BC/BR] <${now}>:`;
 const TH_PROMPT = (mm: number, forNew: boolean) => `TXTHEIGHT  Height on paper (mm)${forNew ? ' for new text' : ''} ${ISO_TEXT_MM.join(' · ')} <${mm}>:`;
-const DRAW_TOOLS: CadTool[] = ['point', 'line', 'pline', 'tray', 'cable', 'rect', 'circle', 'arc', 'text', 'dim', 'dimlin', 'dimcont', 'dimbase', 'move', 'copy', 'rotate', 'polygon', 'ellipse', 'circle2p', 'circle3p', 'circled', 'arcsce', 'revcloud'];
+const DRAW_TOOLS: CadTool[] = ['point', 'line', 'xline', 'ray', 'pline', 'tray', 'cable', 'rect', 'circle', 'arc', 'text', 'dim', 'dimlin', 'dimcont', 'dimbase', 'move', 'copy', 'rotate', 'polygon', 'ellipse', 'circle2p', 'circle3p', 'circled', 'arcsce', 'revcloud'];
 
 /** The CAD view: a DWG / DXF drawing opened natively, as a CAD program shows it — model space, crosshair, snaps, layers,
  * a command line and a status bar. Engine in Rust (WebAssembly), desktop and web alike. Measure a distance, an area (by
@@ -1314,7 +1316,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   function areaAround(at: Pt, islands: boolean): NonNullable<ReturnType<typeof hatchOutline>> | undefined {
     const o = hatchOutline(pickable, at, roomOutlines(), islands);
     if (o) return o;
-    const drawn = pickable.filter((it) => !it.hatch && it.kind !== 'text' && it.kind !== 'mtext' && it.kind !== 'attdef' && it.kind !== 'dim' && it.kind !== 'point').flatMap((it) => segmentsOf(it, units.factor, defs));
+    const drawn = pickable.filter((it) => !it.infinite && !it.hatch && it.kind !== 'text' && it.kind !== 'mtext' && it.kind !== 'attdef' && it.kind !== 'dim' && it.kind !== 'point').flatMap((it) => segmentsOf(it, units.factor, defs));
     const room = roomAround(walls, at, units.factor), r = room ?? roomAround([...walls, ...drawn], at, units.factor);
     if (!r) return undefined;
     const isl = islands ? islandsIn(pickable, { pts: r.points }) : { holes: [], ids: [] };
@@ -2909,6 +2911,13 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (last) draw({ kind: 'line', layer: curLayer, pts: [last, at], ...newProps }, `Line ${m(toM(distance(last, at)))}`);
       setPoints([at]); cad.say('LINE  Specify next point or Enter to stop:'); return;
     }
+    if (tool === 'xline' || tool === 'ray') {
+      const cmd = tool === 'xline' ? 'XLINE' : 'RAY';
+      if (!last) { setPoints([at]); cad.say(`${cmd}  Specify through point:`); return; }
+      if (distance(last, at) < 1e-9) { cad.say(`${cmd}  The through point must differ from the base point:`); return; }
+      draw({ kind: 'line', infinite: tool, layer: curLayer, pts: [last, at], ...newProps }, cmd === 'XLINE' ? 'Construction line' : 'Ray');
+      cad.say(`${cmd}  Specify through point or Enter to stop:`); return;
+    }
     if (tool === 'tray' || tool === 'cable') { setPoints((p) => [...p, at]); cad.say(`${tool === 'tray' ? 'TRAY' : 'ROUTE'}  Specify next point${points.length ? ', Enter to finish' : ''}:`); return; }
     if (tool === 'link') {
       const feeder = project.feeders.find((f) => f.id === cad.cableFeeder);
@@ -3614,6 +3623,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       else if (tool === 'cable') finishCable();
       else if (tool === 'point') cad.setTool('none');
       else if (tool === 'line') { setPoints([]); cad.say(PROMPT.line); }
+      else if (tool === 'xline' || tool === 'ray') { setPoints([]); cad.setTool('none'); cad.say(`${tool === 'xline' ? 'XLINE' : 'RAY'}  Ended.`); }
       else if (tool === 'leader') { if (points.length >= 2 && view) change(addSketch(project, view.file, leaderItems(points, '', textH)[0]).project, 'Leader · ⌘Z to undo'); setPoints([]); cad.say(PROMPT.leader); }
       else if (tool === 'copy') { setPoints([]); cad.setSelected(null); setResult(null); cad.setTool('none'); }
       else if (tool === 'none' && recent[0]) repeat(recent[0]);
@@ -4032,6 +4042,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const base = { id: '_', layer: '' };
     if (tool === 'insert' && insBlock) return expandInsert({ id: '_', kind: 'insert', layer: curLayer, pts: [cur], block: insBlock.name, sc: insSet.scale, rot: (insSet.rot * Math.PI) / 180 }, blockDefOf(defs, insBlock.name) ? defs : [...defs, insBlock]).map((it) => ({ ...it, id: '_' }));
     if (tool === 'line' && lastPt) return [{ ...base, kind: 'line', pts: [lastPt, cur] }];
+    if ((tool === 'xline' || tool === 'ray') && lastPt) return [{ ...base, kind: 'line', infinite: tool, pts: [lastPt, cur] }];
     if (tool === 'leader' && points.length) return [{ ...base, kind: 'line', pts: [...points, cur] }];
     if (tool === 'pline' && points.length) return [{ ...base, kind: 'line', pts: [...points, cur] }];
     if (tool === 'cable' && points.length) return [{ ...base, kind: 'line', pts: [...points, cur] }];
@@ -4073,7 +4084,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (tool === 'paste' && pasting && view) return pastedItems(pasting, view.file, unitCode, cur).items.slice(0, 2000).map((x, i) => ({ ...x, id: `_${i}` }) as SketchItem);
     return [];
   })();
-  const liveLabel = cur && lastPt && ['line', 'pline', 'tray', 'cable', 'dim', 'dimlin', 'move', 'copy'].includes(tool) ? `${m(toM(distance(lastPt, cur)))}  ${angleDeg(lastPt, cur).toFixed(1)}°`
+  const liveLabel = cur && lastPt && ['line', 'xline', 'ray', 'pline', 'tray', 'cable', 'dim', 'dimlin', 'move', 'copy'].includes(tool) ? `${m(toM(distance(lastPt, cur)))}  ${angleDeg(lastPt, cur).toFixed(1)}°`
     : cur && lastPt && tool === 'circle' ? `R ${m(toM(distance(lastPt, cur)))}` : undefined;
   // Dynamic input (DYN, F12): length and angle while a point is asked for after a first one, a radius for a circle,
   // else the distance, radius or factor of Offset, Fillet and Scale; and the prompt in short form with its options.
@@ -4696,7 +4707,7 @@ function ResultView({ r, view, toM, toM2, project, onChange, onMove, onRemove, o
           {it.kind === 'mtext' && <><dt>Note</dt><dd>{plainText(it)}</dd></>}
           {it.kind === 'dim' && <><dt>Measures</dt><dd>{m(toM(dimMeasure(it)))}</dd></>}
           {it.r !== undefined && <><dt>Radius</dt><dd>{m(toM(it.r))}</dd></>}
-          {it.kind !== 'text' && it.kind !== 'dim' && <><dt>{it.closed || it.kind === 'circle' || it.kind === 'ellipse' ? 'Perimeter' : 'Length'}</dt><dd>{m(toM(len))}</dd></>}
+          {!it.infinite && it.kind !== 'text' && it.kind !== 'dim' && <><dt>{it.closed || it.kind === 'circle' || it.kind === 'ellipse' ? 'Perimeter' : 'Length'}</dt><dd>{m(toM(len))}</dd></>}
           {it.hatch ? <><dt>Area</dt><dd>{m2(toM2(hatchArea(it)))}</dd></> : it.closed && <><dt>Area</dt><dd>{m2(toM2(areaOf(it.pts).area))}</dd></>}
           {it.kind === 'ellipse' && <><dt>Area</dt><dd>{m2(toM2(ellipseArea))}</dd></>}
         </dl>

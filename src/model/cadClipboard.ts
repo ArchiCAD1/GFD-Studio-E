@@ -81,6 +81,7 @@ function itemOf(v: unknown): Omit<SketchItem, 'id'> | null {
   const take = (k: string, ok: (x: unknown) => boolean) => { if (!(k in v) || v[k] === undefined) return true; if (!ok(v[k])) return false; out[k] = v[k]; return true; };
   const fine = ['r', 'a0', 'a1', 'h', 'rot', 'dir', 'ratio', 'cloud', 'lw'].every((k) => take(k, num))
     && ['closed', 'mask', 'leader'].every((k) => take(k, (x) => typeof x === 'boolean'))
+    && take('infinite', (x) => x === 'xline' || x === 'ray')
     && take('text', (x) => str(x, MAX_TEXT)) && take('color', (x) => str(x, 64))
     && take('just', (x) => TEXT_JUSTS.some((j) => j.id === x)) && take('frame', (x) => TEXT_FRAMES.some((f) => f.id !== 'none' && f.id === x))
     && take('lt', (x) => LINETYPE_IDS.includes(x as never)) && take('ax', pt)

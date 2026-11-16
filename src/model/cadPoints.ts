@@ -40,7 +40,7 @@ const dist = (a: Pt, b: Pt) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 /** The object as a polyline to measure along (a curve finely, a closed one back to its start), or undefined when it
  * is not one DIVIDE and MEASURE work on (a text, dimension, note, point or revision cloud). */
 function pathPts(it: SketchItem): { pts: Pt[]; closed: boolean } | undefined {
-  if ((it.kind === 'line' || it.kind === 'pline') && !it.cloud) {
+  if ((it.kind === 'line' || it.kind === 'pline') && !it.cloud && !it.infinite) {
     const closed = !!it.closed && it.pts.length > 2;
     return it.pts.length > 1 ? { pts: closed ? [...it.pts, it.pts[0]] : it.pts, closed } : undefined;
   }
