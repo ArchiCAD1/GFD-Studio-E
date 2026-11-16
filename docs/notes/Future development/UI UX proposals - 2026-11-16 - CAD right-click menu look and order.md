@@ -2,7 +2,7 @@
 
 Status: **approved 2026-11-16 with the five recommended answers** ("go ahead, … all the options we proposed"): one "Line tools ▸" list, electrical icons in amber, Undo / Redo name the step, Invert selection and Zoom to selection added, and the cut-off menu fixed first in its own PR. The user asked for every step to be completed, with a report of what is done and what is pending at each stage.
 
-Progress: Step 1 (menus kept inside the drawing) is in PR 627 (v2.163). Step 2 (look, order, new tools) built in v2.164.
+Progress: Step 1 (menus kept inside the drawing) is in PR 627 (v2.163). Step 2 (look, order, new tools) built in v2.164. Step 3 (objects of an opened drawing) built in v2.165.
 
 On 2026-11-16 the user sent a picture of the right-click menu for picked objects in a current industrial 2D drafting product. It was a reference only, not to be copied. They asked why the app's right-click menus don't look like it, what is missing, what could be added, and how it would look in the app's own style.
 

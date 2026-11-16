@@ -15,6 +15,15 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.165', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: edit the objects of an opened drawing', text: 'The first edit of an object of the drawing you opened (Move, Rotate, Scale, Offset, Trim, a grip drag, a property…) takes it over as a drawn object with the same layer, colour, linetype, lineweight and arcs; one ⌘Z undoes both the take-over and the edit. Copy keeps the original and adds a drawn copy. An object on a locked layer is refused. The drawing file itself changes only when you save.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: window and crossing picks find the drawing\'s objects', text: 'A window or crossing now picks the objects of the opened drawing as well as the ones drawn here, and Select similar finds the drawing\'s objects of the same kind and layer. Their right-click menu, floating toolbar, grips and Properties work as for drawn objects.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: polylines with arcs', text: 'Polylines with arc segments are drawn, snapped, measured, mirrored and saved with their arcs; Explode gives lines and arcs. Offset, Trim, Extend, Break, Fillet, Chamfer and Join ask you to explode them first.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: saved objects keep their own colour, linetype and lineweight', text: 'Save DXF and Save DWG write each drawn object\'s own colour, linetype and lineweight, not only its layer\'s.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.164', date: '2026-11-16',
     items: [
       { title: 'Design CAD: right-click menus with icons and one order', text: 'Every right-click menu now shows the ribbon\'s icon for each tool, its shortcut or typed command on the right, and a header naming what is picked. Picked objects get one order everywhere: the object\'s own tools, clipboard and undo, modify, view, select, then Properties and Options. A line\'s own tools are under Line tools, electrical tools show in amber, and Copy (CO) is now Copy selection.', action: 'cad', actionLabel: 'Open Design CAD' },

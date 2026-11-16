@@ -31,3 +31,11 @@ export function drawnFromPieces(pieces: CadPiece[]): Omit<SketchItem, 'id'>[] {
     }
   });
 }
+
+/** The stand-ins of one drawing object: its pieces as drawn objects, not in the project, with ids `dw:<handle>:<n>`.
+ * They are what the right-click menu, the toolbar, Properties and the grips work on until an edit takes the object over. */
+export function standInsFor(handle: string, pieces: CadPiece[]): SketchItem[] {
+  return drawnFromPieces(pieces).map((x, n) => ({ ...x, id: `dw:${handle}:${n}` }) as SketchItem);
+}
+/** The handle of the drawing object a stand-in stands for; none for a drawn object. */
+export const standInHandle = (id: string): string | undefined => (id.startsWith('dw:') ? id.split(':')[1] : undefined);

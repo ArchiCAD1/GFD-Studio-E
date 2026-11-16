@@ -278,3 +278,27 @@ describe('Align', () => {
     expect(arc.a1).toBeCloseTo(1 + Math.PI / 2, 9);
   });
 });
+
+describe('Polylines with arc segments: the straight-segment tools refuse and ask for Explode', () => {
+  const arcs = (id: string, extra: Partial<SketchItem> = {}): SketchItem => ({ id, kind: 'pline', layer: 'L', pts: [[0, 0], [4, 0], [4, 4]], bulges: [0, 0.5, 0], ...extra });
+  const plain = line('P', [0, 1], [4, 1]);
+  const WHY = 'This polyline has arc segments: explode it first (X).';
+  it('Trim, Extend, Offset, Break, Fillet, Chamfer and Join', () => {
+    const a = arcs('A');
+    expect(trim(a, [1, 0], walls).error).toBe(WHY);
+    expect(extend(a, [4, 4], walls).error).toBe(WHY);
+    expect(offset(a, 1, [1, 1]).error).toBe(WHY);
+    expect(breakAt(a, [1, 0]).error).toBe(WHY);
+    expect(fillet(a, [1, 0], plain, [1, 1], 1).error).toBe(WHY);
+    expect(chamfer(plain, [1, 1], a, [1, 0], 1, 1).error).toBe(WHY);
+    expect(join([a, plain], 0.01).error).toBe(WHY);
+  });
+  it('a polyline with no real bulge (zeros) still works as a straight one', () => {
+    expect(offset(arcs('B', { bulges: [0, 0, 0] }), 1, [1, 1]).error).toBeUndefined();
+  });
+  it('Explode still gives lines and arcs', () => {
+    const r = explode(arcs('C'));
+    expect(r.items!.map((x) => x.kind)).toEqual(['line', 'arc']);
+  });
+});
+

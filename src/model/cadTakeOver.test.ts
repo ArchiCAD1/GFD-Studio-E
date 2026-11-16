@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drawnFromPieces } from './cadTakeOver';
+import { drawnFromPieces, standInHandle, standInsFor } from './cadTakeOver';
 import { linetypeIdOf, lineweightOf } from './cadLayerStyle';
 import type { CadPiece } from './cadCrop';
 
@@ -74,5 +74,16 @@ describe('linetypeIdOf / lineweightOf', () => {
   it('lineweight: hundredths of a mm to the nearest standard one; none for absent or default', () => {
     expect(lineweightOf(undefined)).toBeUndefined(); expect(lineweightOf(0)).toBeUndefined(); expect(lineweightOf(-1)).toBeUndefined();
     expect(lineweightOf(25)).toBe(0.25); expect(lineweightOf(30)).toBe(0.25); expect(lineweightOf(32)).toBe(0.35); expect(lineweightOf(211)).toBe(1);
+  });
+});
+
+describe('standInsFor: the drawn objects an opened drawing\'s object stands in as', () => {
+  it('ids dw:<handle>:<n>, with the piece\'s own look; the handle comes back from an id', () => {
+    const r = standInsFor('2A', [{ ...S, kind: 'line', a: [0, 0], b: [1, 0], color: 0xff0000 }, { ...S, kind: 'circle', c: [4, 5], r: 6 }]);
+    expect(r.map((x) => x.id)).toEqual(['dw:2A:0', 'dw:2A:1']);
+    expect(r[0]).toMatchObject({ kind: 'line', color: '#ff0000' });
+    expect(standInHandle('dw:2A:1')).toBe('2A');
+    expect(standInHandle('S12')).toBeUndefined();
+    expect(standInsFor('2A', [])).toEqual([]);
   });
 });

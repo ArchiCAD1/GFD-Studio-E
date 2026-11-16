@@ -83,7 +83,11 @@ export const edgesFor = (items: SketchItem[], except: string, drawing: Seg[]): S
 };
 
 /** Trim: the part of the path clicked, between the nearest crossings on either side of the click, is cut away. */
+/** Polylines with arc segments (their bulges) are straight-segment geometry to these tools: they ask for Explode first. */
+const ARCS = 'This polyline has arc segments: explode it first (X).';
+
 export function trim(it: SketchItem, click: Pt, edges: Seg[]): Edit & { cut?: number } {
+  if (hasArcs(it)) return { error: ARCS };
   if (!isPath(it)) return { error: 'Trim works on lines, polylines, trays and cable routes.' };
   const pts = pathOf(it), c = chain(pts), L = c[c.length - 1];
   const [x0, y0, x1, y1] = box(pts);
@@ -115,6 +119,7 @@ export function trim(it: SketchItem, click: Pt, edges: Seg[]): Edit & { cut?: nu
 
 /** Extend: the end nearer the click runs on to the first line ahead of it. */
 export function extend(it: SketchItem, click: Pt, edges: Seg[]): Edit & { gain?: number } {
+  if (hasArcs(it)) return { error: ARCS };
   if (!isPath(it) || it.closed) return { error: 'Extend works on open lines, polylines, trays and cable routes.' };
   const pts = it.pts.map((q) => [...q] as Pt), c = chain(pts), L = c[c.length - 1];
   const atEnd = along(pts, c, click).s > L / 2;
@@ -136,6 +141,7 @@ export function offset(it: SketchItem, d: number, side: Pt): Edit {
     const r = (it.r ?? 0) + (len(sub(side, it.pts[0])) < (it.r ?? 0) ? -d : d);
     return r > EPS ? { items: [{ ...rest, r }] } : { error: 'Too far inside: the radius would be nothing.' };
   }
+  if (hasArcs(it)) return { error: ARCS };
   if (!isPath(it)) return { error: 'Offset works on lines, polylines, circles, arcs, trays and cable routes.' };
   const pts = pathOf(it), c = chain(pts), n = pts.length - 1;
   const seg = along(pts, c, side).seg;
@@ -200,6 +206,7 @@ export function chamfer(a: SketchItem, clickA: Pt, b: SketchItem, clickB: Pt, d1
 
 function corner(a: SketchItem, clickA: Pt, b: SketchItem, clickB: Pt,
   make: (X: Pt, da: Pt, db: Pt, ang: number) => { ta: Pt; tb: Pt; extra: Omit<SketchItem, 'id'>[]; need?: number }, note?: string): Edit {
+  if (hasArcs(a) || hasArcs(b)) return { error: ARCS };
   if (!isPath(a) || !isPath(b) || a.closed || b.closed) return { error: 'Pick two open lines, polylines, trays or cable routes.' };
   const sa = a.pts, sb = b.pts;
   const ia = along(sa, chain(sa), clickA).seg, ib = along(sb, chain(sb), clickB).seg;
@@ -219,6 +226,7 @@ function corner(a: SketchItem, clickA: Pt, b: SketchItem, clickB: Pt,
 
 /** Break: split a path at a point (both parts kept), or take out the part between two points. A closed shape opens. */
 export function breakAt(it: SketchItem, p1: Pt, p2?: Pt): Edit {
+  if (hasArcs(it)) return { error: ARCS };
   if (!isPath(it)) return { error: 'Break works on lines, polylines, trays and cable routes.' };
   const pts = pathOf(it), c = chain(pts), L = c[c.length - 1];
   const s1 = along(pts, c, p1).s, s2 = p2 ? along(pts, c, p2).s : s1;
@@ -236,6 +244,7 @@ export function breakAt(it: SketchItem, p1: Pt, p2?: Pt): Edit {
 /** Join: open lines and polylines meeting end to end (within `tol`) become one, with the first one's layer, tray or
  * cable; it closes when its ends meet. */
 export function join(items: SketchItem[], tol: number): Edit & { joined?: string[] } {
+  if (items.some(hasArcs)) return { error: ARCS };
   const paths = items.filter((it) => isPath(it) && !it.closed);
   if (paths.length < 2) return { error: 'Pick two or more open lines or polylines that meet end to end.' };
   const first = paths[0];

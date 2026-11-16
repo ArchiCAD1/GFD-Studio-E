@@ -1,7 +1,6 @@
 import { OSNAP_MODES, type OsnapMode } from '../../model/cadDraft';
-import { itemLength } from '../../model/cadCrop';
+import { closedArea, itemLength } from '../../model/cadCrop';
 import { hatchArea } from '../../model/cadAnnotate';
-import { polygonArea } from '../../model/cadBoundary';
 import type { SketchItem } from '../../types';
 import type { CadTool } from './cadState';
 
@@ -196,8 +195,7 @@ export function measureOf(items: readonly SketchItem[]): { length: number; area:
     if (it.infinite || it.kind === 'text' || it.kind === 'mtext' || it.kind === 'dim' || it.kind === 'insert' || it.kind === 'point' || it.kind === 'attdef') continue;
     const l = itemLength(it);
     if (it.hatch) area += hatchArea(it); // its net area, islands taken out
-    else if (it.kind === 'circle') area += Math.PI * (it.r ?? 0) ** 2;
-    else if (it.closed && it.pts.length > 2) area += Math.abs(polygonArea(it.pts));
+    else area += closedArea(it); // a circle, or a closed polyline with its arc segments
     if (l > 0 || it.closed) { length += l; n += 1; }
   }
   return { length, area, n };

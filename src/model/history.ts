@@ -18,10 +18,11 @@ export interface History<T> {
 export const MAX_STEPS = 100;
 
 /** A step's `label` names it for Undo / Redo ("Move"); a step merged into the one before keeps the newer label, or
- * the older one when the newer has none. */
-export function record<T>(h: History<T>, next: T, now: number, mergeMs = 600, label?: string): History<T> {
+ * the older one when the newer has none.
+ * `join` merges into the step before whatever the time (a take-over and the edit after it undo together). */
+export function record<T>(h: History<T>, next: T, now: number, mergeMs = 600, label?: string, join = false): History<T> {
   if (next === h.present) return h;
-  const merge = h.past.length > 0 && now - h.at < mergeMs;
+  const merge = h.past.length > 0 && (join || now - h.at < mergeMs);
   const past = merge ? h.past : [...h.past, h.present].slice(-MAX_STEPS);
   const pastLabels = merge ? [...h.pastLabels.slice(0, -1), label ?? h.pastLabels[h.pastLabels.length - 1]] : [...h.pastLabels, label].slice(-MAX_STEPS);
   return { past, present: next, future: [], at: now, pastLabels, futureLabels: [] };
@@ -54,9 +55,10 @@ export function redo<T>(h: History<T>): History<T> {
 export function useHistory<T>(initial: T) {
   const [h, setH] = useState<History<T>>(() => reset(initial));
   /** step: always a separate undo step (e.g. one drag-and-drop), never
-   * merged with the change before it. label: the step's name, for Undo and Redo. */
-  const set = useCallback((v: T | ((prev: T) => T), opts?: { step?: boolean; label?: string }) => {
-    setH((cur) => record(cur, typeof v === 'function' ? (v as (p: T) => T)(cur.present) : v, Date.now(), opts?.step ? 0 : undefined, opts?.label));
+   * merged with the change before it. label: the step's name, for Undo and Redo. join: merged into the step before
+   * (no new undo step), keeping the newer label or else the older. */
+  const set = useCallback((v: T | ((prev: T) => T), opts?: { step?: boolean; label?: string; join?: boolean }) => {
+    setH((cur) => record(cur, typeof v === 'function' ? (v as (p: T) => T)(cur.present) : v, Date.now(), opts?.step && !opts.join ? 0 : undefined, opts?.label, opts?.join));
   }, []);
   return {
     value: h.present,

@@ -52,12 +52,13 @@ const villa: Project = {
   building: { buildings: [{ id: 'V', name: 'Villa', levels: [{ id: 'GF', name: 'Ground', kind: 'ground', heightM: 4 }] }], rooms: [] }
 };
 let root: Root, host: HTMLDivElement, state: CadState, project: Project;
-const onChange = vi.fn((p: Project, _message: string) => { project = p; });
+const onChange = vi.fn((p: Project, _message: string, _join?: boolean) => { project = p; });
+const onUndo = vi.fn();
 const onPrefs = vi.fn((_p: { draft: DraftSettings; autosaveMin: number }) => {});
 /** Whether the architect's layer i shows: its On, kept in the project (Layer palette or the Layers list). */
 const shown = (i: number) => archOnOf(project, state.view!.file, state.view!.info.layers)[i];
 beforeEach(() => {
-  host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); project = villa; onChange.mockClear();
+  host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); project = villa; onChange.mockClear(); onUndo.mockClear();
   (window as { lvds?: unknown }).lvds = { cadFile: {
     engine: async () => bytes('electron/cad/lvds_cad_reader_bg.wasm'),
     sampleBytes: vi.fn(async (name: string) => ({ file: name, bytes: bytes(`electron/samples/${name}`) })),
@@ -72,7 +73,7 @@ function Host({ start = villa, show, gripMax, undoLabel }: { start?: Project; sh
   const sheetUi = useSheetUi();
   const [draft, setDraft] = useState(gripMax ? { ...DRAFT_DEFAULTS, gripMax } : DRAFT_DEFAULTS);
   state = cad;
-  return <CadPage cad={cad} project={p} onChange={(next, msg) => { setP(next); onChange(next, msg); }} onStatus={() => {}} sheetUi={sheetUi}
+  return <CadPage cad={cad} project={p} onChange={(next, msg, join) => { setP(next); onChange(next, msg, join); }} onUndo={onUndo} onStatus={() => {}} sheetUi={sheetUi}
     draft={draft} onPrefs={(x) => { setDraft(x.draft); onPrefs(x); }} onShow={show} canUndo={!!undoLabel} undoLabel={undoLabel} />;
 }
 /** Waits for something on screen (a slower machine takes longer), up to 10 s. */
@@ -957,6 +958,8 @@ describe('CAD view', () => {
     act(() => root.render(<Host start={start} />));
     await flush();
     act(() => state.toggle('osnap'));
+    // The drawing's own layers off: windows pick devices only (a window picks the drawing's objects too).
+    for (const l of state.view!.info.layers) { const b = button(`${l.name}on`); if (b) act(() => b.click()); }
     const bar = () => document.querySelector('[aria-label="Edit devices"]') as HTMLElement | null;
     const barButton = (t: string) => [...bar()!.querySelectorAll('button')].find((b) => b.textContent === t)!;
     await dragWindow([2000, 10000], [10000, 8000]); // left to right: the three lights, not the socket
@@ -3322,7 +3325,7 @@ describe('Design CAD properties dock', () => {
     await clickAt(6687.5 + 190, 7375); // the architect's light block
     expect(head()).toContain('Block · L1');
     expect(dock().textContent).toMatch(/LayerE-LIGHT/);
-    expect(dock().querySelector('[aria-label="Properties palette"]')).toBeNull(); // nothing of it to edit
+    await until(() => dock().querySelector('[aria-label="Properties palette"]') !== null); // it stands in as a drawn object: editable (the first edit takes it over)
     act(() => state.toggle('osnap'));
     act(() => { state.setDevice('camera'); state.setTool('dev'); });
     await clickAt(5000, 5000);
@@ -5303,5 +5306,114 @@ describe('Design CAD hatch package: islands, associative hatches, HATCHEDIT and 
     expect(state.tool).toBe('boundary');
     await command('');
     expect(state.tool).toBe('none');
+  });
+});
+
+describe('Objects of an opened drawing edit like drawn ones (taken over on the first edit)', () => {
+  const F = 'sample-villa-gf.dxf', WALL: [number, number] = [15900, 6000]; // a wall line (A-WALL)
+  const last = () => state.history[state.history.length - 1];
+  const items = () => project.cadSketch?.find((s) => s.file === F)?.items ?? [];
+  const begin = async () => { act(() => root.render(<Host />)); await flush(); act(() => state.toggle('osnap')); };
+
+  it('Move takes the picked object over as a drawn one (its layer, the handle erased) and the move joins that undo step', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => onChange.mock.calls.length > 0);
+    expect(onChange.mock.calls[0][1]).toBe(`MOVE  1 object of ${F} taken over as drawn objects`);
+    expect(onChange.mock.calls[0][2]).toBeUndefined(); // the take-over is a step of its own
+    expect(project.cadErased?.[F]).toHaveLength(1);
+    expect(items().map((x) => [x.kind, x.layer])).toEqual([['line', 'A-WALL']]);
+    const was = items()[0].pts[0];
+    await until(() => state.tool === 'move' && !!state.selected);
+    await clickAt(...WALL); await clickAt(WALL[0] + 500, WALL[1]);
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange.mock.calls[1][1]).toMatch(/^Moved/);
+    expect(onChange.mock.calls[1][2]).toBe(true); // joins the take-over: one ⌘Z for both
+    expect(items()[0].pts[0][0]).toBeCloseTo(was[0] + 500, 3);
+    expect(onUndo).not.toHaveBeenCalled();
+  });
+
+  it('a tool given up after the take-over undoes it', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => !!project.cadErased?.[F]?.length && state.tool === 'move' && !!state.selected);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    await until(() => onUndo.mock.calls.length === 1);
+    await until(() => last() === "MOVE  Cancelled: the drawing's objects are as they were.");
+  });
+
+  it('Copy keeps the original: the copy is a drawn object, nothing is erased', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await command('CO');
+    await until(() => state.tool === 'copy');
+    await flush();
+    await clickAt(...WALL); await clickAt(WALL[0] + 500, WALL[1]);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][1]).toMatch(/^COPY {2}1 object copied as drawn objects/);
+    expect(onChange.mock.calls[0][2]).toBeUndefined();
+    expect(project.cadErased?.[F] ?? []).toEqual([]);
+    expect(items().map((x) => [x.kind, x.layer])).toEqual([['line', 'A-WALL']]);
+  });
+
+  it('refuses on a locked layer, with nothing changed', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await command('LAYLCK');
+    expect(last()).toMatch(/^LAYLCK {2}Layer A-WALL locked/);
+    await command('M');
+    await until(() => /on locked layer A-WALL: unlock it first \(LAYULK\)\.$/.test(last()));
+    expect(last()).toBe('MOVE  1 object on locked layer A-WALL: unlock it first (LAYULK).');
+    expect(onChange).toHaveBeenCalledTimes(1); // the lock only
+    expect(project.cadErased?.[F] ?? []).toEqual([]);
+    await until(() => state.tool === 'none');
+  });
+
+  it('a window pick finds the drawing\'s objects, and Select similar asks the engine for the like ones', async () => {
+    await begin();
+    await dragWindow([16500, 12500], [-500, -500]); // right to left: crossing, so the walls and blocks all show
+    expect(last()).toMatch(/^SEL {2}\d+ objects? selected/);
+    const n = Number(/(\d+) object/.exec(last())![1]);
+    expect(n).toBeGreaterThan(5);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    await clickAt(...WALL);
+    const like = vi.spyOn(state.view!, 'pickLike');
+    await command('SELECTSIMILAR');
+    await until(() => like.mock.calls.length > 0);
+    expect(like.mock.calls[0].slice(0, 3)).toEqual(['Line', expect.any(Number), '']);
+    await until(() => /^SELECTSIMILAR {2}\d+ objects? selected/.test(last()));
+  });
+
+  it('a grip dragged on an object of the drawing is one change: the handle erased, its stand-in moved', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await until(() => !!document.querySelector('[aria-label="Edit drawn objects"]')); // the toolbar shows for it, from its stand-in
+    expect(onChange).not.toHaveBeenCalled();
+    const [gx, gy] = screenOf(15900, 12000), [tx, ty] = screenOf(15900, 11000), c = document.querySelector('canvas.cad-over')!;
+    await act(async () => {
+      c.dispatchEvent(new MouseEvent('mousedown', { clientX: gx, clientY: gy, button: 0, bubbles: true }));
+      c.dispatchEvent(new MouseEvent('mousemove', { clientX: tx, clientY: ty, bubbles: true }));
+      c.dispatchEvent(new MouseEvent('mouseup', { clientX: tx, clientY: ty, button: 0, bubbles: true }));
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][1]).toMatch(/^GRIP {2}Line changed/);
+    expect(onChange.mock.calls[0][2]).toBeUndefined();
+    expect(project.cadErased?.[F]).toHaveLength(1);
+    expect(items().map((x) => [x.kind, x.layer, x.pts.map((q) => q.map((v) => Math.round(v)))])).toEqual([['line', 'A-WALL', [[15900, 0], [15900, 11000]]]]);
+  });
+
+  it('a change in the Properties palette is one change: the object taken over with the new layer', async () => {
+    await begin();
+    await clickAt(...WALL);
+    const layer = () => document.querySelector('[aria-label="Properties palette"] select[aria-label="Object layer"]') as HTMLSelectElement | null;
+    await until(() => !!layer());
+    expect(layer()!.value).toBe('A-WALL');
+    const to = [...layer()!.options].map((o) => o.value).find((v) => v && v !== 'A-WALL')!;
+    await act(async () => { layer()!.value = to; layer()!.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(project.cadErased?.[F]).toHaveLength(1);
+    expect(items().map((x) => [x.kind, x.layer])).toEqual([['line', to]]);
   });
 });
