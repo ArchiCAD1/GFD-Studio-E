@@ -208,7 +208,7 @@ export function sharedValue(items: SketchItem[], key: PropKey, k: number, v = 0)
 
 /** The value as shown: metres to 2 decimals, degrees to 1. */
 export const shownValue = (def: PropDef, v: number | string | undefined) =>
-  v === undefined ? '' : typeof v === 'string' ? v : def.unit === 'deg' ? `${v.toFixed(1)}°` : def.key === 'len' || def.key === 'measured' ? `${v.toFixed(2)} m` : v.toFixed(2);
+  v === undefined ? '' : typeof v === 'string' ? v : def.unit === 'deg' ? `${v.toFixed(1)}°` : def.key === 'len' || def.key === 'measured' || def.key === 'arc' ? `${v.toFixed(2)} m` : v.toFixed(2);
 
 /** A typed value for a row: a number for metres and degrees (a comma as the decimal mark, the unit left off), else the
  * text; undefined when it is not a number. */

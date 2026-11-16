@@ -207,7 +207,7 @@ const PROMPT: Record<CadTool, string> = {
   arcsce: 'ARC  Specify start point (then the centre, then the end, anticlockwise):',
   polygon: 'POLYGON  Specify center (type a number first for the sides), or [Inscribed/Circumscribed]:',
   ellipse: 'ELLIPSE  Specify center, or [Axis end]:',
-  revcloud: 'REVCLOUD  Specify first corner, or [Polygonal], or type the arc length:',
+  revcloud: 'REVCLOUD  Specify first corner or [Arc/Polygonal] <Rectangular>:',
   arc: 'ARC  Specify start point:',
   text: 'TEXT  Specify start point of text:',
   mtext: 'MTEXT  First corner:',
@@ -353,6 +353,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [polySides, setPolySides] = useState(4);
   const [polyIn, setPolyIn] = useState(true);
   const [cloudPoly, setCloudPoly] = useState(false);
+  const [cloudAsk, setCloudAsk] = useState(false);
   const [cloudArc, setCloudArc] = useState<number | null>(null);
   const [ellAxis, setEllAxis] = useState(false);
   const [circleDia, setCircleDia] = useState(false);
@@ -573,7 +574,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   useEffect(() => {
     const pre = preset.current;
     setPoints(pointsNext.current ?? []); pointsNext.current = null; setObjectMode(false); setLuxRoom(luxNext.current); luxNext.current = null; setMenuAt(null); if (tool !== 'match') setMatchFrom(null); cad.setTextAt(null);
-    setCloudPoly(false); setEllAxis(false); setCircleDia(false);
+    setCloudPoly(false); setCloudAsk(false); setEllAxis(false); setCircleDia(false);
     setEdStep(pre); preset.current = null; setStretchBox(null); const mp = mpNext.current; mpNext.current = null; setMpFrom(mp);
     const first = picked.some((k) => k.startsWith('sk:')) || !!cad.selected?.startsWith('sk:');
     setEdPhase(first ? 'points' : 'pick');
@@ -3596,6 +3597,12 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       else setCurrentLayer(row.name);
       return;
     }
+    if (tool === 'revcloud' && cloudAsk) {
+      if (!c) { setCloudAsk(false); cad.say(PROMPT.revcloud); return; }
+      if (!isNumber(c) || !(Number(c) > 0)) { cad.say('REVCLOUD  Type an arc length greater than zero:'); return; }
+      setCloudArc(Number(c)); setCloudAsk(false);
+      cad.say(`REVCLOUD  Arcs ${m(toM(Number(c)))} long. Specify first corner:`); return;
+    }
     if (!c) {
       if ((tool === 'area' || tool === 'trace') && points.length >= 3) finishArea(points);
       else if (tool === 'pline') finishPline(false);
@@ -3633,6 +3640,10 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       // The other axis's half-length typed: a point that far across the first axis.
       const [a, b] = points, ctr: Pt = ellAxis ? [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] : a, l = distance(ctr, b) || 1;
       finishEllipse([ctr[0] - ((b[1] - ctr[1]) / l) * Number(c), ctr[1] + ((b[0] - ctr[0]) / l) * Number(c)]); return;
+    }
+    if (tool === 'revcloud' && !points.length && (c === 'A' || c === 'ARC')) {
+      const arc = cloudArc ?? 15 * unitsPerPaperMm(anno, units.factor);
+      setCloudAsk(true); cad.say(`REVCLOUD  Specify arc length in drawing units <${+arc.toFixed(6)}>:`); return;
     }
     if (tool === 'revcloud' && !points.length && (c === 'P' || c === 'POLYGONAL')) { setCloudPoly(true); cad.say('REVCLOUD  Specify first point:'); return; }
     if (tool === 'revcloud' && !points.length && (c === 'R' || c === 'RECTANGULAR')) { setCloudPoly(false); cad.say(PROMPT.revcloud); return; }
