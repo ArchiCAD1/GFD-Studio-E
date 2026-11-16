@@ -1,6 +1,7 @@
 import type { Project, ProjectStatus } from '../types';
 import { currentRevision } from './revisions';
 import type { FileStamp, SaveOutcome } from './saveSafety';
+import { packRevisions, unpackRevisions } from './revisionStore';
 import { fmtDate } from '../util/format';
 
 /** Saving and opening projects: JSON files in the projects folder in the
@@ -81,11 +82,11 @@ export async function loadProjectStamped(file: string): Promise<{ project: Proje
       delete p._restoredFromBackup;
       window.alert(`${file} was damaged (for example by a crash or a sync during saving). The last good version (${file}.bak) was opened instead — check it and save.`);
     }
-    return { project: p, stamp: r.stamp };
+    return { project: unpackRevisions(p), stamp: r.stamp };
   }
   const s = localStorage.getItem(fileKey(file));
   if (!s) throw new Error(`${file} is not in this browser`);
-  return { project: JSON.parse(s) as Project };
+  return { project: unpackRevisions(JSON.parse(s) as Project) };
 }
 
 /** The file now (desktop); null when it is gone, undefined when it cannot be checked. */
@@ -100,11 +101,12 @@ export async function statProject(file: string): Promise<FileStamp | null | unde
 export async function saveProjectFile(file: string | undefined, p: Project, opts: { expected?: FileStamp | null; force?: boolean } = {}): Promise<SaveOutcome> {
   const b = bridge();
   if (b) {
-    const r = await b.projects.save(file, p, opts.expected ?? undefined, opts.force);
+    // In the file, revisions keep each distinct piece once (model/revisionStore).
+    const r = await b.projects.save(file, packRevisions(p), opts.expected ?? undefined, opts.force);
     return r.conflict ? { conflict: true, file: r.file, disk: r.disk } : { file: r.file, stamp: r.stamp };
   }
   const f = file ?? `${slug(p.name)}-${(p.id ?? String(Date.now())).replace(/[^a-z0-9]/gi, '').slice(0, 8)}.json`;
-  localStorage.setItem(fileKey(f), JSON.stringify(p)); // throws when the browser's storage is full
+  localStorage.setItem(fileKey(f), JSON.stringify(packRevisions(p))); // throws when the browser's storage is full
   localStorage.setItem(INDEX, JSON.stringify([metaOf(f, p, Date.now()), ...readIndex().filter((m) => m.file !== f)]));
   return { file: f };
 }
@@ -191,9 +193,10 @@ export async function writeRecovery(r: Recovery): Promise<boolean> {
     const id = recoveryId(r);
     if (!id) return false;
     const b = bridge();
-    if (b?.recovery) await b.recovery.write({ ...r, projectId: id });
+    const copy = { ...r, project: packRevisions(r.project), projectId: id };
+    if (b?.recovery) await b.recovery.write(copy);
     else {
-      localStorage.setItem(recoveryKey(id), JSON.stringify({ ...r, projectId: id }));
+      localStorage.setItem(recoveryKey(id), JSON.stringify(copy));
       if (!readIds().includes(id)) localStorage.setItem(RECOVERY_IDS, JSON.stringify([...readIds(), id]));
     }
     return true;
@@ -212,6 +215,8 @@ export async function keepUnsavedWork(s: { project: Project; saved: unknown; cur
 }
 
 const valid = (r: Recovery | null | undefined): r is Recovery => !!r && !!r.project && Array.isArray(r.project.boards);
+/** A recovery copy as the app uses it (revisions unpacked); a copy whose revisions cannot be read is left out. */
+const unpacked = (r: Recovery): Recovery[] => { try { return [{ ...r, project: unpackRevisions(r.project) }]; } catch { return []; } };
 
 /** Every recovery copy, newest first. */
 export async function readRecoveries(): Promise<Recovery[]> {
@@ -219,11 +224,11 @@ export async function readRecoveries(): Promise<Recovery[]> {
     const b = bridge();
     if (b?.recovery) {
       const all = b.recovery.readAll ? await b.recovery.readAll() : [await b.recovery.read()];
-      return all.filter(valid).sort((x, y) => y.at - x.at);
+      return all.filter(valid).flatMap(unpacked).sort((x, y) => y.at - x.at);
     }
     const legacy = JSON.parse(localStorage.getItem(RECOVERY) ?? 'null') as Recovery | null;
     if (valid(legacy)) { await writeRecovery({ ...legacy, projectId: legacy.project.id ?? 'legacy-single' }); localStorage.removeItem(RECOVERY); }
-    return readIds().map((id) => { try { return JSON.parse(localStorage.getItem(recoveryKey(id)) ?? 'null') as Recovery | null; } catch { return null; } }).filter(valid).sort((x, y) => y.at - x.at);
+    return readIds().map((id) => { try { return JSON.parse(localStorage.getItem(recoveryKey(id)) ?? 'null') as Recovery | null; } catch { return null; } }).filter(valid).flatMap(unpacked).sort((x, y) => y.at - x.at);
   } catch {
     return [];
   }
@@ -271,5 +276,6 @@ export function whenText(ms: number, now = Date.now()): string {
 export async function pickProject(): Promise<{ file?: string; data?: Project; from?: string } | null> {
   const b = bridge();
   if (!b) return null;
-  return (await b.projects.pick()) as { file?: string; data?: Project; from?: string } | null;
+  const r = (await b.projects.pick()) as { file?: string; data?: Project; from?: string } | null;
+  return r?.data ? { ...r, data: unpackRevisions(r.data) } : r;
 }
