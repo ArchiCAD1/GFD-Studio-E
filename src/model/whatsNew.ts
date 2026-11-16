@@ -21,6 +21,12 @@ export const RELEASES: Release[] = [
     ]
   },
   {
+    version: '2.162', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: adjust a revision cloud\'s arcs', text: 'REVCLOUD now has an Arc option: choose it, type the arc length in drawing units, then draw the cloud. To change a cloud already drawn, pick it and edit Geometry → Arc length in Properties.', action: 'cad' }
+    ]
+  },
+  {
     version: '2.161', date: '2026-11-16',
     items: [
       { title: 'Design CAD: clip a viewport to an outline', text: 'A viewport on a layout can now have any outline, not only a rectangle. Pick the viewport, then Output → Layout viewports → Clip (VPCLIP) and click the corners of the outline on the paper; Enter closes it, U takes the last corner back, Esc cancels. The plan is cut at the outline on screen, in the plot and in the PDF, and the outline is what prints as the frame when Frame prints is on. Remove the outline (VPCLIP D) makes it a rectangle again. It works on plan sheets and on layouts made with +, from the ribbon, the viewport\'s right-click menu and its properties, and a layout template keeps it.', action: 'cad' }
