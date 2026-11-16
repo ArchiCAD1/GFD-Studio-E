@@ -189,6 +189,8 @@ struct Builder<'a> {
     lt_index: HashMap<(String, u64), u16>, // (name, scale bits) → index in out.linetypes
     lt: u16, // the dash pattern of the entity being drawn (ByBlock children keep their insert's)
     ltscale: f64,
+    /// The finite model/paper window used to tessellate infinite XLINE and RAY entities for this 2D viewer.
+    construction_box: (f64, f64, f64, f64),
 }
 
 fn rgb_of(c: &Color) -> Option<u32> {
@@ -233,6 +235,27 @@ impl<'a> Builder<'a> {
         self.out.seg_obj.push(self.current);
         self.out.seg_lt.push(self.lt);
         self.out.layers[l as usize].count += 1;
+    }
+
+    /// Draw the part of an infinite line (or a ray when `ray`) inside the drawing's ordinary extents.
+    fn construction(&mut self, t: &Affine, base: (f64, f64), dir: (f64, f64), ray: bool, l: u16, rgb: u32) {
+        let p = t.apply(base.0, base.1);
+        let q = t.apply(base.0 + dir.0, base.1 + dir.1);
+        let d = (q.0 - p.0, q.1 - p.1);
+        if d.0.hypot(d.1) < 1e-12 { return; }
+        let b = self.construction_box;
+        let (mut lo, mut hi) = (if ray { 0.0 } else { f64::NEG_INFINITY }, f64::INFINITY);
+        for (v, dv, min, max) in [(p.0, d.0, b.0, b.2), (p.1, d.1, b.1, b.3)] {
+            if dv.abs() < 1e-12 { if v < min || v > max { return; } continue; }
+            let (mut a, mut z) = ((min - v) / dv, (max - v) / dv);
+            if a > z { std::mem::swap(&mut a, &mut z); }
+            lo = lo.max(a); hi = hi.min(z);
+            if lo > hi { return; }
+        }
+        if lo.is_finite() && hi.is_finite() {
+            self.seg(&Affine::ID, (p.0 + d.0 * lo, p.1 + d.1 * lo), (p.0 + d.0 * hi, p.1 + d.1 * hi), l, rgb, true);
+            self.snap(&Affine::ID, p, if ray { ENDPOINT } else { NODE }, l);
+        }
     }
 
     /// The dash pattern of a linetype at a scale, as an index into the drawing's patterns (0: continuous).
@@ -332,6 +355,8 @@ impl<'a> Builder<'a> {
                 self.snap(t, (x.end.x, x.end.y), ENDPOINT, l);
                 self.snap(t, ((x.start.x + x.end.x) / 2.0, (x.start.y + x.end.y) / 2.0), MIDPOINT, l);
             }
+            EntityType::XLine(x) => self.construction(t, (x.base_point.x, x.base_point.y), (x.direction.x, x.direction.y), false, l, rgb),
+            EntityType::Ray(x) => self.construction(t, (x.base_point.x, x.base_point.y), (x.direction.x, x.direction.y), true, l, rgb),
             EntityType::Arc(x) => {
                 let t = mirror(&x.normal, t);
                 let mut a1 = x.end_angle;
@@ -548,6 +573,8 @@ fn describe(e: &EntityType) -> ObjInfo {
     let mut o = ObjInfo { handle: format!("{:X}", c.handle.value()), ..Default::default() };
     match e {
         EntityType::Line(x) => { o.kind = "Line"; o.length = Some(((x.end.x - x.start.x).powi(2) + (x.end.y - x.start.y).powi(2)).sqrt()); }
+        EntityType::XLine(_) => { o.kind = "Construction line"; }
+        EntityType::Ray(_) => { o.kind = "Ray"; }
         EntityType::Arc(x) => {
             o.kind = "Arc"; o.radius = Some(x.radius);
             let mut sweep = x.end_angle - x.start_angle;
@@ -895,6 +922,7 @@ fn tessellate(doc: &CadDocument, format: &'static str, ents: Vec<&EntityType>) -
         lt_index: HashMap::new(),
         lt: 0,
         ltscale: if doc.header.linetype_scale > 0.0 { doc.header.linetype_scale } else { 1.0 },
+        construction_box: (0.0, 0.0, 1000.0, 1000.0),
         out: CadDoc { format, units: doc.header.insertion_units, origin: (0.0, 0.0), segs: vec![], seg_layer: vec![], seg_rgb: vec![], seg_real: vec![], seg_obj: vec![], seg_lt: vec![], linetypes: vec![vec![]], fills: vec![], objects: vec![], texts: vec![], snaps: vec![], layers: vec![], grid: Grid { x0: 0.0, y0: 0.0, cell: 1.0, nx: 1, ny: 1, segs: vec![vec![]], pts: vec![vec![]] }, truncated: false, xrefs: vec![], erased: vec![], layouts: vec![], papers: vec![] },
     };
     for layer in doc.layers.iter() {
@@ -910,16 +938,27 @@ fn tessellate(doc: &CadDocument, format: &'static str, ents: Vec<&EntityType>) -
             b.blocks.insert(rec.name.to_uppercase(), (blk.base_point.x, blk.base_point.y));
         }
     }
-    for e in ents {
-        if matches!(e, EntityType::Viewport(_)) { continue; } // a layout's viewports are frames, listed in `layouts`
-        let mut info = describe(e);
-        info.layer = b.layer(&e.common().layer);
-        info.seg_start = b.out.seg_layer.len() as u32;
-        b.current = b.out.objects.len() as u32;
-        b.out.objects.push(info);
-        b.entity(e, &Affine::ID, (u16::MAX, u32::MAX), 0);
-        let end = b.out.seg_layer.len() as u32;
-        b.out.objects.last_mut().unwrap().seg_end = end;
+    // Ordinary entities establish the finite view first. Infinite construction geometry is then clipped to that view,
+    // so it behaves as infinite without making Zoom extents enormous.
+    for infinite in [false, true] {
+        if infinite {
+            let (x0, y0, x1, y1) = b.out.extents();
+            let pad = 0.05 * (x1 - x0).max(y1 - y0).max(1.0);
+            b.construction_box = (x0 - pad, y0 - pad, x1 + pad, y1 + pad);
+        }
+        for e in &ents {
+            let e = *e;
+            if matches!(e, EntityType::Ray(_) | EntityType::XLine(_)) != infinite { continue; }
+            if matches!(e, EntityType::Viewport(_)) { continue; } // a layout's viewports are frames, listed in `layouts`
+            let mut info = describe(e);
+            info.layer = b.layer(&e.common().layer);
+            info.seg_start = b.out.seg_layer.len() as u32;
+            b.current = b.out.objects.len() as u32;
+            b.out.objects.push(info);
+            b.entity(e, &Affine::ID, (u16::MAX, u32::MAX), 0);
+            let end = b.out.seg_layer.len() as u32;
+            b.out.objects.last_mut().unwrap().seg_end = end;
+        }
     }
     let mut out = b.out;
     out.build_grid();
@@ -1034,10 +1073,18 @@ struct PatLineOut { angle: f64, base: (f64, f64), offset: (f64, f64), #[serde(de
 
 /// A drawn shape as a DXF entity (none for a kind the writer does not know).
 fn entity_of(sh: &ShapeOut) -> Option<EntityType> {
-    use acadrust::entities::{Arc, BoundaryEdge, BoundaryPath, Circle, Ellipse, Hatch, HatchPattern, HatchPatternLine, HatchPatternType, Line, LwPolyline, LwVertex, MText, Point, PolylineEdge, Text};
+    use acadrust::entities::{Arc, BoundaryEdge, BoundaryPath, Circle, Ellipse, Hatch, HatchPattern, HatchPatternLine, HatchPatternType, Line, LwPolyline, LwVertex, MText, Point, PolylineEdge, Ray, Text, XLine};
     use acadrust::types::{Vector2, Vector3};
     Some(match sh.kind.as_str() {
         "line" if sh.pts.len() == 2 => { let mut l = Line::from_coords(sh.pts[0].0, sh.pts[0].1, 0.0, sh.pts[1].0, sh.pts[1].1, 0.0); l.common.layer = sh.layer.clone(); EntityType::Line(l) }
+        "xline" if sh.pts.len() == 2 && sh.pts[0] != sh.pts[1] => {
+            let mut l = XLine::from_points(Vector3::new(sh.pts[0].0, sh.pts[0].1, 0.0), Vector3::new(sh.pts[1].0, sh.pts[1].1, 0.0));
+            l.common.layer = sh.layer.clone(); EntityType::XLine(l)
+        }
+        "ray" if sh.pts.len() == 2 && sh.pts[0] != sh.pts[1] => {
+            let mut l = Ray::from_points(Vector3::new(sh.pts[0].0, sh.pts[0].1, 0.0), Vector3::new(sh.pts[1].0, sh.pts[1].1, 0.0));
+            l.common.layer = sh.layer.clone(); EntityType::Ray(l)
+        }
         "line" | "pline" if sh.pts.len() >= 2 => {
             let mut l = LwPolyline::new();
             l.vertices = sh.pts.iter().enumerate().map(|(i, p)| { let mut v = LwVertex::new(Vector2::new(p.0, p.1)); v.bulge = sh.bulges.get(i).copied().unwrap_or(0.0); v }).collect();
@@ -1353,6 +1400,26 @@ mod tests {
         assert!(a.0.contains_key("E-LV-POINTS"), "the device's circle on its layer");
         assert!(after.layers.iter().any(|l| l.name == "LV-ANNO"), "the text's layer");
         assert_eq!(a.0["E-TRAY"], b.0.get("E-TRAY").copied().unwrap_or(0) + 1);
+    }
+
+    #[test]
+    fn construction_lines_and_rays_round_trip_as_native_entities() {
+        let shapes = r#"[{"layer":"LV-SKETCH","kind":"xline","pts":[[50,15],[50,25]]},{"layer":"LV-SKETCH","kind":"ray","pts":[[30,20],[30,25]]}]"#;
+        let source = drawing();
+        let files = [
+            export_dxf(source.clone(), "[]", shapes, "[]", "").unwrap(),
+            dwg_bytes(source, "[]", shapes, "[]", "").unwrap(),
+        ];
+        for bytes in files {
+            let d = CadDoc::new(bytes).unwrap();
+            assert_eq!(d.objects.iter().filter(|o| o.kind == "Construction line").count(), 1);
+            assert_eq!(d.objects.iter().filter(|o| o.kind == "Ray").count(), 1);
+            let on = vec![1u8; d.layers.len()];
+            let x = d.snap(50.1, 15.1, 1.0, NODE, &on, f64::NAN, f64::NAN);
+            assert_eq!((x[0], x[1], x[2] as u32), (50.0, 15.0, NODE));
+            let r = d.snap(30.1, 20.1, 1.0, ENDPOINT, &on, f64::NAN, f64::NAN);
+            assert_eq!((r[0], r[1], r[2] as u32), (30.0, 20.0, ENDPOINT));
+        }
     }
 
     /// A text fitted between two points sits at the first, along the line to the second and as wide as the distance;

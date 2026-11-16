@@ -464,6 +464,9 @@ export interface SketchItem {
   kind: 'line' | 'pline' | 'circle' | 'arc' | 'text' | 'dim' | 'ellipse' | 'mtext' | 'point' | 'insert' | 'attdef';
   layer: string;
   pts: [number, number][];
+  /** A line whose first point is its base and second point defines its direction: infinite both ways (XLINE) or from
+   * its base forwards (RAY). Left out for an ordinary finite line. */
+  infinite?: 'xline' | 'ray';
   closed?: boolean;
   r?: number;
   a0?: number;

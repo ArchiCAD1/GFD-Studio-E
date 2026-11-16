@@ -104,7 +104,7 @@ export function SketchToolbar({ items, devices, lengthM, left, top, place, canPa
     : one.kind === 'dim' ? [...(one.text ? ['dimreset' as const] : []), ...(dimStyles.length ? ['dimstyle' as const] : []), 'dimprec', ...(one.dimKind === 'angular' ? [] : ['dimpos' as const])]
     : one.hatch ? ['hedit', 'hscale', 'hangle', 'horigin', ...(one.holes?.length ? ['hislands' as const] : []), 'hboundary']
     : one.kind === 'pline' && !one.cloud ? [...(one.pts.length > 2 ? ['plclose' as const] : []), 'reverse', 'explode1', ...(one.closed ? ['roomfrom' as const] : []), 'tocable', 'jointool', 'chamfer']
-    : one.kind === 'line' ? ['jointool', 'chamfer', 'reverse', 'tocable'] : [];
+    : one.kind === 'line' && !one.infinite ? ['jointool', 'chamfer', 'reverse', 'tocable'] : [];
   const findable = place === 'menu' && !!one && (one.kind === 'text' || one.kind === 'mtext');
   const edits: SketchEdit[] = [...(place === 'menu' && repeat ? ['repeat' as const] : []), ...lv, ...(place === 'menu' && (one?.kind === 'text' || one?.kind === 'dim') ? ['edtext' as const] : place === 'menu' && one?.kind === 'mtext' ? ['edtext' as const, 'ntwidth' as const, 'ntjust' as const] : place === 'menu' && one?.kind === 'insert' ? [...(one.attrs || withAtts?.(one) ? ['edatt' as const, 'blkreset' as const] : []), 'bedit' as const, 'refedit' as const, 'selblock' as const, 'blkcount' as const,
       ...(blocks.some((b) => b !== one.block) ? ['blkreplace' as const] : []), 'blkexplode' as const] : []), ...(findable ? ['find' as const] : []), ...kindOwn, ...sketchEditsFor(items, devices),

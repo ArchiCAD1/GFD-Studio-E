@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
-import { addSketch, arcStartCentreEnd, arcThrough, bulgeArc, circle2P, cloudLobes, dimensionLines, dimOf, ellipseOf, ellipsePoints, itemAt, moved, polygonPts, rectangle, removeSketch, rotated, segmentsOf, shapesOut, sketchOf, snapPoints, trayLabel, trayLength, trayLine, typedPoint, updateSketch } from './cadSketch';
+import { addSketch, arcStartCentreEnd, arcThrough, bulgeArc, circle2P, cloudLobes, constructionDistance, constructionSegment, dimensionLines, dimOf, ellipseOf, ellipsePoints, itemAt, moved, polygonPts, rectangle, removeSketch, rotated, segmentsOf, shapesOut, sketchOf, snapPoints, trayLabel, trayLength, trayLine, typedPoint, updateSketch } from './cadSketch';
 import { CHAR_W } from './cadText';
 import type { SketchItem } from '../types';
 
@@ -63,6 +63,18 @@ describe('drawing in the CAD view', () => {
     const out = shapesOut(items, 0.001);
     expect(out.filter((s) => s.layer === 'LV-ANNO' && s.kind === 'text')[0].text).toBe('4.00');
     expect(out.filter((s) => s.layer === 'LV-ANNO' && s.kind === 'line').length).toBe(5);
+  });
+
+  it('clips, picks, snaps and writes construction lines and rays as infinite CAD entities', () => {
+    const xline: SketchItem = { id: 'XL', kind: 'line', infinite: 'xline', layer: 'LV-SKETCH', pts: [[5, 5], [6, 6]] };
+    const ray: SketchItem = { id: 'R', kind: 'line', infinite: 'ray', layer: 'LV-SKETCH', pts: [[5, 5], [6, 5]] };
+    expect(constructionSegment(xline, [0, 0, 10, 10])).toEqual([[0, 0], [10, 10]]);
+    expect(constructionSegment(ray, [0, 0, 10, 10])).toEqual([[5, 5], [10, 5]]);
+    expect(constructionDistance(xline, [1, 2])).toBeCloseTo(Math.SQRT1_2, 9);
+    expect(itemAt([xline], [9, 9.02], 0.05)?.id).toBe('XL');
+    expect(itemAt([ray], [0, 5], 0.1)).toBeUndefined(); // behind the ray's base
+    expect(snapPoints([xline, ray])).toEqual([{ x: 5, y: 5, kind: 32 }, { x: 5, y: 5, kind: 1 }]);
+    expect(shapesOut([xline, ray], 0.001).map((s) => s.kind)).toEqual(['xline', 'ray']);
   });
 
   it('writes every kind of dimension\'s text centred on the middle of its baseline, where it is drawn', () => {

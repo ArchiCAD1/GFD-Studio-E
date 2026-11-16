@@ -399,7 +399,8 @@ export function pieceLength(p: CadPiece): number {
     default: return 0;
   }
 }
-export function itemLength(it: Pick<SketchItem, 'kind' | 'pts' | 'closed' | 'r' | 'a0' | 'a1'>): number {
+export function itemLength(it: Pick<SketchItem, 'kind' | 'pts' | 'closed' | 'r' | 'a0' | 'a1' | 'infinite'>): number {
+  if (it.infinite) return 0;
   if (it.kind === 'circle') return TAU * (it.r ?? 0);
   if (it.kind === 'arc') { let w = (it.a1 ?? 0) - (it.a0 ?? 0); while (w <= 0) w += TAU; return (it.r ?? 0) * w; }
   if (it.kind !== 'line' && it.kind !== 'pline') return 0;

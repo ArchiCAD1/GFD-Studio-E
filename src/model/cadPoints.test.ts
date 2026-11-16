@@ -44,6 +44,8 @@ describe('DIVIDE and MEASURE', () => {
     // Not for texts, dimensions, notes, points or revision clouds.
     expect(canDivide({ id: 'T', kind: 'text', layer: 'LV-ANNO', pts: [[0, 0]], text: 'x', h: 1 })).toBe(false);
     expect(canDivide({ ...square, cloud: 500 })).toBe(false);
+    expect(canDivide({ ...line, infinite: 'xline' })).toBe(false);
+    expect(canDivide({ ...line, infinite: 'ray' })).toBe(false);
     expect(canDivide({ id: 'N', kind: 'point', layer: 'LV-SKETCH', pts: [[0, 0]] })).toBe(false);
   });
 });

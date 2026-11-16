@@ -136,6 +136,7 @@ export function addSelectedTool(it: SketchItem): CadTool | null {
   if (it.cable) return 'cable';
   if (it.hatch) return 'hatch';
   if (it.cloud) return 'revcloud';
+  if (it.infinite) return it.infinite;
   switch (it.kind) {
     case 'line': return 'line';
     case 'pline': return 'pline';
@@ -156,7 +157,7 @@ export function addSelectedTool(it: SketchItem): CadTool | null {
 export function measureOf(items: readonly SketchItem[]): { length: number; area: number; n: number } {
   let length = 0, area = 0, n = 0;
   for (const it of items) {
-    if (it.kind === 'text' || it.kind === 'mtext' || it.kind === 'dim' || it.kind === 'insert' || it.kind === 'point' || it.kind === 'attdef') continue;
+    if (it.infinite || it.kind === 'text' || it.kind === 'mtext' || it.kind === 'dim' || it.kind === 'insert' || it.kind === 'point' || it.kind === 'attdef') continue;
     const l = itemLength(it);
     if (it.hatch) area += hatchArea(it); // its net area, islands taken out
     else if (it.kind === 'circle') area += Math.PI * (it.r ?? 0) ** 2;

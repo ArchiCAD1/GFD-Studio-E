@@ -39,6 +39,36 @@ export const removeSketch = (p: Project, file: string, id: string) => withSketch
 export const dist = (a: Pt, b: Pt) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 const rot = (p: Pt, c: Pt, a: number): Pt => { const s = Math.sin(a), k = Math.cos(a), x = p[0] - c[0], y = p[1] - c[1]; return [c[0] + x * k - y * s, c[1] + x * s + y * k]; };
 
+/** The visible part of an XLINE or RAY inside an axis-aligned box. Its two stored points define the base and direction,
+ * not finite ends. Undefined for an ordinary line, a nil direction, or a ray pointing away from the box. */
+export function constructionSegment(it: Pick<SketchItem, 'infinite' | 'pts'>, box: [number, number, number, number]): [Pt, Pt] | undefined {
+  if (!it.infinite || it.pts.length < 2) return undefined;
+  const p = it.pts[0], d: Pt = [it.pts[1][0] - p[0], it.pts[1][1] - p[1]];
+  if (Math.hypot(d[0], d[1]) < 1e-12) return undefined;
+  let lo = it.infinite === 'ray' ? 0 : -Infinity, hi = Infinity;
+  for (const k of [0, 1] as const) {
+    const a = box[k], b = box[k + 2];
+    if (Math.abs(d[k]) < 1e-12) { if (p[k] < a || p[k] > b) return undefined; continue; }
+    let t0 = (a - p[k]) / d[k], t1 = (b - p[k]) / d[k];
+    if (t0 > t1) [t0, t1] = [t1, t0];
+    lo = Math.max(lo, t0); hi = Math.min(hi, t1);
+    if (lo > hi) return undefined;
+  }
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return undefined;
+  const at = (t: number): Pt => [p[0] + d[0] * t, p[1] + d[1] * t];
+  return [at(lo), at(hi)];
+}
+
+/** Perpendicular distance from a point to an XLINE or RAY (a ray clamps behind its base to that base). */
+export function constructionDistance(it: Pick<SketchItem, 'infinite' | 'pts'>, q: Pt): number {
+  if (!it.infinite || it.pts.length < 2) return Infinity;
+  const p = it.pts[0], d: Pt = [it.pts[1][0] - p[0], it.pts[1][1] - p[1]], l2 = d[0] ** 2 + d[1] ** 2;
+  if (l2 < 1e-24) return Infinity;
+  let t = ((q[0] - p[0]) * d[0] + (q[1] - p[1]) * d[1]) / l2;
+  if (it.infinite === 'ray') t = Math.max(0, t);
+  return dist(q, [p[0] + d[0] * t, p[1] + d[1] * t]);
+}
+
 /** The item moved by (dx, dy). */
 export const moved = (it: SketchItem, dx: number, dy: number): SketchItem => {
   const m = (q: Pt): Pt => [q[0] + dx, q[1] + dy];
@@ -504,7 +534,10 @@ export const trayLength = (it: SketchItem) => it.pts.slice(1).reduce((t, p, i) =
 export function snapPoints(items: SketchItem[], defs: CadBlockDef[] = []): { x: number; y: number; kind: number }[] {
   const out: { x: number; y: number; kind: number }[] = [];
   for (const it of items) {
-    if (it.kind === 'line' || it.kind === 'pline') {
+    if (it.infinite) {
+      // A ray has one true endpoint. An XLINE has no ends; its base is exposed as a node for useful construction snaps.
+      out.push({ x: it.pts[0][0], y: it.pts[0][1], kind: it.infinite === 'ray' ? 1 : 32 });
+    } else if (it.kind === 'line' || it.kind === 'pline') {
       it.pts.forEach((q) => out.push({ x: q[0], y: q[1], kind: 1 }));
       const n = it.pts.length;
       // A cloud's sides are arcs: no middles of its outline.
@@ -541,7 +574,8 @@ export function itemAt(items: SketchItem[], at: Pt, tol: number, defs: CadBlockD
   };
   for (const it of items) {
     let d = Infinity;
-    if (it.kind === 'text') {
+    if (it.infinite) d = constructionDistance(it, at);
+    else if (it.kind === 'text') {
       // By its box, wherever its anchor sits on it (justification).
       const { origin, w, h } = textBox(it);
       const a = -(it.rot ?? 0), x = at[0] - origin[0], y = at[1] - origin[1];
@@ -559,7 +593,7 @@ export function itemAt(items: SketchItem[], at: Pt, tol: number, defs: CadBlockD
 }
 
 /** Drawn items as the engine writes them into a DXF (drawing units). */
-export interface ShapeOut { layer: string; kind: 'line' | 'pline' | 'circle' | 'arc' | 'ellipse' | 'text' | 'mtext' | 'hatch' | 'point' | 'pointstyle' | 'insert' | 'blockdef' | 'attdef'; pts: Pt[]; mode?: number; name?: string; sc?: number; units?: number; items?: ShapeOut[]; tag?: string; prompt?: string; flags?: { invisible?: boolean; constant?: boolean; verify?: boolean; preset?: boolean; lock?: boolean }; atts?: ShapeOut[]; closed?: boolean; bulges?: number[]; r?: number; a0?: number; a1?: number; axis?: Pt; ratio?: number; text?: string; h?: number; rot?: number; just?: string; w?: number; lsp?: number; loops?: Pt[][]; solid?: boolean; lines?: { angle: number; base: Pt; offset: Pt; dashes: number[] }[]; id?: string; srcs?: string[]; hangle?: number; hscale?: number }
+export interface ShapeOut { layer: string; kind: 'line' | 'xline' | 'ray' | 'pline' | 'circle' | 'arc' | 'ellipse' | 'text' | 'mtext' | 'hatch' | 'point' | 'pointstyle' | 'insert' | 'blockdef' | 'attdef'; pts: Pt[]; mode?: number; name?: string; sc?: number; units?: number; items?: ShapeOut[]; tag?: string; prompt?: string; flags?: { invisible?: boolean; constant?: boolean; verify?: boolean; preset?: boolean; lock?: boolean }; atts?: ShapeOut[]; closed?: boolean; bulges?: number[]; r?: number; a0?: number; a1?: number; axis?: Pt; ratio?: number; text?: string; h?: number; rot?: number; just?: string; w?: number; lsp?: number; loops?: Pt[][]; solid?: boolean; lines?: { angle: number; base: Pt; offset: Pt; dashes: number[] }[]; id?: string; srcs?: string[]; hangle?: number; hscale?: number }
 export function shapesOut(items: SketchItem[], metresPerUnit: number, defs: CadBlockDef[] = []): ShapeOut[] {
   const unitsPerMm = 0.001 / metresPerUnit;
   const { fittings } = trayFittings(items, unitsPerMm);
@@ -585,6 +619,7 @@ export function shapesOut(items: SketchItem[], metresPerUnit: number, defs: CadB
       return [{ layer: it.layer, kind: 'hatch', pts: [], loops: [hatchOutlinePts(it), ...(it.holes ?? [])], solid, name: it.hatch.custom?.name ?? it.hatch.pattern.toUpperCase(), hangle: (it.hatch.angle * Math.PI) / 180, hscale: Math.max(0.2, it.hatch.scale) * unit,
         ...(it.assoc?.length ? { srcs: it.assoc } : {}), ...(solid ? {} : { lines: atOrigin(placedLines(it.hatch, unit), it.hatch.origin) }) }];
     }
+    if (it.infinite) return [{ layer: it.layer, kind: it.infinite, pts: it.pts.slice(0, 2) }];
     if (it.kind === 'line' && it.pts.length > 2) return [{ layer: it.layer, kind: 'pline', pts: it.pts }];
     // A revision cloud as one closed polyline of arcs; an ellipse as an ellipse.
     if (it.cloud) { const c = cloudLobes(it); return [{ layer: it.layer, kind: 'pline', pts: c.pts, closed: true, bulges: c.pts.map(() => c.bulge) }]; }

@@ -49,6 +49,8 @@ export const CAD_COMMANDS: readonly CadCommand[] = [
   { aliases: ['PASTEORIG'], desc: 'Paste from the clipboard at the same coordinates, into another drawing', action: 'pasteOrig' },
   { aliases: ['RO', 'ROTATE'], desc: 'Rotate', tool: 'rotate' },
   { aliases: ['L', 'LINE'], desc: 'Line', tool: 'line' },
+  { aliases: ['XL', 'XLINE'], desc: 'Construction line: infinite in both directions', tool: 'xline' },
+  { aliases: ['RAY'], desc: 'Ray: infinite from its start point', tool: 'ray' },
   { aliases: ['PL', 'PLINE', 'POLYLINE'], desc: 'Polyline', tool: 'pline' },
   { aliases: ['CT', 'TRAY', 'CABLETRAY'], desc: 'Cable tray run', tool: 'tray' },
   { aliases: ['CR', 'ROUTE', 'CABLEROUTE'], desc: 'Cable route', tool: 'cable' },

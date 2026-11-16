@@ -109,6 +109,30 @@ describe('CAD command aliases (2026-11-14)', () => {
     await until(() => state.tool === 'trace');
   });
 
+  it('XL draws XLINE construction lines and RAY draws rays, retaining the base until Enter', async () => {
+    await start();
+    await command('XL');
+    await until(() => state.tool === 'xline');
+    await command(`${X},7000`);
+    await command(`${X + 1000},7000`);
+    await command(`${X},8000`);
+    await until(() => items().filter((x) => x.infinite === 'xline').length === 2);
+    const xlines = items().filter((x) => x.infinite === 'xline');
+    expect(xlines.map((x) => x.pts)).toEqual([[[X, 7000], [X + 1000, 7000]], [[X, 7000], [X, 8000]]]);
+    await command('');
+    await until(() => state.tool === 'none');
+
+    await command('RAY');
+    await until(() => state.tool === 'ray');
+    await command(`${X},9000`);
+    await command(`@1000<90`);
+    await until(() => items().some((x) => x.infinite === 'ray'));
+    const ray = items().find((x) => x.infinite === 'ray')!;
+    expect(ray.pts[0]).toEqual([X, 9000]);
+    expect(ray.pts[1][0]).toBeCloseTo(X, 9);
+    expect(ray.pts[1][1]).toBeCloseTo(10000, 9);
+  });
+
   it('LA opens the layer palette, LAYERS shows the Layers panel', async () => {
     await start();
     const side = state.showLayers;
