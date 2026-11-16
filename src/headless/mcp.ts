@@ -45,12 +45,12 @@ export interface Runtime { execPath: string; script: string; electron: boolean }
 
 /** What an AI program needs to start this MCP server: the "mcpServers" entry most MCP clients take.
  * `lvds mcp-config` prints it, to paste into the program's MCP settings. */
-export function mcpConfig(rt: Runtime, write: boolean): { mcpServers: Record<string, { command: string; args: string[]; env?: Record<string, string> }> } {
+export function mcpConfig(rt: Runtime, write: boolean, groups?: string[]): { mcpServers: Record<string, { command: string; args: string[]; env?: Record<string, string> }> } {
   return {
     mcpServers: {
       'lv-design-studio': {
         command: rt.execPath,
-        args: [rt.script, 'mcp', ...(write ? ['--write'] : [])],
+        args: [rt.script, 'mcp', ...(write ? ['--write'] : []), ...(groups ? ['--tools', groups.length ? groups.join(',') : 'core'] : [])],
         ...(rt.electron ? { env: { ELECTRON_RUN_AS_NODE: '1' } } : {})
       }
     }
