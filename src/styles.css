@@ -1897,6 +1897,7 @@ svg .ph-tag.click{cursor:pointer}svg .ph-tag.click:hover rect{fill:color-mix(in 
 .cad-ctx{position:absolute;z-index:5;display:flex;gap:2px;align-items:center;max-width:calc(100% - 8px);flex-wrap:wrap;padding:3px;background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--radius-md);box-shadow:var(--shadow-pop);font-size:var(--fs-sm);white-space:nowrap}
 .cad-ctx.above{transform:translateY(-100%)}
 .cad-ctx.vert{flex-direction:column;align-items:stretch;flex-wrap:nowrap}
+.cad-ctx.vert>*{flex-shrink:0}
 .cad-ctx button{display:flex;justify-content:space-between;gap:var(--space-2);height:24px;padding:0 var(--space-2);border:1px solid transparent;border-radius:var(--radius-sm);background:none;color:var(--tx);font:inherit}
 .cad-ctx button:hover:not(:disabled),.cad-ctx button[aria-expanded="true"]{background:var(--p2);border-color:var(--line)}
 .cad-ctx button:disabled{color:var(--mut);cursor:default}
