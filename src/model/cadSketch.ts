@@ -5,6 +5,8 @@ import { MASK_LAYER, textBox, textCorners, textFrameOf, textWidth } from './cadT
 import { noteCorners, noteHit, toDxfMtext } from './cadMtext';
 import { pdsizeOf, type PointStyle } from './cadPoints';
 import { attdefAsText, attributePlacements, expandInsert, type CadBlockDef } from './cadBlocks';
+import { colourOut } from './cadColours';
+import { LINETYPES } from './cadLayerStyle';
 import type { CadSketch, Project, SketchItem } from '../types';
 
 type Pt = [number, number];
@@ -610,7 +612,7 @@ export function itemAt(items: SketchItem[], at: Pt, tol: number, defs: CadBlockD
 }
 
 /** Drawn items as the engine writes them into a DXF (drawing units). */
-export interface ShapeOut { layer: string; kind: 'line' | 'xline' | 'ray' | 'pline' | 'circle' | 'arc' | 'ellipse' | 'text' | 'mtext' | 'hatch' | 'point' | 'pointstyle' | 'insert' | 'blockdef' | 'attdef'; pts: Pt[]; mode?: number; name?: string; sc?: number; units?: number; items?: ShapeOut[]; tag?: string; prompt?: string; flags?: { invisible?: boolean; constant?: boolean; verify?: boolean; preset?: boolean; lock?: boolean }; atts?: ShapeOut[]; closed?: boolean; bulges?: number[]; r?: number; a0?: number; a1?: number; axis?: Pt; ratio?: number; text?: string; h?: number; rot?: number; just?: string; w?: number; lsp?: number; loops?: Pt[][]; solid?: boolean; lines?: { angle: number; base: Pt; offset: Pt; dashes: number[] }[]; id?: string; srcs?: string[]; hangle?: number; hscale?: number }
+export interface ShapeOut { layer: string; kind: 'line' | 'xline' | 'ray' | 'pline' | 'circle' | 'arc' | 'ellipse' | 'text' | 'mtext' | 'hatch' | 'point' | 'pointstyle' | 'insert' | 'blockdef' | 'attdef'; pts: Pt[]; mode?: number; name?: string; sc?: number; units?: number; items?: ShapeOut[]; tag?: string; prompt?: string; flags?: { invisible?: boolean; constant?: boolean; verify?: boolean; preset?: boolean; lock?: boolean }; atts?: ShapeOut[]; closed?: boolean; bulges?: number[]; r?: number; a0?: number; a1?: number; axis?: Pt; ratio?: number; text?: string; h?: number; rot?: number; just?: string; w?: number; lsp?: number; loops?: Pt[][]; solid?: boolean; lines?: { angle: number; base: Pt; offset: Pt; dashes: number[] }[]; id?: string; srcs?: string[]; hangle?: number; hscale?: number; color?: string; lt?: string; ltdash?: number[]; lw?: number }
 export function shapesOut(items: SketchItem[], metresPerUnit: number, defs: CadBlockDef[] = []): ShapeOut[] {
   const unitsPerMm = 0.001 / metresPerUnit;
   const { fittings } = trayFittings(items, unitsPerMm);
@@ -662,7 +664,13 @@ export function shapesOut(items: SketchItem[], metresPerUnit: number, defs: CadB
     return [{ layer: it.layer, kind: it.kind, pts: it.pts, closed: it.closed, r: it.r, a0: it.a0, a1: it.a1 }];
   };
   // Each shape carries its object's id (an associative hatch names the shapes it follows).
-  return [...items.flatMap((it) => one(it).map((s): ShapeOut => ({ ...s, id: it.id }))), ...fittingTexts];
+  // A line's own colour, linetype and lineweight (none: by layer). The linetype is the drawing's own name, else the app's
+  // (its pattern in paper mm at the plan's 1:100, as the hatches, in drawing units, for a drawing that has none of that name).
+  const styleOf = (it: SketchItem): Pick<ShapeOut, 'color' | 'lt' | 'ltdash' | 'lw'> => {
+    const color = colourOut(it.color), lt = it.ltName ?? (it.lt ? it.lt.toUpperCase() : ''), dash = it.ltName || !it.lt ? [] : LINETYPES[it.lt]?.dash ?? [];
+    return { ...(color ? { color } : {}), ...(lt ? { lt } : {}), ...(dash.length ? { ltdash: dash.map((d, i) => (i % 2 ? -d : d) * 100 * unitsPerMm) } : {}), ...(it.lw && it.lw > 0 ? { lw: Math.round(it.lw * 100) } : {}) };
+  };
+  return [...items.flatMap((it) => { const st = styleOf(it); return one(it).map((s): ShapeOut => ({ ...s, ...(s.layer === MASK_LAYER ? {} : st), id: it.id })); }), ...fittingTexts];
 }
 
 const attdefOut = (it: SketchItem): ShapeOut => ({ layer: it.layer, kind: 'attdef', pts: it.pts, text: it.text ?? '', h: it.h, rot: it.rot ?? 0, just: it.just ?? '', tag: it.tag ?? '', prompt: it.prompt ?? '', flags: { invisible: !!it.att?.invisible, constant: !!it.att?.constant, verify: !!it.att?.verify, preset: !!it.att?.preset, lock: !!it.att?.lock } });

@@ -505,6 +505,8 @@ export interface SketchItem {
   color?: string;
   lt?: import('./model/cadLayerStyle').LinetypeId;
   lw?: number;
+  /** The drawing's own linetype name of an object taken over from an opened drawing, written back on save. */
+  ltName?: string;
   /** A polyline's arc segments: the bulge of the segment after each point (tan of a quarter of its angle; positive:
    * anticlockwise); none or 0: straight. A closed polyline's last entry is the closing segment. Only on a `pline`, never a cloud. */
   bulges?: number[];

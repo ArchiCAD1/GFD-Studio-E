@@ -225,6 +225,23 @@ describe('CAD engine (Rust, WebAssembly)', () => {
     }
   });
 
+  it('saves a drawn line\'s own colour, linetype and lineweight, read back as the piece it explodes into', async () => {
+    const { drawnFromPieces } = await import('../../model/cadTakeOver');
+    const { explodeObjects } = await import('./cadEngine');
+    const shapes = shapesOut([{ id: 'r', kind: 'line', layer: 'LV-SKETCH', pts: [[90000, 90000], [91000, 90000]], color: '#ff0000', lt: 'dashed', lw: 0.35 }, { id: 'p', kind: 'line', layer: 'LV-SKETCH', pts: [[90000, 90500], [91000, 90500]] }], 0.001);
+    for (const as of ['dxf', 'dwg'] as const) {
+      const saved = await openDrawing(`style.${as}`, await drawingWithDevices(gf, [], shapes, as));
+      const on = new Uint8Array(saved.info.layers.length).fill(1);
+      const { objects } = await saved.pickWindow([89990, 89990], [91010, 90510], false, on);
+      expect(objects.length, as).toBe(2);
+      const { pieces } = await explodeObjects(saved, objects.map((o) => o.handle));
+      const [red, plain] = objects.map((o) => drawnFromPieces(pieces[o.handle] ?? [])[0]).sort((a, b) => a.pts[0][1] - b.pts[0][1]);
+      expect(red, as).toMatchObject({ color: '#ff0000', lt: 'dashed', ltName: 'DASHED', lw: 0.35 });
+      expect(plain.color, as).toBeUndefined(); expect(plain.lt, as).toBeUndefined(); expect(plain.lw, as).toBeUndefined();
+      saved.close();
+    }
+  });
+
   it('saves drawn points as POINT entities, found by the Node snap, with the point style in the header', async () => {
     const shapes = [...shapesOut([{ id: 'p', kind: 'point', layer: 'LV-SKETCH', pts: [[2500, 2500]] }], 0.001), pointStyleOut({ mode: 34, size: 5, relative: true })];
     expect(shapes).toEqual([{ layer: 'LV-SKETCH', kind: 'point', pts: [[2500, 2500]], id: 'p' }, { layer: '', kind: 'pointstyle', pts: [], mode: 34, r: -5 }]);

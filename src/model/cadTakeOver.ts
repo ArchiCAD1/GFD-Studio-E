@@ -11,7 +11,7 @@ export function drawnFromPieces(pieces: CadPiece[]): Omit<SketchItem, 'id'>[] {
   const area = (l: readonly number[][]) => Math.abs(l.reduce((t, q, i) => t + q[0] * l[(i + 1) % l.length][1] - l[(i + 1) % l.length][0] * q[1], 0));
   return flat(pieces).flatMap((p): Omit<SketchItem, 'id'>[] => {
     const lt = p.lt ? linetypeIdOf(p.lt) : undefined, lw = lineweightOf(p.lw);
-    const s = { layer: p.layer, ...(p.color !== undefined && p.color !== 0xff000007 ? { color: `#${p.color.toString(16).padStart(6, '0')}` } : {}), ...(lt ? { lt } : {}), ...(lw !== undefined ? { lw } : {}) };
+    const s = { layer: p.layer, ...(p.color !== undefined && p.color !== 0xff000007 ? { color: `#${p.color.toString(16).padStart(6, '0')}` } : {}), ...(lt ? { lt } : {}), ...(p.lt ? { ltName: p.lt } : {}), ...(lw !== undefined ? { lw } : {}) };
     switch (p.kind) {
       case 'line': return [{ ...s, kind: 'line', pts: [[...p.a], [...p.b]] }];
       case 'arc': return [{ ...s, kind: 'arc', pts: [[...p.c]], r: p.r, a0: p.a0, a1: p.a1 }];

@@ -9,16 +9,16 @@ const S = { layer: 'E-LIGHT' };
 describe('drawnFromPieces: an opened drawing\'s object as drawn objects', () => {
   it('a line keeps layer, colour, linetype and lineweight (lineweight snapped to a standard one)', () => {
     const [l] = drawnFromPieces([{ ...S, kind: 'line', a: [0, 0], b: [3, 4], color: 0xff8000, lt: 'DASHED', lw: 52 }]);
-    expect(l).toEqual({ layer: 'E-LIGHT', kind: 'line', pts: [[0, 0], [3, 4]], color: '#ff8000', lt: 'dashed', lw: 0.5 });
+    expect(l).toEqual({ layer: 'E-LIGHT', kind: 'line', pts: [[0, 0], [3, 4]], color: '#ff8000', lt: 'dashed', ltName: 'DASHED', lw: 0.5 });
   });
   it('foreground colour, unknown linetype and no lineweight leave those out', () => {
     const [l] = drawnFromPieces([{ ...S, kind: 'line', a: [0, 0], b: [1, 0], color: 0xff000007, lt: 'ACAD_ISO02W100' }]);
-    expect(l).toEqual({ layer: 'E-LIGHT', kind: 'line', pts: [[0, 0], [1, 0]] });
+    expect(l).toEqual({ layer: 'E-LIGHT', kind: 'line', pts: [[0, 0], [1, 0]], ltName: 'ACAD_ISO02W100' });
   });
   it('arc, circle, point', () => {
     const r = drawnFromPieces([{ ...S, kind: 'arc', c: [1, 2], r: 3, a0: 0.5, a1: 2 }, { ...S, kind: 'circle', c: [4, 5], r: 6, lt: 'CENTER2' }, { ...S, kind: 'point', at: [7, 8] }]);
     expect(r[0]).toMatchObject({ kind: 'arc', pts: [[1, 2]], r: 3, a0: 0.5, a1: 2 });
-    expect(r[1]).toMatchObject({ kind: 'circle', pts: [[4, 5]], r: 6, lt: 'center' });
+    expect(r[1]).toMatchObject({ kind: 'circle', pts: [[4, 5]], r: 6, lt: 'center', ltName: 'CENTER2' });
     expect(r[2]).toMatchObject({ kind: 'point', pts: [[7, 8]] });
   });
   it('a polyline keeps its bulges and closed; none when all are straight', () => {

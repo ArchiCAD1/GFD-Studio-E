@@ -1121,6 +1121,34 @@ struct ShapeOut {
     #[serde(default)] hangle: f64,
     #[serde(default)] hscale: f64,
     #[serde(default)] srcs: Vec<String>,
+    /// The object's own style: colour ("" ByLayer, "#rrggbb", "idx:N"), linetype name ("" ByLayer) with its pattern in
+    /// drawing units (dash > 0, gap < 0, dot 0; added to the drawing when it has none of that name), lineweight in
+    /// hundredths of a mm (-1 ByLayer).
+    #[serde(default)] color: String,
+    #[serde(default)] lt: String,
+    #[serde(default)] ltdash: Vec<f64>,
+    #[serde(default = "by_layer_lw")] lw: i16,
+}
+fn by_layer_lw() -> i16 { -1 }
+
+/// Gives an entity the colour, linetype and lineweight its shape carries (a linetype the drawing lacks is added from
+/// the shape's pattern, else left ByLayer).
+fn style_of(doc: &mut CadDocument, common: &mut acadrust::entities::EntityCommon, sh: &ShapeOut) {
+    use acadrust::tables::{LineType, LineTypeElement};
+    use acadrust::types::{Color, LineWeight};
+    if let Some(h) = sh.color.strip_prefix('#').filter(|h| h.len() == 6) {
+        if let Ok(v) = u32::from_str_radix(h, 16) { common.color = Color::Rgb { r: (v >> 16) as u8, g: (v >> 8) as u8, b: v as u8 }; }
+    } else if let Some(n) = sh.color.strip_prefix("idx:").and_then(|n| n.parse::<u8>().ok()).filter(|n| *n >= 1) { common.color = Color::Index(n); }
+    if !sh.lt.is_empty() {
+        if !doc.line_types.contains(&sh.lt) && !sh.ltdash.is_empty() {
+            let mut t = LineType::new(sh.lt.clone());
+            for d in &sh.ltdash { t.add_element(if *d > 0.0 { LineTypeElement::dash(*d) } else if *d < 0.0 { LineTypeElement::space(-*d) } else { LineTypeElement::dot() }); }
+            t.pattern_length = sh.ltdash.iter().map(|d| d.abs()).sum();
+            let _ = doc.line_types.add(t);
+        }
+        if doc.line_types.contains(&sh.lt) { common.linetype = sh.lt.clone(); }
+    }
+    if sh.lw >= 0 { common.line_weight = LineWeight::from_value(sh.lw); }
 }
 
 /// An attribute's modes.
@@ -1249,6 +1277,7 @@ fn define_block(doc: &mut CadDocument, sh: &ShapeOut) -> Result<(), String> {
     rec.explodable = true;
     for sub in &sh.items {
         let Some(mut e) = entity_of(sub) else { continue };
+        style_of(doc, e.common_mut(), sub);
         let h = doc.allocate_handle();
         e.as_entity_mut().set_handle(h);
         e.common_mut().owner_handle = rec.handle;
@@ -1291,18 +1320,18 @@ fn with_additions(bytes: Vec<u8>, devices_json: &str, shapes_json: &str, erased_
             // An insert of one of them.
             "insert" if !sh.pts.is_empty() && !sh.name.is_empty() => {
                 let mut i = Insert::new(sh.name.clone(), Vector3::new(sh.pts[0].0, sh.pts[0].1, 0.0)).with_uniform_scale(if sh.sc > 0.0 { sh.sc } else { 1.0 }).with_rotation(sh.rot);
-                i.common.layer = sh.layer.clone();
+                i.common.layer = sh.layer.clone(); style_of(&mut doc, &mut i.common, sh);
                 // Its attributes (ATTRIB entities, ended by SEQEND): each as placed, with its value.
                 for a in sh.atts.iter().filter(|a| !a.tag.is_empty() && !a.pts.is_empty()) {
                     use acadrust::entities::AttributeEntity;
                     let mut at = AttributeEntity::new(a.tag.clone(), a.text.clone());
-                    at.insertion_point = Vector3::new(a.pts[0].0, a.pts[0].1, 0.0); at.height = a.h; at.rotation = a.rot; at.common.layer = a.layer.clone();
+                    at.insertion_point = Vector3::new(a.pts[0].0, a.pts[0].1, 0.0); at.height = a.h; at.rotation = a.rot; at.common.layer = a.layer.clone(); style_of(&mut doc, &mut at.common, a);
                     at.flags.invisible = a.flags.invisible; at.flags.constant = a.flags.constant; at.flags.verify = a.flags.verify; at.flags.preset = a.flags.preset; at.flags.locked_position = a.flags.lock;
                     i.attributes.push(at);
                 }
                 EntityType::Insert(i)
             }
-            _ => match entity_of(sh) { Some(e) => e, None => continue },
+            _ => match entity_of(sh) { Some(mut e) => { style_of(&mut doc, e.common_mut(), sh); e } None => continue },
         };
         let handle = doc.add_entity(e).map_err(err)?;
         if !sh.id.is_empty() { by_id.entry(sh.id.as_str()).or_insert(handle); }
@@ -1776,6 +1805,32 @@ mod tests {
         let lone = format!(r#"[{{"layer":"LV-HATCH","kind":"hatch","pts":[],"loops":[{outer}],"solid":true,"srcs":["S9"]}}]"#);
         let plain = with_additions(drawing(), "[]", &lone, "").unwrap();
         assert!(plain.entities().any(|e| matches!(e, EntityType::Hatch(x) if x.common.layer == "LV-HATCH" && !x.is_associative)));
+    }
+
+    /// A drawn object's own colour, linetype and lineweight are written and read back; none given leaves it ByLayer; a
+    /// linetype the drawing lacks is added from its pattern (and left ByLayer without one).
+    #[test]
+    fn own_style_saved() {
+        use acadrust::types::{Color, LineWeight};
+        let shapes = r##"[{"layer":"LV-SKETCH","kind":"line","pts":[[0,0],[10,0]],"color":"#ff0000","lt":"DASHED","lw":35},
+            {"layer":"LV-SKETCH","kind":"line","pts":[[0,1],[10,1]],"color":"idx:5","lt":"MYDASH","ltdash":[6,-3,0,-3]},
+            {"layer":"LV-SKETCH","kind":"line","pts":[[0,2],[10,2]],"lt":"NOSUCH"},
+            {"layer":"LV-SKETCH","kind":"line","pts":[[0,3],[10,3]]},
+            {"layer":"","kind":"blockdef","pts":[],"name":"B1","items":[{"layer":"0","kind":"line","pts":[[0,0],[1,0]],"color":"#00ff00","lw":50}]}]"##;
+        let doc = with_additions(drawing(), "[]", shapes, "").unwrap();
+        let (back, _) = read(acadrust::DxfWriter::new(&doc).write_to_vec().unwrap()).unwrap();
+        let line = |y: f64| back.entities().find_map(|e| if let EntityType::Line(x) = e { if x.start.y == y && x.start.x == 0.0 && x.end.x == 10.0 { Some(x.common.clone()) } else { None } } else { None }).expect("the line");
+        let (a, b, c, d) = (line(0.0), line(1.0), line(2.0), line(3.0));
+        assert_eq!((a.color, a.linetype.as_str(), a.line_weight), (Color::Rgb { r: 255, g: 0, b: 0 }, "DASHED", LineWeight::Value(35)));
+        assert_eq!((b.color, b.linetype.as_str(), b.line_weight), (Color::Index(5), "MYDASH", LineWeight::ByLayer));
+        let my = back.line_types.get("MYDASH").expect("the added linetype");
+        assert_eq!(my.elements.len(), 4);
+        assert_eq!((c.color, c.linetype.as_str()), (Color::ByLayer, ""));
+        assert_eq!((d.color, d.linetype.as_str(), d.line_weight), (Color::ByLayer, "", LineWeight::ByLayer));
+        // Inside a block definition too.
+        let rec = back.block_records.get("B1").expect("the block");
+        let inner = rec.entity_handles.iter().find_map(|h| back.get_entity(*h)).expect("its line");
+        assert_eq!((inner.common().color, inner.common().line_weight), (Color::Rgb { r: 0, g: 255, b: 0 }, LineWeight::Value(50)));
     }
 
     /// An ellipse and a polyline with arc segments (a revision cloud) are saved as such, and read back.
