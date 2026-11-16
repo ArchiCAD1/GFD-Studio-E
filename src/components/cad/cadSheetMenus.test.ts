@@ -40,11 +40,16 @@ describe('right-click menus (phase 3): blocks, references and sheets', () => {
 
   it('a viewport: Activate, Show on the Model tab, Viewport scale ▸, Lock, Frame, layers, Erase, Plot, Page setup', () => {
     const m = viewportMenu(vp);
-    expect(labels(m)).toEqual(['Activate (model space)', 'Show on the Model tab', '-', 'Viewport scale', 'Unlock display', 'Frame prints', '-', 'Viewport layers…', '-', 'Erase viewport', '-', 'Plot this layout…', 'Page setup and title block…', '-', 'Properties']);
+    expect(labels(m)).toEqual(['Activate (model space)', 'Show on the Model tab', '-', 'Viewport scale', 'Unlock display', 'Frame prints', 'Clip to an outline…', '-', 'Viewport layers…', '-', 'Erase viewport', '-', 'Plot this layout…', 'Page setup and title block…', '-', 'Properties']);
     expect(flat(m).find((x) => x.label === 'Viewport scale')!.sub!.map((x) => [x.arg, !!x.off])).toEqual(VP_SCALES.map((k) => [`scale|${k}`, k === 100]));
     const mine = flat(viewportMenu(vp, [50, 75, 100])).find((x) => x.label === 'Viewport scale')!.sub!.map((x) => x.label);
     expect(mine).toEqual(['1:50', '1:75', '1:100']);
     expect(flat(viewportMenu({ ...vp, scale: 250 }, [50, 100])).find((x) => x.label === 'Viewport scale')!.sub!.map((x) => x.label)).toEqual(['1:50', '1:100', '1:250']); // a scale in use is listed
+    const clipped = flat(viewportMenu({ ...vp, clip: [[0, 0], [1, 0], [0.5, 1]] })), off = flat(viewportMenu(vp)); // the outline can be taken off only when there is one
+    expect(clipped.filter((x) => /outline/.test(x.label)).map((x) => [x.label, x.arg, x.key])).toEqual([['Clip to an outline…', 'clip', 'VPCLIP'], ['Remove the outline', 'unclip', undefined]]);
+    expect(off.some((x) => x.label === 'Remove the outline')).toBe(false);
+    expect(flat(drawingPaperMenu({ inside: true, editable: true, clipped: true })).filter((x) => /outline/.test(x.label)).map((x) => x.arg)).toEqual(['clip', 'unclip']);
+    expect(flat(drawingPaperMenu({ inside: true, editable: true })).some((x) => x.label === 'Remove the outline')).toBe(false);
     expect(labels(viewportMenu({ ...vp, locked: false, frame: true }))).toEqual(expect.arrayContaining(['Lock display', 'Frame does not print']));
   });
 
@@ -62,7 +67,7 @@ describe('right-click menus (phase 3): blocks, references and sheets', () => {
 
   it('a layout of the drawing, inside a viewport of one made here: activate, Model tab, scale ▸, lock, frame, erase, plot, page setup', () => {
     const m = drawingPaperMenu({ inside: true, editable: true, scale: 100, scales: [50, 100], locked: false, frame: false });
-    expect(labels(m)).toEqual(['Activate (model space)', 'Show on the Model tab', '-', 'Viewport scale', 'Lock display', 'Frame prints', '-', 'Erase viewport', '-', 'Plot this layout…', 'Page setup…']);
+    expect(labels(m)).toEqual(['Activate (model space)', 'Show on the Model tab', '-', 'Viewport scale', 'Lock display', 'Frame prints', 'Clip to an outline…', '-', 'Erase viewport', '-', 'Plot this layout…', 'Page setup…']);
     expect(flat(m).find((x) => x.label === 'Activate (model space)')).toMatchObject({ act: 'fpaper', arg: 'ms', key: 'Dbl-click' });
     expect(flat(m).find((x) => x.label === 'Show on the Model tab')!.arg).toBe('max');
     expect(flat(m).find((x) => x.label === 'Viewport scale')!.sub!.map((x) => [x.arg, !!x.off])).toEqual([['scale|50', false], ['scale|100', true]]);

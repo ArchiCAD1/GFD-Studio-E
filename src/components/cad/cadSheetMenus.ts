@@ -52,7 +52,7 @@ export function viewportMenu(v: PlanViewport, scales: number[] = VP_SCALES): Ctx
     vp('Activate (model space)', 'ms', undefined, 'Dbl-click'), vp('Show on the Model tab', 'max'), '-',
     { label: 'Viewport scale', sub: (scales.includes(v.scale) ? scales : [...scales, v.scale].sort((a, b) => a - b)).map((k) => vp(`1:${k}`, 'scale', String(k), v.scale === k ? 'now' : undefined, v.scale === k)) },
     vp(isLocked(v) ? 'Unlock display' : 'Lock display', 'lock', undefined, 'VPLOCK'),
-    vp(v.frame ? 'Frame does not print' : 'Frame prints', 'frame'), '-',
+    vp(v.frame ? 'Frame does not print' : 'Frame prints', 'frame'), vp('Clip to an outline…', 'clip', undefined, 'VPCLIP'), ...(v.clip ? [vp('Remove the outline', 'unclip')] : []), '-',
     vp('Viewport layers…', 'layers', undefined, 'LM'), '-',
     vp('Erase viewport', 'erase', undefined, 'Del'), '-',
     item('paper', 'Plot this layout…', 'cmd', 'PLOT', 'PLOT'), item('paper', 'Page setup and title block…', 'cmd', 'PAGESETUP'), '-',
@@ -76,7 +76,7 @@ export function paperMenu(s: { status?: string }): CtxEntry[] {
 /** Right-click on a layout of the drawing (its own, from the file, or one made here with +): the model through a
  * viewport, its scale, display lock and frame (one made here), the layout itself, and the Model tab. The file's own
  * layouts are still shown as saved: their viewports are not changed here; layouts made here are. */
-export function drawingPaperMenu(s: { inside: boolean; editable: boolean; scale?: number; scales?: number[]; locked?: boolean; frame?: boolean }): CtxEntry[] {
+export function drawingPaperMenu(s: { inside: boolean; editable: boolean; scale?: number; scales?: number[]; locked?: boolean; frame?: boolean; clipped?: boolean }): CtxEntry[] {
   const scales = s.scales ?? VP_SCALES;
   const fp = (label: string, action: string, value?: string, key?: string, off?: boolean) => item('fpaper', label, action, value, key, off);
   if (s.inside && s.editable) {
@@ -84,7 +84,7 @@ export function drawingPaperMenu(s: { inside: boolean; editable: boolean; scale?
       fp('Activate (model space)', 'ms', undefined, 'Dbl-click'), fp('Show on the Model tab', 'max'), '-',
       { label: 'Viewport scale', sub: (s.scale && !scales.includes(s.scale) ? [...scales, s.scale].sort((a, b) => a - b) : scales).map((k) => fp(`1:${k}`, 'scale', String(k), s.scale === k ? 'now' : undefined, s.scale === k)) },
       fp(s.locked ? 'Unlock display' : 'Lock display', 'lock', undefined, 'VPLOCK'),
-      fp(s.frame ? 'Frame does not print' : 'Frame prints', 'frame'), '-',
+      fp(s.frame ? 'Frame does not print' : 'Frame prints', 'frame'), fp('Clip to an outline…', 'clip', undefined, 'VPCLIP'), ...(s.clipped ? [fp('Remove the outline', 'unclip')] : []), '-',
       fp('Erase viewport', 'erase'), '-',
       fp('Plot this layout…', 'cmd', 'PLOT', 'PLOT'), fp('Page setup…', 'cmd', 'PAGESETUP')
     ]);

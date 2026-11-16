@@ -16,7 +16,7 @@ let root: Root, host: HTMLDivElement;
 beforeEach(() => { host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); });
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; });
 
-function edit(over: Partial<Pick<PaperEdit, 'sel' | 'ms' | 'mv'>> = {}) {
+function edit(over: Partial<Pick<PaperEdit, 'sel' | 'ms' | 'mv' | 'outline' | 'onOutlinePoint'>> = {}) {
   return { sel: null as number | null, ms: null as number | null, mv: false, onSelect: vi.fn(), onMs: vi.fn(), onBox: vi.fn(), onNew: vi.fn(), onPan: vi.fn(), onZoom: vi.fn(), ...over };
 }
 const show = (e: PaperEdit | undefined, l = layoutOf()) => act(() => root.render(<CadFilePaper layout={asFileLayout(l, 1)} model={model} edit={e} />));
@@ -200,3 +200,75 @@ describe('CadFilePaper: the design made in the app, over the model in each viewp
   });
 });
 
+describe('CadFilePaper: a clipped viewport (VPCLIP)', () => {
+  it('is worked in by a double-click inside its outline, not in the part of its frame cut away; the design over it is cut at the outline', () => {
+    // Viewport 1 (x 10 to 210, y 10 to 287 mm from the bottom) with its top right quarter cut away: beyond x 110 above y 148.5.
+    const clip: [number, number][] = [[0, 0], [0.5, 0], [0.5, 0.5], [1, 0.5], [1, 1], [0, 1]];
+    const l: DrawingLayout = { name: 'Layout2', paper: [420, 297], viewports: [{ ...vp(10, 200), clip }, vp(220, 190)] };
+    const e = edit();
+    act(() => root.render(<CadFilePaper layout={asFileLayout(l, 1)} model={model} design={['<circle cx="50" cy="150" r="1.8"/>', '<circle cx="300" cy="150" r="1.8"/>']} edit={e} />));
+    fire(pane(), 'dblclick', at(160, 250));
+    expect(e.onMs).not.toHaveBeenCalled();
+    fire(pane(), 'dblclick', at(60, 250));
+    expect(e.onMs).toHaveBeenCalledWith(0);
+    // On the page (mm from its top left corner) the outline is the clip of that viewport's design; the other keeps its frame.
+    expect(document.querySelector('.cad-filepaper-design clipPath#fpd0 polygon')!.getAttribute('points')).toBe('10,10 110,10 110,148.5 210,148.5 210,287 10,287');
+    expect(document.querySelector('.cad-filepaper-design clipPath#fpd0 rect')).toBeNull();
+    expect(document.querySelector('.cad-filepaper-design clipPath#fpd1 rect')).not.toBeNull();
+  });
+});
+
+describe('CadFilePaper: picking the outline of a viewport (VPCLIP)', () => {
+  const band = () => document.querySelector('svg[aria-label="Outline being picked"]');
+  it('a press on the paper is a corner in mm (to 0.1), and nothing else: no frame is picked or moved, no viewport made', () => {
+    const onOutlinePoint = vi.fn(), e = edit({ outline: [], onOutlinePoint });
+    show(e);
+    const overlay = document.querySelector('.cad-vps')!;
+    expect(overlay.className).toContain('mv');
+    expect((overlay as HTMLElement).style.cursor).toBe('crosshair');
+    fire(overlay, 'pointerdown', at(30, 30));
+    fire(frame(1).querySelector('.cad-vp-edge.b')!, 'pointerdown', at(100, 10)); // a frame's edge is no grab now: the press is a corner too
+    fire(overlay, 'pointerdown', at(130.04, 100.26));
+    expect(onOutlinePoint).toHaveBeenCalledTimes(3);
+    close(onOutlinePoint.mock.calls[0][0], [30, 30]);
+    close(onOutlinePoint.mock.calls[1][0], [100, 10]);
+    expect(onOutlinePoint.mock.calls[2][0].map((n: number) => +n.toFixed(1))).toEqual(onOutlinePoint.mock.calls[2][0]);
+    expect(e.onSelect).not.toHaveBeenCalled();
+    expect(e.onBox).not.toHaveBeenCalled();
+    expect(e.onNew).not.toHaveBeenCalled();
+  });
+
+  it('the rubber band has a point per corner picked plus the pointer, a dashed line back to the first from two corners on, and a dot on each corner', () => {
+    show(edit({ outline: [[30, 30]] }));
+    expect(band()).not.toBeNull();
+    const overlay = document.querySelector('.cad-vps')!;
+    expect(band()!.querySelectorAll('circle')).toHaveLength(1);
+    expect(band()!.querySelector('polyline')).toBeNull(); // one corner and no pointer yet: nothing to join
+    fire(overlay, 'pointermove', at(130, 30));
+    expect(band()!.querySelector('polyline')!.getAttribute('points')!.split(' ')).toHaveLength(2);
+    expect(band()!.querySelector('line')).toBeNull();
+    show(edit({ outline: [[30, 30], [130, 30], [130, 100]] }));
+    fire(overlay, 'pointermove', at(30, 100));
+    expect(band()!.querySelector('polyline')!.getAttribute('points')!.split(' ')).toHaveLength(4);
+    expect(band()!.querySelector('polyline')!.getAttribute('stroke')).toBe('var(--acc)');
+    expect(band()!.querySelector('line')!.getAttribute('stroke-dasharray')).toBeTruthy();
+    expect(band()!.querySelectorAll('circle')).toHaveLength(3);
+  });
+
+  it('with no outline being picked there is no band, and a press is MV\'s or a frame\'s as before', () => {
+    const e = edit({ outline: null, onOutlinePoint: vi.fn() });
+    show(e);
+    expect(band()).toBeNull();
+    expect(document.querySelector('.cad-vps')!.className).not.toContain('mv');
+    fire(frame(1).querySelector('.cad-vp-edge.b')!, 'pointerdown', at(100, 10));
+    expect(e.onSelect).toHaveBeenCalledWith(0);
+    expect(e.onOutlinePoint).not.toHaveBeenCalled();
+  });
+
+  it('the title of a clipped viewport\'s edges says so', () => {
+    const l: DrawingLayout = { name: 'Layout2', paper: [420, 297], viewports: [{ ...vp(10, 200), clip: [[0, 0], [1, 0], [0.5, 1]] }, vp(220, 190)] };
+    show(edit(), l);
+    expect(frame(1).querySelector('.cad-vp-edge')!.getAttribute('title')).toContain(' · clipped — drag');
+    expect(frame(2).querySelector('.cad-vp-edge')!.getAttribute('title')).not.toContain('clipped');
+  });
+});

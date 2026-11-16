@@ -2,6 +2,7 @@ import type { FileLayout } from '../engines/cad/cadEngine';
 import type { Project } from '../types';
 import { DEFAULT_EDGE_MM, DEFAULT_PAPER } from './fileLayouts';
 import { arrangeBoxes, keyScale, type VpArrangement } from './planViewports';
+import { clipFromPaper, insidePolygon, type VpClip } from './viewportClip';
 
 /** Layouts made in Design CAD on a drawing (+ under the drawing: Layout2, Layout3…), kept in the project by drawing file;
  * the drawing file is never changed. Each is a paper with viewports onto the model, shown as the file's own layouts are
@@ -10,7 +11,7 @@ import { arrangeBoxes, keyScale, type VpArrangement } from './planViewports';
 /** A viewport on the paper: its frame in mm from the paper's lower left corner, the model point at its centre and the
  * model height it shows (drawing units). `locked`: pan and zoom inside it leave its view alone (default: they move it).
  * `frame`: its frame prints (default: on screen only). */
-export interface DrawingViewport { x: number; y: number; w: number; h: number; cx: number; cy: number; vh: number; locked?: boolean; frame?: boolean }
+export interface DrawingViewport { x: number; y: number; w: number; h: number; cx: number; cy: number; vh: number; locked?: boolean; frame?: boolean; /** Its outline when it is not its frame's rectangle (VPCLIP, src/model/viewportClip.ts). */ clip?: VpClip }
 export interface DrawingLayout { name: string; paper: [number, number]; viewports: DrawingViewport[] }
 
 /** Space left round a new layout's viewport (mm from each paper edge). */
@@ -128,9 +129,13 @@ export function viewportWindow(v: DrawingViewport): Box {
   const hw = (perMm(v) * v.w) / 2, hh = v.vh / 2;
   return [v.cx - hw, v.cy - hh, v.cx + hw, v.cy + hh];
 }
-/** The topmost viewport whose frame holds a paper point (mm from the paper's lower left corner), or -1. */
+/** A viewport's outline on the paper (mm from its lower left corner, y up): its clip's corners, else its frame's four. */
+export const viewportOutline = (v: Pick<DrawingViewport, 'x' | 'y' | 'w' | 'h' | 'clip'>): [number, number][] =>
+  (v.clip ? v.clip.map(([fx, fy]): [number, number] => [v.x + fx * v.w, v.y + v.h - fy * v.h]) : [[v.x, v.y + v.h], [v.x + v.w, v.y + v.h], [v.x + v.w, v.y], [v.x, v.y]]);
+/** The topmost viewport that holds a paper point (mm from the paper's lower left corner) — inside its frame, and its
+ * outline when it has one — or -1. */
 export function viewportAt(l: Pick<DrawingLayout, 'viewports'>, [x, y]: [number, number]): number {
-  for (let i = l.viewports.length - 1; i >= 0; i--) { const v = l.viewports[i]; if (x >= v.x && x <= v.x + v.w && y >= v.y && y <= v.y + v.h) return i; }
+  for (let i = l.viewports.length - 1; i >= 0; i--) { const v = l.viewports[i]; if (x >= v.x && x <= v.x + v.w && y >= v.y && y <= v.y + v.h && (!v.clip || insidePolygon([x, y], viewportOutline(v)))) return i; }
   return -1;
 }
 const change = (l: DrawingLayout, i: number, f: (v: DrawingViewport) => DrawingViewport): DrawingLayout => ({ ...l, viewports: l.viewports.map((v, k) => (k === i ? f(v) : v)) });
@@ -151,6 +156,17 @@ export function withViewportBox(l: DrawingLayout, i: number, [x, y, w, h]: Box, 
     return { ...v, ...b, cx: v.cx + (b.x + b.w / 2 - (v.x + v.w / 2)) * s, cy: v.cy + (b.y + b.h / 2 - (v.y + v.h / 2)) * s, vh: s * b.h };
   });
 }
+/** A viewport cut to a polygon picked on the paper (VPCLIP; mm from the paper's lower left corner, y up): its frame
+ * becomes the polygon's bounding box and the model stays where it is on the paper, at the same scale. Undefined when the
+ * points make no polygon. */
+export function clipDrawingViewport(l: DrawingLayout, i: number, picked: [number, number][]): DrawingLayout | undefined {
+  const c = clipFromPaper(picked.map(([x, y]): [number, number] => [x, -y])); // down the paper, as the outline is kept
+  if (!c || !l.viewports[i]) return undefined;
+  const [left, top, w, h] = c.box;
+  return change(withViewportBox(l, i, [left, -(top + h), w, h], 'resize'), i, (v) => ({ ...v, clip: c.clip }));
+}
+/** The outline taken off: the viewport is its frame's rectangle again. */
+export const unclipDrawingViewport = (l: DrawingLayout, i: number): DrawingLayout => change(l, i, (v) => { const { clip: _c, ...rest } = v; return rest; });
 /** A new viewport in a frame picked on the paper (MV): the whole drawing in it, centred, at the standard scale it fits. It goes last. */
 export function addDrawingViewport(l: DrawingLayout, [x, y, w, h]: Box, ext: [number, number, number, number], mmPerUnit: number): DrawingLayout {
   const mpu = mmPerUnit > 0 ? mmPerUnit : 1, ok = Number.isFinite(ext[0]) && ext[2] >= ext[0], b = { x: r1(x), y: r1(y), w: r1(w), h: r1(h) };

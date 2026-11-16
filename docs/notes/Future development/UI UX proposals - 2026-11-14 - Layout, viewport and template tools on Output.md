@@ -1,6 +1,6 @@
 # UI / UX proposal — Layout, viewport and template tools on Output (2026-11-14)
 
-Status: **approved on 2026-11-14 ("Go ahead"). Batch 1 (items 1, 3, 4, 6, 8, 10) built in v2.136. Batch 2 (items 5, 9, 12) approved the same day ("go ahead with batch 2") and built in v2.143. Open points 1 and 4 after batch 2 (the design on these layouts, DWT) chosen on 2026-11-15 and built in v2.147. Items 2 and 11 (layout manager, named plot styles) built in v2.149 on `feat/cad-layout-manager` ("Next", 2026-11-15). Items 7 and 13 and open points 2 and 3 wait.**
+Status: **approved on 2026-11-14 ("Go ahead"). Batch 1 (items 1, 3, 4, 6, 8, 10) built in v2.136. Batch 2 (items 5, 9, 12) approved the same day ("go ahead with batch 2") and built in v2.143. Open points 1 and 4 after batch 2 (the design on these layouts, DWT) chosen on 2026-11-15 and built in v2.147. Items 2 and 11 (layout manager, named plot styles) built in v2.149 ("Next", 2026-11-15). Item 7 (clipped viewport) built in v2.161 on `feat/cad-vpclip` ("go ahead", 2026-11-16). Item 13 and open points 2 and 3 wait.**
 
 The user's condition: the arrangement must stay close to what people who know current industrial 2D drafting products expect, without copying one, so nobody has to hunt for a tool. Output therefore reads **Layout · Layout viewports · Plot · Publish · Export**, the typed commands keep their usual names (LAYOUT, MV, VPORTS, VPSCALE, VPLOCK, VPMAX / VPMIN, PAGESETUP, SCALELISTEDIT), and the same entries are on a layout tab's right-click menu.
 
@@ -84,6 +84,24 @@ Picture of the two dialogs (printed with the PDF check's hidden renderer, not th
 - A page setup applies to plan sheets only; a layout made with + still has its paper only (pens for these layouts are open point 2).
 - An STB's styles are given to the app's kinds of line by the user; nothing is matched by name. Styles are not read from the layers of a drawing.
 - Checked by tests and the picture only: the screens were not opened in the app (project rules). The STB and CTB readers were checked against files made in the tests, laid out as an open-source reader of these files describes them, not against a file saved by a CAD program.
+
+## Built (v2.161, item 7)
+
+Picture (printed with the PDF check's hidden renderer, not the app): a layout made with + of the sample villa as it plots, its plan viewport clipped on a slant, with a key plan beside it: `docs/mockups/cad-vpclip-plot-sample-v2.161.png`.
+
+- **Item 7, clipped viewport** (VPCLIP; Output → Layout viewports → Clip; the viewport's right-click menu and its properties; `src/model/viewportClip.ts`): a viewport of a plan sheet or of a layout made with + takes an outline clicked corner by corner on the paper. Enter or C closes it (three corners or more), U takes the last corner back, Esc cancels. VPCLIP D takes it off.
+- **What an outline is:** corners kept in fractions of the viewport's frame, so it moves, resizes, copies and rearranges with the frame. The frame becomes the outline's bounding box and the model stays where it was on the paper.
+- **Cut everywhere it shows:** the plan sheet and its PDF, the paper view of a layout made with +, the design over it and its plot. The outline is what prints as the frame when Frame prints is on.
+- **Picked by its outline:** a double-click works in the viewport only inside its outline; the part of its frame cut away belongs to whatever is under it. While working in a clipped viewport on a plan sheet, the live model is cut at the outline too.
+- **Layout templates** keep a viewport's outline.
+
+### Built differently (v2.161)
+
+- The outline is made of straight sides clicked on the paper. An outline taken from a drawn object (a circle, a closed polyline) is not offered.
+- A clipped viewport is still moved and resized by its rectangular frame (the outline's bounding box); the outline's own corners are not dragged. To change the shape, clip it again.
+- On a plan sheet exported as DXF or DWG, the design's lines (rooms, references, wiring, trays, routes) are cut at the outline and symbols outside it are left out. Lines and text drawn by hand are cut on screen and in the PDF only, as they already are at a rectangular viewport's edge.
+- The drawing file's own layouts are not clipped here, and an outline saved in a drawing file's own viewport is not read.
+- Checked by tests and the picture only: the screens were not opened in the app (project rules).
 
 ## Why
 

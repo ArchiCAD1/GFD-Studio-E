@@ -79,6 +79,20 @@ describe('layout templates', () => {
     expect(drawingLayoutFromTemplate(t, 'L', [0, 0, 30000, 20000], 1).viewports.map((v) => v.frame)).toEqual([true, undefined]);
   });
 
+  it('an outline is kept by the template, by a plan sheet and by a layout made from it, and read back from a file only when it is one', () => {
+    const clip: [number, number][] = [[0, 0], [1, 0], [0.5, 1]];
+    const t = templateFromPaper('C', [420, 297], [{ x: 10, y: 10, w: 200, h: 277, scale: 100, clip }, { x: 215, y: 10, w: 195, h: 277, scale: 100 }]);
+    expect(t.viewports.map((v) => v.clip)).toEqual([clip, undefined]);
+    expect(drawingLayoutFromTemplate(t, 'L', [0, 0, 30000, 20000], 1).viewports.map((v) => v.clip)).toEqual([clip, undefined]);
+    const { p, s } = plan();
+    const src: DrawingSheet = { ...s, viewports: [{ id: 'vp1', box: [10, 10, 100, 80], at: [6, 5], scale: 100, clip }, { id: 'vp2', box: [120, 10, 100, 80], at: [6, 5], scale: 100 }] };
+    const ts = templateFromSheet(p, src, 'Sheet');
+    expect(ts.viewports.map((v) => v.clip)).toEqual([clip, undefined]);
+    expect(sheetWithTemplate(p, { ...s, viewports: undefined }, ts).viewports!.map((v) => v.clip)).toEqual([clip, undefined]);
+    const read = parseLayoutTemplate({ name: 'T', paper: [420, 297], viewports: [{ box: [0, 0, 0.5, 1], clip }, { box: [0.5, 0, 0.5, 1], clip: [[0, 0], [2, 0], [1, 1]] }, { box: [0, 0, 1, 1], clip: [[0, 0], [1, 1]] }] })!;
+    expect(read.viewports.map((v) => v.clip)).toEqual([clip, undefined, undefined]);
+  });
+
   it('layouts of another drawing: paper, frames and scales come over; a name taken here becomes the next LayoutN', () => {
     const file = (name: string, paper: [number, number], viewports: { x: number; y: number; w: number; h: number; cx: number; cy: number; vh: number; locked: boolean; on: boolean }[]) =>
       ({ name, tab: 1, paper, margins: [0, 0, 0, 0] as [number, number, number, number], at: [0, 0] as [number, number], mm_per_unit: 1, viewports, origin: [0, 0] as [number, number], segs: new Float32Array(0), segColors: new Uint32Array(0), segLayers: new Uint16Array(0), texts: [], layers: [] });

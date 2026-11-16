@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CadText, CadView, FileLayout } from '../../engines/cad/cadEngine';
 import { paperOf, viewportMap } from '../../model/fileLayouts';
 import { BAR_ALPHA, emPerCap, READ_PX, textBar, widthPerPx } from '../../model/cadTextScreen';
+import { insidePolygon } from '../../model/viewportClip';
 import { sanitizeSvgFragment } from '../../util/sanitize';
 
 /** A layout of the drawing (paper space) in Design CAD, the file's own or one made here: its paper with a shadow, the
@@ -36,6 +37,10 @@ export interface PaperEdit {
   /** A frame moved or resized: its lower left corner, width and height (mm). */
   onBox: (i: number, box: Box, how: 'move' | 'resize') => void;
   onNew: (box: Box) => void;
+  /** VPCLIP: the corners of the outline picked so far (mm from the paper's lower left corner, y up); null: not picking. */
+  outline?: Pt[] | null;
+  /** A corner picked on the paper (mm, to 0.1). */
+  onOutlinePoint?: (at: Pt) => void;
   /** The view of the viewport worked in dragged by a distance on the paper (mm, y up). */
   onPan: (i: number, dx: number, dy: number) => void;
   /** The view of the viewport worked in zoomed by a factor about a paper point (mm). */
@@ -67,7 +72,8 @@ export function CadFilePaper({ layout, model, layersOn, design, onDblClick, onCo
   const [first, setFirst] = useState<Pt | null>(null);
   const [hover, setHover] = useState<Pt | null>(null);
   const [live, setLive] = useState<{ i: number; dx: number; dy: number } | null>(null);
-  useEffect(() => { if (!edit?.mv) { setFirst(null); setHover(null); } }, [edit?.mv]);
+  const picking = !!edit?.mv || !!edit?.outline;
+  useEffect(() => { if (!picking) { setFirst(null); setHover(null); } }, [picking]);
   const paper = paperOf(layout);
   const designSvg = useMemo(() => (design ?? []).map((d) => (d ? sanitizeSvgFragment(d) : '')), [design]);
   useEffect(() => {
@@ -132,8 +138,15 @@ export function CadFilePaper({ layout, model, layersOn, design, onDblClick, onCo
       const v = live?.i === i && v0.h > 0 ? { ...v0, cx: v0.cx - (live.dx * v0.vh) / v0.h, cy: v0.cy - (live.dy * v0.vh) / v0.h } : v0;
       const map = viewportMap(v);
       const [ax, ay] = toScreen([v.x, v.y + v.h]), [bx, by] = toScreen([v.x + v.w, v.y]);
+      // Its frame, or its outline when it is clipped (VPCLIP): the model is cut at it, and it is what is drawn as the frame.
+      const outline = () => {
+        ctx.beginPath();
+        if (!v0.clip) { ctx.rect(ax, ay, bx - ax, by - ay); return; }
+        v0.clip.forEach(([fx, fy], n) => { const [x, y] = toScreen([v0.x + fx * v0.w, v0.y + v0.h - fy * v0.h]); if (n) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+        ctx.closePath();
+      };
       ctx.save();
-      ctx.beginPath(); ctx.rect(ax, ay, bx - ax, by - ay); ctx.clip();
+      outline(); ctx.clip('evenodd');
       // The part of the model in the frame (drawing units), to skip the rest quickly.
       const half: Pt = [v.w / 2 / map.scale, v.h / 2 / map.scale];
       const [x0, x1, y0, y1] = [v.cx - half[0] - mox, v.cx + half[0] - mox, v.cy - half[1] - moy, v.cy + half[1] - moy];
@@ -155,7 +168,7 @@ export function CadFilePaper({ layout, model, layersOn, design, onDblClick, onCo
       }
       ctx.restore();
       ctx.strokeStyle = FRAME; ctx.lineWidth = 1;
-      ctx.strokeRect(ax, ay, bx - ax, by - ay);
+      outline(); ctx.stroke();
     }
     // What is drawn on the paper itself.
     const [pox, poy] = layout.origin;
@@ -183,12 +196,14 @@ export function CadFilePaper({ layout, model, layersOn, design, onDblClick, onCo
   };
   /** A viewport's frame on the paper (mm from its lower left corner: x, y, width, height). */
   const frameOf = (v: FileLayout['viewports'][0]): Box => { const [x, y] = paper.mm(v.x, v.y), [x1, y1] = paper.mm(v.x + v.w, v.y + v.h); return [x, y, x1 - x, y1 - y]; };
-  /** The topmost viewport that is on under a paper point (mm), or -1. */
+  /** A viewport's outline on the paper (mm from its lower left corner): its clip's corners, else undefined (its frame). */
+  const outlineOf = (v: FileLayout['viewports'][0]): Pt[] | undefined => v.clip?.map(([fx, fy]) => paper.mm(v.x + fx * v.w, v.y + v.h - fy * v.h));
+  /** The topmost viewport that is on under a paper point (mm) — in its frame, and in its outline when it has one — or -1. */
   const vpAt = ([x, y]: Pt): number => {
     for (let i = layout.viewports.length - 1; i >= 0; i--) {
       if (!layout.viewports[i].on) continue;
-      const [l, b, w, h] = frameOf(layout.viewports[i]);
-      if (x >= l && x <= l + w && y >= b && y <= b + h) return i;
+      const [l, b, w, h] = frameOf(layout.viewports[i]), o = outlineOf(layout.viewports[i]);
+      if (x >= l && x <= l + w && y >= b && y <= b + h && (!o || insidePolygon([x, y], o))) return i;
     }
     return -1;
   };
@@ -253,12 +268,12 @@ export function CadFilePaper({ layout, model, layersOn, design, onDblClick, onCo
           style={{ position: 'absolute', left: view.x, top: view.y - paper.h * view.k, width: paper.w * view.k, height: paper.h * view.k, pointerEvents: 'none' }}>
           {layout.viewports.map((v, i) => {
             if (!v.on || !designSvg[i]) return null;
-            const [l, b, w, h] = frameOf(v);
+            const [l, b, w, h] = frameOf(v), o = outlineOf(v);
             // The view being dragged in the viewport worked in: its design goes with it until the view is kept.
             const moved = live?.i === i ? `translate(${live.dx} ${-live.dy})` : undefined;
             return (
               <g key={i} data-vp={i} clipPath={`url(#fpd${i})`}>
-                <clipPath id={`fpd${i}`}><rect x={l} y={paper.h - b - h} width={w} height={h} /></clipPath>
+                <clipPath id={`fpd${i}`}>{o ? <polygon points={o.map(([x, y]) => `${x},${paper.h - y}`).join(' ')} clipRule="evenodd" /> : <rect x={l} y={paper.h - b - h} width={w} height={h} />}</clipPath>
                 <g transform={moved} dangerouslySetInnerHTML={{ __html: designSvg[i] }} />
               </g>
             );
@@ -266,9 +281,13 @@ export function CadFilePaper({ layout, model, layersOn, design, onDblClick, onCo
         </svg>
       )}
       {edit && (
-        <div className={`cad-vps${edit.mv ? ' mv' : ''}`} style={{ cursor: edit.mv ? 'crosshair' : undefined }}
-          onPointerMove={edit.mv ? (e) => setHover(mmAt(e)) : undefined}
-          onPointerDown={edit.mv ? (e) => {
+        <div className={`cad-vps${edit.mv || edit.outline ? ' mv' : ''}`} style={{ cursor: edit.mv || edit.outline ? 'crosshair' : undefined }}
+          onPointerMove={edit.mv || edit.outline ? (e) => setHover(mmAt(e)) : undefined}
+          onPointerDown={edit.outline ? (e) => {
+            if (e.button !== 0) return; // the middle button still pans the paper
+            e.stopPropagation();
+            edit.onOutlinePoint?.(mmAt(e).map((n) => +n.toFixed(1)) as Pt);
+          } : edit.mv ? (e) => {
             e.stopPropagation();
             const at = mmAt(e);
             if (!first) { setFirst(at); return; }
@@ -280,17 +299,31 @@ export function CadFilePaper({ layout, model, layersOn, design, onDblClick, onCo
             if (!v.on) return null;
             const [l, b, w, h] = drag?.i === i ? drag.box : frameOf(v), on = edit.sel === i, inside = edit.ms === i, name = `Viewport ${i + 1}`;
             const grab = (how: 'move' | 'nw' | 'ne' | 'sw' | 'se') => (e: React.PointerEvent) => {
-              if (edit.mv) return;
+              if (edit.mv || edit.outline) return;
               e.stopPropagation(); e.currentTarget.setPointerCapture?.(e.pointerId);
               edit.onSelect(i); setDrag({ i, how, from: mmAt(e), box: frameOf(v).map((n) => +n.toFixed(1)) as Box });
             };
             return (
               <div key={i} className={`cad-vp${on ? ' on' : ''}${inside ? ' ms' : ''}`} aria-label={name} style={{ left: view.x + l * view.k, top: view.y - (b + h) * view.k, width: w * view.k, height: h * view.k }}>
-                {!inside && (['t', 'b', 'l', 'r'] as const).map((k) => <span key={k} className={`cad-vp-edge ${k}`} onPointerDown={grab('move')} onPointerMove={dragTo} onPointerUp={endDrag} title={`${name}${v.locked ? ' · locked' : ''} — drag to move, double-click inside to work in it`} />)}
+                {!inside && (['t', 'b', 'l', 'r'] as const).map((k) => <span key={k} className={`cad-vp-edge ${k}`} onPointerDown={grab('move')} onPointerMove={dragTo} onPointerUp={endDrag} title={`${name}${v.locked ? ' · locked' : ''}${v.clip ? ' · clipped' : ''} — drag to move, double-click inside to work in it`} />)}
                 {on && !inside && (['nw', 'ne', 'sw', 'se'] as const).map((k) => <span key={k} className={`cad-vp-grip ${k}`} onPointerDown={grab(k)} onPointerMove={dragTo} onPointerUp={endDrag} />)}
               </div>
             );
           })}
+          {edit.outline && (
+            <svg aria-label="Outline being picked" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+              {(() => {
+                const px = (p: Pt) => `${view.x + p[0] * view.k},${view.y - p[1] * view.k}`, line = hover ? [...edit.outline, hover] : edit.outline;
+                return (
+                  <>
+                    {line.length > 1 && <polyline points={line.map(px).join(' ')} fill="none" stroke="var(--acc)" strokeWidth="1.5" />}
+                    {edit.outline.length >= 2 && hover && <line x1={view.x + hover[0] * view.k} y1={view.y - hover[1] * view.k} x2={view.x + edit.outline[0][0] * view.k} y2={view.y - edit.outline[0][1] * view.k} stroke="var(--acc)" strokeWidth="1" strokeDasharray="4 3" />}
+                    {edit.outline.map((p, i) => <circle key={i} cx={view.x + p[0] * view.k} cy={view.y - p[1] * view.k} r="3" fill="var(--acc)" />)}
+                  </>
+                );
+              })()}
+            </svg>
+          )}
           {edit.mv && first && hover && (() => { const [l, b, w, h] = boxOf(first, hover); return <div className="cad-vp new" style={{ left: view.x + l * view.k, top: view.y - (b + h) * view.k, width: w * view.k, height: h * view.k }} />; })()}
         </div>
       )}

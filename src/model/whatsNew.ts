@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.161', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: clip a viewport to an outline', text: 'A viewport on a layout can now have any outline, not only a rectangle. Pick the viewport, then Output → Layout viewports → Clip (VPCLIP) and click the corners of the outline on the paper; Enter closes it, U takes the last corner back, Esc cancels. The plan is cut at the outline on screen, in the plot and in the PDF, and the outline is what prints as the frame when Frame prints is on. Remove the outline (VPCLIP D) makes it a rectangle again. It works on plan sheets and on layouts made with +, from the ribbon, the viewport\'s right-click menu and its properties, and a layout template keeps it.', action: 'cad' }
+    ]
+  },
+  {
     version: '2.160', date: '2026-11-16',
     items: [
       { title: 'Design CAD: picked objects show on any colour', text: 'A picked drawn object is drawn dashed in its own colour over a blue halo, so it shows on any layer colour. The same for the objects of an opened drawing, and a picked text of an opened drawing now gets a box.' },
