@@ -33,6 +33,10 @@ later are ESM only, so do not raise the override past 11.x while exceljs is Comm
   values and filenames, not the glob pattern needed for the reported amplification. The patched
   minimatch major is incompatible with the existing `glob` dependency, so the advisory is accepted
   until the review date while waiting for compatible upstream releases.
+- **picomatch 4.0.7 and earlier (GHSA-fc5q-39xc-vjpf).** Build and test tooling only: Vite, Vitest,
+  tinyglobby and fdir match glob patterns that this repository writes in its own config files and
+  scripts; no user input becomes a pattern, and picomatch is not in the shipped app. No patched
+  release exists yet, so the advisory is accepted until the review date while waiting for one.
 
 ## Checked with the overrides and allowlist (2026-10-31)
 
