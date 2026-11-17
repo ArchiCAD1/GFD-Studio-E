@@ -28,6 +28,12 @@ export const RELEASES: Release[] = [
     ]
   },
   {
+    version: '2.175', date: '2026-11-17',
+    items: [
+      { title: 'SLD: end boards side by side keep their frames apart', text: 'In DEWA style, two boards with no outgoing ways on neighbouring ways (a UPS board and a fire pump panel, say) no longer draw their dashed frames and text over each other: the second one moves right until its frame is clear, and so does a panel beside one. Drawings whose frames were already clear keep their places.' }
+    ]
+  },
+  {
     version: '2.174', date: '2026-11-17',
     items: [
       { title: 'Design CAD: Trim and Extend show the result before the click', text: 'In Trim, the part a click would cut away fades and turns dashed as the cursor passes over a line, so you see what goes before you click. In Extend, the new length shows dashed up to the line it will reach, with a small cross where it meets it. Hold Shift to see the other one, as a Shift-click does. Both commands keep the pick box between clicks and mark only drawn lines, and are quicker on large drawings.', action: 'cad', actionLabel: 'Open Design CAD' }
