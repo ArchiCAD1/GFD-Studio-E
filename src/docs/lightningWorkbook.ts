@@ -2,7 +2,8 @@ import ExcelJS from 'exceljs';
 import { AIR_METHODS, lightningProtection, type LpsInputs } from '../calc/lightningProtection';
 import { revisionStamp } from '../model/revisions';
 import type { Project } from '../types';
-import { LPS_NOTES } from './lightningReport';
+import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskStarted, studyRiskInputs } from '../calc/lightningRisk';
+import { LPS_NOTES, RISK_SCOPE } from './lightningReport';
 
 // Kept apart from lightningReport.ts so ExcelJS loads only when the workbook is exported.
 /** The lightning protection calculation as an Excel workbook with live formulas: change a value on the Inputs
@@ -94,5 +95,64 @@ export function buildLightningWorkbook(project: Project): ExcelJS.Workbook {
   line('Test joints', guard(`${downs}+0`), r.downConductors || dr, 'no.', 'one in each down conductor');
   line('Earth pits', guard(`IF(${b('pit')}="Yes",${downs}+0,0)`), r.downConductors ? r.earthPits : dr, 'no.', 'one at each down conductor when chosen');
   line('Ring earth conductor', guard(`IF(ISNUMBER(${downs}),${per}+0,NA())`), r.downConductors ? r.ringConductorM : dr, 'm', 'building perimeter');
+  if (riskStarted(i.risk)) addRiskSheet(wb, project, i);
   return wb;
+}
+
+/** Rows of the Risk assessment sheet (column B holds the value). */
+const RK = { days: 5, ratio: 6, density: 7, length: 8, width: 9, height: 10, area: 11, location: 12, fire: 13, provisions: 14, hazard: 15, loss: 16, tolerable: 17, sens: 18, p0: 19 } as const;
+
+/** The risk assessment as its own sheet with live formulas: inputs at the top, then the working, the risk for
+ * each protection class and the minimum. The building size follows the Inputs sheet. */
+function addRiskSheet(wb: ExcelJS.Workbook, project: Project, i: LpsInputs) {
+  const k = studyRiskInputs(i), risk = lightningRisk(k), dr = 'DATA REQUIRED';
+  const ws = wb.addWorksheet('Risk assessment');
+  ws.columns = [{ width: 44 }, { width: 18 }, { width: 24 }, { width: 70 }];
+  ws.addRow(['Lightning risk assessment — preliminary']).font = { bold: true, size: 14 };
+  ws.addRow([project.name, revisionStamp(project)]);
+  ws.addRow([]);
+  ws.addRow(['Input (entered by the engineer)', 'Value', 'Unit']).font = { bold: true };
+  const v = (x: number | undefined) => (x !== undefined && Number.isFinite(x) ? x : null);
+  const c = (key: keyof typeof RK) => `$B$${RK[key]}`;
+  const blank = (...keys: (keyof typeof RK)[]) => `OR(${keys.map((x) => `${c(x)}=""`).join(',')})`;
+  const size = (key: 'length' | 'width' | 'height', x: number) => (k.shape === 'rectangle' ? { formula: `IF(${b(key)}="","",${b(key)})`, result: x > 0 ? x : '' } : null);
+  const inputs: [string, ExcelJS.CellValue, string][] = [
+    ['Thunderstorm days', v(k.thunderDays), 'days/yr'], ['Strike point ratio', v(k.strikeRatio), ''], ['Measured strike density (optional)', v(k.strikeDensity), '/km²/yr'],
+    ['Building length', size('length', i.lengthM), 'm'], ['Building width', size('width', i.widthM), 'm'], ['Building height', size('height', i.heightM), 'm'],
+    ['Collection area, entered (optional)', k.shape === 'rectangle' ? null : v(risk.collectionAreaM2), 'm²'],
+    ['Location factor', v(k.locationFactor), ''], ['Fire risk factor', v(k.fireRisk), ''], ['Fire provisions factor', v(k.fireProvisions), ''],
+    ['Special hazard factor', v(k.specialHazard), ''], ['Typical loss', v(k.typicalLoss), ''], ['Tolerable risk', v(k.tolerableRisk), '/yr'],
+    ['Sensitivity: strike density multiplier', v(k.sensitivity), ''],
+    ...RISK_LEVELS.map((l): [string, ExcelJS.CellValue, string] => [`Damage probability — ${l === 'none' ? 'no protection' : riskLevelLabel(l)}`, v(k.damageProbability?.[l]), ''])
+  ];
+  for (const row of inputs) ws.addRow(row);
+  ws.addRow([]);
+  ws.addRow(['Result', 'Value', 'Unit', 'Formula']).font = { bold: true };
+  let at = RK.p0 + RISK_LEVELS.length + 1;
+  const line = (label: string, formula: string, result: number | string | undefined, unit: string, basis: string) => {
+    ws.addRow([label, { formula, result: result ?? dr }, unit, basis]);
+    return `$B$${++at}`;
+  };
+  const density = line('Strike point density', `IF(${c('density')}<>"",${c('density')},IF(${blank('days', 'ratio')},"${dr}",0.1*${c('days')}*${c('ratio')}))`, risk.strikeDensity, '/km²/yr', 'measured value, or 0.1 × thunderstorm days × ratio');
+  const area = line('Collection area', `IF(${c('area')}<>"",${c('area')},IF(${blank('length', 'width', 'height')},"${dr}",${c('length')}*${c('width')}+6*${c('height')}*(${c('length')}+${c('width')})+9*PI()*${c('height')}^2))`, risk.collectionAreaM2, 'm²', 'entered value, or L × W + 6 × H × (L + W) + 9 × π × H²');
+  const strikes = line('Direct strikes on building', guard(`IF(${c('location')}="",NA(),${density}*${area}*${c('location')}*0.000001)`), risk.strikesPerYear, '/yr', 'density × area × location factor × 10⁻⁶');
+  line('Years between strikes', guard(`1/${strikes}`), risk.yearsBetweenStrikes, 'years', '1 ÷ strikes a year');
+  const loss = line('Loss from physical damage', `IF(${blank('fire', 'provisions', 'hazard', 'loss')},"${dr}",${c('fire')}*${c('provisions')}*${c('hazard')}*${c('loss')})`, risk.loss, '', 'fire risk × fire provisions × special hazard × typical loss');
+  line('Largest damage probability allowed', guard(`IF(${c('tolerable')}="",NA(),${c('tolerable')}/(${strikes}*${loss}))`), risk.maxDamageProbability, '', 'tolerable risk ÷ (strikes × loss)');
+  ws.addRow([]);
+  ws.addRow(['Protection', 'Risk per year', 'Against the tolerable risk']).font = { bold: true };
+  at += 2;
+  const verdicts = RISK_LEVELS.map((l, n) => {
+    const p = `$B$${RK.p0 + n}`, row = risk.rows[n], r = at + 1;
+    ws.addRow([riskLevelLabel(l), { formula: guard(`IF(OR(${p}="",${c('tolerable')}=""),NA(),${strikes}*${p}*${loss})`), result: row.risk ?? dr },
+      { formula: `IF(ISNUMBER($B$${r}),IF($B$${r}<=${c('tolerable')},"OK","Exceeds"),"${dr}")`, result: row.risk === undefined ? dr : row.ok ? 'OK' : 'Exceeds' }]);
+    at += 1;
+    return `$C$${r}`;
+  });
+  // The first level that passes; a level before it with no figure leaves the minimum unknown.
+  const least = verdicts.reduceRight((rest, cell, n) => `IF(${cell}="OK","${riskLevelLabel(RISK_LEVELS[n])}",IF(${cell}="${dr}","${dr}",${rest}))`, '"More than Class I"');
+  ws.addRow([]);
+  ws.addRow(['Minimum protection', { formula: least, result: !risk.minimum ? dr : risk.minimum === 'insufficient' ? 'More than Class I' : riskLevelLabel(risk.minimum) }]).font = { bold: true };
+  ws.addRow([]);
+  for (const t of [RISK_NOTE, RISK_SCOPE]) ws.addRow([t]).getCell(1).alignment = { wrapText: true, vertical: 'top' };
 }

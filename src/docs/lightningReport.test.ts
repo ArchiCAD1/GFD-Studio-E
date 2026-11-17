@@ -8,6 +8,7 @@ import { buildLightningReportHtml, lightningLayoutSvg, lightningReportBlocks, LP
 import { buildLightningDocx } from './lightningWord';
 import { buildLightningWorkbook } from './lightningWorkbook';
 import { lightningProtection } from '../calc/lightningProtection';
+import { RISK_NOTE, type RiskInputs } from '../calc/lightningRisk';
 
 const lightning: LpsInputs = {
   lengthM: 40, widthM: 25, heightM: 18, method: 'mesh', lpsClass: 'II', riskRef: 'RA-01', meshM: 10, sphereRadiusM: 30, downSpacingM: 10,
@@ -17,7 +18,7 @@ const project: Project = { ...sampleProject, lightning };
 
 describe('lightning protection report', () => {
   it('has the eight sections, in order, and only the ones asked for', () => {
-    expect(lightningReportBlocks(project, lightning).map((b) => b.key)).toEqual(LPS_SECTIONS.map((s) => s.key));
+    expect(lightningReportBlocks(project, lightning).map((b) => b.key)).toEqual(LPS_SECTIONS.map((s) => s.key).filter((x) => x !== 'risk'));
     expect(lightningReportBlocks(project, lightning, ['checks', 'inputs']).map((b) => b.key)).toEqual(['inputs', 'checks']);
   });
 
@@ -101,5 +102,67 @@ describe('lightning protection Word file', () => {
     const buf = await Packer.toBuffer(buildLightningDocx(project, ['inputs', 'notes']));
     expect(buf.subarray(0, 2).toString()).toBe('PK');
     expect(buf.length).toBeGreaterThan(2000);
+  });
+});
+
+describe('lightning risk assessment in the report', () => {
+  // The 35 × 26 × 8.5 m villa of the engine's tests; every factor is the engineer's own entry.
+  const risk: RiskInputs = { shape: 'rectangle', thunderDays: 40, strikeRatio: 1, locationFactor: 1, fireRisk: 0.02, fireProvisions: 0.5, specialHazard: 1, typicalLoss: 0.5,
+    tolerableRisk: 1e-5, damageProbability: { none: 1, IV: 0.2, III: 0.1, II: 0.05, I: 0.02 }, sensitivity: 1.5 };
+  const villa: LpsInputs = { ...lightning, lengthM: 35, widthM: 26, heightM: 8.5, risk };
+  const p: Project = { ...sampleProject, lightning: villa };
+
+  it('comes first, as three sections: inputs, working and the risk for each class', () => {
+    const blocks = lightningReportBlocks(p, villa);
+    expect(blocks.slice(0, 4).map((b) => b.key)).toEqual(['risk', 'risk', 'risk', 'inputs']);
+    expect(new Map(blocks[0].pairs).get('Tolerable risk')).toBe('1 × 10⁻⁵ per year');
+    expect(blocks[1].table!.rows[1]).toEqual(['Collection area', expect.stringContaining('35 × 26 + 6 × 8.5'), '6063.82 m²']);
+    expect(blocks[2].table!.rows[3]).toEqual(['Class II (minimum)', '0.05', '6.06 × 10⁻⁶', 'OK']);
+    expect(blocks[2].notes).toEqual([expect.stringContaining('× 1.5 the minimum is Class II (9.1 × 10⁻⁶ per year)'), 'Minimum protection from this assessment: Class II.', expect.stringContaining('One risk component only')]);
+    expect(lightningReportBlocks(p, villa, ['inputs']).map((b) => b.key)).toEqual(['inputs']);
+  });
+
+  it('carries the verification line and shows no source or standard number for the factors', () => {
+    const blocks = lightningReportBlocks(p, villa, ['risk']);
+    expect(blocks[0].notes).toEqual([RISK_NOTE]);
+    expect(JSON.stringify(blocks)).not.toMatch(/IEC|NFC|62305/);
+    expect(lightningReportBlocks(p, villa, ['notes'])[0].notes).toContain(RISK_NOTE);
+  });
+
+  it('a missing factor is Not entered and the result says DATA REQUIRED', () => {
+    const blocks = lightningReportBlocks(p, { ...villa, risk: { ...risk, typicalLoss: undefined } }, ['risk', 'checks']);
+    expect(new Map(blocks[0].pairs).get('Typical loss')).toBe('Not entered');
+    expect(blocks[2].notes![0]).toBe('DATA REQUIRED: typical loss.');
+    expect(blocks[3].table!.rows.some((r) => r[1].startsWith('Risk assessment: DATA REQUIRED'))).toBe(true);
+  });
+
+  it('PDF sheet: the collection area sketch, black-and-white', () => {
+    const html = buildLightningReportHtml(p, ['risk']);
+    expect(html.match(/<svg/g)!.length).toBe(1);
+    expect(html).toContain('collection area 6,063.82 m²');
+    expect(html.match(/#[0-9a-f]{3,6}/gi)!.every((c) => /^#(000|fff|444|f2f2f2)$/i.test(c))).toBe(true);
+    expect(buildLightningReportHtml({ ...sampleProject, lightning: { ...villa, risk: { ...risk, shape: 'area', collectionAreaM2: 5000 } } }, ['risk'])).not.toContain('<svg');
+  });
+
+  it('workbook: a Risk assessment sheet with live formulas and the app\'s results; none without a risk assessment', async () => {
+    expect(buildLightningWorkbook(project).getWorksheet('Risk assessment')).toBeUndefined();
+    const back = new ExcelJS.Workbook();
+    await back.xlsx.load(await buildLightningWorkbook(p).xlsx.writeBuffer());
+    const ws = back.getWorksheet('Risk assessment')!;
+    const cell = (label: string, col = 2) => { let out: ExcelJS.Cell | undefined; ws.eachRow((row) => { if (row.getCell(1).value === label && !out) out = row.getCell(col); }); return out!; };
+    expect(cell('Thunderstorm days').value).toBe(40);
+    expect(cell('Building length').value).toMatchObject({ formula: 'IF(Inputs!$B$5="","",Inputs!$B$5)', result: 35 });
+    expect((cell('Collection area').value as ExcelJS.CellFormulaValue).formula).toContain('$B$8*$B$9+6*$B$10*($B$8+$B$9)+9*PI()*$B$10^2');
+    expect((cell('Collection area').value as ExcelJS.CellFormulaValue).result).toBeCloseTo(6063.82, 2);
+    expect((cell('Direct strikes on building').value as ExcelJS.CellFormulaValue).result).toBeCloseTo(0.024255, 6);
+    expect(cell('Class II', 3).value).toMatchObject({ result: 'OK' });
+    expect(cell('Class III', 3).value).toMatchObject({ result: 'Exceeds' });
+    expect(cell('Minimum protection').value).toMatchObject({ result: 'Class II', formula: expect.stringContaining('"More than Class I"') });
+    expect((cell('No protection').value as ExcelJS.CellFormulaValue).formula).toContain(cell('Direct strikes on building').address.replace(/([A-Z]+)(\d+)/, '$$$1$$$2'));
+  });
+
+  it('Word file: packs with the risk sections', async () => {
+    const buf = await Packer.toBuffer(buildLightningDocx(p, ['risk']));
+    expect(buf.subarray(0, 2).toString()).toBe('PK');
   });
 });
