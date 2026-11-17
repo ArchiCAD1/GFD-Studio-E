@@ -40,7 +40,7 @@ local API on 127.0.0.1 with a token, secret scan, `npm audit` allowlist, privacy
 | # | Gap | Proposal | Status |
 |---|---|---|---|
 | S1 | Installers are unsigned | Sign releases | **Decided 2026-11-16: stay unsigned while the app is a beta** (signing costs money on both systems); look again when the product is final |
-| S3 | A cloud AI on the MCP server reads real names and addresses | `lvds mcp --anonymize`, reusing `src/model/anonymize.ts` | **Approved 2026-11-16: names hidden by default for cloud models.** After PR #621 is merged (same files) |
+| S3 | A cloud AI on the MCP server reads real names and addresses | `lvds mcp` hides project and file names, parties, addresses and people by default (`src/headless/privacy.ts`); `--show-names` sends them | **Approved 2026-11-16.** Done; panel, circuit, level and room names are still sent |
 | S4 | Text from imported DWG, Excel and exchange files reaches the AI in tool results | One cleaning function with a length cap on every free-text field; a test that fails on raw text | Not started |
 | S5 | No Electron fuses set | `electronFuses` in the build: no `NODE_OPTIONS`, no inspect arguments, app only from ASAR; run-as-Node stays (the `lvds` launcher needs it) | **Waits for S1 (when the product is final).** On Apple silicon a flipped fuse needs the app signed again (ad hoc), and `beta-release.yml` requires the Mac beta to fail `codesign --verify`. Decide together with signing |
 | S6 | Backups are plain files in a synced folder | Optional password on `.lvds-backup` (WebCrypto AES-GCM) | Not started |
