@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.183', date: '2026-11-17',
+    items: [
+      { title: 'Project folders: make a job folder from a template', text: 'New project has a Project folder step: choose a folder template, where the folder goes and its name, untick the folders this job does not need, and the app makes the empty folders. Skip folders keeps things as before. The Overview has a Project folder card that opens the folder, shows which folders are present or missing and makes the missing ones. Only new, empty folders are made: nothing is moved, renamed or deleted. The web version gives the folders as a ZIP file. Project files and exports are still saved where they were.' }
+    ]
+  },
+  {
     version: '2.182', date: '2026-11-17',
     items: [
       { title: 'Folder templates: roles and file naming', text: 'The folder template editor has two more tabs. Roles lists every output the app makes with the folder it saves to: pick a folder, or let Auto-assign match folders to outputs by name. File naming builds the file name from fields such as the project number, document type, number and revision, with a preview for each document type and your own pattern for a type where you need one. Saving files into these folders with these names comes with the project folder step.' }
