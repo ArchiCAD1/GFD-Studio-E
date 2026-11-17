@@ -137,7 +137,7 @@ describe('the design made in the app, through the viewports of a layout of the d
     // The socket of the power circuit is there with them (its bar 4.8 mm wide at 19, 1 m, the stem below), and the DB with its name.
     expect(d).toContain('<path d="M287.6 237L292.4 237" fill="none"/>');
     expect(d).toContain('<path d="M290 238.75L290 240.25" fill="none"/>');
-    expect(d).toContain('<rect x="107.5" y="235.75" width="5" height="2.5" fill="#fff"/>');
+    expect(d).toContain('<path d="M106.5 235.25L113.5 235.25L113.5 238.75L106.5 238.75Z"/><path d="M106.5 238.75L113.5 235.25" fill="none"/>'); // the DB's plan symbol, 7 × 3.5 mm
     expect(d).toMatch(/<text [^>]*font-weight="700" fill="#000">DB-GF1<\/text>/);
     // The lighting circuit's wiring and its home run to the DB.
     expect(d.match(/<path class="ln" /g)!.length).toBeGreaterThanOrEqual(2);

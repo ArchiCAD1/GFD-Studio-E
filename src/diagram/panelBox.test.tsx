@@ -54,6 +54,11 @@ describe('panel symbols for boards drawn as one box', () => {
     expect([...boxedBoardIds(p)]).toEqual(['D']);
   });
 
+  it('gives a board of kind ESMDB the emergency sub-main symbol, wherever it is fed from', () => {
+    const boards: Board[] = [{ id: 'MDB', name: 'M' }, { id: 'ES', name: 'ES', kind: 'ESMDB', upstreamId: 'MDB' }];
+    expect(boardSymbolOf(proj(boards, []), boards[1])).toBe('p-esmdb');
+  });
+
   it('lists the boards drawn as a symbol: the layout\'s terminal and boxed boards', () => {
     const small = proj(
       [{ id: 'MDB', name: 'M' }, { id: 'S', name: 'S', kind: 'SMDB', upstreamId: 'MDB' }, { id: 'D', name: 'D', upstreamId: 'S' }, { id: 'U', name: 'U', kind: 'UPS', upstreamId: 'MDB' }],

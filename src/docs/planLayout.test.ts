@@ -64,6 +64,20 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
     expect(planLevels(p, 'elv')).toEqual([]);
   });
 
+  it('draws a board by its kind with the tag beside it, and the legend lists the kinds drawn', () => {
+    const p = placeBoard(villa(), 'SMDB-GF', gf, 3, 3);
+    const d = planDrawing(p, sheetOf(p, 'power').sheets[0])!;
+    const half = d.svg.match(/<path d="M([\d.]+) ([\d.]+)L([\d.]+) \2L\1 ([\d.]+)Z" fill="#000"\/>/)!;
+    expect(half).not.toBeNull();
+    const x = Number(half[1]) + 3.5; // the board's centre
+    const tag = d.svg.match(/<text x="([\d.]+)" y="[\d.]+" font-size="2.8" font-weight="700" fill="#000">SMDB-GF<\/text>/)!;
+    expect(Number(tag[1])).toBeCloseTo(x + 4.2, 1);
+    expect(d.legendSvg).toContain('Sub-main distribution board (SMDB)');
+    expect(d.legendSvg).toContain('Distribution board (DB)'); // DB-GF1 is placed too
+    const q = { ...p, boards: p.boards.map((b) => (b.id === 'DB-GF1' ? { ...b, planPoint: undefined } : b)) };
+    expect(planDrawing(q, sheetOf(q, 'power').sheets[0])!.legendSvg).not.toContain('>Distribution board (DB)<');
+  });
+
   it('adds a sheet per level, numbered per layout, at 1:100, and only once', () => {
     const p = villa();
     const { set, sheets } = sheetOf(p);

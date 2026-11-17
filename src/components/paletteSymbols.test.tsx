@@ -6,9 +6,9 @@ import { itemKey, PALETTE } from '../model/sldEdit';
 const boardItems = PALETTE.flatMap((c) => c.entries.map((e) => e.item)).filter((i) => i.kind === 'board');
 
 describe('equipment strip board icons', () => {
-  it('has an icon for each of the 13 board items', () => {
+  it('has an icon for each of the 14 board items', () => {
     expect(boardItems.map(itemKey).sort()).toEqual(
-      ['MC', 'MDB', 'LV-MDB', 'LV-ACB', 'SMDB', 'DB', 'EDB', 'EMDB', 'LV-EMDB', 'UPS', 'MCC', 'EMCC', 'FP'].map((k) => `board:${k}`).sort());
+      ['MC', 'MDB', 'LV-MDB', 'LV-ACB', 'SMDB', 'ESMDB', 'DB', 'EDB', 'EMDB', 'LV-EMDB', 'UPS', 'MCC', 'EMCC', 'FP'].map((k) => `board:${k}`).sort());
     for (const i of boardItems) expect(hasSymbol(itemKey(i)), itemKey(i)).toBe(true);
   });
 
@@ -19,6 +19,7 @@ describe('equipment strip board icons', () => {
       expect(svg).not.toMatch(/NaN|undefined/);
     }
     expect(renderToStaticMarkup(<PaletteSymbol k="board:SMDB" />)).toContain('fill="currentColor" stroke="none"');
+    expect(renderToStaticMarkup(<PaletteSymbol k="board:ESMDB" />).match(/fill="currentColor" stroke="none"/g)).toHaveLength(2); // both halves filled
     expect(renderToStaticMarkup(<PaletteSymbol k="board:DB" />)).not.toContain('fill="currentColor" stroke="none"');
     expect(renderToStaticMarkup(<PaletteSymbol k="board:MDB" />)).toContain('<rect x="4" y="9" width="16" height="6"'); // the main board's inner frame
     expect(renderToStaticMarkup(<PaletteSymbol k="board:UPS" />)).toContain('>UPS</text>');

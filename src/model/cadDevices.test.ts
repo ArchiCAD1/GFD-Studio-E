@@ -42,6 +42,20 @@ describe('devices placed in the CAD view', () => {
     expect(placedOn(project, level)).toEqual([]); // the LV side lists LV points and boards only
   });
 
+  it('draws a placed board by its kind: the SLD pattern beside its tag, by role below an EMDB', () => {
+    const at = { planPoint: { x: 1, y: 1 }, level };
+    const boards = [
+      { id: 'SMDB-X', name: 'S', kind: 'SMDB' as const, upstreamId: 'MDB-1', ...at }, { id: 'EMDB-X', name: 'E', kind: 'EMDB' as const, upstreamId: 'MDB-1' },
+      { id: 'DB-E', name: 'D', kind: 'DB' as const, upstreamId: 'EMDB-X', ...at }, { id: 'ESMDB-X', name: 'ES', kind: 'ESMDB' as const, upstreamId: 'MDB-1', ...at }
+    ];
+    const placed = placedOn({ ...villa, boards: [...villa.boards, ...boards] }, level).filter((x) => x.what === 'board');
+    const of = (id: string) => placed.find((x) => x.id === id)!;
+    expect(of('SMDB-X').symbol).toMatchObject({ plan: 'p-smdb' });
+    expect(of('DB-E').symbol).toMatchObject({ plan: 'p-edb' });
+    expect(of('ESMDB-X').symbol).toMatchObject({ plan: 'p-esmdb' });
+    expect(of('ESMDB-X').label).toBe('ESMDB-X');
+  });
+
   it('places a board: its position, level and room', () => {
     const { project } = placeItem(villa, db, level, 2, 7, { boardId: 'DB-GF1' });
     expect(project.boards.find((b) => b.id === 'DB-GF1')).toMatchObject({ planPoint: { x: 2, y: 7 }, level, location: 'Majlis' });

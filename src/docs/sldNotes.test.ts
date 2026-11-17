@@ -24,6 +24,11 @@ describe('SLD abbreviations', () => {
     expect(buildSldSheetHtml(p, svg)).toContain('ABBREVIATIONS');
     expect(buildSldSheetHtml({ ...p, drawing: { ...p.drawing, abbreviations: false } }, svg)).not.toContain('ABBREVIATIONS');
   });
+  it('lists ESMDB for a text with ESMDB-1, and not SMDB', () => {
+    const a = abbreviationsIn('<svg><text>ESMDB-1</text></svg>').map(([k]) => k);
+    expect(a).toContain('ESMDB');
+    expect(a).not.toContain('SMDB');
+  });
   it('has standard notes', () => expect(DEWA_GENERAL_NOTES.length).toBeGreaterThan(5));
 });
 

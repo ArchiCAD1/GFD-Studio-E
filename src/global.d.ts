@@ -65,6 +65,16 @@ declare global {
         /** Shows a save dialog; the saved path, or null when cancelled. */
         export: (templates: import('./model/folderTemplates').FolderTemplate[], defaultName?: string) => Promise<string | null>;
       };
+      /** A project's folders on disk (electron/projectFolders.cjs): only new, empty folders are made.
+       * Missing in older desktop builds. */
+      projectFolders?: {
+        /** A folder dialog; null when cancelled. */
+        chooseParent: (start?: string) => Promise<string | null>;
+        create: (root: string, paths: string[]) => Promise<{ root: string; rootMade: boolean; created: number; existed: number; failed: { path: string; reason: string }[] }>;
+        status: (root: string, paths: string[]) => Promise<{ root: string; exists: boolean; present: string[]; missing: string[]; looseFiles: string[]; looseCount: number }>;
+        /** Shows the folder in the file manager; an error text, or null when it opened. */
+        open: (root: string) => Promise<string | null>;
+      };
       engines: {
         probe: () => Promise<import('./engines/types').EngineProbe | { error: string }>;
         run: (request: import('./engines/external').EngineRequest) => Promise<import('./engines/types').StudyResults | { error: string }>;
