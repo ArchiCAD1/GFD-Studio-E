@@ -60,6 +60,9 @@ export interface CadObject {
   seg_start: number;
   seg_end: number;
 }
+const NO_OBJECTS = { objects: [] as CadObject[], truncated: false };
+/** The engine's JSON answer of a window / similar pick; none when empty or unreadable. */
+const parseObjects = (j: string): { objects: CadObject[]; truncated: boolean } => { try { return j ? (JSON.parse(j) as { objects: CadObject[]; truncated: boolean }) : NO_OBJECTS; } catch { return NO_OBJECTS; } };
 /** A viewport on a file's layout: its frame in paper-space units (lower left, size), and the model it shows: the view's
  * centre and height (drawing units). */
 export interface FileViewport { x: number; y: number; w: number; h: number; cx: number; cy: number; vh: number; locked: boolean; on: boolean; /** Its outline when it is not its frame's rectangle: corners in fractions of the frame, across from its left and down from its top (a layout made here; src/model/viewportClip.ts). */ clip?: [number, number][] }
@@ -103,6 +106,12 @@ export interface CadView {
   /** The object under (x, y) within `tol` (drawing units, absolute) on shown layers; null when none. `closedOnly`:
    * only objects with an area (as for AREA → Object). */
   pick: (x: number, y: number, tol: number, layersOn: Uint8Array, closedOnly?: boolean) => Promise<CadObject | null>;
+  /** The objects inside (window) or touching (crossing) the rectangle with these corners (drawing units, absolute, any
+   * order) on shown layers: not erased; a block insert is one object. At most 20 000 (then `truncated`). */
+  pickWindow: (a: [number, number], b: [number, number], crossing: boolean, layersOn: Uint8Array) => Promise<{ objects: CadObject[]; truncated: boolean }>;
+  /** The objects of the same kind and layer as one picked (and the same block name for a block) on shown layers: for
+   * Select similar. At most 20 000 (then `truncated`). */
+  pickLike: (kind: string, layer: number, block: string, layersOn: Uint8Array) => Promise<{ objects: CadObject[]; truncated: boolean }>;
   /** The file's own paper-space layouts, in tab order (none from an engine older than v2.093). */
   layouts: FileLayout[];
   /** Closed objects of model space (polylines, circles, hatches…), for rooms from outline layers. */
@@ -231,6 +240,8 @@ export async function openDrawing(file: string, bytes: Uint8Array, path?: string
     segs: doc.segs, segLayers: doc.segLayers, segColors: doc.segColors, segLinetypes: doc.segLinetypes,
     snap: (x, y, r, mask, layersOn, from) => engine.call('snap', x, y, r, mask, layersOn, from?.[0] ?? NaN, from?.[1] ?? NaN).catch(() => NO_SNAP),
     pick: (x, y, tol, layersOn, closedOnly = false) => engine.call('pick', x, y, tol, layersOn, closedOnly).then((j) => (j ? (JSON.parse(j) as CadObject) : null), () => null),
+    pickWindow: (a, b, crossing, layersOn) => engine.call('pickWindow', a[0], a[1], b[0], b[1], crossing, layersOn).then(parseObjects, () => NO_OBJECTS),
+    pickLike: (kind, layer, block, layersOn) => engine.call('pickLike', kind, layer, block, layersOn).then(parseObjects, () => NO_OBJECTS),
     outlines: () => (outlines ??= JSON.parse(doc.outlines) as CadObject[]),
     blocks: () => JSON.parse(doc.blocks) as (CadBlock & { layer: string; handle: string })[],
     erase: (handles) => engine.call('erase', JSON.stringify(handles)).then((j) => JSON.parse(j) as ErasedParts),
@@ -340,11 +351,12 @@ export async function drawingWithDevices(view: Pick<CadView, 'bytes'>, devices: 
 }
 
 /** The exact pieces of objects of a drawing, by handle (CROP): a block insert gives what it draws, nested blocks and
- * arrays expanded (engines/cad-reader/src/doc/explode.rs). Read from the drawing's bytes by the saving engine. */
-export async function explodeObjects(view: Pick<CadView, 'bytes'>, handles: string[]): Promise<{ pieces: Record<string, CadPiece[]>; truncated: boolean }> {
+ * arrays expanded (engines/cad-reader/src/doc/explode.rs). Read from the drawing's bytes by the saving engine.
+ * `exact` (the take-over of objects): ellipses, paragraph texts, text alignment, hatch patterns and dimensions come whole. */
+export async function explodeObjects(view: Pick<CadView, 'bytes'>, handles: string[], opts: { exact?: boolean } = {}): Promise<{ pieces: Record<string, CadPiece[]>; truncated: boolean }> {
   return withSavingEngine(async (engine) => {
     try {
-      return JSON.parse(await engine.call('explode', view.bytes, JSON.stringify(handles))) as { pieces: Record<string, CadPiece[]>; truncated: boolean };
+      return JSON.parse(await engine.call('explode', view.bytes, JSON.stringify(handles), !!opts.exact)) as { pieces: Record<string, CadPiece[]>; truncated: boolean };
     } catch (e) {
       throw new Error(`The block could not be read (${message(e)}).`);
     }

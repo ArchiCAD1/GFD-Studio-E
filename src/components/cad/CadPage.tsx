@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import CadCanvas, { type CadHover, type CadMarks, type CadToggles, type CanvasDevice, type CanvasWiring } from './CadCanvas';
 import { NO_ACTIONS, rememberedDrawing, SAMPLE_PLANS, type CadRibbonInfo, type CadState, type CadTool } from './cadState';
-import { cadCommand, type CadAction } from './cadCommands';
+import { cadCommand, toolName, type CadAction } from './cadCommands';
 import { getClip, hasClip, putClip } from './cadClipboardStore';
 import { hasPreviousView } from './cadViewHistory';
 import { QuickSelectDialog } from './CadQuickSelect';
@@ -15,13 +15,15 @@ import { parseZoomScale } from '../../model/cadView';
 import { selectSimilar, type SimilarOpts } from '../../model/cadQuickSelect';
 import { endTowards, linesCross, nearestPiece, nearestSegment, onRound, roundOfSegments } from '../../model/cadDims';
 import { clipPayload, clipText, lowerLeft, parseClip, pastedItems, withPasted, type ClipPayload } from '../../model/cadClipboard';
-import CadCommandLine, { CadPromptMenu } from './CadCommandLine';
-import { addSelectedTool, blankMenu, commandMenu, countLine, measureOf, shownBy, SNAP_OVERRIDES, type CtxEntry, type CtxItem, type ObjectHide } from './cadContextMenu';
+import CadCommandLine from './CadCommandLine';
+import CadMenu from './CadMenu';
+import { addSelectedTool, blankMenu, commandMenu, countLine, measureOf, shownBy, SNAP_OVERRIDES, TOOL_MENU_ICON, type CtxEntry, type CtxHead, type CtxItem, type MenuCommon, type ObjectHide } from './cadContextMenu';
 import { closeRefEdit, refEditOf, startRefEdit, workingSet } from '../../model/cadRefEdit';
 import { blockEditorChanged, blockEditorOf, closeBlockEditor, openBlockEditor, saveBlockEditor } from '../../model/cadBlockEditor';
 import { closedToggled, findCount, findReplace, gripMenu, withVertexAdded, withVertexRemoved } from './cadDrawnMenus';
-import { argOf, drawingObjectMenu, drawingPaperMenu, paperMenu, viewportMenu, xrefMenu } from './cadSheetMenus';
-import { deviceMenu, devArg, devicesInRoom, luxCheckLine, roomEntry, roomLoads, trayCheckLine, type CadShow, type DeviceMore } from './cadObjectMenus';
+import { argOf, drawingObjectHead, drawingObjectMenu, drawingPaperMenu, paperMenu, viewportHead, viewportMenu, xrefMenu } from './cadSheetMenus';
+import { drawnHead, drawnMenu } from './cadDrawnObjectMenu';
+import { deviceHead, deviceMenu, devArg, devicesInRoom, luxCheckLine, roomEntry, roomLoads, trayCheckLine, type CadShow, type DeviceMore } from './cadObjectMenus';
 import { isNumber, promptOptions, shortPrompt, spaceEnters, type SpaceMode } from './cadPrompt';
 import CadDynInput, { type DynBox } from './CadDynInput';
 import CadTextEdit from './CadTextEdit';
@@ -108,6 +110,7 @@ import { isTbFile, LOGO_BOX, logoItems, saveTitleBlockFromCad, TB_FIELDS, TB_LAY
 import { LOGO_FIELD } from '../../model/titleBlock';
 import { AttachDialog, RefLayersList, RefManager, useCadRefs } from './CadRefs';
 import { refGeometry, refNear, type CadRef } from '../../model/cadRefs';
+import { standInHandle, standInsFor, takeOverNote, takeOverSummary, type TakeOverCtx } from '../../model/cadTakeOver';
 import { drawnLayers, effective, layerStylesOf, LINETYPES, matchedProps, styleOf, withProps, type ObjectProps } from '../../model/cadLayerStyle';
 import { colourCss, colourLabel } from '../../model/cadColours';
 import { applyLayerPatch, archOnOf, currentLayerOf, extentsOf, isolate, layerFileOf, layersToChange, newLayerName, newPropsOf, renameLayer, restoreState, unisolate, withCurrentLayer, withNewLayer, withNewProps, withoutLayer, withoutState, withSavedState, type LayerPatch } from '../../model/cadLayerState';
@@ -272,6 +275,15 @@ const EDIT_TOOLS: CadTool[] = ['draworder', 'texttofront', 'trim', 'extend', 'of
 const PICK_FIRST: CadTool[] = ['draworder', 'join', 'mirror', 'scale', 'align', 'array', 'tjust', 'th', 'talign', 'tcase', 'tprefix', 'tsuffix', 'torient', 'tcen', 'tcopy', 'tframe', 'tmask'];
 /** The text tools: on the texts picked first, then a value on the command line (TCEN and TCOPY: points or a text clicked). */
 const TEXT_TOOLS: CadTool[] = ['tjust', 'th', 'talign', 'tcase', 'tprefix', 'tsuffix', 'torient', 'tcen', 'tcopy', 'tframe', 'tmask'];
+/** The tools that change the objects picked: started with objects of the opened drawing picked, they take them over as drawn objects
+ * first. COPY, ARRAY and MIRROR (originals kept) copy the drawing's objects as they are, and take nothing over. */
+const TAKE_OVER_TOOLS: CadTool[] = ['move', 'rotate', 'scale', 'stretch', 'offset', 'trim', 'extend', 'break', 'fillet', 'chamfer', 'join', 'explode', 'align', 'matchprop', 'draworder', 'textedit', 'hatchedit', ...TEXT_TOOLS];
+/** Edits of the toolbar and the menus that start a tool (the tool takes the objects over), and those that change nothing of the objects:
+ * neither takes objects of the opened drawing over in `editSketch`. */
+const TOOL_EDITS: SketchEdit[] = ['move', 'copy', 'rotate', 'mirror', 'scale', 'array', 'trim', 'extend', 'offset', 'fillet', 'chamfer', 'break', 'jointool'];
+const NO_TAKE_OVER: SketchEdit[] = ['erase', 'deselect', 'props', 'isolate', 'count', 'qmeasure', 'similar', 'filter', 'clipboard', 'addsel', 'repeat', 'find', 'qselect', 'selblock', 'blkcount'];
+/** Edits that open a box or a dialog of their own: the take-over stays as a step of its own. */
+const OWN_STEP: SketchEdit[] = ['mkblock', 'ntwidth', 'edatt', 'bedit', 'refedit', 'hedit', 'horigin'];
 const MTEXT_CORNER = 'MTEXT  Opposite corner or [Height/Justify/Width]:';
 const MTEXT_JUST = (j?: NoteAttach) => `MTEXT  Justify [TL/TC/TR/ML/MC/MR/BL/BC/BR] <${j ?? 'TL'}>:`;
 const MTEXT_TYPE = (isNew: boolean) => `MTEXT  Type the note (Enter starts a new line); Ctrl/⌘+Enter or OK keeps it, Esc ${isNew ? 'cancels' : 'leaves it as it was'}:`;
@@ -293,7 +305,7 @@ const DRAW_TOOLS: CadTool[] = ['point', 'line', 'xline', 'ray', 'pline', 'tray',
 /** The CAD view: a DWG / DXF drawing opened natively, as a CAD program shows it — model space, crosshair, snaps, layers,
  * a command line and a status bar. Engine in Rust (WebAssembly), desktop and web alike. Measure a distance, an area (by
  * corners, a closed object, or inside a room), and click any object to see what it is. */
-export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run: calcRun, onSheet, draft = DRAFT_DEFAULTS, autosaveMin = 2, onPrefs, onUndo, onRedo, canUndo = false, canRedo = false, onShow }: {
+export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run: calcRun, onSheet, draft = DRAFT_DEFAULTS, autosaveMin = 2, onPrefs, onUndo, onRedo, canUndo = false, canRedo = false, undoLabel, redoLabel, onShow }: {
   cad: CadState;
   /** Opens a board's load schedule, the SLD, the riser, the cable schedule or the ELV page (the right-click menus). */
   onShow?: (s: CadShow) => void;
@@ -302,12 +314,16 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  /** What Undo and Redo would take back and do again ("Move"), for the right-click menus. */
+  undoLabel?: string;
+  redoLabel?: string;
   /** Drafting settings (DS), and the project's recovery-copy minutes, kept in Preferences by the app. */
   draft?: DraftSettings;
   autosaveMin?: number;
   onPrefs?: (p: { draft: DraftSettings; autosaveMin: number }) => void;
   project: Project;
-  onChange: (next: Project, message: string) => void;
+  /** `join`: part of the step before it (a take-over of the drawing's objects and the edit after it undo together). */
+  onChange: (next: Project, message: string, join?: boolean) => void;
   onStatus: (m: string) => void;
   /** The sheets' markup tools (shared with the Sheets ribbon): a layout tab's paper markups use them. */
   sheetUi?: SheetUi;
@@ -319,9 +335,26 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const paperTool = sheetUi?.setTool;
   const onPlot = (id: string) => void exportDrawingSet(project, setOf(project), calcRun, false, onStatus, [id], false);
   const { view, tool } = cad;
+  const projRef = useRef(project); projRef.current = project;
+  const toolRef = useRef(tool); toolRef.current = tool;
+  // Objects of the opened drawing taken over as drawn objects by the first edit (their handles erased, stand-ins added): the
+  // edit that follows joins that step, and an edit given up undoes it. `seen`: the project has shown the take-over.
+  const takenRef = useRef<{ file: string; handle: string; cmd: string; seen: boolean } | null>(null);
+  const [toolTick, setToolTick] = useState(0);
+  const pendingEdit = useRef<{ e: SketchEdit; arg?: string; cmd: string } | null>(null);
+  const [editTick, setEditTick] = useState(0);
+  /** The pieces of the drawing's objects as drawn objects, by handle, while the file and its erased list stay as they are. */
+  const standCache = useRef(new Map<string, SketchItem[]>());
+  /** What each cached object could not keep as it was (splines and partial ellipses as polylines…), for the take-over's message. */
+  const standNotes = useRef(new Map<string, ReturnType<typeof takeOverSummary>>());
+  /** The last reason a take-over was refused, said again once the tool it stopped has ended. */
+  const refused = useRef('');
   // Objects of the drawing erased by CROP: the engine no longer picks or snaps to them, the canvas leaves them out, and
   // `drawn` is the drawing without them (rooms, walls, cutting edges, texts).
-  const erasedKey = (view ? erasedOf(project, view.file) : []).join(',');
+  // Isolate / Hide objects of the drawing hide their handles too, in this view only (not in the project, so not saved).
+  const [dwHide, setDwHide] = useState<{ file: string; handles: string[] } | null>(null);
+  const projErased = (view ? erasedOf(project, view.file) : []).join(',');
+  const erasedKey = (view ? [...erasedOf(project, view.file), ...(dwHide?.file === view.file ? dwHide.handles : [])] : []).join(',');
   const [erasedParts, setErasedParts] = useState<{ view: CadView; key: string; parts: ErasedParts } | null>(null);
   useEffect(() => {
     if (!view || (!erasedKey && erasedParts?.view !== view)) return;
@@ -359,7 +392,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [cloudArc, setCloudArc] = useState<number | null>(null);
   const [ellAxis, setEllAxis] = useState(false);
   const [circleDia, setCircleDia] = useState(false);
-  const [menuAt, setMenuAt] = useState<Pt | null>(null);
   const [arlSet, setArlSet] = useState<ArlSettings>(ARL_START);
   const [matchFrom, setMatchFrom] = useState<string | null>(null);
   // The rotation the next socket or switch is placed at (degrees anticlockwise).
@@ -385,7 +417,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** The object of the opened drawing, or the reference, the last right-click was on. */
   const ctxObj = useRef<{ dw?: CadObject; ref?: string; vp?: string; fvp?: number } | null>(null);
   /** The right-click menu on a layout's paper or one of its viewports (phase 3), at a point of the paper's stage. */
-  const [paperCtx, setPaperCtx] = useState<{ at: Pt; items: CtxEntry[] } | null>(null);
+  const [paperCtx, setPaperCtx] = useState<{ at: Pt; items: CtxEntry[]; head?: CtxHead; label?: string } | null>(null);
   const paperStage = useRef<HTMLDivElement>(null);
   // Edit tools: their settings, the first object picked (and where), objects picked first or points next, the Stretch
   // window, the grip being dragged, and a first pick set by the toolbar before the tool starts.
@@ -453,7 +485,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [dlg, setDlg] = useState<'edit' | 'style' | 'dimstyle' | 'qselect' | 'ptype' | null>(null);
   /** PASTECLIP: the objects following the cursor until they are placed. */
   const [pasting, setPasting] = useState<ClipPayload | null>(null);
-  const [promptMenu, setPromptMenu] = useState<{ at: Pt; items: CtxEntry[] } | null>(null);
+  const [promptMenu, setPromptMenu] = useState<{ at: Pt; items: CtxEntry[]; head?: CtxHead; label?: string } | null>(null);
   // ISOLATEOBJECTS / HIDEOBJECTS: the objects shown only, or hidden, on this view (not saved); Snap overrides ▸: the one
   // snap mode for the next point ('none': no snap); the values typed at prompts lately (Recent input ▸).
   const [objHide, setObjHide] = useState<ObjectHide | null>(null);
@@ -489,7 +521,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [showXR, setShowXR] = useState(false);
   const [xDraft, setXDraft] = useState<CadRef | null>(null);
   const [xClip, setXClip] = useState<{ name: string; outline: boolean } | null>(null);
-  if (pickedOn !== view) { setPickedOn(view); setResult(null); setPoints([]); setObjectMode(false); setLuxRoom(null); setEm({ routes: [], points: [], rooms: [] }); setPicked([]); setMenuAt(null); }
+  if (pickedOn !== view) { setPickedOn(view); setResult(null); setPoints([]); setObjectMode(false); setLuxRoom(null); setEm({ routes: [], points: [], rooms: [] }); setPicked([]); }
   const input = useRef<HTMLInputElement>(null);
   const last = rememberedDrawing(project.id);
   const units = planScale(project, view?.file, view?.info.units);
@@ -574,11 +606,15 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
 
   // A tool chosen (ribbon or command line): start it afresh and say what it asks for.
   useEffect(() => {
+    // Objects of the opened drawing picked: the first edit takes them over as drawn objects, then the tool goes on as if
+    // drawn objects had been picked. A tool given up after that undoes the take-over.
+    if (tool === 'none') { if (takenRef.current?.seen) cancelTakeOver(); }
+    else if (pickedDw.length && TAKE_OVER_TOOLS.includes(tool)) { takeOverForTool(); return; }
     const pre = preset.current;
-    setPoints(pointsNext.current ?? []); pointsNext.current = null; setObjectMode(false); setLuxRoom(luxNext.current); luxNext.current = null; setMenuAt(null); if (tool !== 'match') setMatchFrom(null); cad.setTextAt(null);
+    setPoints(pointsNext.current ?? []); pointsNext.current = null; setObjectMode(false); setLuxRoom(luxNext.current); luxNext.current = null; if (tool !== 'match') setMatchFrom(null); cad.setTextAt(null);
     setCloudPoly(false); setCloudAsk(false); setEllAxis(false); setCircleDia(false);
     setEdStep(pre); preset.current = null; setStretchBox(null); const mp = mpNext.current; mpNext.current = null; setMpFrom(mp);
-    const first = picked.some((k) => k.startsWith('sk:')) || !!cad.selected?.startsWith('sk:');
+    const first = picked.some((k) => k.startsWith('sk:')) || !!cad.selected?.startsWith('sk:') || ((tool === 'mirror' || tool === 'array') && pickedDw.length > 0);
     setEdPhase(first ? 'points' : 'pick');
     setEdAsk(tool === 'offset' && !pre ? 'offset' : tool === 'array' && first ? 'type' : null); setTextAsk(null); setTAsk(null); setPromptMenu(null); setMtAsk(null); setEdNote(null); setSnapOnce(null);
     setTc(tool === 'tcount' ? { step: 'prefix', prefix: '', n: 1, inc: 1, pad: 0, suffix: '', placed: [] } : null);
@@ -596,7 +632,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     // CROP with drawn items picked first: they are what is cut.
     if (tool === 'crop' && first) { const ids = picked.length ? picked.filter((k) => k.startsWith('sk:')).map((k) => k.slice(3)) : [cad.selected!.slice(3)]; setCrop({ step: 'outline', target: { items: ids, label: `${ids.length} drawn object${ids.length === 1 ? '' : 's'}` } }); cad.say(CROP_OUTLINE); }
     // SELECTSIMILAR with drawn objects picked first: they are the pattern. ZOOM needs the model view.
-    if (tool === 'selsim' && first) applySimilar();
+    if (tool === 'selsim' && (first || pickedDw.length)) applySimilar();
     // DRAWORDER with objects picked first and Front or Back chosen on a menu: done at once.
     if (tool === 'draworder' && first && (drMode === 'front' || drMode === 'back')) applyDrawOrder(drMode);
     if (tool !== 'draworder') setDrMode(null);
@@ -606,7 +642,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     // TEXTEDIT with one text or dimension picked first: its box opens at once.
     if (tool === 'textedit' && first) { const one = pickedSk.length === 1 ? pickedSk[0] : pickedSk.length ? undefined : selSketch; if (one) startTextEdit(one); }
     if ((tool === 'zoom' || tool === 'zoomwin' || tool === 'zoomscale') && zoomRefused()) cad.setTool('none');
-  }, [tool]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tool, toolTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Layer palette styles. The architect's layers: On as turned on or off in the app (kept in the project, so each change is
   // one undo step), else as the drawing has them; shown: on and not frozen; picked: shown and not locked (snapped to still).
@@ -681,10 +717,42 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const dwHighlight = useMemo(() => pickedDw.map((o): [number, number] => [o.seg_start, o.seg_end]), [pickedDw]);
   const pickedKeys = new Set([...pickedItems.map((d) => d.key), ...pickedSk.map((it) => `sk:${it.id}`), ...pickedDw.map((o) => `dw:${o.handle}`)]);
   const many = pickedItems.length + pickedSk.length > 1;
+  // Objects of the opened drawing picked stand in as drawn objects (ids `dw:<handle>:<n>`, not in the project): read from the
+  // drawing with the engine's explode (about 30 ms on a drawing of 260 000 lines), so the menu, toolbar, Properties and the
+  // grips work on them as on drawn ones. The first edit takes them over.
+  const dwKey = pickedDw.map((o) => o.handle).join(',');
+  const [dwStand, setDwStand] = useState<{ key: string; items: SketchItem[] }>({ key: '', items: [] });
+  useEffect(() => { standCache.current.clear(); standNotes.current.clear(); }, [view, projErased]);
+  useEffect(() => {
+    if (!view || !pickedDw.length) { setDwStand((c) => (c.key ? { key: '', items: [] } : c)); return; }
+    let live = true;
+    void standInsOf(pickedDw).then((r) => { if (live) setDwStand({ key: dwKey, items: r.items }); }, () => {});
+    return () => { live = false; };
+  }, [dwKey, view, projErased]); // eslint-disable-line react-hooks/exhaustive-deps -- by value
+  const dwItems = useMemo(() => (dwKey && dwStand.key === dwKey ? dwStand.items : []), [dwKey, dwStand]);
+  /** The drawn objects picked, and those the objects of the drawing picked stand in as. */
+  const srcSk = useMemo(() => [...pickedSk, ...dwItems], [pickedSk, dwItems]);
+  /** Every drawn object of the page and the stand-ins of the drawing's objects picked (for grips). */
+  const srcAll = useMemo(() => [...sketch, ...dwItems], [sketch, dwItems]);
+  // A take-over is "seen" once the project shows it; undone (⌘Z) after that, it no longer joins or cancels anything.
+  useEffect(() => {
+    const t = takenRef.current;
+    if (!t) return;
+    if (erasedOf(project, t.file).includes(t.handle)) t.seen = true; else if (t.seen) takenRef.current = null;
+  }, [project]);
+  // An edit of the toolbar or a menu waiting for its take-over: it runs once the drawn objects are picked.
+  useEffect(() => {
+    const p = pendingEdit.current;
+    if (!p || pickedDw.length) return;
+    pendingEdit.current = null;
+    editSketch(p.e, p.arg);
+    if (OWN_STEP.includes(p.e)) takenRef.current = null;
+    else setTimeout(() => { if (takenRef.current?.seen && toolRef.current === 'none') cancelTakeOver(); }, 80);
+  }, [editTick]); // eslint-disable-line react-hooks/exhaustive-deps -- once per take-over
   // Grips on every drawn object picked, up to the limit set in Drafting settings; each in a shape that suits it.
-  const gripList = useMemo(() => (draft.grips && tool === 'none' && pickedSk.length > 0 && pickedSk.length + pickedItems.length <= draft.gripMax
-    ? pickedSk.flatMap((it) => gripsOf(it).map((g, i) => ({ id: it.id, i, ...g, shape: (g.kind === 'radius' || g.kind === 'width' ? 'diamond' : g.kind === 'mid' && it.pts.length > 2 ? 'bar' : 'square') as 'square' | 'bar' | 'diamond' }))) : []),
-  [draft.grips, draft.gripMax, tool, pickedSk, pickedItems.length]);
+  const gripList = useMemo(() => (draft.grips && tool === 'none' && srcSk.length > 0 && pickedSk.length + pickedItems.length + pickedDw.length <= draft.gripMax
+    ? srcSk.flatMap((it) => gripsOf(it).map((g, i) => ({ id: it.id, i, ...g, shape: (g.kind === 'radius' || g.kind === 'width' ? 'diamond' : g.kind === 'mid' && it.pts.length > 2 ? 'bar' : 'square') as 'square' | 'bar' | 'diamond' }))) : []),
+  [draft.grips, draft.gripMax, tool, srcSk, pickedSk.length, pickedItems.length, pickedDw.length]);
   const gripOf = (g: { id: string; i: number } | null) => (g ? gripList.findIndex((x) => x.id === g.id && x.i === g.i) : -1);
   // The architect's lines on shown layers: cutting edges and boundaries for Trim and Extend.
   const drawingSegs = useMemo(() => (drawn && (tool === 'trim' || tool === 'extend') ? segmentsOn(drawn.segs, drawn.segLayers, drawn.info.origin, new Set(drawn.info.layers.map((_, i) => i).filter((i) => layersOn[i]))) : []), [drawn, layersOn, tool]);
@@ -796,11 +864,14 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     window.addEventListener('keydown', key); window.addEventListener('keyup', key); window.addEventListener('blur', off);
     return () => { window.removeEventListener('keydown', key); window.removeEventListener('keyup', key); window.removeEventListener('blur', off); off(); };
   }, [tool]);
-  const change = (next: Project, message: string) => {
+  const change = (next: Project, message: string, keep = false) => {
     // A hatch that lost its boundary in this change says so.
     const lost = view ? lostAssociation(sketchOf(project, view.file), sketchOf(next, view.file)) : 0;
     const said = lost && !message.includes('No longer associative') ? `${message} · HATCH  No longer associative` : message;
-    onChange(next, said); cad.say(said); if (view) cad.markDirty(view.file);
+    // The edit after a take-over joins the take-over's undo step (`keep`: this change is the take-over).
+    const join = !keep && !!takenRef.current;
+    if (join) takenRef.current = null;
+    onChange(next, said, join || undefined); cad.say(said); if (view) cad.markDirty(view.file);
   };
   const xr = useCadRefs({ project, view, tabOf: cad.tabOf, change, say: cad.say });
   const snapRef = snapOnce ? (x: number, y: number, r: number) => { const q = xr.snap(x, y, r); return q && q.kind & snapBit ? q : undefined; } : xr.snap;
@@ -861,8 +932,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const setProps = (patch: ObjectProps) => {
     if (!view) { cad.say('Open a drawing first.'); return; }
     const what = 'color' in patch ? 'Colour' : 'lt' in patch ? 'Linetype' : 'Lineweight';
-    if (pickedSk.length) change(pickedSk.reduce((q, it) => updateSketch(q, view.file, withProps(it, patch)), project), `${what} ${propLabel(patch)}: ${pickedSk.length} object${pickedSk.length === 1 ? '' : 's'} · ⌘Z to undo`);
-    else change(withNewProps(project, view.file, patch), `${what} of new objects: ${propLabel(patch)} · ⌘Z to undo`);
+    if (pickedSk.length + dwItems.length) {
+      // Objects of the opened drawing picked are taken over with the new property, in the one change.
+      const n = pickedSk.length + pickedDw.length, mine = pickedSk.map((it) => withProps(it, patch)), msg = `${what} ${propLabel(patch)}: ${n} object${n === 1 ? '' : 's'} · ⌘Z to undo`;
+      if (dwItems.length) changeStandIns(dwItems.map((it) => withProps(it, patch)), msg, mine); else change(mine.reduce((q, it) => updateSketch(q, view.file, it), project), msg);
+    } else change(withNewProps(project, view.file, patch), `${what} of new objects: ${propLabel(patch)} · ⌘Z to undo`);
   };
   // Model and layouts (paper space, src/components/cad/CadLayouts.tsx): the level's layouts, the one showing, its
   // viewports, the one picked and the one worked in (MS).
@@ -1416,6 +1490,87 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   }
   /** What an object of the opened drawing is called in a message: "Line on A-WALL", "Block L1 on E-LIGHT". */
   const dwLabel = (o: CadObject) => `${o.kind}${o.block ? ` ${o.block}` : ''} on ${view?.info.layers[o.layer]?.name ?? '?'}`;
+  /** The pieces of these objects of the drawing as drawn stand-ins (read once per object, kept while the file and its erased list stay). */
+  async function standInsOf(objs: CadObject[]): Promise<{ items: SketchItem[]; by: Map<string, SketchItem[]>; note: string }> {
+    const cache = standCache.current, need = objs.filter((o) => !cache.has(o.handle));
+    if (need.length && view) {
+      // Exact pieces: ellipses, notes, hatch patterns and dimensions come whole; sized in the current annotation scale and dimension style.
+      const { pieces } = await explodeObjects(view, need.map((o) => o.handle), { exact: true });
+      const p = projRef.current, st = currentDimStyle(p), k = unitsPerPaperMm(annoOf(p), units.factor), ctx: TakeOverCtx = { unit: k, dim: { look: lookOf(st, k), textH: st.textMm * k } };
+      for (const o of need) {
+        const mine = pieces[o.handle] ?? pieces[o.handle.toUpperCase()] ?? (need.length === 1 ? Object.values(pieces).flat() : []);
+        cache.set(o.handle, standInsFor(o.handle, mine, ctx));
+        standNotes.current.set(o.handle, takeOverSummary(mine, ctx));
+      }
+    }
+    const by = new Map(objs.map((o): [string, SketchItem[]] => [o.handle, cache.get(o.handle) ?? []]));
+    const sum = { splines: 0, ellipses: 0, hatches: 0 };
+    for (const o of objs) { const n = standNotes.current.get(o.handle); if (n) { sum.splines += n.splines; sum.ellipses += n.ellipses; sum.hatches += n.hatches; } }
+    return { items: objs.flatMap((o) => by.get(o.handle)!), by, note: takeOverNote(sum) };
+  }
+  /** Why objects of the drawing cannot become drawn ones now (nothing the app can draw, or a locked layer), said on the command line. */
+  function takeOverRefusal(cmd: string, objs: CadObject[], by: Map<string, SketchItem[]>): boolean {
+    const empty = objs.find((o) => !by.get(o.handle)?.length);
+    const locked = [...new Set([...by.values()].flat().filter((it) => effective(it, styles).lock).map((it) => it.layer))];
+    const n = objs.filter((o) => by.get(o.handle)!.some((it) => locked.includes(it.layer))).length;
+    const why = empty ? `${cmd}  ${dwLabel(empty)} has nothing the app can draw: nothing is changed.` : locked.length ? `${cmd}  ${n} object${n === 1 ? '' : 's'} on locked layer ${locked[0]}: unlock it first (LAYULK).` : '';
+    if (why) { refused.current = why; cad.say(why); }
+    return !!why;
+  }
+  /** The project with objects of the drawing taken over: their handles erased, their stand-ins (those in `edited` as edited) added as drawn objects. */
+  function withTakenOver(base: Project, objs: CadObject[], by: Map<string, SketchItem[]>, edited?: Map<string, SketchItem>) {
+    let next = withErased(base, fileOf(), objs.map((o) => o.handle));
+    const items: SketchItem[] = [];
+    for (const it of objs.flatMap((o) => by.get(o.handle) ?? [])) {
+      const { id: _id, ...x } = edited?.get(it.id) ?? it;
+      const a = addSketch(next, fileOf(), x); next = a.project; items.push({ ...x, id: a.id } as SketchItem);
+    }
+    return { next, items };
+  }
+  /** The first edit of objects of the opened drawing: they become drawn objects where they stand (same layer, colour, linetype,
+   * lineweight and arcs), the handles erased, in one change; the pick moves to the new objects. Refused, with nothing changed,
+   * on a locked layer or when an object has nothing the app can draw. The edit after it joins this step (one ⌘Z). */
+  async function takeOver(cmd: string, objs: CadObject[] = pickedDw): Promise<{ next: Project; items: SketchItem[] } | null> {
+    if (!view || !objs.length) return null;
+    try {
+      const r = await standInsOf(objs);
+      if (takeOverRefusal(cmd, objs, r.by)) return null;
+      const t = withTakenOver(projRef.current, objs, r.by);
+      change(t.next, `${cmd}  ${objs.length} object${objs.length === 1 ? '' : 's'} of ${view.file} taken over as drawn objects${r.note ? ` · ${r.note}` : ''}`, true);
+      takenRef.current = { file: view.file, handle: objs[0].handle.toUpperCase(), cmd, seen: false };
+      pick(pickedItems, [...pickedSk, ...t.items]);
+      return t;
+    } catch (e) { cad.say(`${cmd}  ${e instanceof Error ? e.message : String(e)}`); return null; }
+  }
+  /** An edit given up after a take-over: the take-over is undone. */
+  function cancelTakeOver() {
+    const t = takenRef.current;
+    takenRef.current = null;
+    if (t?.seen && onUndo) { onUndo(); setTimeout(() => cad.say(`${t.cmd}  Cancelled: the drawing's objects are as they were.`)); }
+  }
+  /** A tool started with objects of the drawing picked: they are taken over, then the tool starts afresh on the drawn objects. */
+  function takeOverForTool() {
+    const cmd = (toolName(tool) ?? tool.toUpperCase()).toUpperCase();
+    // A block of the drawing exploded takes its own path (EXPLODE on the menu); the other objects: the take-over is the explode.
+    if (tool === 'explode' && pickedDw.length === 1 && pickedDw[0].kind === 'Block') { ctxObj.current = { dw: pickedDw[0] }; void dwAct('explode'); cad.setTool('none'); return; }
+    refused.current = '';
+    cad.say(`TAKE OVER  ${pickedDw.length} object${pickedDw.length === 1 ? '' : 's'} of ${fileOf()} become drawn objects…`);
+    void takeOver(cmd).then((r) => {
+      if (!r) { const why = refused.current; cad.setTool('none'); if (why) setTimeout(() => cad.say(why)); }
+      else if (tool === 'explode') { takenRef.current = null; cad.setTool('none'); } else setToolTick((n) => n + 1);
+    });
+  }
+  /** ONE change for an edit of stand-ins (a grip drag, Properties): the objects of the drawing are taken over with `edited` in place of their stand-ins. */
+  function changeStandIns(edited: SketchItem[], message: string, alsoDrawn: SketchItem[] = []): boolean {
+    if (!view) return false;
+    const handles = new Set(edited.map((x) => standInHandle(x.id)).filter((h): h is string => !!h)), objs = pickedDw.filter((o) => handles.has(o.handle));
+    const by = new Map(objs.map((o): [string, SketchItem[]] => [o.handle, dwItems.filter((x) => standInHandle(x.id) === o.handle)]));
+    if (!objs.length || takeOverRefusal(message.split(' ')[0], objs, by)) return false;
+    const t = withTakenOver(alsoDrawn.reduce((q, it) => updateSketch(q, fileOf(), it), project), objs, by, new Map(edited.map((x) => [x.id, x])));
+    change(t.next, message);
+    pick(pickedItems, [...pickedSk, ...t.items]);
+    return true;
+  }
   function removeSelected() {
     // Objects of the opened drawing (with any devices and drawn objects picked too): erased by handle, in one change.
     if (pickedDw.length && view) {
@@ -1629,7 +1784,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
 
   /** Picks devices and drawn objects: one (it is the selected object, its details on the right), several, or none. */
   function pick(items: PlacedItem[], sks: SketchItem[] = [], dws: CadObject[] = []) {
-    setMenuAt(null);
     if (dws.length === 1 && !items.length && !sks.length) { setPicked([]); cad.setSelected(null); setResult({ kind: 'object', o: dws[0] }); return; }
     if (dws.length) {
       for (const o of dws) dwObjects.current.set(`dw:${o.handle}`, { file: view?.file ?? '', o });
@@ -1646,16 +1800,20 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const picks = (n: number) => `${n} object${n === 1 ? '' : 's'} selected`;
   /** A window (drawing units): the devices and drawn objects in it, added to those picked with Shift. Stretch keeps it
    * as the points to move. */
-  function pickWindow(a: Pt, b: Pt, crossing: boolean, add: boolean) {
+  async function pickWindow(a: Pt, b: Pt, crossing: boolean, add: boolean) {
     if (tool === 'zoomwin') { zoomTo({ kind: 'window', a, b }); cad.setTool('none'); return; }
     if (tool === 'stretch') { setStretchBox([a, b]); setPoints([]); cad.say('STRETCH  Specify base point:'); return; }
     const found = inWindow(placed.filter((d) => shown(d.key)), [a[0] * units.factor, a[1] * units.factor], [b[0] * units.factor, b[1] * units.factor], crossing, rUnits * units.factor);
     const foundSk = sketchInWindow(pickable, a, b, crossing, defs);
     const items = add || tool !== 'none' ? [...pickedItems, ...found.filter((d) => !pickedKeys.has(d.key))] : found;
     const sks = add || tool !== 'none' ? [...pickedSk, ...foundSk.filter((it) => !pickedKeys.has(`sk:${it.id}`))] : foundSk;
-    pick(tool === 'none' ? items : [], sks);
-    const n = (tool === 'none' ? items.length : 0) + sks.length;
-    cad.say(n ? `SEL  ${picks(n)}${tool !== 'none' ? ' — Enter when done' : ''}` : 'SEL  Nothing in the window.');
+    // The drawing's own objects too (the engine's window pick), with no tool running or while a tool asks for objects.
+    const asking = tool === 'none' || (PICK_FIRST.includes(tool) && edPhase === 'pick');
+    const inDw = asking && view ? await view.pickWindow(a, b, crossing, pickOn) : { objects: [] as CadObject[], truncated: false };
+    const dws = add || tool !== 'none' ? [...pickedDw, ...inDw.objects.filter((o) => !pickedKeys.has(`dw:${o.handle}`))] : inDw.objects;
+    pick(tool === 'none' ? items : [], sks, dws);
+    const n = (tool === 'none' ? items.length : 0) + sks.length + dws.length;
+    cad.say(n ? `SEL  ${picks(n)}${inDw.truncated ? ' (the first 20 000)' : ''}${tool !== 'none' ? ' — Enter when done' : ''}` : 'SEL  Nothing in the window.');
   }
   /** TEXTEDIT (ED, a double-click on the object, Edit text on its right-click menu): the box over a drawn text or
    * dimension to type over it (S5 of the Design CAD 2D gap plan). One on a locked layer is refused. */
@@ -1664,11 +1822,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (it.kind === 'insert') {
       if (effective(it, styles).lock) { cad.say(`ATTEDIT  Block on layer ${it.layer}, which is locked: unlock it first (LAYULK).`); return; }
       if (!attdefsOf(blockDefOf(defs, it.block)).length) { cad.say(`ATTEDIT  Block "${it.block}" has no attributes to edit.`); return; }
-      setMenuAt(null); cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it }); setAttEdit(it.id); return;
+      cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it }); setAttEdit(it.id); return;
     }
     if (it.kind !== 'text' && it.kind !== 'dim' && it.kind !== 'mtext') { cad.say(`TEXTEDIT  That is a ${kindOf(it).toLowerCase()}, not a text or dimension. Select a text or dimension:`); return; }
     if (effective(it, styles).lock) { cad.say(`TEXTEDIT  ${kindOf(it)} on layer ${it.layer}, which is locked: unlock it first (LAYULK).`); return; }
-    setMenuAt(null); setPicked([]); cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it });
+    setPicked([]); cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it });
     // A note opens its own editor (MTEXT, S6).
     if (it.kind === 'mtext') { setEdNote({ id: it.id, draft: it }); cad.say(MTEXT_TYPE(false)); return; }
     setEdText({ id: it.id, value: it.text ?? '' });
@@ -1681,7 +1839,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (!ed) return;
     const it = sketch.find((x) => x.id === ed.id), next = it && commit ? withText(it, ed.value, units.factor) : it;
     if (it && next && next !== it) change(updateSketch(project, fileOf(), next), `TEXTEDIT  ${it.kind === 'dim' ? (next.text === undefined ? 'Dimension measured again' : `Dimension text "${next.text}"`) : `Text "${next.text}"`} · ⌘Z to undo`);
-    else if (!commit) cad.say('*Cancel*');
+    else { if (!commit) cad.say('*Cancel*'); cancelTakeOver(); } // a text of the drawing taken over and left as it was is given back
     if (tool === 'textedit') cad.say(PROMPT.textedit);
   }
   /** A left double-click on a drawn text, dimension or note, with no tool running, opens its box. */
@@ -1722,41 +1880,54 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** Right click: with a tool running, Enter (the command menu when the prompt has options, or with Shift: Recent
    * input, Snap overrides…); with none, the menu of edits for the device or drawn object under it (or what is picked),
    * Erase for an object of the opened drawing, else the blank-canvas menu (cadContextMenu.ts). */
-  async function contextAt(at: Pt, pixel: number, screen: Pt, shift = false) {
+  async function contextAt(at: Pt, pixel: number, screen: Pt, shift = false, byKey = false) {
     setPromptMenu(null);
+    const mc = menuCommon();
     if (tool !== 'none') {
       const opts = promptOptions(cad.history[cad.history.length - 1] ?? '');
       if (!opts.length && !shift) { run(''); return; }
-      setPromptMenu({ at: screen, items: commandMenu({ options: opts, inputs, toggles: cad.toggles, snapOnce: snapOnce === 'none' ? null : snapOnce }) });
+      const last = cad.history[cad.history.length - 1] ?? '', cmdName = toolName(tool) ?? tool.toUpperCase();
+      setPromptMenu({ at: screen, items: commandMenu({ options: opts, inputs, toggles: cad.toggles, snapOnce: snapOnce === 'none' ? null : snapOnce }), head: { icon: TOOL_MENU_ICON[tool] ?? 'enter', title: cmdName, detail: shortPrompt(last) || undefined }, label: 'Command menu' });
       return;
     }
     // A hot grip of a drawn object picked (phase 4): move, copy, rotate or mirror from it, and a polyline's vertices.
-    const hotIt = hotGrip ? sketch.find((x) => x.id === hotGrip.id) : undefined;
+    const hotIt = hotGrip ? srcAll.find((x) => x.id === hotGrip.id) : undefined;
     if (hotIt && hotGrip) {
       const g = gripsOf(hotIt)[hotGrip.i];
-      if (g) { setPromptMenu({ at: screen, items: gripMenu({ index: hotGrip.i, kind: g.kind, it: hotIt }) }); return; }
+      if (g) { setPromptMenu({ at: screen, items: gripMenu({ index: hotGrip.i, kind: g.kind, it: hotIt }), head: { icon: 'move', title: 'Grip', detail: kindOf(hotIt) } }); return; }
     }
-    const d = deviceAt(at, pixel), sk = d ? undefined : hitAt(pickable, at, pickR * pixel);
+    // From the keyboard with objects picked, the menu is theirs: nothing under the point is picked instead.
+    const noHit = byKey && pickedItems.length + pickedSk.length + pickedDw.length > 0;
+    const d = noHit ? undefined : deviceAt(at, pixel), sk = d || noHit ? undefined : hitAt(pickable, at, pickR * pixel);
     const room = floor ? roomAtPointOf(project, floor, at, units.factor) : undefined;
     ctxAt.current = { at, room: room?.id };
     if (d && !pickedKeys.has(d.key)) pick([d]);
     else if (sk && !pickedKeys.has(`sk:${sk.id}`)) pick([], [sk]);
     // Devices only (the one clicked, or those picked): the device, board or ELV menu.
     const devs = d && !pickedKeys.has(d.key) ? [d] : !sk && !pickedSk.length ? pickedItems : [];
-    if (devs.length && (d || !sk)) { setPromptMenu({ at: screen, items: devMenu(devs) }); return; }
+    if (devs.length && (d || !sk)) { setPromptMenu({ at: screen, items: devMenu(devs), head: deviceHead({ items: devs, circuit: devCircuit(devs) }) }); return; }
     if (!d && !sk && !pickedItems.length && !pickedSk.length) {
       // An object of the opened drawing: picked (if it was not), with Erase (run as it then stands, through the actions).
       const o = view ? await view.pick(at[0], at[1], pickR * pixel, pickOn) : null;
       if (o && !pickedKeys.has(`dw:${o.handle}`)) pick([], [], [o]);
       if (o || pickedDw.length) {
-        const one = o ?? (pickedDw.length === 1 ? pickedDw[0] : undefined), n = o && !pickedKeys.has(`dw:${o.handle}`) ? 1 : pickedDw.length;
+        // The menu of drawn objects, on the stand-ins of what is picked (the same one order); its header says "opened drawing".
+        const objs = o && !pickedKeys.has(`dw:${o.handle}`) ? [o] : pickedDw, one = objs.length === 1 ? objs[0] : undefined, n = objs.length;
         ctxObj.current = { dw: one };
-        setPromptMenu({ at: screen, items: drawingObjectMenu({ block: one?.kind === 'Block' ? one.block : undefined, picked: n }) }); return;
+        const zoomSel = !!one && !!view && one.seg_end > one.seg_start, layer = one ? view?.info.layers[one.layer]?.name : undefined;
+        const stand = await standInsOf(objs).then((r) => r.items, () => [] as SketchItem[]);
+        if (stand.length) {
+          const only = stand.length === 1 ? stand[0] : undefined, block = one?.kind === 'Block' ? one.block ?? '' : undefined;
+          const st = { ...mc, items: stand, devices: 0, repeat: recent[0]?.label, canShow: !!onShow, blocks: defs.map((x) => x.name), dimStyles: dimStylesOf(project).styles.map((x) => x.name),
+            withAtts: (it: SketchItem) => attdefsOf(blockDefOf(defs, it.block)).length > 0, lengthM: only && isPath(only) ? toM(pathLength(only.pts)) : undefined, dwBlock: block };
+          setPromptMenu({ at: screen, items: drawnMenu(st), head: only && block === undefined ? { ...drawnHead(st), detail: `opened drawing · ${layer ?? ''}` } : drawingObjectHead({ kind: one?.kind ?? 'Object', layer, picked: n }), label: 'Edit drawn objects' }); return;
+        }
+        setPromptMenu({ at: screen, items: drawingObjectMenu({ ...mc, block: one?.kind === 'Block' ? one.block : undefined, picked: n, zoomSel }), head: drawingObjectHead({ kind: one?.kind ?? 'Object', layer, picked: n }) }); return;
       }
       // A reference drawing's lines (phase 3).
       const r = refNear(xr.placed, at, pickR * pixel);
       if (r) { ctxObj.current = { ref: r.name }; setPromptMenu({ at: screen, items: xrefMenu(r) }); return; }
-      const blank = blankMenu({ recent: recent.map((x) => x.label), canPaste: hasClip(), canUndo, canRedo, objectsHidden: !!objHide && objHide.file === view?.file });
+      const blank = blankMenu({ ...mc, recent: recent.map((x) => x.label), objectsHidden: !!objHide && objHide.file === view?.file });
       // Inside a room with an outline: the room's tools first (phase 2).
       const rt = room ? roomTypesOf(buildingInfoOf(project)).find((t) => t.id === room.type) : undefined;
       const editing = blockEditorOf(view?.file);
@@ -1765,19 +1936,34 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       setPromptMenu({ at: screen, items: room ? [...top, roomEntry({ room, typeLabel: rt?.label, elv: elvItem?.label }), '-', ...blank] : [...top, ...blank] });
       return;
     }
-    setMenuAt(screen);
+    // Drawn objects (and devices with them): the one menu of every picked object.
+    const fresh = sk && !pickedKeys.has(`sk:${sk.id}`) ? sk : undefined, sks = fresh ? [fresh] : pickedSk, one = sks.length === 1 && !pickedItems.length && isPath(sks[0]) ? sks[0] : undefined;
+    const st = { ...mc, items: sks, devices: fresh ? 0 : pickedItems.length, repeat: recent[0]?.label, canShow: !!onShow, blocks: defs.map((x) => x.name), dimStyles: dimStylesOf(project).styles.map((x) => x.name),
+      withAtts: (it: SketchItem) => attdefsOf(blockDefOf(defs, it.block)).length > 0, lengthM: one ? toM(pathLength(one.pts)) : undefined };
+    setPromptMenu({ at: screen, items: drawnMenu(st), head: drawnHead(st), label: 'Edit drawn objects' });
   }
   /** ISOLATEOBJECTS / HIDEOBJECTS: the drawn objects and devices picked shown alone, or hidden (more hidden join those
-   * hidden already); this view only, not saved. Objects of the opened drawing stay as they are. */
-  function hideObjects(mode: 'isolate' | 'hide') {
+   * hidden already); this view only, not saved. The drawing's own objects picked go the same way. */
+  async function hideObjects(mode: 'isolate' | 'hide') {
     const cmd = mode === 'isolate' ? 'ISOLATEOBJECTS' : 'HIDEOBJECTS';
-    const keys = [...pickedItems.map((d) => d.key), ...pickedSk.map((it) => `sk:${it.id}`)];
-    if (!view || !keys.length) { cad.say(`${cmd}  Pick the objects first.`); return; }
+    const keys = [...pickedItems.map((d) => d.key), ...pickedSk.map((it) => `sk:${it.id}`)], n = keys.length + pickedDw.length;
+    if (!view || !n) { cad.say(`${cmd}  Pick the objects first.`); return; }
     const before = objHide && objHide.file === view.file ? objHide.keys : [], keep = new Set(keys);
     const all = [...placed.map((d) => d.key), ...sketch.map((it) => `sk:${it.id}`)];
+    // The drawing's own objects: their handles go to the engine with the erased ones (this view only, not saved). Isolated, every
+    // other object of the drawing is hidden (up to the first 20 000 the engine lists).
+    let handles = dwHide?.file === view.file ? dwHide.handles : [], cut = false;
+    if (pickedDw.length) {
+      if (mode === 'hide') handles = [...new Set([...handles, ...pickedDw.map((o) => o.handle)])];
+      else {
+        const [x0, y0, x1, y1] = view.info.extents, every = await view.pickWindow([x0, y0], [x1, y1], true, new Uint8Array(view.info.layers.length).fill(1)), mine = new Set(pickedDw.map((o) => o.handle));
+        handles = [...new Set([...handles, ...every.objects.map((o) => o.handle).filter((h) => !mine.has(h))])]; cut = every.truncated;
+      }
+    }
     setObjHide({ file: view.file, mode, keys: [...new Set([...before, ...(mode === 'hide' ? keys : all.filter((k) => !keep.has(k)))])] });
-    setPicked([]); cad.setSelected(null); setResult(null); setMenuAt(null);
-    cad.say(`${cmd}  ${keys.length} object${keys.length === 1 ? '' : 's'} ${mode === 'isolate' ? 'shown alone' : 'hidden'} · UNISOLATEOBJECTS shows all again`);
+    if (pickedDw.length) setDwHide({ file: view.file, handles });
+    setPicked([]); cad.setSelected(null); setResult(null);
+    cad.say(`${cmd}  ${n} object${n === 1 ? '' : 's'} ${mode === 'isolate' ? 'shown alone' : 'hidden'}${cut ? ' (the first 20 000 of the others hidden)' : ''} · UNISOLATEOBJECTS shows all again`);
   }
   /** ADDSELECTED: the tool that draws the object picked, with its layer current (a device: the same device type). */
   function addSelected() {
@@ -1796,18 +1982,25 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   }
   /** The LV circuit of a placed device (none for a board or an ELV device). */
   const feederOfDev = (d: PlacedItem) => (d.what === 'lv' ? (project.lvPoints ?? []).find((x) => x.id === d.id)?.feederId : undefined);
+  /** What the right-click menus need of the page: undo and redo (with the step's name), the Properties palette, the clipboard. */
+  const menuCommon = (): MenuCommon => ({ canUndo, canRedo, undoLabel, redoLabel, propsOn: showProps, canPaste: hasClip() });
+  /** The circuit all the LV devices picked are on (wired: its home run is drawn), if they are on one. */
+  function devCircuit(items: PlacedItem[]): { id: string; board: string; wired: boolean } | undefined {
+    const fs = new Set(items.map(feederOfDev)), fid = fs.size === 1 ? [...fs][0] : undefined, f = fid ? project.feeders.find((x) => x.id === fid) : undefined;
+    return f ? { id: f.id, board: f.boardId, wired: isWired(project, f.id) } : undefined;
+  }
   /** The right-click menu of the devices picked (src/components/cad/cadObjectMenus.ts). */
   function devMenu(items: PlacedItem[]): CtxEntry[] {
     const fs = new Set(items.map(feederOfDev)), types = new Map<string, { label: string; count: number }>();
     for (const it of items) { const t = typeOf(project, it); types.set(t, { label: it.label, count: (types.get(t)?.count ?? 0) + 1 }); }
-    const fid = fs.size === 1 ? [...fs][0] : undefined, f = fid ? project.feeders.find((x) => x.id === fid) : undefined;
+    const fid = fs.size === 1 ? [...fs][0] : undefined, circuit = devCircuit(items);
     const swapNow = types.size === 1 ? [...types.keys()][0] : undefined;
     return deviceMenu({
-      items, edits: editsFor(project, items), oneType: types.size === 1, canShow: !!onShow, repeat: recent[0]?.label,
+      ...menuCommon(), items, edits: editsFor(project, items), oneType: types.size === 1, canShow: !!onShow, repeat: recent[0]?.label,
       circuits: circuits.map((c) => ({ id: c.id, label: circuitLabel(project, c), now: c.id === fid })),
       swaps: replacements(project, items).map((x) => ({ id: x.id, label: x.label, now: x.id === swapNow })),
       types: [...types].map(([id, v]) => ({ id, ...v })),
-      ...(f ? { circuit: { id: f.id, board: f.boardId, wired: isWired(project, f.id) } } : {})
+      ...(circuit ? { circuit } : {})
     });
   }
   /** Wire one: the circuit's home run drawn, or taken off. */
@@ -1891,10 +2084,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     switch (argOf(a).action) {
       case 'count': cad.say(`COUNT  ${what}: ${all.length} in this drawing`); return;
       case 'copyblock': if (name) await insertArchBlock(name); return;
+      case 'selblock': await similarDw([o], 'SELECT'); return;
       case 'crop': { const c = cropOf(o); cropNext.current = c.state; cad.setTool('crop'); setTimeout(() => cad.say(c.say)); return; }
       case 'explode': {
         try {
-          const { pieces, truncated } = await explodeObjects(view, [o.handle]);
+          const { pieces, truncated } = await explodeObjects(view, [o.handle], { exact: true });
           const list = pieces[o.handle] ?? Object.values(pieces).flat();
           const items = defFromPieces(name ?? 'block', list, [0, 0], view.info.units).items;
           if (!items.length) { cad.say(`EXPLODE  ${what} has nothing the app can draw.`); return; }
@@ -1970,7 +2164,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     ctxObj.current = { fvp: i ?? undefined };
     if (dwgL && i !== null) cad.setVpSel(dvId(i));
     const dv = dwgL && i !== null ? dwgL.viewports[i] : undefined;
-    setPaperCtx({ at, items: drawingPaperMenu({ inside: !!v, editable: !!dwgL, scale: v && v.h > 0 ? Math.round((v.vh * mpu) / v.h) : undefined, scales: scalesOf(project), locked: !!dv?.locked, frame: !!dv?.frame, clipped: !!dv?.clip }) });
+    const scale = v && v.h > 0 ? Math.round((v.vh * mpu) / v.h) : undefined;
+    setPaperCtx({ at, items: drawingPaperMenu({ inside: !!v, editable: !!dwgL, scale, scales: scalesOf(project), locked: !!dv?.locked, frame: !!dv?.frame, clipped: !!dv?.clip }), head: v ? { icon: 'viewport', title: 'Viewport', detail: scale ? `1:${scale}` : undefined } : undefined });
   }
   /** An entry of that menu. */
   function filePaperAct(a: string) {
@@ -2002,7 +2197,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (!sheetL) return;
     const r = paperStage.current?.getBoundingClientRect(), at: Pt = [x - (r?.left ?? 0), y - (r?.top ?? 0)];
     const v = id ? vps.find((q) => q.id === id) : undefined;
-    if (v) { cad.setVpSel(v.id); ctxObj.current = { vp: v.id }; setPaperCtx({ at, items: viewportMenu(v, scalesOf(project)) }); return; }
+    if (v) { cad.setVpSel(v.id); ctxObj.current = { vp: v.id }; setPaperCtx({ at, items: viewportMenu(v, scalesOf(project), showProps), head: viewportHead(v) }); return; }
     ctxObj.current = null; setPaperCtx({ at, items: paperMenu({ status: sheetL.status }) });
   }
   /** A right-click menu entry picked: its command typed, or the page action. */
@@ -2012,7 +2207,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const a = x.arg ?? '';
     switch (x.act) {
       case 'repeat': { const r = recent[Number(a)]; if (r) repeat(r); return; }
-      case 'properties': setShowProps(true); return;
+      case 'properties': setShowProps((v) => !v); return;
+      case 'sk': { const { action, value } = argOf(a); editSketch(action as SketchEdit, value); return; }
       case 'enter': run(''); return;
       case 'cancel': cancel(); return;
       case 'option': case 'input': run(a); return;
@@ -2022,7 +2218,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         cad.say(m === 'none' ? 'No snap for the next point.' : `${SNAP_OVERRIDES.find((q) => q.mode === m)?.label ?? m} snap for the next point.`);
         return;
       }
-      case 'deselect': setPicked([]); cad.setSelected(null); setResult(null); setMenuAt(null); return;
+      case 'deselect': setPicked([]); cad.setSelected(null); setResult(null); return;
       case 'dev': { const d = devArg(a); deviceAct(d.edit, d.value); return; }
       case 'room': roomAct(a); return;
       case 'dw': void dwAct(a); return;
@@ -2044,10 +2240,15 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const failed = (r: Edit, cmd: string) => { if (r.error) cad.say(`${cmd}  ${r.error}`); return !!r.error; };
   /** An edit from the toolbar, the menu or the side panel, on the drawn objects picked. */
   function editSketch(e: SketchEdit, arg?: string) {
-    setMenuAt(null);
     const sks = pickedSk, one = sks.length === 1 && !pickedItems.length ? sks[0] : undefined;
     if (e === 'filter' && arg) {
       if (arg === 'devices') pick(pickedItems); else if (arg === 'drawn') pick([], sks); else pick([], sks.filter((it) => kindOf(it) === arg));
+      return;
+    }
+    // Objects of the opened drawing picked: a tool takes them over as it starts; a change of them takes them over first, then runs.
+    if (pickedDw.length && !NO_TAKE_OVER.includes(e)) {
+      if (TOOL_EDITS.includes(e)) { cad.setTool(e === 'jointool' ? 'join' : e as CadTool); return; }
+      void takeOver(e.toUpperCase()).then((r) => { if (r) { pendingEdit.current = { e, arg, cmd: e.toUpperCase() }; setEditTick((n) => n + 1); } });
       return;
     }
     if (e === 'width' && one?.tray && arg) { change(updateSketch(project, fileOf(), { ...one, tray: { ...one.tray, widthMm: Number(arg) } }), `Cable tray ${arg} mm · ⌘Z to undo`); return; }
@@ -2073,8 +2274,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (e === 'similar') { run('SELECTSIMILAR'); return; }
     if (e === 'qselect') { run('QSELECT'); return; }
     if (e === 'isolate') { run(arg === 'hide' ? 'HIDEOBJECTS' : arg === 'end' ? 'UNISOLATEOBJECTS' : 'ISOLATEOBJECTS'); return; }
-    if (e === 'deselect') { setPicked([]); cad.setSelected(null); setResult(null); setMenuAt(null); return; }
-    if (e === 'addsel') { setMenuAt(null); run('ADDSELECTED'); return; }
+    if (e === 'deselect') { setPicked([]); cad.setSelected(null); setResult(null); return; }
+    if (e === 'addsel') { run('ADDSELECTED'); return; }
     if (e === 'qmeasure') { run('QUICKMEASURE'); return; }
     if (e === 'count') { run('COUNT'); return; }
     if (e === 'traysize' || e === 'traycables' || e === 'trayfill' || e === 'reverse' || e === 'trace' || e === 'routesld') { if (one) routeEdit(e, one); return; }
@@ -2192,7 +2393,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   }
   /** A grip right-clicked (phase 4): Move, Copy, Rotate or Mirror from it, or a vertex added, removed, or the polyline closed. */
   function gripAct(a: string) {
-    const { action, value } = argOf(a), it = hotGrip ? sketch.find((x) => x.id === hotGrip.id) : selSketch, i = Number(value);
+    const { action, value } = argOf(a), it = hotGrip ? srcAll.find((x) => x.id === hotGrip.id) : selSketch, i = Number(value);
     if (!it) return;
     const g = gripsOf(it)[i];
     if (!g) return;
@@ -2202,7 +2403,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     }
     const next = action === 'add' ? withVertexAdded(it, i) : action === 'remove' ? withVertexRemoved(it, i) : closedToggled(it);
     if (next === it) return;
-    change(updateSketch(project, fileOf(), next), `${action === 'add' ? 'GRIP  Vertex added' : action === 'remove' ? 'GRIP  Vertex removed' : it.closed ? 'PEDIT  Polyline opened' : 'PEDIT  Polyline closed'} · ⌘Z to undo`);
+    const said = `${action === 'add' ? 'GRIP  Vertex added' : action === 'remove' ? 'GRIP  Vertex removed' : it.closed ? 'PEDIT  Polyline opened' : 'PEDIT  Polyline closed'} · ⌘Z to undo`;
+    if (standInHandle(it.id)) changeStandIns([next], said); else change(updateSketch(project, fileOf(), next), said);
   }
   /** REFEDIT: the block picked taken apart where it stands, to edit among the drawing's objects. */
   function refEdit() {
@@ -2263,7 +2465,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** INSERT: the block chosen (in the palette, by name, or from Insert's arrow) waits at the cursor for its insertion point. */
   function startInsert(def: CadBlockDef) {
     if (!view) { cad.say('INSERT  Open a drawing first.'); return; }
-    setInsBlock(def); setInsAsk(null); setMenuAt(null);
+    setInsBlock(def); setInsAsk(null);
     if (tool === 'insert') cad.say(PROMPT.insert); else cad.setTool('insert');
   }
   /** The block placed: into the drawing's blocks when it is not there yet, then one insert at the point (or, with
@@ -2322,7 +2524,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   function openBlockDialog() {
     if (!view) { cad.say('BLOCK  Open a drawing first.'); return; }
     const items = pickedSk.filter(blockable), pts = items.flatMap((it) => it.pts);
-    setMenuAt(null);
     setBlockDlg({ name: '', base: pts.length ? [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1]))] : null, ids: items.map((it) => it.id), mode: 'convert', description: '' });
     cad.say(`BLOCK  Block definition${items.length ? `: ${picks(items.length)}` : ''}`);
   }
@@ -2371,17 +2572,20 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** Array: copies of the drawn objects picked (rectangular, or polar round `centre`). */
   function applyArray(centre?: Pt, polar = edSet.polar) {
     const f = units.factor, n = (s: string, d: number) => (Number.isFinite(Number(s)) && s.trim() !== '' ? Number(s) : d);
-    const copies = pickedSk.flatMap((it) => (polar ? arrayPolar(it, centre!, n(edSet.n, 6), n(edSet.angle, 360), edSet.rotate) : arrayRect(it, n(edSet.rows, 2), n(edSet.cols, 3), n(edSet.dx, 1) / f, n(edSet.dy, 1) / f)));
+    const copies = srcSk.flatMap((it) => (polar ? arrayPolar(it, centre!, n(edSet.n, 6), n(edSet.angle, 360), edSet.rotate) : arrayRect(it, n(edSet.rows, 2), n(edSet.cols, 3), n(edSet.dx, 1) / f, n(edSet.dy, 1) / f)));
     if (!copies.length) { cad.say('ARRAY  Nothing to copy: more rows, columns or items.'); return; }
     change(added(project, copies), `ARRAY  ${copies.length} cop${copies.length === 1 ? 'y' : 'ies'} made · ⌘Z to undo`);
     pick([], []); cad.setTool('none');
   }
   /** Mirror: the drawn objects picked about the line from `a` to `b`, the originals erased or kept. */
-  function applyMirror(a: Pt, b: Pt, erase: boolean) {
-    const flipped = pickedSk.map((it) => mirrored(it, a, b));
-    let next = project;
-    pickedSk.forEach((it, i) => { next = erase ? updateSketch(next, fileOf(), { ...flipped[i], id: it.id } as SketchItem) : addSketch(next, fileOf(), flipped[i]).project; });
-    change(next, `MIRROR  ${picks(pickedSk.length).replace(' selected', '')} mirrored${erase ? '' : ', originals kept'} · ⌘Z to undo`);
+  async function applyMirror(a: Pt, b: Pt, erase: boolean) {
+    // Originals of the opened drawing kept: copied as they are. Erased: taken over first (one ⌘Z with the mirroring).
+    let base = project, src = erase ? pickedSk : srcSk;
+    if (erase && pickedDw.length) { const t = await takeOver('MIRROR'); if (!t) return; base = t.next; src = [...pickedSk, ...t.items]; }
+    const flipped = src.map((it) => mirrored(it, a, b));
+    let next = base;
+    src.forEach((it, i) => { next = erase ? updateSketch(next, fileOf(), { ...flipped[i], id: it.id } as SketchItem) : addSketch(next, fileOf(), flipped[i]).project; });
+    change(next, `MIRROR  ${picks(src.length).replace(' selected', '')} mirrored${erase ? '' : ', originals kept'} · ⌘Z to undo`);
     setEdSet({ ...edSet, keep: !erase }); setEdAsk(null);
     setPoints([]); pick([], []); cad.setTool('none');
   }
@@ -2522,7 +2726,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** An edit from the toolbar, the menu or the side panel, on the devices picked. */
   function editDevices(e: DeviceEdit, arg?: string) {
     const items = pickedItems;
-    setMenuAt(null);
     if (!floor || !items.length) return;
     const what = items.length === 1 ? items[0].label : `${items.length} devices`;
     try {
@@ -2637,23 +2840,23 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** Why the objects picked cannot be copied, said on the command line; nothing when they can. */
   function clipRefusal(name: string): boolean {
     if (!view) { cad.say(`${name}  Open a drawing first.`); return true; }
-    if (!pickedSk.length) { cad.say(`${name}  Pick drawn objects first${pickedItems.length ? ' (devices are not copied to the clipboard; use CO to copy them on this plan)' : ''}.`); return true; }
+    if (!srcSk.length) { cad.say(`${name}  Pick drawn objects first${pickedItems.length ? ' (devices are not copied to the clipboard; use CO to copy them on this plan)' : ''}.`); return true; }
     return false;
   }
   /** The drawn objects picked to the clipboard, from `base` (COPYBASE) or their lower-left corner. */
   function copyClip(base?: Pt) {
     const name = base ? 'COPYBASE' : 'COPYCLIP';
     if (clipRefusal(name) || !view) return;
-    putClip(clipText(clipPayload(project, view.file, pickedSk, base ?? lowerLeft(pickedSk), unitCode)));
-    const n = pickedSk.length, d = pickedItems.length;
+    putClip(clipText(clipPayload(project, view.file, srcSk, base ?? lowerLeft(srcSk), unitCode)));
+    const n = pickedSk.length + pickedDw.length, d = pickedItems.length;
     cad.say(`${name}  ${n} object${n === 1 ? '' : 's'} copied${d ? ` · ${d} device${d === 1 ? '' : 's'} not copied (devices stay on their plan)` : ''}`);
   }
   /** CUTCLIP (Ctrl+X): the drawn objects picked to the clipboard, then erased (one undo step); devices stay. */
   function cutClip() {
     if (clipRefusal('CUTCLIP') || !view) return;
-    putClip(clipText(clipPayload(project, view.file, pickedSk, lowerLeft(pickedSk), unitCode)));
-    const n = pickedSk.length, d = pickedItems.length;
-    change(pickedSk.reduce((q, it) => removeSketch(q, view.file, it.id), project), `CUTCLIP  ${n} object${n === 1 ? '' : 's'} cut to the clipboard${d ? ` · ${d} device${d === 1 ? '' : 's'} left (devices stay on their plan)` : ''} · ⌘Z to undo`);
+    putClip(clipText(clipPayload(project, view.file, srcSk, lowerLeft(srcSk), unitCode)));
+    const n = pickedSk.length + pickedDw.length, d = pickedItems.length;
+    change(pickedSk.reduce((q, it) => removeSketch(q, view.file, it.id), pickedDw.length ? withErased(project, view.file, pickedDw.map((o) => o.handle)) : project), `CUTCLIP  ${n} object${n === 1 ? '' : 's'} cut to the clipboard${d ? ` · ${d} device${d === 1 ? '' : 's'} left (devices stay on their plan)` : ''} · ⌘Z to undo`);
     setPicked([]); cad.setSelected(null); setResult(null);
   }
   /** PASTECLIP: the copied objects follow the cursor to the insertion point. PASTEORIG: the same coordinates, into
@@ -2723,11 +2926,21 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   }
   /** SELECTSIMILAR: every pickable drawn object like those picked. */
   function applySimilar() {
+    if (pickedDw.length && !pickedSk.length) { void similarDw(pickedDw, 'SELECTSIMILAR'); cad.setTool('none'); return; }
     if (!pickedSk.length) { cad.say('SELECTSIMILAR  Pick a drawn object first (click it, then Enter).'); return; }
     const found = selectSimilar(pickable, pickedSk, ssOpts);
     pick([], found);
     cad.say(`SELECTSIMILAR  ${picks(found.length)}`);
     cad.setTool('none');
+  }
+  /** The objects of the drawing like these (same kind and layer, and the same block name for a block): the engine's answer, picked. */
+  async function similarDw(like: CadObject[], cmd: string) {
+    if (!view) return;
+    const key = (o: CadObject) => `${o.kind}|${o.layer}|${o.block ?? ''}`, once = [...new Map(like.map((o) => [key(o), o])).values()];
+    const all = await Promise.all(once.map((o) => view.pickLike(o.kind, o.layer, o.block ?? '', pickOn)));
+    const found = [...new Map(all.flatMap((r) => r.objects).map((o) => [o.handle, o])).values()];
+    pick([], [], found);
+    cad.say(`${cmd}  ${picks(found.length)}${all.some((r) => r.truncated) ? ' (the first 20 000)' : ''}`);
   }
   /** What is typed at SELECTSIMILAR's prompts: Enter selects, S asks what else to match. */
   function similarInput(c: string) {
@@ -2859,6 +3072,14 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       return;
     }
     if (EDIT_TOOLS.includes(tool)) { editClick(at, pixel, shiftKey); return; }
+    if (tool === 'copy' && pickedDw.length) {
+      // Objects of the opened drawing: copied as drawn objects, the originals stay where they are.
+      if (!dwItems.length) { cad.say('COPY  Reading the objects of the drawing…'); return; }
+      if (!points.length) { setPoints([at]); cad.say('COPY  Specify second point:'); return; }
+      const [ux, uy] = [at[0] - points[0][0], at[1] - points[0][1]], src = srcSk;
+      change(added(project, src.map((it) => { const { id: _id, ...rest } = moved(it, ux, uy); return rest; })), `COPY  ${pickedDw.length + pickedSk.length} object${pickedDw.length + pickedSk.length === 1 ? '' : 's'} copied as drawn objects, the drawing's own stay · Enter stops · ⌘Z to undo`);
+      return;
+    }
     if ((tool === 'move' || tool === 'copy') && many && (floor || !pickedItems.length)) {
       if (!points.length) { setPoints([at]); cad.say(`${tool.toUpperCase()}  Specify second point:`); return; }
       const [ux, uy] = [at[0] - points[0][0], at[1] - points[0][1]], [dx, dy] = [ux * units.factor, uy * units.factor];
@@ -3114,7 +3335,6 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     }
     if (tool === 'none') {
       const d = deviceAt(at, pixel);
-      setMenuAt(null);
       const skHit = shiftKey && !d ? hitAt(pickable, at, pickR * pixel) : undefined;
       if (d && shiftKey) {
         const items = pickedKeys.has(d.key) ? pickedItems.filter((x) => x.key !== d.key) : [...pickedItems, d];
@@ -3363,12 +3583,14 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (tool === 'join') { applyJoin(); return true; }
     if (PICK_FIRST.includes(tool) && edPhase === 'pick') {
       // TXTHEIGHT with nothing picked asks the height for new text.
-      if (!pickedSk.length && tool !== 'th') { cad.say(`${CMD}  Pick the ${tool === 'tjust' ? 'texts' : 'objects'} first.`); return true; }
+      if (!pickedSk.length && !pickedDw.length && tool !== 'th') { cad.say(`${CMD}  Pick the ${tool === 'tjust' ? 'texts' : 'objects'} first.`); return true; }
+      // Objects of the drawing picked by a window: taken over, then the tool starts again on the drawn objects.
+      if (pickedDw.length && TAKE_OVER_TOOLS.includes(tool)) { takeOverForTool(); return true; }
       setEdPhase('points');
       if (tool === 'array') { setEdAsk('type'); cad.say(arrayType(edSet)); } else if (TEXT_TOOLS.includes(tool)) cad.say(textToolPrompt(tool)); else if (tool === 'draworder') { if (drMode === 'front' || drMode === 'back') applyDrawOrder(drMode); else cad.say(drMode ? DR_REF : DR_OPTIONS); } else cad.say(tool === 'mirror' ? 'MIRROR  Specify first point of the mirror line:' : tool === 'align' ? ALIGN_SAY[0] : 'SCALE  Specify base point:');
       return true;
     }
-    if (tool === 'array' && !edSet.polar && pickedSk.length) { applyArray(); return true; }
+    if (tool === 'array' && !edSet.polar && srcSk.length) { applyArray(); return true; }
     if (tool === 'trim' || tool === 'extend' || tool === 'explode' || (tool === 'stretch' && !stretchBox)) { cad.setTool('none'); return true; }
     return false;
   }
@@ -3775,15 +3997,32 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         pick(devs, pickable);
         cad.say(`SELECTALL  ${picks(devs.length + pickable.length)}`);
       },
+      selectInvert: () => {
+        if (!view) { cad.say('SELECTINVERT  Open a drawing first.'); return; }
+        const devs = cad.showDevices ? placed.filter((d) => shown(d.key) && !pickedKeys.has(d.key)) : [], sks = pickable.filter((it) => !pickedKeys.has(`sk:${it.id}`));
+        pick(devs, sks);
+        cad.say(`SELECTINVERT  ${picks(devs.length + sks.length)}`);
+      },
+      zoomSel: () => {
+        if (zoomRefused() || !view) return;
+        // The objects picked: drawn ones by their segments, devices by their point, objects of the opened drawing by theirs.
+        const pts: Pt[] = [...pickedItems.map((d): Pt => [d.x / units.factor, d.y / units.factor]), ...pickedSk.flatMap((it) => { const sg = segmentsOf(it, 0.001, defs); return sg.length ? sg.flat() : it.pts; }),
+          ...pickedDw.flatMap((o) => { const q: Pt[] = []; for (let i = o.seg_start; i < o.seg_end; i += 1) q.push([view.segs[i * 4] + view.info.origin[0], view.segs[i * 4 + 1] + view.info.origin[1]], [view.segs[i * 4 + 2] + view.info.origin[0], view.segs[i * 4 + 3] + view.info.origin[1]]); return q; })];
+        if (!pts.length) { cad.say('ZOOM  Pick the objects first.'); return; }
+        const x0 = Math.min(...pts.map((q) => q[0])), x1 = Math.max(...pts.map((q) => q[0])), y0 = Math.min(...pts.map((q) => q[1])), y1 = Math.max(...pts.map((q) => q[1]));
+        const pad = Math.max(0.1 * Math.max(x1 - x0, y1 - y0), 1 / units.factor);
+        zoomTo({ kind: 'window', a: [x0 - pad, y0 - pad], b: [x1 + pad, y1 + pad] });
+        cad.say(`ZOOM  ${picks(pickedItems.length + pickedSk.length + pickedDw.length)} filled the view`);
+      },
       count: () => {
-        const any = pickedSk.length + pickedItems.length > 0;
+        const any = pickedSk.length + pickedItems.length + pickedDw.length > 0;
         const sks = any ? pickedSk : pickable, devs = any ? pickedItems : cad.showDevices ? placed.filter((d) => shown(d.key)) : [];
-        const kinds = [...sks.map((it) => (it.kind === 'insert' && it.block ? `${it.block} (block)` : kindOf(it))), ...devs.map((d) => typeOf(project, d) || d.what)];
+        const kinds = [...pickedDw.map((o) => (o.kind === 'Block' && o.block ? `${o.block} (block)` : o.kind)), ...sks.map((it) => (it.kind === 'insert' && it.block ? `${it.block} (block)` : kindOf(it))), ...devs.map((d) => typeOf(project, d) || d.what)];
         cad.say(kinds.length ? `COUNT  ${any ? 'Picked' : 'In view'}: ${countLine(kinds, 0)} — ${kinds.length} in all` : 'COUNT  Nothing to count.');
       },
       isolateObjects: () => hideObjects('isolate'),
       hideObjects: () => hideObjects('hide'),
-      unisolateObjects: () => { if (objHide && objHide.file === view?.file) { setObjHide(null); cad.say('UNISOLATEOBJECTS  All objects shown again.'); } else cad.say('UNISOLATEOBJECTS  No objects are isolated or hidden.'); },
+      unisolateObjects: () => { if (objHide && objHide.file === view?.file) { setObjHide(null); setDwHide(null); cad.say('UNISOLATEOBJECTS  All objects shown again.'); } else cad.say('UNISOLATEOBJECTS  No objects are isolated or hidden.'); },
       addSelected: () => addSelected(),
       refedit: () => refEdit(),
       refclose: () => refClose(),
@@ -3792,8 +4031,10 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       bclose: () => blockClose(),
       find: () => { if (!view) { cad.say('FIND  Open a drawing first.'); return; } setFindAsk({ step: 'what' }); cad.say('FIND  Find what (in the texts, notes, attributes and dimension texts drawn here):'); input.current?.focus(); },
       quickMeasure: () => {
-        if (!pickedSk.length) { cad.say('QUICKMEASURE  Pick lines, polylines, arcs or circles first.'); return; }
+        if (!pickedSk.length && !pickedDw.length) { cad.say('QUICKMEASURE  Pick lines, polylines, arcs or circles first.'); return; }
         const q = measureOf(pickedSk);
+        // Objects of the drawing: the engine's own length and area (a block, text or point has none).
+        for (const o of pickedDw) if ((o.length ?? 0) > 0) { q.length += o.length!; q.n += 1; if (o.closed && (o.area ?? 0) > 0) q.area += o.area!; }
         cad.say(q.n ? `QUICKMEASURE  ${q.n} object${q.n === 1 ? '' : 's'}: length ${m(toM(q.length))}${q.area > 0 ? ` · closed area ${m2(toM2(q.area))}` : ''}` : 'QUICKMEASURE  Nothing with a length is picked.');
       }
     };
@@ -3958,7 +4199,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (edNote) { setEdNote(null); cad.say('*Cancel*'); if (tool === 'mtext') cad.setTool('none'); }
     else if (points.length || objectMode || cad.textAt || mtAsk) { setPoints([]); setObjectMode(false); cad.setTextAt(null); setTextAsk(null); setEdAsk(null); setMtAsk(null); cad.say('*Cancel*'); }
     else if (edStep || edAsk === 'radius' || edAsk === 'd1' || edAsk === 'd2') { setEdStep(null); setEdAsk(null); cad.say('*Cancel*'); cad.say(tool === 'offset' ? PROMPT.offset : editPrompt(tool, edSet)); }
-    else if (menuAt) setMenuAt(null); else if (renaming || roomAsk || findAsk || beClose || reClose) { setRenaming(null); setRoomAsk(null); setFindAsk(null); setBeClose(false); setReClose(false); cad.say('*Cancel*'); } else if (tool !== 'none') cad.setTool('none'); else { setResult(null); cad.setSelected(null); setPicked([]); }
+    else if (renaming || roomAsk || findAsk || beClose || reClose) { setRenaming(null); setRoomAsk(null); setFindAsk(null); setBeClose(false); setReClose(false); cad.say('*Cancel*'); } else if (tool !== 'none') cad.setTool('none'); else { setResult(null); cad.setSelected(null); setPicked([]); }
   }
   /** What Space does in the command line: types a space in text (a name, TEXT contents, a leader's text); at TEXT's
    * height and rotation, where a word is the text, ends only an empty input or a number; else ends a whole word. */
@@ -3976,11 +4217,24 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   // (with no tool, repeats the last command), Esc cancels the command (and the tool), F2 the taller history, F1 the
   // command list.
   const keyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+  // The drawing's world-to-screen map as the overlay last had it, for a menu opened from the keyboard.
+  const toScreenRef = useRef<((p: Pt) => Pt) | null>(null);
+  /** Shift+F10 or the menu key: the right-click menu at the objects picked (the centre of their extents), else at the
+   * cursor's last point. */
+  function menuFromKeyboard() {
+    const ts = toScreenRef.current;
+    const pts: Pt[] = [...pickedItems.map((d): Pt => [d.x / units.factor, d.y / units.factor]), ...pickedSk.flatMap((it) => { const sg = segmentsOf(it, 0.001, defs); return sg.length ? sg.flat() : it.pts; })];
+    const at: Pt | null = pts.length ? [(Math.min(...pts.map((q) => q[0])) + Math.max(...pts.map((q) => q[0]))) / 2, (Math.min(...pts.map((q) => q[1])) + Math.max(...pts.map((q) => q[1]))) / 2] : cursor.at;
+    if (!ts || !at) { cad.say('Move the cursor over the drawing first.'); return; }
+    const k = Math.abs(ts([1, 0])[0] - ts([0, 0])[0]);
+    void contextAt(at, k > 0 ? 1 / k : 1e-3, ts(at), false, true);
+  }
   keyRef.current = (e: KeyboardEvent) => {
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
     const mods = e.metaKey || e.ctrlKey || e.altKey;
     const fn: Record<string, keyof CadToggles> = { F3: 'osnap', F7: 'grid', F8: 'ortho', F9: 'snap', F10: 'polar', F11: 'otrack', F12: 'dyn' };
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key === '1') { e.preventDefault(); setShowProps((v) => !v); return; }
+    if ((e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) && !typing && !e.ctrlKey && !e.metaKey && !e.altKey && !(e.target instanceof Element && e.target.closest('[aria-modal="true"], [role="dialog"]'))) { e.preventDefault(); if (!e.repeat) menuFromKeyboard(); return; }
     if (fn[e.key]) { e.preventDefault(); if (fn[e.key] === 'grid') cad.cycleGrid(); else cad.toggle(fn[e.key]); return; }
     // Keys in a dialog over the page (the layer manager, references…) are the dialog's.
     if (e.defaultPrevented || (e.target instanceof Element && e.target.closest('[aria-modal="true"], [role="dialog"]'))) return;
@@ -4168,20 +4422,22 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
 
   /** The drawing: on the Model tab, or inside the viewport worked in on a layout (fitted to its window). */
   const drawCanvas = (vpProps?: Pick<React.ComponentProps<typeof CadCanvas>, 'fitBox' | 'fixed' | 'onView'>) => (
-            <CadCanvas view={view!} fadeExcept={reWork} draft={snapDraft} cursorMode={cursorMode} hover={hover} cutAway={cutPiece && edgeLine ? [{ ...cutPiece, id: edgeLine.id }] : undefined} meets={addPiece ? [addPiece[1]] : undefined} panLeft={tool === 'pan'} pointStyle={pointStyleOf(project)} blocks={defs} onDrop={dropBlock} hidden={hidden} layersOn={layersOn} extents={fitExtents} toggles={snapToggles} gridDots={cad.gridDots} fitKey={cad.fitKey} onCursor={(at, snap, pixel) => setCursor({ at, snap, pixel })} onClick={click} marks={objectArea ? { points: result.points, closed: true } : marks} highlight={highlight} devices={devices} wiring={canvasWiring} sketch={sketch} selectedSketch={pickedSk.map((it) => it.id)} extraSnaps={snapExtra} preview={[...preview, ...emRoutes, ...(grip && cursor.at ? sketch.filter((x) => x.id === grip.id).map((x) => gripMoved(x, grip.i, cursor.at!)) : []), ...(arlLine.length === 2 ? [{ id: '_arl', layer: '', kind: 'line' as const, pts: arlLine }] : [])]} unitsPerMm={0.001 / units.factor} labels={cableLabels} covers={elv?.covers} gaps={elv?.gaps}
+            <CadCanvas view={view!} fadeExcept={reWork} draft={snapDraft} cursorMode={cursorMode} hover={hover} cutAway={cutPiece && edgeLine ? [{ ...cutPiece, id: edgeLine.id }] : undefined} meets={addPiece ? [addPiece[1]] : undefined} panLeft={tool === 'pan'} pointStyle={pointStyleOf(project)} blocks={defs} onDrop={dropBlock} hidden={hidden} layersOn={layersOn} extents={fitExtents} toggles={snapToggles} gridDots={cad.gridDots} fitKey={cad.fitKey} onCursor={(at, snap, pixel) => setCursor({ at, snap, pixel })} onClick={click} marks={objectArea ? { points: result.points, closed: true } : marks} highlight={highlight} devices={devices} wiring={canvasWiring} sketch={sketch} selectedSketch={pickedSk.map((it) => it.id)} extraSnaps={snapExtra} preview={[...preview, ...emRoutes, ...(grip && cursor.at ? srcAll.filter((x) => x.id === grip.id).map((x) => gripMoved(x, grip.i, cursor.at!)) : []), ...(arlLine.length === 2 ? [{ id: '_arl', layer: '', kind: 'line' as const, pts: arlLine }] : [])]} unitsPerMm={0.001 / units.factor} labels={cableLabels} covers={elv?.covers} gaps={elv?.gaps}
               numbersTyped={valuesTyped} layerStyle={styles} refs={xr.placed} refSnap={snapRef} windowSelect={tool === 'none' || tool === 'stretch' || tool === 'zoomwin' || tool === 'selsim' || (PICK_FIRST.includes(tool) && edPhase === 'pick') || (tool === 'tcount' && tc?.step === 'pick')} onWindow={pickWindow} onContext={contextAt} onDouble={doubleClick} zoom={zoomReq} onZoomMenu={zoomMenu}
               grips={gripList} hotGrip={gripOf(hotGrip)} pickedObjects={pickedDwIds} onGripStart={(k) => setGrip(gripList[k] ? { id: gripList[k].id, i: gripList[k].i } : null)}
               onGripEnd={(k, at, moved) => {
                 setGrip(null);
-                const gr = gripList[k], it = gr && sketch.find((x) => x.id === gr.id);
+                const gr = gripList[k], it = gr && srcAll.find((x) => x.id === gr.id);
                 if (!gr || !it) return;
                 // Clicked, not dragged: the grip is hot (its right-click menu, phase 4).
                 if (moved === false) { setHotGrip({ id: gr.id, i: gr.i }); cad.say('GRIP  Hot grip: drag it, or right-click for its menu (Move, Copy, Rotate, Mirror from it; vertices).'); return; }
                 setHotGrip(null);
-                const next = gripMoved(it, gr.i, at);
-                change(updateSketch(project, fileOf(), next), `GRIP  ${kindOf(it)} ${gr.kind === 'mid' ? 'side moved' : 'changed'}${isPath(next) ? ` — now ${m(toM(next.pts.slice(1).reduce((t, q, k) => t + distance(next.pts[k], q), 0)))}` : ''} · ⌘Z to undo`);
+                const next = gripMoved(it, gr.i, at), said = `GRIP  ${kindOf(it)} ${gr.kind === 'mid' ? 'side moved' : 'changed'}${isPath(next) ? ` — now ${m(toM(next.pts.slice(1).reduce((t, q, k) => t + distance(next.pts[k], q), 0)))}` : ''} · ⌘Z to undo`;
+                // An object of the opened drawing: taken over with its stand-in moved, in the one change.
+                if (standInHandle(it.id)) changeStandIns([next], said); else change(updateSketch(project, fileOf(), next), said);
               }}
               overlay={(toScreen, moving) => {
+                toScreenRef.current = toScreen;
                 if (edNote) {
                   // The note's editor over its box: its top left corner, width, letter and line heights on the screen, at its angle.
                   const d = edNote.draft, b = noteBox(d), o = toScreen(b.tl), e = toScreen([b.tl[0] + b.w * b.u[0], b.tl[1] + b.w * b.u[1]]), up = toScreen([b.tl[0] - b.h * b.v[0], b.tl[1] - b.h * b.v[1]]);
@@ -4217,16 +4473,16 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                       else if (/^[a-zA-Z@]$/.test(e.key) && !e.metaKey && !e.ctrlKey) input.current?.focus();
                     }} />;
                 })() : null;
-                if (promptMenu && !moving) return <CadPromptMenu left={promptMenu.at[0] + 4} top={promptMenu.at[1] + 4} items={promptMenu.items} onPick={ctxPick} />;
-                if (tool !== 'none' || moving || grip !== null || (!pickedItems.length && !pickedSk.length)) return dyn;
-                if (!pickedSk.length && (!floor || !cad.showDevices)) return null;
-                const skPts = pickedSk.flatMap((it) => { const sg = segmentsOf(it, 0.001, defs); return sg.length ? sg.flat() : it.pts; });
+                if (promptMenu && !moving) return <CadMenu left={promptMenu.at[0] + 4} top={promptMenu.at[1] + 4} head={promptMenu.head} items={promptMenu.items} label={promptMenu.label ?? 'Command menu'} onPick={ctxPick} onClose={() => setPromptMenu(null)} />;
+                if (tool !== 'none' || moving || grip !== null || (!pickedItems.length && !srcSk.length)) return dyn;
+                if (!srcSk.length && (!floor || !cad.showDevices)) return null;
+                const skPts = srcSk.flatMap((it) => { const sg = segmentsOf(it, 0.001, defs); return sg.length ? sg.flat() : it.pts; });
                 const xs = [...pickedItems.map((d) => d.x / units.factor), ...skPts.map((q) => q[0])], ys = [...pickedItems.map((d) => d.y / units.factor), ...skPts.map((q) => q[1])], pad = rUnits * 2;
                 const [l, t] = toScreen([Math.min(...xs) - pad, Math.max(...ys) + pad]), [, b] = toScreen([0, Math.min(...ys) - pad]);
-                const at = menuAt ? { left: menuAt[0] + 4, top: menuAt[1] + 4, place: 'menu' as const } : t < 60 ? { left: Math.max(4, l), top: b + 8, place: 'below' as const } : { left: Math.max(4, l), top: t - 8, place: 'above' as const };
-                if (pickedSk.length) {
-                  const one = pickedSk.length === 1 && !pickedItems.length && isPath(pickedSk[0]) ? pickedSk[0] : undefined;
-                  return <SketchToolbar key={[...pickedKeys].join()} items={pickedSk} devices={pickedItems.length} canShow={!!onShow} blocks={defs.map((d) => d.name)} dimStyles={dimStylesOf(project).styles.map((x) => x.name)} repeat={recent[0]?.label} lengthM={one ? toM(pathLength(one.pts)) : undefined} {...at} canPaste={hasClip()} withAtts={(it) => attdefsOf(blockDefOf(defs, it.block)).length > 0} onEdit={editSketch} />;
+                const at = t < 60 ? { left: Math.max(4, l), top: b + 8, place: 'below' as const } : { left: Math.max(4, l), top: t - 8, place: 'above' as const };
+                if (srcSk.length) {
+                  const one = srcSk.length === 1 && !pickedItems.length && isPath(srcSk[0]) ? srcSk[0] : undefined;
+                  return <SketchToolbar key={[...pickedKeys].join()} items={srcSk} devices={pickedItems.length} lengthM={one ? toM(pathLength(one.pts)) : undefined} {...at} onEdit={editSketch} />;
                 }
                 return <DeviceToolbar key={[...pickedKeys].join()} project={project} items={pickedItems} edits={editsFor(project, pickedItems)} circuits={circuits} {...at} onEdit={editDevices} />;
               }} {...vpProps} />
@@ -4261,8 +4517,13 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
             {sheetL && selV && <ViewportPanel project={project} sheet={sheetL} vp={selV} refs={xr.refs.map((r) => r.name)} onChange={(patch, what) => patchVp(selV, patch, what)}
             onDelete={() => { setVps((l) => l.filter((x) => x.id !== selV.id), `${vpName(vps, selV.id)} deleted${vps.length === 1 ? ' (the layout shows the level as worked out again)' : ''}`); cad.setVpSel(null); cad.setMsVp(null); }}
             onLayers={() => setShowLM(true)} onClip={() => clipStart(selV.id)} onUnclip={() => clipOff(selV.id)} />}
-          {view && (pickedSk.length > 0 || !pickedName) && <PropertiesPalette blocks={defs} key={pickedSk.map((it) => it.id).join()} items={pickedSk} devices={pickedItems.length} layers={drawnLayers(sketch, [...(layerFile.layers ?? []), curLayer])} styles={styles} current={curLayer} textMm={anno.textMm} k={units.factor}
-                  onItems={(next, what) => change(next.reduce((q, it) => updateSketch(q, fileOf(), it), project), `${what} · ⌘Z to undo`)}
+          {view && (srcSk.length > 0 || !pickedName) && <PropertiesPalette blocks={defs} key={srcSk.map((it) => it.id).join()} items={srcSk} devices={pickedItems.length} layers={drawnLayers(sketch, [...(layerFile.layers ?? []), curLayer])} styles={styles} current={curLayer} textMm={anno.textMm} k={units.factor}
+                  onItems={(next, what) => {
+                    // Objects of the opened drawing changed are taken over with their changes, in the one change.
+                    const mine = next.filter((it) => !standInHandle(it.id)), theirs = next.filter((it) => standInHandle(it.id));
+                    if (theirs.length && !changeStandIns(theirs, `${what} · ⌘Z to undo`, mine)) return;
+                    if (!theirs.length) change(mine.reduce((q, it) => updateSketch(q, fileOf(), it), project), `${what} · ⌘Z to undo`);
+                  }}
                   onCurrent={setCurrentLayer} newProps={newProps} onNewProps={setProps} onTextMm={(mm) => change({ ...project, cadAnno: { ...anno, textMm: mm } }, `Annotation: ${mm} mm text at 1:${anno.scale} · ⌘Z to undo`)}
                   titleBlock={tb ? { name: project.titleTemplates?.find((x) => x.id === tbIdOf(view.file))?.name ?? '', fields: TB_FIELDS, onField: (f) => { cad.setTextPreset({ text: f, h: 2.5, layer: TB_LAYERS.field }); cad.setTool('text'); cad.say(`TEXT  Click where ${f} goes:`); }, onSave: () => { const r = saveTitleBlockFromCad(project, view.file); if (r.project !== project) change(r.project, r.message); else cad.say(r.message); } } : undefined}
                   bare />}
@@ -4545,7 +4806,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         {view && paperL ? (
           <div className="cad-stage cad-paper" ref={paperStage} onMouseDown={() => setPaperCtx(null)}>
             <CadFilePaper layout={paperL} model={view} layersOn={layersOn} design={paperDesign} edit={paperEdit} onContext={filePaperContext} onDblClick={() => cad.say(fileL ? `LAYOUT  ${fileL.name} is shown as the drawing file has it: work in the model on the Model tab.` : `LAYOUT  ${paperL.name} shows the model: work in it on the Model tab.`)} />
-            {paperCtx && <CadPromptMenu left={paperCtx.at[0] + 4} top={paperCtx.at[1] + 4} items={paperCtx.items} onPick={(x) => { setPaperCtx(null); ctxPick(x); }} />}
+            {paperCtx && <CadMenu left={paperCtx.at[0] + 4} top={paperCtx.at[1] + 4} head={paperCtx.head} items={paperCtx.items} label={paperCtx.label ?? 'Command menu'} onPick={(x) => { setPaperCtx(null); ctxPick(x); }} onClose={() => setPaperCtx(null)} />}
           </div>
         ) : view && sheetL ? (
           <div className="cad-stage cad-paper" ref={paperStage} onMouseDown={() => setPaperCtx(null)}>
@@ -4580,7 +4841,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                 });
               }
             })} /> : <p className="m">Layouts open from the app's sheets.</p>}
-            {paperCtx && <CadPromptMenu left={paperCtx.at[0] + 4} top={paperCtx.at[1] + 4} items={paperCtx.items} onPick={(x) => { setPaperCtx(null); ctxPick(x); }} />}
+            {paperCtx && <CadMenu left={paperCtx.at[0] + 4} top={paperCtx.at[1] + 4} head={paperCtx.head} items={paperCtx.items} label={paperCtx.label ?? 'Command menu'} onPick={(x) => { setPaperCtx(null); ctxPick(x); }} onClose={() => setPaperCtx(null)} />}
           </div>
         ) : view ? (
           <div className="cad-stage">

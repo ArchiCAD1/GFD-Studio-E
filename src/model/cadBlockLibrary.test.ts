@@ -91,4 +91,14 @@ describe('drawing hatches with islands', () => {
     // A patterned fill stays plain outlines, one per loop.
     expect(defFromPieces('H', [{ layer: 'A', kind: 'hatch', solid: false, pattern: 'ANSI31', loops: [[[4, 4, 0], [6, 4, 0], [6, 6, 0]], [[0, 0, 0], [10, 0, 0], [10, 10, 0]]] }], [0, 0]).items).toHaveLength(2);
   });
+
+  it('a block exploded with exact pieces keeps ellipses, notes and dimensions, moved to the block origin', () => {
+    const d = defFromPieces('E', [
+      { layer: 'A', kind: 'ellipse', c: [110, 55], axis: [0, 4], ratio: 0.5 },
+      { layer: 'A', kind: 'mtext', at: [100, 50], h: 2, rot: 0, w: 0, attach: 1, lsp: 1, text: 'Note' },
+      { layer: 'A', kind: 'group', items: [{ layer: 'A', kind: 'line', a: [0, 0], b: [1, 0] }], dim: { kind: 'aligned', pts: [[100, 50], [110, 50], [110, 53]] } }
+    ], [100, 50]);
+    expect(d.items.map((x) => [x.kind, x.pts])).toEqual([['ellipse', [[10, 5]]], ['mtext', [[0, 0]]], ['dim', [[0, 0], [10, 0], [10, 3]]]]);
+    expect(d.items[0]).toMatchObject({ ax: [0, 4], ratio: 0.5 });
+  });
 });

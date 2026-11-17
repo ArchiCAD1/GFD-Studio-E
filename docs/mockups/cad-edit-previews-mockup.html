@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Design CAD — edit previews and repeat (mockup)</title>
+<style>
+  :root{--bg:#15171A;--panel:#1D2024;--p2:#26292E;--line:#353A41;--line-strong:#4A5058;--tx:#E6E8EB;--mut:#A3ABB5;--acc:#F5B301;--ok:#37d67a;--warn:#f5c04a;--bad:#ff5d6c;--new:#6fb3ff}
+  *{box-sizing:border-box}
+  body{width:1952px;margin:0;padding:24px 28px 60px;box-sizing:border-box;background:#1b1d21;color:var(--tx);font:13px/18px system-ui,-apple-system,"Segoe UI",sans-serif}
+  h1{font-size:18px;line-height:24px;margin:0 0 4px} h2{font-size:14px;line-height:18px;margin:30px 0 10px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+  p.lead{color:var(--mut);margin:0 0 12px}
+  svg{display:block;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+  .two{display:grid;grid-template-columns:930px 930px;gap:36px}
+  h3{font-size:13px;line-height:18px;margin:0 0 6px}
+  .panel>svg,.tile>svg,.fr svg{border:1px solid var(--line)}
+  ol.cl{list-style:none;margin:8px 0 0;padding:0;font-size:12.5px}
+  ol.cl li{display:flex;gap:8px;align-items:center;margin:0 0 4px;line-height:18px}
+  .tiles{display:grid;grid-template-columns:repeat(4,450px);gap:20px 32px}
+  .tile p{margin:4px 0 0;font-size:12px;line-height:18px;min-height:18px} .tile p b.p{color:var(--new)} .tile p.d{color:var(--mut)}
+  .cap{font-size:12px;margin:6px 0 0;line-height:18px} .cap.d{color:var(--mut);margin-top:0}
+  .legend{display:flex;gap:28px;margin-bottom:14px} .legend>div{display:flex;gap:10px;width:600px;font-size:12px;align-items:flex-start}
+  .legend svg{flex:none}
+  .states{display:flex;gap:40px;margin-bottom:16px;font-size:12px;align-items:center} .states div{display:flex;gap:8px;align-items:center}
+  .fr{display:flex;gap:15px} .fh{display:flex;gap:8px;align-items:center;margin-bottom:6px;font-size:12.5px}
+  .cmd{margin-top:10px;background:#101214;border:1px solid var(--line);padding:4px 10px;font:12px/18px ui-monospace,Menlo,monospace}
+  .dlg{width:900px;background:#1D2024;border:1px solid #4A5058;border-radius:4px;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  .dlg .tb{height:26px;background:#26292E;border-bottom:1px solid #353A41;display:flex;align-items:center;padding:0 10px;font-size:12px;border-radius:3px 3px 0 0}
+  .dlg .sec{padding:6px 10px 2px;color:var(--mut);font-size:11px;line-height:18px;text-transform:uppercase;letter-spacing:.05em}
+  .dlg .row{display:grid;grid-template-columns:300px 160px 1fr;align-items:center;min-height:26px;padding:0 10px 0 7px;border-left:3px solid transparent}
+  .dlg .row.n{border-left-color:#6fb3ff;background:rgba(111,179,255,.06)}
+  .dlg .opts{grid-column:2/-1;font-size:11px;color:var(--mut);padding-bottom:4px;line-height:18px}
+  .tag{display:inline-block;font-size:10px;line-height:14px;padding:0 5px;border-radius:7px;background:#6fb3ff;color:#15171A;margin-left:8px;font-weight:700}
+  .in{height:20px;min-width:60px;background:#15171A;border:1px solid #3a3e45;border-radius:2px;font:12px ui-monospace,Menlo,monospace;display:inline-flex;align-items:center;justify-content:flex-end;padding:0 6px;width:96px}
+  .sel{width:150px;height:20px;border:1px solid #3a3e45;background:#15171A;border-radius:2px;display:flex;align-items:center;justify-content:space-between;padding:0 6px;font-size:12px}
+  .ck{width:13px;height:13px;border:1px solid #4A5058;border-radius:2px;background:#15171A;display:inline-flex;align-items:center;justify-content:center}
+  .ck.on{background:#F5B301;border-color:#F5B301}
+  .box{background:var(--panel);border:1px solid var(--line);padding:12px 18px;font-size:13px}
+  .box ol{margin:0;padding-left:20px} .box li{margin:0 0 6px}
+</style>
+<style>
+  .pill{display:inline-block;font-size:10px;line-height:14px;padding:0 6px;border-radius:7px;background:#6fb3ff;color:#15171A;margin-left:8px;font-weight:700;vertical-align:1px}
+  .three{display:grid;grid-template-columns:repeat(3,610px);gap:0 32px}
+  .three p,.two p,.tiles p,.two2 p{margin:4px 0 0;font-size:12px;line-height:18px}
+  .two2{display:grid;grid-template-columns:450px 450px;gap:0 32px}
+  .row5{display:flex;align-items:flex-start;gap:10px}
+  .cb{width:570px;background:#101214;border:1px solid var(--line);padding:6px 10px;font:12px/18px ui-monospace,Menlo,monospace;white-space:pre}
+  .cb .e{color:var(--mut)} .cb .pr{display:flex;align-items:center;gap:8px;height:18px}
+  .cb .ib{display:inline-block;width:40px;height:16px;background:#15171A;border:1px solid #3a3e45;border-radius:2px;color:var(--mut)}
+  .cb .ib.w{width:270px;padding:0 6px;white-space:nowrap;line-height:14px}
+  .key{margin-top:30px;border:1px solid #4A5058;border-radius:4px;background:#26292E;padding:0 8px;font-size:12px;line-height:20px;height:22px}
+  .lbl{font-size:12px;line-height:18px;margin-top:4px;color:var(--mut)}
+  .typed{display:inline-block;height:16px;line-height:14px;background:#15171A;border:1px solid #3a3e45;border-radius:2px;padding:0 6px;color:var(--tx)}
+</style>
+</head>
+<body>
+<h1>Design CAD — edit previews and repeat</h1>
+<p class="lead">Proposal mockup, 2026-11-16. Today and proposed. Graphite dark; one light-theme check at the end.</p>
+
+<h2>Trim: a shadow before the click</h2>
+<div class="two">
+<div class="panel"><h3>Today</h3><svg data-s="a0" width="930" height="300" viewBox="0 0 930 300"></svg>
+<div class="cmd">TRIM  Click the part to cut away (Shift-click extends):</div>
+<p class="cap">Nothing shows before the click; the cut is seen after it (⌘Z undoes it).</p></div>
+<div class="panel"><h3>Proposed</h3><svg data-s="a1" width="930" height="300" viewBox="0 0 930 300"></svg>
+<div class="cmd">TRIM  Select the part to cut away (Shift-click extends):</div>
+<p class="cap">The piece between the nearest crossings fades and turns dashed: exactly what the click cuts. Shift held shows Extend's shadow instead.</p></div>
+</div>
+
+<h2>Extend: the new length before the click</h2>
+<div class="two">
+<div class="panel"><h3>Today</h3><svg data-s="b0" width="930" height="240" viewBox="0 0 930 240"></svg>
+<div class="cmd">EXTEND  Click near the end to lengthen (Shift-click trims):</div>
+<p class="cap">Nothing shows before the click.</p></div>
+<div class="panel"><h3>Proposed</h3><svg data-s="b1" width="930" height="240" viewBox="0 0 930 240"></svg>
+<div class="cmd">EXTEND  Select the end to lengthen (Shift-click trims):</div>
+<p class="cap">The new length shows dashed up to the edge it reaches; the cross marks where it meets it.</p></div>
+</div>
+
+<h2>Stretch: what the window caught, then the objects follow the cursor</h2>
+<div class="three">
+<div class="tile"><h3>Today — after the base point</h3><svg data-s="c0" width="610" height="280" viewBox="0 0 610 280"></svg>
+<div class="cmd">STRETCH  Specify second point:</div>
+<p class="cap">Only a rubber line; the objects jump on the second click.</p></div>
+<div class="tile"><h3>Proposed — after the window</h3><svg data-s="c1" width="610" height="280" viewBox="0 0 610 280"></svg>
+<div class="cmd">STRETCH  Specify base point:</div>
+<p class="cap">The drawn objects the window caught look picked; each point that will move gets a square.</p></div>
+<div class="tile"><h3>Proposed — after the base point</h3><svg data-s="c2" width="610" height="280" viewBox="0 0 610 280"></svg>
+<div class="cmd">STRETCH  Specify second point:</div>
+<p class="cap">The points inside the window move with the cursor, the rest stay; a device inside it follows as its own symbol, faded.</p></div>
+</div>
+
+<h2>Move, Copy, Rotate, Mirror and Scale with several objects picked</h2>
+<div class="tiles">
+<div class="tile"><h3>Today — Move and Copy</h3><svg data-s="d00" width="450" height="300" viewBox="0 0 450 300"></svg><div class="cmd">MOVE  Specify second point:</div><p class="cap">Several objects: only the rubber line.</p></div>
+<div class="tile"><h3>Today — Rotate</h3><svg data-s="d01" width="450" height="300" viewBox="0 0 450 300"></svg><div class="cmd">ROTATE  One object at a time.</div><p class="cap">Several objects cannot be turned together.</p></div>
+<div class="tile"><h3>Today — Mirror</h3><svg data-s="d02" width="450" height="300" viewBox="0 0 450 300"></svg><div class="cmd">MIRROR  Specify second point of the mirror line:</div><p class="cap">Only the mirror line shows.</p></div>
+<div class="tile"><h3>Today — Scale</h3><svg data-s="d03" width="450" height="300" viewBox="0 0 450 300"></svg><div class="cmd">SCALE  Specify scale factor &lt;1&gt;: <span class="typed">1.5</span></div><p class="cap">The result shows only after Enter.</p></div>
+<div class="tile"><h3>Proposed — Move and Copy</h3><svg data-s="d10" width="450" height="300" viewBox="0 0 450 300"></svg><div class="cmd">MOVE  Specify second point:</div><p class="cap">Every object follows the cursor; a device follows as its own symbol, faded. Copy looks the same.</p></div>
+<div class="tile"><h3>Proposed — Rotate</h3><svg data-s="d11" width="450" height="300" viewBox="0 0 450 300"></svg><div class="cmd">ROTATE  Specify rotation angle (degrees) or a point:</div><p class="cap">All of them turn with the cursor; devices move round the base point.</p></div>
+<div class="tile"><h3>Proposed — Mirror</h3><svg data-s="d12" width="450" height="300" viewBox="0 0 450 300"></svg><div class="cmd">MIRROR  Specify second point of the mirror line:</div><p class="cap">The mirrored copies follow the mirror line; a text's place is mirrored, not its letters.</p></div>
+<div class="tile"><h3>Proposed — Scale</h3><svg data-s="d13" width="450" height="300" viewBox="0 0 450 300"></svg><div class="cmd">SCALE  Specify scale factor &lt;1&gt;: <span class="typed">1.5</span></div><p class="cap">The objects show at the factor typed, before Enter.</p></div>
+</div>
+
+<h2>Space twice continues with the previous command</h2>
+<div class="row5">
+<div><div class="cb"><div class="e">Command: TRIM  Select the part to cut away (Shift-click extends):</div><div class="e"> </div><div class="pr"><span>TRIM  2.40 m cut off · ⌘Z to undo</span><span>›</span><span class="ib"></span></div></div><div class="lbl">Trim running</div></div>
+<div class="key">Space</div>
+<div><div class="cb"><div class="e">TRIM  2.40 m cut off · ⌘Z to undo</div><div class="e"> </div><div class="pr"><span>Command: Click an object to see what it is <span style="color:#6fb3ff">· Space repeats TRIM</span></span><span>›</span><span class="ib"></span></div></div><div class="lbl">First Space ends it</div></div>
+<div class="key">Space</div>
+<div><div class="cb"><div class="e">Command: Click an object to see what it is · Space repeats TRIM</div><div class="e"> </div><div class="pr"><span>Command: TRIM  Select the part to cut away (Shift-click extends):</span><span>›</span><span class="ib"></span></div></div><div class="lbl">Second Space starts it again</div></div>
+</div>
+<p class="cap" style="margin-top:10px">Move, Rotate, Mirror, Scale, Stretch and Align end by themselves, so one Space starts them again. Right-click › Repeat TRIM stays. In a text prompt Space types a space; Enter still ends and repeats.</p>
+<p class="cap d" style="margin-top:14px">Decision 5, other answer: the grey hint in the empty command box</p>
+<div class="cb" style="width:700px;margin-top:4px"><div class="pr"><span>Command: Click an object to see what it is</span><span>›</span><span class="ib w">Type a command · Space repeats TRIM</span></div></div>
+
+<h2>Light theme check (Graphite light)</h2>
+<div class="two2">
+<div class="tile"><h3>Trim's shadow</h3><svg data-s="f0" width="450" height="220" viewBox="0 0 450 220"></svg></div>
+<div class="tile"><h3>Move's shadow</h3><svg data-s="f1" width="450" height="220" viewBox="0 0 450 220"></svg></div>
+</div>
+
+<div class="box" style="margin-top:30px"><h2 style="margin-top:0">Decisions</h2>
+<ol>
+<li>Trim's shadow: <b>the piece fades and turns dashed in its own colour</b>; or dashed in red; or the amber hover mark on the piece only.</li>
+<li>Trim and Extend cursor: <b>the pick box (prompts say "Select…")</b>; or keep the crosshair.</li>
+<li>Rotate with several objects: <b>all of them; devices move round the base point, cameras and speakers also turn</b>; or drawn objects only; or one at a time as today.</li>
+<li>Scale: <b>factor typed, shadow shown while typing</b>; or also drag to scale.</li>
+<li>Repeat hint: <b>on the command line when a command ends</b>; or the grey hint in the empty command box.</li>
+</ol></div>
+<script>
+const BG='#15171A',DR='#7fd1ff',GR='#37d67a';
+const P='fill="none" stroke="#7fd1ff" stroke-width="1.5" stroke-dasharray="6 4"';
+const HALO='fill="none" stroke="#4aa8ff" stroke-opacity=".35" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"';
+const f1=n=>Math.round(n*100)/100;
+const walls=(x,y1,y2)=>`<path d="M${x},${y1}V${y2}M${x+14},${y1}V${y2}" fill="none" stroke="#00ff00" stroke-width="1"/>`;
+const ln=(a,b,c,d,at)=>`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" ${at||'stroke="#7fd1ff" stroke-width="1"'}/>`;
+const cross=(x,y,o='#15171A',c='#E6E8EB')=>{const d=`M${x-24},${y}H${x+24}M${x},${y-24}V${y+24}`;return `<path d="${d}" fill="none" stroke="${o}" stroke-width="3"/><path d="${d}" fill="none" stroke="${c}" stroke-width="1"/>`};
+const pbox=(x,y,o='#15171A',c='#E6E8EB')=>`<rect x="${x-6}" y="${y-6}" width="12" height="12" fill="none" stroke="${o}" stroke-width="3"/><rect x="${x-6}" y="${y-6}" width="12" height="12" fill="none" stroke="${c}" stroke-width="1"/>`;
+const sq5=(x,y,c=GR)=>`<rect x="${x-2.5}" y="${y-2.5}" width="5" height="5" fill="${c}"/>`;
+const rubber=(a,b,c,d,col=GR)=>ln(a,b,c,d,`stroke="${col}" stroke-width="2"`)+sq5(a,b,col)+sq5(c,d,col);
+const sq7=(x,y)=>`<rect x="${x-3.5}" y="${y-3.5}" width="7" height="7" fill="#4aa8ff" stroke="#15171A" stroke-width="1"/>`;
+const dev=(x,y)=>`<circle cx="${x}" cy="${y}" r="7" fill="none" stroke="#f5c04a" stroke-width="1.5"/><path d="M${x+7},${y}H${x+13}" stroke="#f5c04a" stroke-width="1.5"/>`;
+// A device on the move: its own symbol at 45 % (the look FILL uses for the devices it is about to place).
+const ghost=(x,y)=>`<g opacity=".45">${dev(x,y)}</g>`;
+// A device picked: its symbol 3 px wide in the snap green (as the app draws it).
+const devPicked=(x,y)=>`<circle cx="${x}" cy="${y}" r="7" fill="none" stroke="${GR}" stroke-width="3"/><path d="M${x+7},${y}H${x+13}" stroke="${GR}" stroke-width="3"/>`;
+// A text picked: a box 3 px round its words, tinted 18 % and outlined dashed in the selection colour.
+const tbox=(x,y)=>`<rect x="${f1(x-3)}" y="${f1(y-11.6)}" width="44" height="14.6" fill="#4aa8ff" fill-opacity=".18" stroke="#4aa8ff" stroke-width="1" stroke-dasharray="4 3"/>`;
+const trim=(x1,x2,y,col=DR,bg=BG)=>`<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${bg}" stroke-width="5"/><line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${col}" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+const bgr=(w,h,c=BG)=>`<rect width="${w}" height="${h}" fill="${c}"/>`;
+const poly=(pts,at)=>`<polygon points="${pts.map(p=>p.map(f1).join(',')).join(' ')}" ${at}/>`;
+const txt=(x,y,s,at)=>`<text x="${f1(x)}" y="${f1(y)}" font-size="${s}" ${at}>DB-G1</text>`;
+const S={};
+// A
+S.a0=()=>bgr(930,300)+walls(300,40,260)+walls(620,40,260)+ln(80,150,860,150)+cross(470,150);
+S.a1=()=>bgr(930,300)+walls(300,40,260)+walls(620,40,260)+ln(80,150,314,150)+ln(620,150,860,150)+trim(314,620,150)+pbox(470,150);
+// B
+S.b0=()=>bgr(930,240)+walls(700,30,210)+ln(120,120,480,120)+cross(455,120);
+S.b1=()=>bgr(930,240)+walls(700,30,210)+ln(120,120,480,120)+ln(480,120,700,120,P)+`<path d="M696,116L704,124M704,116L696,124" stroke="${GR}" stroke-width="1.5" fill="none"/>`+pbox(455,120);
+// C
+const RC=[[60,60],[340,60],[340,220],[60,220]];
+const room=at=>poly(RC,at);
+S.c0=()=>bgr(610,280)+room(`fill="none" stroke="${DR}" stroke-width="1"`)+dev(300,180)+rubber(340,140,430,140)+cross(430,140);
+S.c1=()=>bgr(610,280)+room(HALO)+room(`fill="none" stroke="${DR}" stroke-width="1" stroke-dasharray="6 4"`)+sq7(340,60)+sq7(340,220)+dev(300,180)
+ +`<rect x="260" y="40" width="140" height="200" fill="none" stroke="${GR}" stroke-width="1" stroke-dasharray="5 4" opacity=".3"/>`
+ +`<text x="408" y="52" font-size="12" fill="${GR}">Crossing</text><text x="408" y="70" font-size="11" fill="#A3ABB5">window (gone once dragged)</text>`+cross(340,140);
+S.c2=()=>bgr(610,280)+room(`fill="none" stroke="${DR}" stroke-width="1"`)+dev(300,180)+poly([[60,60],[430,60],[430,220],[60,220]],P)+ghost(390,180)+rubber(340,140,430,140)+cross(430,140);
+// D
+const R=[[70,90],[190,90],[190,160],[70,160]],C=[250,125,24],T=[80,200],D=[215,190],B=[130,125];
+// Mirror and Scale work on drawn objects only (devices stay), so their tiles have no device; Mirror's set sits left
+// of its line so the mirrored copies fit the tile (a text's insertion point is mirrored, its letters are not).
+const GS={R,C,T,D:null};
+const GM={R:[[40,90],[140,90],[140,150],[40,150]],C:[185,120,24],T:[60,200],D:null};
+function set(kind,f,o={}){ // kind: picked | shadow
+ const g=o.g||{R,C,T,D},k=o.k||1,a=o.a||0,pts=g.R.map(f),c=f(g.C),t=f(g.T),d=g.D&&f(g.D);
+ let s='';
+ if(kind==='picked'){
+  s+=poly(pts,HALO)+`<circle cx="${c[0]}" cy="${c[1]}" r="24" ${HALO}/>`+tbox(t[0],t[1]);
+  s+=poly(pts,`fill="none" stroke="${DR}" stroke-width="1" stroke-dasharray="6 4"`)+`<circle cx="${c[0]}" cy="${c[1]}" r="24" fill="none" stroke="${DR}" stroke-width="1" stroke-dasharray="6 4"/>`+txt(t[0],t[1],12,`fill="${DR}"`)
+   +(d?devPicked(d[0],d[1]):'');
+ } else {
+  s+=poly(pts,P)+`<circle cx="${f1(c[0])}" cy="${f1(c[1])}" r="${24*k}" ${P}/>`+(d?ghost(f1(d[0]),f1(d[1])):'');
+  const tt=`fill="${DR}" opacity=".6"`+(a?` transform="rotate(${-a} ${f1(t[0])} ${f1(t[1])})"`:'');
+  s+=txt(t[0],t[1],12*k,tt);
+ }
+ return s;
+}
+const id=p=>p, picked=g=>set('picked',id,g?{g}:{});
+S.d00=()=>bgr(450,300)+picked()+rubber(130,125,290,205)+cross(290,205);
+S.d01=()=>bgr(450,300)+picked();
+const MX=225;
+S.d02=()=>bgr(450,300)+picked(GM)+rubber(MX,40,MX,280)+cross(MX,280);
+S.d03=()=>bgr(450,300)+picked(GS)+rubber(130,125,360,230)+cross(360,230);
+S.d10=()=>bgr(450,300)+picked()+set('shadow',p=>[p[0]+160,p[1]+80])+rubber(130,125,290,205)+cross(290,205);
+const th=Math.PI/6,rot=p=>{const dx=p[0]-130,dy=p[1]-125;return [130+dx*Math.cos(th)+dy*Math.sin(th),125-dx*Math.sin(th)+dy*Math.cos(th)]};
+const cur=[130+150*Math.cos(th),125-150*Math.sin(th)];
+S.d11=()=>bgr(450,300)+picked()+set('shadow',rot,{a:30})+rubber(130,125,f1(cur[0]),f1(cur[1]))+cross(f1(cur[0]),f1(cur[1]));
+S.d12=()=>bgr(450,300)+picked(GM)+set('shadow',p=>[2*MX-p[0],p[1]],{g:GM})+rubber(MX,40,MX,280)+cross(MX,280);
+S.d13=()=>bgr(450,300)+picked(GS)+set('shadow',p=>[130+1.5*(p[0]-130),125+1.5*(p[1]-125)],{k:1.5,g:GS})+rubber(130,125,360,230)+cross(360,230);
+// F
+const LB='#F5F3EF',LW='#272420',LD='#0369a1';
+const lwalls=(x,y1,y2)=>`<path d="M${x},${y1}V${y2}M${x+14},${y1}V${y2}" fill="none" stroke="${LW}" stroke-width="1"/>`;
+S.f0=()=>bgr(450,220,LB)+lwalls(150,20,200)+lwalls(300,20,200)+ln(30,110,150,110,`stroke="${LD}" stroke-width="1"`)+ln(164,110,300,110,`stroke="${LD}" stroke-width="1"`)+ln(314,110,420,110,`stroke="${LD}" stroke-width="1"`)+trim(164,300,110,LD,LB)+pbox(230,110,LB,LW);
+const lr=(dx,dy,at)=>`<rect x="${60+dx}" y="${60+dy}" width="100" height="70" ${at}/>`;
+S.f1=()=>bgr(450,220,LB)+lr(0,0,`fill="none" stroke="#1D5FBF" stroke-opacity=".35" stroke-width="6" stroke-linejoin="round"`)+lr(0,0,`fill="none" stroke="${LD}" stroke-width="1" stroke-dasharray="6 4"`)+lr(180,40,`fill="none" stroke="${LD}" stroke-width="1.5" stroke-dasharray="6 4"`)+rubber(110,95,290,135,'#1a8f4f')+cross(290,135,LB,LW);
+document.querySelectorAll('svg[data-s]').forEach(e=>{e.innerHTML=S[e.dataset.s]()});
+document.head.appendChild(document.createElement('style')).textContent = '@page{size:1952px ' + (Math.ceil(document.documentElement.scrollHeight) + 4) + 'px;margin:0}';
+</script>
+</body>
+</html>

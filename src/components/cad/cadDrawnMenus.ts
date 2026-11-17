@@ -13,15 +13,15 @@ export interface GripMenuState { index: number; kind: 'point' | 'mid' | 'radius'
 
 /** Right-click on a grip of the object picked: move, copy, rotate or mirror from that point, and a polyline's vertices. */
 export function gripMenu(s: GripMenuState): CtxEntry[] {
-  const g = (label: string, action: string, key?: string): CtxItem => ({ label, act: 'grip', arg: `${action}|${s.index}`, ...(key ? { key } : {}) });
+  const g = (label: string, action: string, key?: string, icon?: CtxItem['icon']): CtxItem => ({ label, act: 'grip', arg: `${action}|${s.index}`, ...(key ? { key } : {}), ...(icon ? { icon } : {}) });
   const path = isPath(s.it), n = s.it.pts.length;
   return tidy([
-    g('Move from this point', 'move', 'M'), g('Copy from this point', 'copy', 'CO'), ...(s.it.kind !== 'circle' ? [g('Rotate about this point', 'rotate', 'RO')] : []), g('Mirror through this point', 'mirror', 'MI'), '-',
-    ...(path && s.kind === 'mid' ? [g('Add vertex', 'add')] : []),
-    ...(path && s.kind === 'point' && n > (s.it.closed ? 3 : 2) ? [g('Remove vertex', 'remove')] : []),
+    g('Move from this point', 'move', 'M', 'move'), g('Copy from this point', 'copy', 'CO', 'copy'), ...(s.it.kind !== 'circle' ? [g('Rotate about this point', 'rotate', 'RO', 'rotate')] : []), g('Mirror through this point', 'mirror', 'MI', 'mirror'), '-',
+    ...(path && s.kind === 'mid' ? [g('Add vertex', 'add', undefined, 'plus')] : []),
+    ...(path && s.kind === 'point' && n > (s.it.closed ? 3 : 2) ? [g('Remove vertex', 'remove', undefined, 'minus')] : []),
     ...(s.it.kind === 'pline' && n > 2 ? [g(s.it.closed ? 'Open' : 'Close', 'close')] : []), '-',
-    { label: 'Undo', key: 'Ctrl+Z', cmd: 'UNDO' },
-    { label: 'Exit', key: 'Esc', act: 'deselect' }
+    { label: 'Undo', key: 'Ctrl+Z', cmd: 'UNDO', icon: 'undo' },
+    { label: 'Exit', key: 'Esc', act: 'deselect', icon: 'cancel' }
   ]);
 }
 

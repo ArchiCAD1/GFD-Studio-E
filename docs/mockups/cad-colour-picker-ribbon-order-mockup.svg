@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="940" viewBox="0 0 1600 940" role="img" aria-labelledby="title desc">
+  <title id="title">Proposed compact CAD colour picker and reorderable ribbon panels</title>
+  <desc id="desc">Dark LV Design Studio mockup showing Layers moved to the first ribbon position and a compact Select colour dialog with Index colour and True colour tabs.</desc>
+  <defs>
+    <radialGradient id="page" cx="50%" cy="0" r="90%"><stop offset="0" stop-color="#2b3447"/><stop offset=".48" stop-color="#171c24"/><stop offset="1" stop-color="#0c0f14"/></radialGradient>
+    <linearGradient id="ribbon" x2="0" y2="1"><stop stop-color="#30363f"/><stop offset="1" stop-color="#292e36"/></linearGradient>
+    <linearGradient id="layerPanel" x2="0" y2="1"><stop stop-color="#293b55"/><stop offset="1" stop-color="#2a3039"/></linearGradient>
+    <linearGradient id="hues" x2="1"><stop stop-color="#f00"/><stop offset=".17" stop-color="#ff0"/><stop offset=".34" stop-color="#0f0"/><stop offset=".51" stop-color="#0ff"/><stop offset=".68" stop-color="#00f"/><stop offset=".85" stop-color="#f0f"/><stop offset="1" stop-color="#f00"/></linearGradient>
+    <linearGradient id="shade" x2="0" y2="1"><stop stop-color="#fff" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity=".88"/></linearGradient>
+    <pattern id="cadGrid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#202730" stroke-width="1"/></pattern>
+    <pattern id="colourCells" width="15" height="17" patternUnits="userSpaceOnUse"><rect width="13" height="15" rx="1" fill="none" stroke="#171b21" stroke-width="2"/></pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="22" stdDeviation="22" flood-color="#000" flood-opacity=".62"/></filter>
+    <style>
+      .ui{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.t{fill:#eef1f5}.m{fill:#aeb6c2}.tiny{font-size:11px}.small{font-size:12px}.body{font-size:13px}.label{font-size:14px;font-weight:600}.title{font-size:17px;font-weight:700}.cap{font-size:11px;fill:#b9c2ce}.line{stroke:#454c57}.strong{stroke:#687180}.tool{fill:#d2dae5}.button{fill:#303640;stroke:#606b79}.field{fill:#171b21;stroke:#5d6876}.accent{fill:#64a0ff}.accentText{fill:#dceaff}.panelTitle{font-size:11px;fill:#b7c0cc}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    </style>
+  </defs>
+
+  <rect width="1600" height="940" fill="url(#page)"/>
+  <g class="ui">
+    <g transform="translate(52 25)">
+      <rect width="132" height="28" rx="14" fill="#3b2d14" stroke="#8c6827"/>
+      <text x="66" y="18" text-anchor="middle" fill="#ffd47d" font-size="11" font-weight="700" letter-spacing="1">PROPOSED MOCKUP</text>
+      <text x="148" y="19" class="t title">Compact colour picker + personal CAD ribbon order</text>
+      <text x="610" y="19" class="m body">No application code is changed.</text>
+    </g>
+
+    <g transform="translate(52 69)">
+      <rect width="1496" height="827" rx="10" fill="#151a21" stroke="#56606e" stroke-width="1.5"/>
+      <path d="M10 0h1476a10 10 0 0 1 10 10v25H0V10A10 10 0 0 1 10 0" fill="#20242b"/>
+      <circle cx="18" cy="17" r="5" fill="#667080"/><circle cx="36" cy="17" r="5" fill="#667080"/><circle cx="54" cy="17" r="5" fill="#667080"/>
+      <text x="74" y="21" class="t small" font-weight="600">LV Design Studio</text><text x="182" y="21" class="m small">— Design CAD / Ground Floor Lighting</text><text x="1450" y="21" class="m small">87%</text>
+
+      <rect y="35" width="1496" height="38" fill="#252930" stroke="#454c57"/>
+      <g class="small m">
+        <text x="20" y="59">Project</text><text x="92" y="59">Load schedule</text><text x="198" y="59">SLD</text><text x="244" y="59" class="t">Design CAD</text><text x="338" y="59">Stages</text><text x="408" y="59">Documents</text><text x="504" y="59">BOQ / Cost</text>
+        <rect x="235" y="70" width="82" height="3" rx="1" fill="#64a0ff"/>
+      </g>
+      <rect y="73" width="1496" height="32" fill="#292e36" stroke="#454c57"/>
+      <g class="small m">
+        <text x="20" y="94">File⌄</text><text x="76" y="94" class="t">LVCAD</text><text x="142" y="94">Annotate</text><text x="225" y="94">Electrical, ELV &amp; sheets</text><text x="408" y="94">Output</text><rect x="73" y="102" width="47" height="3" fill="#64a0ff"/>
+        <rect x="1367" y="82" width="14" height="14" rx="2" fill="none" stroke="#7a8390"/><text x="1389" y="94">Show labels</text>
+      </g>
+
+      <rect y="105" width="1496" height="116" fill="url(#ribbon)" stroke="#454c57"/>
+      <text x="1187" y="124" class="accentText tiny">Drag panel captions or use ◀ ▶</text>
+      <rect x="1383" y="111" width="94" height="23" rx="4" fill="#22344f" stroke="#5774a1"/><text x="1430" y="127" text-anchor="middle" class="accentText tiny">Reset order</text>
+
+      <!-- Layers panel moved to first position -->
+      <g transform="translate(13 113)">
+        <rect width="206" height="100" rx="5" fill="url(#layerPanel)" stroke="#64a0ff"/>
+        <rect x="9" y="9" width="184" height="26" rx="4" fill="#1b2027" stroke="#667180"/>
+        <rect x="17" y="16" width="12" height="12" rx="2" fill="#1f252d" stroke="#808a98"/><text x="37" y="27" class="t small">LV-SKETCH</text><text x="179" y="27" class="m small">⌄</text>
+        <g class="tiny t"><text x="14" y="52">▣  Off</text><text x="98" y="52">▣  All on</text><text x="14" y="71">▣  Freeze</text><text x="98" y="71">▣  Thaw</text></g>
+        <text x="62" y="94" class="cap">⠿  Layers</text><rect x="135" y="79" width="20" height="16" rx="3" fill="#20252c" stroke="#566170"/><rect x="158" y="79" width="20" height="16" rx="3" fill="#20252c" stroke="#566170"/><text x="145" y="91" text-anchor="middle" class="tiny t">◀</text><text x="168" y="91" text-anchor="middle" class="tiny t">▶</text>
+      </g>
+
+      <!-- Other panels -->
+      <g transform="translate(222 113)">
+        <g><rect width="126" height="100" fill="none" stroke="#454c57"/><rect x="20" y="19" width="22" height="22" rx="4" fill="none" stroke="#d2dae5" stroke-width="2"/><rect x="74" y="19" width="22" height="22" rx="11" fill="none" stroke="#d2dae5" stroke-width="2"/><text x="31" y="58" text-anchor="middle" class="t tiny">Line</text><text x="85" y="58" text-anchor="middle" class="t tiny">Circle</text><text x="40" y="94" class="cap">⠿  Draw  ◀ ▶</text></g>
+        <g transform="translate(129)"><rect width="198" height="100" fill="none" stroke="#454c57"/><g class="t tiny"><text x="16" y="25">▣  Move</text><text x="105" y="25">▣  Rotate</text><text x="16" y="44">▣  Copy</text><text x="105" y="44">▣  Mirror</text><text x="16" y="63">▣  Trim</text><text x="105" y="63">▣  Offset</text></g><text x="57" y="94" class="cap">⠿  Modify  ◀ ▶</text></g>
+        <g transform="translate(330)"><rect width="128" height="100" fill="none" stroke="#454c57"/><rect x="20" y="19" width="22" height="22" rx="4" fill="none" stroke="#d2dae5" stroke-width="2"/><rect x="76" y="19" width="22" height="22" rx="4" fill="none" stroke="#d2dae5" stroke-width="2"/><text x="31" y="58" text-anchor="middle" class="t tiny">Insert</text><text x="87" y="58" text-anchor="middle" class="t tiny">Block</text><text x="35" y="94" class="cap">⠿  Blocks  ◀ ▶</text></g>
+        <g transform="translate(461)"><rect width="144" height="100" fill="none" stroke="#454c57"/><rect x="23" y="18" width="23" height="23" rx="4" fill="#36c66b" stroke="#d2dae5"/><rect x="91" y="18" width="23" height="23" rx="4" fill="none" stroke="#d2dae5" stroke-width="2"/><text x="35" y="58" text-anchor="middle" class="t tiny">Colour</text><text x="103" y="58" text-anchor="middle" class="t tiny">Match</text><text x="28" y="94" class="cap">⠿  Properties  ◀ ▶</text></g>
+        <g transform="translate(608)"><rect width="177" height="100" fill="none" stroke="#454c57"/><rect x="28" y="18" width="23" height="23" rx="4" fill="none" stroke="#d2dae5" stroke-width="2"/><rect x="112" y="18" width="23" height="23" rx="4" fill="none" stroke="#d2dae5" stroke-width="2"/><text x="40" y="58" text-anchor="middle" class="t tiny">Distance</text><text x="123" y="58" text-anchor="middle" class="t tiny">Area</text><text x="26" y="94" class="cap">⠿  Measure and view  ◀ ▶</text></g>
+      </g>
+
+      <!-- CAD canvas -->
+      <rect y="221" width="1496" height="606" fill="#11161c"/>
+      <rect y="221" width="1496" height="606" fill="url(#cadGrid)"/>
+      <g fill="none" stroke="#617184" opacity=".72"><path d="M110 390l480-45 45 310-480 45z"/><path d="M930 360v330h350V430h-190v-70z"/><path d="M205 520l480 125M755 650l550-105"/></g>
+      <rect x="22" y="785" width="528" height="27" rx="5" fill="#1c222b" stroke="#43505f"/><text x="34" y="803" class="m tiny">Example custom order: Layers moved to the first position. This order is saved on this computer.</text>
+
+      <!-- Compact colour dialog -->
+      <g transform="translate(538 271)" filter="url(#shadow)">
+        <rect width="420" height="386" rx="8" fill="#24282f" stroke="#7a8595"/>
+        <path d="M8 0h404a8 8 0 0 1 8 8v27H0V8A8 8 0 0 1 8 0" fill="#303640"/>
+        <text x="14" y="23" class="t label">Select colour</text><text x="397" y="23" class="m label">×</text>
+        <rect y="35" width="420" height="38" fill="#282d35" stroke="#454c57"/>
+        <text x="28" y="59" class="t body">Index colour</text><text x="143" y="59" class="m body">True colour</text><rect x="13" y="70" width="98" height="3" rx="1" fill="#64a0ff"/>
+        <rect x="13" y="84" width="75" height="28" rx="4" class="button"/><text x="50" y="103" text-anchor="middle" class="t small">ByLayer</text>
+        <g transform="translate(99 87)"><rect width="22" height="22" rx="2" fill="#f00" stroke="#76818e"/><rect x="26" width="22" height="22" rx="2" fill="#ff0" stroke="#76818e"/><rect x="52" width="22" height="22" rx="2" fill="#0f0" stroke="#76818e"/><rect x="78" width="22" height="22" rx="2" fill="#0ff" stroke="#76818e"/><rect x="104" width="22" height="22" rx="2" fill="#00f" stroke="#76818e"/><rect x="130" width="22" height="22" rx="2" fill="#f0f" stroke="#76818e"/><rect x="156" width="22" height="22" rx="2" fill="#fff" stroke="#76818e"/><rect x="182" width="22" height="22" rx="2" fill="#777" stroke="#76818e"/><rect x="208" width="22" height="22" rx="2" fill="#bbb" stroke="#76818e"/></g>
+        <g transform="translate(13 123)"><rect width="394" height="185" rx="5" fill="#181d23" stroke="#505966"/><rect x="15" y="8" width="360" height="170" rx="2" fill="url(#hues)"/><rect x="15" y="8" width="360" height="170" rx="2" fill="url(#shade)"/><rect x="15" y="8" width="360" height="170" fill="url(#colourCells)"/><rect x="48" y="42" width="15" height="17" fill="none" stroke="#fff" stroke-width="2"/></g>
+        <g transform="translate(13 318)">
+          <text x="0" y="0" class="m tiny">Index number</text><text x="136" y="0" class="m tiny">Current colour</text><text x="272" y="0" class="m tiny">Selected</text>
+          <rect y="6" width="122" height="28" rx="4" class="field"/><rect x="136" y="6" width="122" height="28" rx="4" class="field"/><rect x="272" y="6" width="122" height="28" rx="4" class="field"/>
+          <text x="9" y="25" class="t small mono">42</text><text x="145" y="25" class="t small">Red · 1</text><text x="281" y="25" class="t small">Green · 42</text>
+        </g>
+        <g transform="translate(251 355)"><rect width="73" height="29" rx="4" class="button"/><text x="36" y="19" text-anchor="middle" class="t small">Cancel</text><rect x="82" width="73" height="29" rx="4" fill="#2d68bd" stroke="#70a7ff"/><text x="118" y="19" text-anchor="middle" class="t small">OK</text></g>
+      </g>
+
+      <g transform="translate(982 286)">
+        <path d="M0 45h90" fill="none" stroke="#64a0ff" stroke-width="2" stroke-dasharray="4 4"/>
+        <rect x="90" width="344" height="91" rx="7" fill="#202a38" stroke="#5774a1"/>
+        <text x="108" y="25" class="accentText label">True colour tab</text>
+        <text x="108" y="47" class="m small">Colour well · Hex · Red · Green · Blue</text>
+        <text x="108" y="67" class="m small">Current and selected colour previews stay visible.</text>
+      </g>
+    </g>
+  </g>
+</svg>
