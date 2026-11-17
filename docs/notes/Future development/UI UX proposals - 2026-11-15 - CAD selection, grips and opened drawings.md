@@ -1,6 +1,6 @@
 # UI UX proposal – Design CAD selection, grips and opened drawings (2026-11-15)
 
-Status: **approved 2026-11-15 with all five suggested answers**: objects of an opened drawing editable and taken over on the first edit; dashed in their own colour + blue halo; grips on each picked object up to 100; circle centre + 4 quadrants and arc centre, 2 ends and middle; an architect's plan protected by locking its layers or attaching it as a reference (no new switch). Step 1 built in PR 615 (v2.160).
+Status: **approved 2026-11-15 with all five suggested answers**: objects of an opened drawing editable and taken over on the first edit; dashed in their own colour + blue halo; grips on each picked object up to 100; circle centre + 4 quadrants and arc centre, 2 ends and middle; an architect's plan protected by locking its layers or attaching it as a reference (no new switch). Step 1 built in PR 615 (v2.160). Step 2 built in v2.165 (with the right-click plan's step 3). Step 3 built in v2.166: paragraph texts as notes, full ellipses as ellipses, patterned hatches with their pattern, aligned, linear, radius, diameter and angular dimensions as drawn dimensions, and splines and partial ellipses said as polylines on the command line. Still left: ordinate, arc-length and large-radial dimensions stay as their loose pieces, a partial ellipse stays a polyline (there is no elliptical arc item), and a hatch's own base point is not read (the pattern's origin comes from its lines).
 
 Built differently from the mockup: the hot grip's right-click menu gained Mirror through this point but not Scale, because the SCALE tool does not yet take the grip as its base point; Stretch is the grip drag itself.
 
@@ -51,7 +51,7 @@ The app never changes the opened file. Only objects drawn in the app (drawn obje
 - The file on disk stays unchanged until Save DXF / Save DWG. Saving already writes drawn objects and leaves out erased handles, so an edited object is saved as a normal entity (with a new handle).
 - The command line reports it, for example: `MOVE  3 objects of Ground floor.dwg taken over as drawn objects and moved · ⌘Z to undo`.
 - Locked layers stay locked: the edit is refused with the LAYULK hint, as it is for drawn objects. To keep an architect's plan safe, lock its layers (LAYLCK) or attach it as a reference (XATTACH). Both already exist.
-- What a faithful take-over still needs: today `defFromPieces` keeps only the layer and colour (`:73`) and drops polyline arc segments (`:78`). It should keep bulges, linetype and lineweight. An MTEXT should become a note, an ellipse an ellipse, a patterned hatch should keep its pattern, and a dimension should become a drawn dimension. Splines become polylines, and the status line says so.
+- What a faithful take-over still lacks (steps 1 to 3 built): ordinate, arc-length and large-radial dimensions as drawn dimensions, partial ellipses as arcs of an ellipse, and gradient hatches. Splines stay polylines, and the command line says so.
 
 ### 2. A picked look that reads on any colour
 
