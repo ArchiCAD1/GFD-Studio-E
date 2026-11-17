@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import Ribbon, { CAPTIONS, tipOf, type RibbonActions, type RibbonTab } from './Ribbon';
+import Ribbon, { CAPTIONS, normaliseCadPanelOrder, orderedCadGroups, placeCadPanel, tipOf, type RibbonActions, type RibbonTab } from './Ribbon';
 
 const noop = () => {};
 const actions = (over: Partial<RibbonActions> = {}): RibbonActions => ({
@@ -121,6 +121,15 @@ describe('Ribbon', () => {
     expect(html).toMatch(/aria-haspopup="menu" aria-expanded="false" title="Open, save and close drawings/);
     expect(html).toContain('Show labels');
     expect(render('home')).not.toContain('ribbon-subtabs');
+  });
+
+  it('keeps a saved CAD panel order valid when panels are missing, added or on another sub-tab', () => {
+    const saved = normaliseCadPanelOrder(['layers', 'draw', 'layers', 'removed-panel']);
+    expect(saved.slice(0, 4)).toEqual(['layers', 'draw', 'modify', 'annotate']);
+    expect(orderedCadGroups([0, 1, 3, 4, 5, 6], saved)).toEqual([4, 0, 1, 3, 5, 6]);
+    const moved = placeCadPanel(undefined, 4, 3, false); // Layers before Blocks, without losing panels on other sub-tabs
+    expect(orderedCadGroups([0, 1, 3, 4, 5, 6], moved)).toEqual([0, 1, 4, 3, 5, 6]);
+    expect(moved).toHaveLength(CAPTIONS.cad.length);
   });
 
   it('names the main tools under their icons and, on Drafting, the small ones beside theirs; Show labels names them all', () => {

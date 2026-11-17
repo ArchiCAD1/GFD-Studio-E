@@ -15,6 +15,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.179', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: compact colour dialog', text: 'A layer or object colour now opens in a compact dialog that stays inside the window. Index colour has every number from 1 to 255 and a number field; True colour has a colour well, Hex and RGB fields. OK applies it, Cancel or Esc leaves it alone.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: ribbon panels in your order', text: 'Drag a panel by its caption, or use its left and right arrows, to put Layers, Properties and the other panels where you prefer. The order is kept on this computer and works with Show labels; Reset order puts every panel back.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.178', date: '2026-11-17',
     items: [
       { title: 'Design CAD: typed points in Mirror, Scale and Stretch', text: 'Mirror\'s two points, Scale\'s base point and Stretch\'s base and second points can now be typed as coordinates (x,y), relative (@x,y), polar (@distance<angle) or a distance along the cursor, as in Move and Rotate. They used to give "Unknown command".', action: 'cad', actionLabel: 'Open Design CAD' }

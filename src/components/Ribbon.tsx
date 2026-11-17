@@ -187,6 +187,8 @@ export interface RibbonActions {
     /** Every tool named, the small ones too (Show labels, also in Preferences → App); off: the main tools named, the
      * small ones on hover. */
     labels?: boolean; onLabels?: (on: boolean) => void;
+    /** Whole Design CAD panels in this computer's preferred order; an empty order restores the app's order. */
+    panelOrder?: string[]; onPanelOrder?: (order: string[]) => void;
     file: { plans: Tool['menu']; plansSub?: string; level: string; levelTitle: string; levels: Tool['menu']; unit: string; unitTitle: string; units: Tool['menu'] };
     onRoles: () => void; rolesOn: boolean; onAddFound: () => void; onSchedules: () => void; onPlaceBoard: () => void; placingBoard: boolean;
     onCoverage: () => void; coverageOn: boolean; copyLevels: Tool['menu'];
@@ -225,6 +227,36 @@ const G = {
   draw: 0, modify: 1, annotate: 2, blocks: 3, layers: 4, props: 5, measure: 6, markup: 7, onPanels: 8, sheet: 9,
   rooms: 10, cables: 11, devices: 12, editDevices: 13, wiring: 14, reference: 15, sheetSet: 16, layouts: 17, viewports: 18, plot: 19, publish: 20, export: 21
 } as const;
+/** Stable IDs kept in Preferences for the user's Design CAD panel order. New panels append to an older saved order. */
+export const CAD_PANEL_IDS = [
+  'draw', 'modify', 'annotate', 'blocks', 'layers', 'properties', 'measure', 'markup', 'on-panels', 'sheet',
+  'rooms', 'cables', 'devices', 'edit-devices', 'wiring', 'reference', 'sheet-set', 'layout', 'viewports', 'plot', 'publish', 'export'
+] as const;
+const CAD_PANEL_SET = new Set<string>(CAD_PANEL_IDS);
+const panelId = (group: number): string => CAD_PANEL_IDS[group] ?? `panel-${group}`;
+
+/** A saved order without duplicates or removed panels, followed by panels introduced since it was saved. */
+export function normaliseCadPanelOrder(order?: string[]): string[] {
+  const seen = new Set<string>();
+  const kept = (order ?? []).filter((id) => CAD_PANEL_SET.has(id) && !seen.has(id) && !!seen.add(id));
+  return [...kept, ...CAD_PANEL_IDS.filter((id) => !seen.has(id))];
+}
+
+/** The panels of this sub-tab in the user's global panel order. */
+export function orderedCadGroups(groups: number[], order?: string[]): number[] {
+  const rank = new Map(normaliseCadPanelOrder(order).map((id, i) => [id, i]));
+  return [...groups].sort((a, b) => (rank.get(panelId(a)) ?? a) - (rank.get(panelId(b)) ?? b));
+}
+
+/** Place one visible panel before or after another while retaining all panels not on this sub-tab. */
+export function placeCadPanel(order: string[] | undefined, moved: number, target: number, after: boolean): string[] {
+  const full = normaliseCadPanelOrder(order), id = panelId(moved), at = full.indexOf(id);
+  if (at < 0 || moved === target) return full;
+  full.splice(at, 1);
+  const targetAt = full.indexOf(panelId(target));
+  full.splice(targetAt + (after ? 1 : 0), 0, id);
+  return full;
+}
 /** A Design CAD sub-tab: its panels on the drawing; on the sheets pages `sheet` instead (none: the sub-tab with the
  * sheet set shows), on a layout's paper `paper` instead, and on a layout `layout` after its Layout panel. */
 export interface CadTab { id: string; label: string; groups: number[]; sheet?: number[]; paper?: number[]; layout?: number[];
@@ -426,7 +458,39 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
     if (a.cad?.inLayout && t.layout) g.splice(g.indexOf(G.layouts) + 1 || g.length, 0, ...t.layout);
     return g;
   };
-  const shown = tab === 'cad' ? cadGroups(sub) : [];
+  const baseShown = tab === 'cad' ? cadGroups(sub) : [];
+  const savedPanelOrder = a.cad?.panelOrder;
+  const panelOrder = normaliseCadPanelOrder(savedPanelOrder);
+  const shown = tab === 'cad' ? orderedCadGroups(baseShown, panelOrder) : [];
+  const panelOrderKey = panelOrder.join('|');
+  const customPanelOrder = panelOrder.some((id, i) => id !== CAD_PANEL_IDS[i]);
+  const [dragPanel, setDragPanel] = useState<number | null>(null);
+  const [dropPanel, setDropPanel] = useState<{ group: number; after: boolean } | null>(null);
+  const savePanelOrder = (next: string[]) => a.cad?.onPanelOrder?.(next.some((id, i) => id !== CAD_PANEL_IDS[i]) ? next : []);
+  const movePanel = (group: number, delta: -1 | 1) => {
+    const at = shown.indexOf(group), target = shown[at + delta];
+    if (target !== undefined) savePanelOrder(placeCadPanel(panelOrder, group, target, delta > 0));
+  };
+  const startPanelDrag = (group: number) => (e: React.DragEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.ribbon-caption') || !a.cad?.onPanelOrder) { e.preventDefault(); return; }
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', panelId(group));
+    setDragPanel(group);
+  };
+  const overPanel = (group: number) => (e: React.DragEvent<HTMLElement>) => {
+    if (dragPanel === null || dragPanel === group) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const r = e.currentTarget.getBoundingClientRect();
+    setDropPanel({ group, after: e.clientX >= r.left + r.width / 2 });
+  };
+  const dropOnPanel = (group: number) => (e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    if (dragPanel !== null && dragPanel !== group) savePanelOrder(placeCadPanel(panelOrder, dragPanel, group, dropPanel?.group === group && dropPanel.after));
+    setDragPanel(null); setDropPanel(null);
+  };
+  const endPanelDrag = () => { setDragPanel(null); setDropPanel(null); };
   const folded = [...shown].reverse().slice(0, shut);
   // While the row is wider than the window, one more panel collapses; a resized window, or another sub-tab, opens them
   // all again and measures the row anew (a window made narrower with none folded too).
@@ -435,7 +499,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
     if (el && tab === 'cad' && el.scrollWidth > el.clientWidth + 1 && shut < shown.length) setShut(shut + 1);
   }, [tab, sub.id, shut, shown.length, resized]);
   useEffect(() => { const open = () => { setShut(0); setOver(0); setResized((n) => n + 1); }; window.addEventListener('resize', open); return () => window.removeEventListener('resize', open); }, []);
-  useEffect(() => setShut(0), [tab, sub.id, onSheets, labels]);
+  useEffect(() => setShut(0), [tab, sub.id, onSheets, labels, panelOrderKey]);
   const cadToolNow = a.cad?.tool;
   useEffect(() => {
     const g = cadToolNow ? GROUP_OF[cadToolNow] : undefined;
@@ -1306,6 +1370,8 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
             ))}
           </div>
           <span className="sp" />
+          {a.cad?.onPanelOrder && <button type="button" className="ribbon-reset-order" disabled={!customPanelOrder}
+            title="Put the Design CAD panels back in the app's order" onClick={() => a.cad?.onPanelOrder?.([])}>Reset order</button>}
           <label className="ribbon-labels" title="The name of every tool, the small ones too; the names need more room, so the tools take more sub-tabs (also in Preferences → App)">
             <input type="checkbox" checked={labels} disabled={!a.cad?.onLabels} onChange={(e) => a.cad?.onLabels?.(e.target.checked)} />Show labels
           </label>
@@ -1331,6 +1397,19 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
           if (tab === 'cad' && !shown.includes(gi)) return null;
           const caption = CAPTIONS[tab]?.[gi];
           const order = tab === 'cad' ? { order: shown.indexOf(gi) + 1 } : undefined;
+          const canReorder = tab === 'cad' && shown.length > 1 && !!a.cad?.onPanelOrder;
+          const shownAt = shown.indexOf(gi);
+          const panelClass = `ribbon-group${canReorder ? ' cad-reorderable' : ''}${dragPanel === gi ? ' cad-dragging' : ''}${dropPanel?.group === gi ? (dropPanel.after ? ' cad-drop-after' : ' cad-drop-before') : ''}`;
+          const panelDnD = canReorder ? { onDragOver: overPanel(gi), onDrop: dropOnPanel(gi) } : {};
+          const captionDrag = canReorder ? { draggable: true, onDragStart: startPanelDrag(gi), onDragEnd: endPanelDrag, title: `${caption}: drag to rearrange this panel` } : {};
+          const panelMoves = canReorder && (
+            <span className="ribbon-panel-moves">
+              <button type="button" className="ribbon-panel-move" aria-label={`Move ${caption} panel left`} title={`Move ${caption} panel left`} disabled={shownAt <= 0}
+                onClick={(e) => { e.stopPropagation(); movePanel(gi, -1); }}><ChevronLeft size={11} strokeWidth={2} aria-hidden /></button>
+              <button type="button" className="ribbon-panel-move" aria-label={`Move ${caption} panel right`} title={`Move ${caption} panel right`} disabled={shownAt >= shown.length - 1}
+                onClick={(e) => { e.stopPropagation(); movePanel(gi, 1); }}><ChevronRight size={11} strokeWidth={2} aria-hidden /></button>
+            </span>
+          );
           // A tool that only opens a list (New layout, viewport Scale, Copy to level) is in the menu as that list.
           const menuOf = (tools: Tool[]) => tools.flatMap((t, k) => (t.menuOnly && t.menu
             ? t.menu.map((m, i) => ({ ...m, label: `${t.label}: ${m.label}`, sep: k > 0 && i === 0 }))
@@ -1349,14 +1428,15 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
             const live = group.filter((t) => !t.disabled);
             const face = cadNamed ? tipAttrs(`${caption}: its tools`, caption ?? '', live.length ? `Its tools: ${live.map((t) => t.label).join(', ')}` : 'Its tools are greyed for now') : { title: `${caption}: its tools` };
             return (
-              <div key={gi} className="ribbon-group" role="group" aria-label={caption} style={order}>
+              <div key={gi} className={panelClass} role="group" aria-label={caption} style={order} {...panelDnD}>
                 <div className="ribbon-group-btns">
                   <button {...face} aria-haspopup="menu" aria-expanded={splitOpen === `shut:${gi}`} onClick={(e) => { hideTip(); opener(`shut:${gi}`)(e); }}>
                     <Gi size={cadNamed ? 22 : 20} strokeWidth={1.6} /><span>{caption}<ChevronDown size={10} strokeWidth={1.8} aria-hidden /></span>
                   </button>
                   {popup(`shut:${gi}`, menuOf(live))}
                 </div>
-                {caption && !cadNamed && <div className="ribbon-caption">{caption}</div>}
+                {caption && !cadNamed && <div className="ribbon-caption" {...captionDrag}>{caption}</div>}
+                {panelMoves}
               </div>
             );
           }
@@ -1410,11 +1490,12 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
               onClick={() => { hideTip(); pnl.launch!.onClick(); }}><ArrowDownRight size={10} strokeWidth={2} aria-hidden /></button>
           );
           const panel = (
-            <div key={gi} className="ribbon-group" role="group" aria-label={caption} style={order}>
+            <div key={gi} className={panelClass} role="group" aria-label={caption} style={order} {...panelDnD}>
               <div className="ribbon-group-btns">{row}</div>
               {caption && (extra.length
-                ? <><button className="ribbon-caption ribbon-caption-more" title={`More ${caption.toLowerCase()} tools: ${extra.map((t) => t.label).join(', ')}`} aria-haspopup="menu" aria-expanded={splitOpen === `more:${gi}`} onClick={opener(`more:${gi}`)}>{caption}<ChevronDown size={10} strokeWidth={1.8} aria-hidden /></button>{popup(`more:${gi}`, menuOf(extra))}</>
-                : <div className="ribbon-caption">{caption}{launch}</div>)}
+                ? <><button className="ribbon-caption ribbon-caption-more" {...captionDrag} title={`More ${caption.toLowerCase()} tools: ${extra.map((t) => t.label).join(', ')}`} aria-haspopup="menu" aria-expanded={splitOpen === `more:${gi}`} onClick={opener(`more:${gi}`)}>{caption}<ChevronDown size={10} strokeWidth={1.8} aria-hidden /></button>{popup(`more:${gi}`, menuOf(extra))}</>
+                : <div className="ribbon-caption" {...captionDrag}>{caption}{launch}</div>)}
+              {panelMoves}
             </div>
           );
           // SLD and Load schedule tabs, a narrow window: the group waits under More.

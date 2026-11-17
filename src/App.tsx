@@ -1391,7 +1391,9 @@ export default function App() {
             reopen: cadReopen,
             propsOn: cadS.showProps, onProps: () => { cadS.setShowProps(!cadS.showProps); setView('cad'); }, blocksOn: cadS.showBlocks,
             info: cadS.ribbonInfo, onSetProps: (p) => cadDo((x) => x.setProps(p)),
-            labels: !!prefs.app.cadLabels, onLabels: (on) => { const p = { ...prefs, app: { ...prefs.app, cadLabels: on || undefined } }; setPrefs(p); savePrefs(p); }, layersOn: cadS.showLayers, hasDrawing: !!cadS.view,
+            labels: !!prefs.app.cadLabels, onLabels: (on) => { const p = { ...prefs, app: { ...prefs.app, cadLabels: on || undefined } }; setPrefs(p); savePrefs(p); },
+            panelOrder: prefs.app.cadRibbonOrder, onPanelOrder: (order) => { const p = { ...prefs, app: { ...prefs.app, cadRibbonOrder: order.length ? order : undefined } }; setPrefs(p); savePrefs(p); },
+            layersOn: cadS.showLayers, hasDrawing: !!cadS.view,
             file: (() => {
               const f = cadFileMenu(project, cadS, (next, message) => { setProject(next, { step: true }); setStatus(message); }, setStatus);
               const show = (m: { label: string; title: string; onClick: () => void; sep?: boolean }[]) => m.map((x) => ({ ...x, onClick: () => { setView('cad'); x.onClick(); } }));
