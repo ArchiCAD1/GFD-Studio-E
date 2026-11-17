@@ -112,7 +112,7 @@ import { drawnLayers, effective, layerStylesOf, LINETYPES, matchedProps, styleOf
 import { colourCss, colourLabel } from '../../model/cadColours';
 import { applyLayerPatch, archOnOf, currentLayerOf, extentsOf, isolate, layerFileOf, layersToChange, newLayerName, newPropsOf, renameLayer, restoreState, unisolate, withCurrentLayer, withNewLayer, withNewProps, withoutLayer, withoutState, withSavedState, type LayerPatch } from '../../model/cadLayerState';
 import { DrawnSelectionPanel, ED_START, EditToolPanel, kindOf, SketchToolbar, type EditSettings, type EditTool, type SketchEdit } from './SketchEditPanel';
-import { arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, isPath, join, aligned, alignOf, mirrored, offset, scaled, sketchInWindow, stretched, throughDistance, trim, type Edit } from '../../model/cadEdit';
+import { arrayPolar, arrayRect, breakAt, chamfer, crossingsOf, edgesFor, explode, extend, extendPiece, fillet, gripMoved, gripsOf, isPath, join, aligned, alignOf, mirrored, offset, scaled, reachesOf, sketchInWindow, stretched, throughDistance, trim, trimPiece, type Edit } from '../../model/cadEdit';
 import { ArrayPanel, ARL_START, MatchPanel, MATCH_START, SelectionPanel, type ArlSettings, type MatchSettings } from './DeviceEditPanel';
 import { alongLine, arranged, circuitAfter, copyDevices, deleteDevices, editsFor, inWindow, matchDevice, moveDevices, onBoard, placeAlong, renameBoard, replaceDevices, replacements, toCircuit, typeOf, type DeviceEdit } from '../../model/deviceEdit';
 
@@ -188,8 +188,8 @@ const PROMPT: Record<CadTool, string> = {
   scale: 'SCALE  Select objects (click them), then Enter:',
   align: 'ALIGN  Select objects:',
   stretch: 'STRETCH  Drag a window (right to left) round the points to move:',
-  trim: 'TRIM  Click the part to cut away (Shift-click extends):',
-  extend: 'EXTEND  Click near the end to lengthen (Shift-click trims):',
+  trim: 'TRIM  Select the part to cut away (Shift-click extends):',
+  extend: 'EXTEND  Select the end to lengthen (Shift-click trims):',
   offset: 'OFFSET  Select object to offset or [Exit]:',
   fillet: 'FILLET  Select first object or [Radius/Trim]:',
   chamfer: 'CHAMFER  Select first line or [Distance/Trim]:',
@@ -774,17 +774,28 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const at = cursor.at, px = cursor.pixel;
     const keep = (h: CadHover | undefined) => setHover((was) => (was?.device === h?.device && was?.sketch === h?.sketch && was?.seg?.[0] === h?.seg?.[0] && was?.seg?.[1] === h?.seg?.[1] && was?.picked === h?.picked ? was : h));
     if (!at || !px || cursorMode === 'point' || tool === 'pan') { keep(undefined); return; }
-    const d = deviceAt(at, px);
+    // Trim and Extend work on drawn lines only: devices and the opened drawing's objects are not marked.
+    const linesOnly = tool === 'trim' || tool === 'extend';
+    const d = linesOnly ? undefined : deviceAt(at, px);
     if (d) { keep({ device: d.key, picked: pickedKeys.has(d.key), label: `${d.label}${d.detail ? ` · ${d.detail}` : ''}` }); return; }
     const sk = hitAt(pickable, at, pickR * px);
     if (sk) { keep({ sketch: sk, picked: pickedKeys.has(`sk:${sk.id}`), label: `${kindOf(sk)} · ${sk.layer}` }); return; }
-    if (!view) { keep(undefined); return; }
+    if (!view || linesOnly) { keep(undefined); return; }
     let live = true;
     const t = setTimeout(() => void view.pick(at[0], at[1], pickR * px, pickOn).then((o) => {
       if (live) keep(o ? { seg: [o.seg_start, o.seg_end], picked: pickedKeys.has(`dw:${o.handle}`), label: `${o.kind}${o.block ? ` ${o.block}` : ''} · ${view.info.layers[o.layer]?.name ?? '?'}` } : undefined);
     }), 40);
     return () => { live = false; clearTimeout(t); };
   }, [cursor.at, cursor.pixel, cursorMode, tool, view, pickable, pickOn, pickR, placed, pickedItems, pickedSk, pickedDw]); // eslint-disable-line react-hooks/exhaustive-deps -- deviceAt and pickedKeys follow placed and the picks
+  // Shift held in Trim or Extend: the other command's shadow shows, as a Shift-click does the other command.
+  const [shiftOn, setShiftOn] = useState(false);
+  useEffect(() => {
+    if (tool !== 'trim' && tool !== 'extend') return;
+    const key = (e: KeyboardEvent) => { if (e.key === 'Shift') setShiftOn(e.type === 'keydown'); };
+    const off = () => setShiftOn(false);
+    window.addEventListener('keydown', key); window.addEventListener('keyup', key); window.addEventListener('blur', off);
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('keyup', key); window.removeEventListener('blur', off); off(); };
+  }, [tool]);
   const change = (next: Project, message: string) => {
     // A hatch that lost its boundary in this change says so.
     const lost = view ? lostAssociation(sketchOf(project, view.file), sketchOf(next, view.file)) : 0;
@@ -4035,6 +4046,16 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     };
   }, []);
 
+  // Trim and Extend before the click: the piece the click would cut away, or the length it would add up to the line it
+  // meets (with Shift held, the other one). Where the edges cross the line under the cursor, and where its ends would
+  // reach, are worked out once for that line; each move then only finds where the cursor is along it.
+  const edgeLine = (tool === 'trim' || tool === 'extend') && hover?.sketch ? hover.sketch : undefined;
+  const asTrim = (tool === 'trim') !== shiftOn;
+  const lineEdges = useMemo(() => (edgeLine ? edgesFor(sketch, edgeLine.id, drawingSegs) : null), [edgeLine, sketch, drawingSegs]);
+  const lineCuts = useMemo(() => (edgeLine && lineEdges && asTrim ? crossingsOf(edgeLine, lineEdges) : null), [edgeLine, lineEdges, asTrim]);
+  const lineReach = useMemo(() => (edgeLine && lineEdges && !asTrim ? reachesOf(edgeLine, lineEdges) : null), [edgeLine, lineEdges, asTrim]);
+  const cutPiece = edgeLine && cursor.at && lineCuts ? trimPiece(edgeLine, cursor.at, lineCuts) : null;
+  const addPiece = edgeLine && cursor.at && lineReach ? extendPiece(edgeLine, cursor.at, lineReach) : null;
   // The object being drawn (or moved / copied / rotated), following the cursor.
   const cur = cursor.at;
   const lastPt = points[points.length - 1];
@@ -4082,6 +4103,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if ((tool === 'move' || tool === 'copy') && lastPt) return [{ ...base, kind: 'line', pts: [lastPt, cur] }];
     if (tool === 'rotate' && lastPt && selSketch) return [rotated(selSketch, lastPt, Math.atan2(cur[1] - lastPt[1], cur[0] - lastPt[0]))];
     if (tool === 'paste' && pasting && view) return pastedItems(pasting, view.file, unitCode, cur).items.slice(0, 2000).map((x, i) => ({ ...x, id: `_${i}` }) as SketchItem);
+    if (addPiece) return [{ ...base, kind: 'line', pts: addPiece }];
     return [];
   })();
   const liveLabel = cur && lastPt && ['line', 'xline', 'ray', 'pline', 'tray', 'cable', 'dim', 'dimlin', 'move', 'copy'].includes(tool) ? `${m(toM(distance(lastPt, cur)))}  ${angleDeg(lastPt, cur).toFixed(1)}°`
@@ -4146,7 +4168,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
 
   /** The drawing: on the Model tab, or inside the viewport worked in on a layout (fitted to its window). */
   const drawCanvas = (vpProps?: Pick<React.ComponentProps<typeof CadCanvas>, 'fitBox' | 'fixed' | 'onView'>) => (
-            <CadCanvas view={view!} fadeExcept={reWork} draft={snapDraft} cursorMode={cursorMode} hover={hover} panLeft={tool === 'pan'} pointStyle={pointStyleOf(project)} blocks={defs} onDrop={dropBlock} hidden={hidden} layersOn={layersOn} extents={fitExtents} toggles={snapToggles} gridDots={cad.gridDots} fitKey={cad.fitKey} onCursor={(at, snap, pixel) => setCursor({ at, snap, pixel })} onClick={click} marks={objectArea ? { points: result.points, closed: true } : marks} highlight={highlight} devices={devices} wiring={canvasWiring} sketch={sketch} selectedSketch={pickedSk.map((it) => it.id)} extraSnaps={snapExtra} preview={[...preview, ...emRoutes, ...(grip && cursor.at ? sketch.filter((x) => x.id === grip.id).map((x) => gripMoved(x, grip.i, cursor.at!)) : []), ...(arlLine.length === 2 ? [{ id: '_arl', layer: '', kind: 'line' as const, pts: arlLine }] : [])]} unitsPerMm={0.001 / units.factor} labels={cableLabels} covers={elv?.covers} gaps={elv?.gaps}
+            <CadCanvas view={view!} fadeExcept={reWork} draft={snapDraft} cursorMode={cursorMode} hover={hover} cutAway={cutPiece && edgeLine ? [{ ...cutPiece, id: edgeLine.id }] : undefined} meets={addPiece ? [addPiece[1]] : undefined} panLeft={tool === 'pan'} pointStyle={pointStyleOf(project)} blocks={defs} onDrop={dropBlock} hidden={hidden} layersOn={layersOn} extents={fitExtents} toggles={snapToggles} gridDots={cad.gridDots} fitKey={cad.fitKey} onCursor={(at, snap, pixel) => setCursor({ at, snap, pixel })} onClick={click} marks={objectArea ? { points: result.points, closed: true } : marks} highlight={highlight} devices={devices} wiring={canvasWiring} sketch={sketch} selectedSketch={pickedSk.map((it) => it.id)} extraSnaps={snapExtra} preview={[...preview, ...emRoutes, ...(grip && cursor.at ? sketch.filter((x) => x.id === grip.id).map((x) => gripMoved(x, grip.i, cursor.at!)) : []), ...(arlLine.length === 2 ? [{ id: '_arl', layer: '', kind: 'line' as const, pts: arlLine }] : [])]} unitsPerMm={0.001 / units.factor} labels={cableLabels} covers={elv?.covers} gaps={elv?.gaps}
               numbersTyped={valuesTyped} layerStyle={styles} refs={xr.placed} refSnap={snapRef} windowSelect={tool === 'none' || tool === 'stretch' || tool === 'zoomwin' || tool === 'selsim' || (PICK_FIRST.includes(tool) && edPhase === 'pick') || (tool === 'tcount' && tc?.step === 'pick')} onWindow={pickWindow} onContext={contextAt} onDouble={doubleClick} zoom={zoomReq} onZoomMenu={zoomMenu}
               grips={gripList} hotGrip={gripOf(hotGrip)} pickedObjects={pickedDwIds} onGripStart={(k) => setGrip(gripList[k] ? { id: gripList[k].id, i: gripList[k].i } : null)}
               onGripEnd={(k, at, moved) => {

@@ -68,7 +68,7 @@ export function gridStep(scale: number): number {
 /** The drawing in a CAD model space: lines by layer and colour, texts at their height, a crosshair cursor with the snap
  * point under it, live coordinates. Wheel zooms at the cursor (two-finger scroll pans, pinch zooms), the middle button
  * or Space + drag pans, a middle double-click fits. */
-export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = false, fitKey, onCursor, onClick, marks, highlight, devices = [], wiring = [], sketch: sketchIn = [], selectedSketch, extraSnaps = [], preview = [], unitsPerMm = 1, labels = {}, covers = [], gaps, numbersTyped = false, windowSelect = false, onWindow, onContext, panLeft = false, overlay, grips = [], hotGrip: hotGripIn = -1, pickedObjects, onGripStart, onGripEnd, layerStyle = {}, refs = [], refSnap, fitBox, fixed = false, onView, extents, draft = DRAFT_DEFAULTS, zoom, onZoomMenu, onDouble, pointStyle = POINT_STYLE_DEFAULT, blocks = [], onDrop, fadeExcept, cursorMode = 'ready', hover }: {
+export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = false, fitKey, onCursor, onClick, marks, highlight, devices = [], wiring = [], sketch: sketchIn = [], selectedSketch, extraSnaps = [], preview = [], unitsPerMm = 1, labels = {}, covers = [], gaps, numbersTyped = false, windowSelect = false, onWindow, onContext, panLeft = false, overlay, grips = [], hotGrip: hotGripIn = -1, pickedObjects, onGripStart, onGripEnd, layerStyle = {}, refs = [], refSnap, fitBox, fixed = false, onView, extents, draft = DRAFT_DEFAULTS, zoom, onZoomMenu, onDouble, pointStyle = POINT_STYLE_DEFAULT, blocks = [], onDrop, fadeExcept, cursorMode = 'ready', hover, cutAway, meets }: {
   view: CadView;
   /** Objects of the drawing erased in the app (CROP): their lines, texts and fills are not drawn. */
   hidden?: ErasedParts;
@@ -156,6 +156,11 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
   cursorMode?: CursorMode;
   /** The object under the pick box, highlighted (the page finds it, as a click would). */
   hover?: CadHover;
+  /** Trim before the click: the pieces a click would cut away, faded (each in its own colour, dashed, over a band in the
+   * canvas colour that hides the line under it). Extend: where the new length shown in `preview` meets the line ahead
+   * (`meets`, a small cross). Either takes the place of the hover mark. */
+  cutAway?: SketchItem[];
+  meets?: Pt[];
   /** How drawn points are shown (PTYPE). */
   pointStyle?: PointStyle;
   /** The drawing's own blocks: an insert among the drawn objects is drawn as what its block shows. */
@@ -229,6 +234,8 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
   marksRef.current = marks;
   const previewRef = useRef(preview);
   previewRef.current = preview;
+  const cutRef = useRef(cutAway), meetsRef = useRef(meets);
+  cutRef.current = cutAway; meetsRef.current = meets;
   const [o0, o1] = view.info.origin;
   // Colours are read from CSS on each draw, so a palette or mode change redraws.
   const [theme, setTheme] = useState(screenAppearance);
@@ -865,7 +872,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     });
     // What a click would pick: an amber outline at 40 % over it (not while a grip is under the box).
     const hv = hoverRef.current;
-    if (ds.hoverMark && hv && !hv.picked && at && underGrip < 0 && modeRef.current !== 'point' && !handRef.current) {
+    if (ds.hoverMark && hv && !hv.picked && at && underGrip < 0 && modeRef.current !== 'point' && !handRef.current && !cutRef.current?.length && !meetsRef.current?.length) {
       ctx.save();
       ctx.globalAlpha = 0.4; ctx.strokeStyle = colour('--acc', snapC); ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -884,6 +891,15 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       ctx.stroke();
       ctx.restore();
     }
+    // What a Trim click would cut away: hidden under a band in the canvas colour, then dashed in its own colour at 35 %.
+    for (const it of cutRef.current ?? []) {
+      const ef = effective(it, layerStyle), w = ef.lw && toggles.lwt !== false ? Math.max(1.5, ef.lw * 6) : it.tray ? 2.5 : 1.5;
+      ctx.beginPath();
+      for (const [a, b] of segmentsOf(it)) { ctx.moveTo((a[0] - o0 - ox) * scale, size.h - (a[1] - o1 - oy) * scale); ctx.lineTo((b[0] - o0 - ox) * scale, size.h - (b[1] - o1 - oy) * scale); }
+      ctx.setLineDash([]); ctx.strokeStyle = colour('--cad-bg', BG); ctx.lineWidth = isSel(it.id) ? 8 : w + 3.5; ctx.stroke(); // a picked line's halo is 6 px
+      ctx.globalAlpha = 0.35; ctx.strokeStyle = ef.color ?? colour('--cad-sketch', '#7fd1ff'); ctx.lineWidth = w; ctx.setLineDash([6, 4]); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.setLineDash([]);
+    }
     const pv = previewRef.current;
     if (pv.length) {
       ctx.strokeStyle = colour('--cad-sketch', '#7fd1ff');
@@ -900,6 +916,15 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       }
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+    // Where an Extend click's new length meets the line ahead: a cross 8 px across.
+    if (meetsRef.current?.length) {
+      ctx.strokeStyle = snapC; ctx.lineWidth = 1.5; ctx.beginPath();
+      for (const q of meetsRef.current) {
+        const qx = (q[0] - o0 - ox) * scale, qy = size.h - (q[1] - o1 - oy) * scale;
+        ctx.moveTo(qx - 4, qy - 4); ctx.lineTo(qx + 4, qy + 4); ctx.moveTo(qx + 4, qy - 4); ctx.lineTo(qx - 4, qy + 4);
+      }
+      ctx.stroke();
     }
     // Acquired points (OTRACK): a small cross at each.
     ctx.strokeStyle = snapC; ctx.lineWidth = 1;
@@ -1088,7 +1113,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
   // After zoom / pan, or the canvas resized: the cursor's drawing point moves, so it is tracked again. When only the
   // marks change (a pick, the cursor moving in a tool), they are redrawn without reporting the cursor back (that would loop).
   useEffect(() => { if (mouse.current) track(mouse.current[0], mouse.current[1]); else drawCursor(null); }, [t, size.w, size.h]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { drawCursor(mouse.current ? lastAt.current?.at ?? null : null, mouse.current ? lastAt.current?.snap : undefined, mouse.current ? lastAt.current?.guide : undefined); }, [marks, preview, theme, grips, hotGripIn, draft, cursorMode, hover, hand, shiftOn, still]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawCursor(mouse.current ? lastAt.current?.at ?? null : null, mouse.current ? lastAt.current?.snap : undefined, mouse.current ? lastAt.current?.guide : undefined); }, [marks, preview, cutAway, meets, theme, grips, hotGripIn, draft, cursorMode, hover, hand, shiftOn, still]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** The whole drawing in view, with a margin (FIT / ZE, 0, a double click of the wheel, the zoom chip). */
   const fitT = (): ViewT => {

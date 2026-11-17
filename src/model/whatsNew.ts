@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.167', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: Trim and Extend show the result before the click', text: 'In Trim, the part a click would cut away fades and turns dashed as the cursor passes over a line, so you see what goes before you click. In Extend, the new length shows dashed up to the line it will reach, with a small cross where it meets it. Hold Shift to see the other one, as a Shift-click does. Both commands keep the pick box between clicks and mark only drawn lines, and are quicker on large drawings.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.163', date: '2026-11-16',
     items: [
       { title: 'Design CAD: right-click menus stay inside the drawing', text: 'A right-click near the bottom or right edge of the drawing now opens the menu upward or to the left, so every entry can be reached; a menu taller than the drawing scrolls. A list opens beside its row, and to the left at the right edge.', action: 'cad', actionLabel: 'Open Design CAD' }
