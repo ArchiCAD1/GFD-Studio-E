@@ -4,30 +4,7 @@ import { U } from './riserLayout';
 import { RiserSym } from './RiserDiagram';
 import { PANEL_SYMBOL_IDS, Sym, SYM_SCALE, SYMBOLS } from './symbolLibrary';
 import { legendLineY, legendPxFor, legendRows } from './legendLayout';
-import { COL, feederRiserLayout, type FeederRiserLayout, type LeafSymbol } from './feederRiserLayout';
-
-/** Board symbols of the riser schematic, from the riser's unit U (1.6U × 0.9U). */
-export const LeafSym: Record<LeafSymbol, (x: number, y: number) => JSX.Element> = {
-  db: (x, y) => (
-    <g>
-      <rect x={x - 0.8 * U} y={y - 0.45 * U} width={1.6 * U} height={0.9 * U} className="sym" />
-      <path d={`M${x - 0.8 * U} ${y - 0.45 * U}L${x + 0.8 * U} ${y + 0.45 * U}M${x + 0.8 * U} ${y - 0.45 * U}L${x - 0.8 * U} ${y + 0.45 * U}`} className="ln" />
-    </g>
-  ),
-  smdb: (x, y) => RiserSym.db(x, y),
-  mcc: (x, y) => (
-    <g>
-      <rect x={x - 0.8 * U} y={y - 0.45 * U} width={1.6 * U} height={0.9 * U} className="sym" />
-      <text x={x} y={y + 0.27 * U} textAnchor="middle" className="b fr-sym-t">M</text>
-    </g>
-  ),
-  ups: (x, y) => (
-    <g>
-      <rect x={x - 0.8 * U} y={y - 0.45 * U} width={1.6 * U} height={0.9 * U} className="sym" />
-      <text x={x} y={y + 0.27 * U} textAnchor="middle" className="b fr-sym-t">UPS</text>
-    </g>
-  )
-};
+import { COL, feederRiserLayout, type FeederRiserLayout } from './feederRiserLayout';
 
 /** A breaker on a vertical feeder, between y1 and y2 (an arc, IEC 60617 style). */
 const breaker = (x: number, y1: number, y2: number) => <path d={`M${x} ${y1}Q${x + 0.55 * U} ${(y1 + y2) / 2} ${x} ${y2}`} className="ln" fill="none" />;
@@ -38,10 +15,6 @@ export const FEEDER_RISER_LEGEND: { key: string; label: string; draw: (x: number
   { key: 'ats', label: 'Changeover (ATS)', draw: (x, y) => RiserSym.ats(x, y) },
   { key: 'panel', label: 'Panel with busbar (MDB, EMDB, SMDB)', draw: (x, y) => <g><rect x={x - 0.8 * U} y={y - 0.45 * U} width={1.6 * U} height={0.9 * U} className="fr-panel" /><line x1={x - 0.65 * U} y1={y + 0.2 * U} x2={x + 0.65 * U} y2={y + 0.2 * U} className="fr-busbar" /></g> },
   ...PANEL_SYMBOL_IDS.map((id) => ({ key: id, label: SYMBOLS[id].label, draw: (x: number, y: number) => <Sym id={id} x={x} y={y} s={SYM_SCALE.legend} /> })),
-  { key: 'db', label: 'Distribution board (DB, EDB)', draw: (x, y) => LeafSym.db(x, y) },
-  { key: 'smdb', label: 'Sub-main / main board (SMDB)', draw: (x, y) => LeafSym.smdb(x, y) },
-  { key: 'mcc', label: 'Motor control centre (MCC, EMCC)', draw: (x, y) => LeafSym.mcc(x, y) },
-  { key: 'ups', label: 'UPS board', draw: (x, y) => LeafSym.ups(x, y) },
   { key: 'bus', label: 'Busbar trunking riser', draw: (x, y) => <g className="riser-bus"><line x1={x - 0.7 * U} y1={y - 0.18 * U} x2={x + 0.7 * U} y2={y - 0.18 * U} /><line x1={x - 0.7 * U} y1={y + 0.18 * U} x2={x + 0.7 * U} y2={y + 0.18 * U} /></g> },
   { key: 'tap', label: 'Tap-off unit (TOU)', draw: (x, y) => RiserSym.tap(x, y) },
   { key: 'breaker', label: 'Circuit breaker', draw: (x, y) => <g transform={`rotate(-90 ${x} ${y})`}><line x1={x} y1={y - 0.7 * U} x2={x} y2={y - 0.4 * U} className="ln" />{breaker(x, y - 0.4 * U, y + 0.4 * U)}<line x1={x} y1={y + 0.4 * U} x2={x} y2={y + 0.7 * U} className="ln" /></g> },
@@ -144,7 +117,7 @@ export default function FeederRiserDiagram({ project, buildingId, layout: given 
             <title>{`${n.board.id} — ${n.board.name}`}</title>
             <rect x={n.x - tagW / 2} y={n.tagY} width={tagW} height={1.5 * U} className="fr-tag" />
             {n.lines.map((t, i) => <text key={i} x={n.x - tagW / 2 + 0.25 * U} y={n.tagY + (0.62 + i * 0.65) * U} className="m">{t}</text>)}
-            {n.panel ? <Sym id={n.panel} x={n.x} y={n.y} s={SYM_SCALE.legend} /> : LeafSym[n.symbol](n.x, n.y)}
+            <Sym id={n.panel} x={n.x} y={n.y} s={SYM_SCALE.legend} existing={!!n.board.existing} />
           </g>
         ))}
       </svg>

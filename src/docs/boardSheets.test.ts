@@ -20,11 +20,11 @@ describe('board sheet drawing', () => {
       expect([...colours].every((c) => c === '#000' || c === 'none')).toBe(true);
     }
   });
-  it('draws the board it is fed from as that board\'s panel symbol', () => {
+  it('draws the board it is fed from as that board\'s symbol', () => {
     const { svg } = boardSheetSvg(run.project, board('DB-GF1'), run.results);
-    expect(svg).toContain('>SMDB</text>'); // SMDB-GF above, as the SMDB panel symbol
-    expect(svg).toContain('<rect x="221.6" y="4.4" width="16.8" height="19.2" fill="none"'); // legend scale, top of the sheet
-    expect(boardSheetSvg(run.project, board('MDB-1'), run.results).svg).not.toContain('>MDB</text>'); // a main board: transformer
+    expect(svg).toContain('data-sym="p-smdb"'); // SMDB-GF above, as the SMDB symbol
+    expect(svg).toContain('<rect x="215" y="6.5" width="30" height="15" fill="none"'); // legend scale, top of the sheet
+    expect(boardSheetSvg(run.project, board('MDB-1'), run.results).svg).not.toContain('data-sym="p-mdb"'); // a main board: transformer
   });
   it('shows the supply, every circuit with its reference and phase, and the panel summary', () => {
     const { svg } = boardSheetSvg(run.project, board('DB-GF1'), run.results, { fromSheet: 'E-SLD-02' });
