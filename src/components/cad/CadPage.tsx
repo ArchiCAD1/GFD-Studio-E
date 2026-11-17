@@ -237,6 +237,8 @@ const PROMPT: Record<CadTool, string> = {
 };
 const f2 = (s: string) => (s.trim() !== '' && Number.isFinite(Number(s)) ? Number(s).toFixed(2) : s);
 /** The first prompt of a tool, with the edit tools' options and their values now (Enter takes the one in < >). */
+/** No command, after one has ended: Space or Enter starts it again, and the command line says so. */
+const repeatHint = (label: string) => `${PROMPT.none.replace(/\.$/, '')} · Space repeats ${label}`;
 function editPrompt(tool: CadTool, s: EditSettings): string {
   if (tool === 'offset') return `OFFSET  Specify offset distance or [Through/Erase/Layer] <${s.through ? 'Through' : f2(s.offset)}>:`;
   if (tool === 'fillet') return `FILLET  Select first object or [Radius/Trim] <R ${f2(s.radius)}${s.trim ? '' : ', No trim'}>:`;
@@ -593,7 +595,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const he = heNext.current; heNext.current = null;
     const preHatches = tool === 'hatchedit' ? (pickedSk.length ? pickedSk : selSketch ? [selSketch] : []).filter((x) => x.hatch).map((x) => x.id) : [];
     setHeIds(he ? he.ids : preHatches); setHePhase(he?.phase ?? null); setBoundIsl(true);
-    cad.say(`Command: ${PICK_FIRST.includes(tool) && first ? (tool === 'draworder' ? (drMode === 'above' || drMode === 'under' ? DR_REF : DR_OPTIONS) : tool === 'array' ? arrayType(edSet) : TEXT_TOOLS.includes(tool) ? textToolPrompt(tool) : `${tool.toUpperCase()}  ${tool === 'mirror' ? 'Specify first point of the mirror line:' : tool === 'scale' ? 'Specify base point:' : tool === 'align' ? ALIGN_SAY[0].slice(7) : 'Enter to join them:'}`) : tool === 'matchprop' && mp ? 'MATCHPROP  Select destination object(s):' : pre && tool === 'offset' ? OFFSET_SIDE : tool === 'insert' && !insBlock ? 'INSERT  Block name:' : tool === 'attpick' ? PROMPT.attpick : tool === 'blockpick' && blockDlg?.picking === 'objects' ? 'BLOCK  Select objects — Enter when done:' : editPrompt(tool, edSet)}`);
+    cad.say(`Command: ${PICK_FIRST.includes(tool) && first ? (tool === 'draworder' ? (drMode === 'above' || drMode === 'under' ? DR_REF : DR_OPTIONS) : tool === 'array' ? arrayType(edSet) : TEXT_TOOLS.includes(tool) ? textToolPrompt(tool) : `${tool.toUpperCase()}  ${tool === 'mirror' ? 'Specify first point of the mirror line:' : tool === 'scale' ? 'Specify base point:' : tool === 'align' ? ALIGN_SAY[0].slice(7) : 'Enter to join them:'}`) : tool === 'matchprop' && mp ? 'MATCHPROP  Select destination object(s):' : pre && tool === 'offset' ? OFFSET_SIDE : tool === 'insert' && !insBlock ? 'INSERT  Block name:' : tool === 'attpick' ? PROMPT.attpick : tool === 'blockpick' && blockDlg?.picking === 'objects' ? 'BLOCK  Select objects — Enter when done:' : tool === 'none' && recent[0] ? repeatHint(recent[0].label) : editPrompt(tool, edSet)}`);
     if (tool === 'hatchedit' && preHatches.length && !he) cad.say(hatchEditSay(null, preHatches.length));
     // CROP with drawn items picked first: they are what is cut.
     if (tool === 'crop' && first) { const ids = picked.length ? picked.filter((k) => k.startsWith('sk:')).map((k) => k.slice(3)) : [cad.selected!.slice(3)]; setCrop({ step: 'outline', target: { items: ids, label: `${ids.length} drawn object${ids.length === 1 ? '' : 's'}` } }); cad.say(CROP_OUTLINE); }
@@ -3375,10 +3377,11 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (it && r && !failed(r, 'BREAK')) change(replaced(project, it, r.items!), `BREAK  ${kindOf(it)} split in two · ⌘Z to undo`);
       return true;
     }
-    if (tool === 'join') { applyJoin(); return true; }
+    if (tool === 'join') { if (pickedSk.length) applyJoin(); else cad.setTool('none'); return true; }
     if (PICK_FIRST.includes(tool) && edPhase === 'pick') {
-      // TXTHEIGHT with nothing picked asks the height for new text.
-      if (!pickedSk.length && tool !== 'th') { cad.say(`${CMD}  Pick the ${tool === 'tjust' ? 'texts' : 'objects'} first.`); return true; }
+      // Enter with nothing picked ends the command, as at any prompt with nothing to do (TXTHEIGHT asks the height for new
+      // text instead).
+      if (!pickedSk.length && tool !== 'th') { cad.setTool('none'); return true; }
       setEdPhase('points');
       if (tool === 'array') { setEdAsk('type'); cad.say(arrayType(edSet)); } else if (TEXT_TOOLS.includes(tool)) cad.say(textToolPrompt(tool)); else if (tool === 'draworder') { if (drMode === 'front' || drMode === 'back') applyDrawOrder(drMode); else cad.say(drMode ? DR_REF : DR_OPTIONS); } else cad.say(tool === 'mirror' ? 'MIRROR  Specify first point of the mirror line:' : tool === 'align' ? ALIGN_SAY[0] : 'SCALE  Specify base point:');
       return true;
@@ -3652,6 +3655,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       else if (tool === 'xline' || tool === 'ray') { setPoints([]); cad.setTool('none'); cad.say(`${tool === 'xline' ? 'XLINE' : 'RAY'}  Ended.`); }
       else if (tool === 'leader') { if (points.length >= 2 && view) change(addSketch(project, view.file, leaderItems(points, '', textH)[0]).project, 'Leader · ⌘Z to undo'); setPoints([]); cad.say(PROMPT.leader); }
       else if (tool === 'copy') { setPoints([]); cad.setSelected(null); setResult(null); cad.setTool('none'); }
+      else if ((tool === 'move' || tool === 'rotate') && !points.length && !selSketch && !selectedItem && !many) cad.setTool('none');
       else if (tool === 'none' && recent[0]) repeat(recent[0]);
       return;
     }
