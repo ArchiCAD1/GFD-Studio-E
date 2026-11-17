@@ -3,6 +3,7 @@ import { SPD_TYPES, type Project } from '../../types';
 import { AIR_METHODS, airResultText as resultText, lightningProtection, lpsLayout, type AirMethod, type AirResult, type LpsClass, type LpsInputs } from '../../calc/lightningProtection';
 import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskLevel } from '../../calc/lightningRisk';
 import { buildLightningReportHtml, LPS_SECTIONS, type LpsSectionKey } from '../../docs/lightningReport';
+import { applyRiskPreset, loadRiskPresets, saveRiskPresets, withRiskPreset } from '../../model/lightningRiskPresets';
 import { lightningPlanFiles, LP_BLOCK, roofOutlines, withLightningBlock, withRoofOutline } from '../../model/lightningCad';
 import { safeFileName, saveBinary, savePdf } from '../../util/files';
 import { boardsInSupplyOrder } from '../../calc/summary';
@@ -56,6 +57,22 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
     if (!done) return;
     onChange(done, true);
     onStatus?.(`Roof outline taken from ${toFile}: ${outline!.pts.length} points, ${n2(outline!.areaM2)} m²${outline!.arcs ? ', arc segments taken as straight' : ''}.`);
+  }
+  // The engineer's own factor sets, kept on this computer.
+  const [presets, setPresets] = useState(loadRiskPresets);
+  const [presetId, setPresetId] = useState('');
+  const [presetName, setPresetName] = useState('');
+  const preset = presets.find((x) => x.id === presetId) ?? presets[0];
+  function storePresets(next: typeof presets, done: string) {
+    setPresets(next);
+    onStatus?.(saveRiskPresets(next) ? done : 'Could not store the presets');
+  }
+  function savePreset() {
+    const name = presetName.trim();
+    if (!name) return;
+    const next = withRiskPreset(presets, name, k0);
+    setPresetId(next.find((x) => x.name === name)!.id);
+    storePresets(next, `Saved risk factor preset "${name}" — load it in any project on this computer.`);
   }
   const picked = LPS_SECTIONS.map((x) => x.key).filter((x) => sections.includes(x));
   async function exportReport() {
@@ -164,7 +181,20 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
           <NumField label="Typical loss" value={k0.typicalLoss} min={0} onSet={(v) => setRisk({ typicalLoss: v })} optional />
           <NumField label="Tolerable risk" unit="/yr" value={k0.tolerableRisk} min={0} onSet={(v) => setRisk({ tolerableRisk: v })} optional />
         </div>
-        <p className="m">{RISK_NOTE} A missing value shows DATA REQUIRED; nothing is assumed. One risk component only — physical damage from a direct strike — so the class is a minimum.</p>
+        <div className="dm-head">
+          <label className="nf"><span>Your factor presets</span>
+            <select value={preset?.id ?? ''} disabled={!presets.length} onChange={(e) => setPresetId(e.target.value)}>
+              {presets.length ? presets.map((x) => <option key={x.id} value={x.id}>{x.name}</option>) : <option value="">None saved yet</option>}
+            </select>
+          </label>
+          <button className="chip" disabled={!preset} onClick={() => { if (preset) { set({ risk: applyRiskPreset(k0, preset) }); onStatus?.(`Loaded risk factor preset "${preset.name}".`); } }}>Load preset</button>
+          <button className="chip" disabled={!preset} onClick={() => preset && storePresets(presets.filter((x) => x.id !== preset.id), `Deleted risk factor preset "${preset.name}".`)}>Delete preset</button>
+          <label className="nf"><span>Preset name</span>
+            <input value={presetName} onChange={(e) => setPresetName(e.target.value)} />
+          </label>
+          <button className="chip" disabled={!presetName.trim() || !started} onClick={savePreset}>Save as preset</button>
+        </div>
+        <p className="m">{RISK_NOTE} A missing value shows DATA REQUIRED; nothing is assumed. A preset keeps your own factors (not the site or the building) on this computer, for any project. One risk component only — physical damage from a direct strike — so the class is a minimum.</p>
         {k0.shape === 'outline' && (
           <p className="m">{k0.outline?.length ? `Outline taken: ${k0.outline.length} points. ` : 'No outline taken yet. '}In Design CAD, draw one closed polyline round the roof, then take it here; take it again after changing the drawing. The height is the building height above.</p>
         )}

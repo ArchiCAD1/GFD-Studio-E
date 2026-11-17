@@ -35,8 +35,9 @@ A preliminary risk assessment at the top of the lightning protection study. It w
 3. **Report** — the risk section in the PDF, Word and Excel exports: three sections first in the report (inputs, working, risk for each class), the collection area sketch in the PDF, a "Risk assessment" sheet with live formulas in the workbook. Only when a risk assessment has been entered, so other reports are unchanged. The lightning report has no PDF baseline, so none is needed. (Done.)
 4. **Roof outline** — the outline from Design CAD as the collection area, and the offset drawing in the report: on the page, choose "Roof outline", the drawing and one of the closed polylines drawn over it, then "Take roof outline" (a copy; take it again after changing the drawing). Arc segments are taken as straight. A new study still starts on the rectangle, because an outline needs a drawing first. (Done.)
 
+5. **Presets** — the engineer's own factor sets, kept on this computer (`lvds.lightningRiskPresets`, synced through Library.json) and loaded into any project: a preset list with Load and Delete, a name and Save as preset. A preset holds the factors only, not the site or the building. None is built in. (Done.)
+
 ## Later
 
-- Load preset / Save as preset for the engineer's own factor sets (needs a place to keep presets outside one project).
 - Parts of the building with different heights, and tall roof elements (each with its own reach).
 - The other risk components: strikes near the building and on incoming lines.
