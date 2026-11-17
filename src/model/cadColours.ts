@@ -50,6 +50,9 @@ export function colourCss(c: string | undefined): string | undefined {
   return /^#[0-9a-f]{6}$/i.test(c) ? c.toLowerCase() : undefined;
 }
 
+/** A colour as the saved drawing takes it: '#rrggbb' or 'idx:N'; undefined for none (ByLayer) or one not valid. */
+export const colourOut = (c: string | undefined): string | undefined => (colourIndex(c) !== undefined ? c : /^#[0-9a-f]{6}$/i.test(c ?? '') ? c!.toLowerCase() : undefined);
+
 /** How a colour is named in the app: "Colour 8", "Red", "RGB 18,171,52". */
 export function colourLabel(c: string | undefined, blank = 'ByLayer'): string {
   if (!c) return blank;

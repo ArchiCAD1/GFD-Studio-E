@@ -4,6 +4,7 @@ import path from 'node:path';
 import { checkProjectShape } from '../model/projectValidate';
 import { isFutureSchema, migrateProject } from '../model/projectMigrate';
 import type { Project } from '../types';
+import { fileOfAlias } from './privacy';
 import { confine, findFile, MAX_PROJECT_BYTES, readFileWithin } from './safeFiles';
 
 /** Finding and opening project files without the app (command line, MCP server, local API).
@@ -74,8 +75,10 @@ const outsideFolder = (folder: string) => `Only projects inside the projects fol
 
 /** The full path of a project file, or an error saying why it cannot be opened. */
 export function resolveProject({ ref, folder, anywhere }: ProjectRef): string {
-  const name = ref.trim();
-  if (!name) throw new Error('Give a project: a file name in the projects folder, or a path.');
+  const given = ref.trim();
+  if (!given) throw new Error('Give a project: a file name in the projects folder, or a path.');
+  // The id an AI program was given in place of the file name (MCP with names hidden, src/headless/privacy.ts).
+  const name = fileOfAlias(given, folder) ?? given;
   const full = findFile(name, { folder, anywhere }, PROJECT_FILE.test(name) ? [name] : [`${name}.lvds`, `${name}.json`, name]);
   if (!full) throw new Error(`No project "${name}" in ${folder}. Use list_projects to see the project files.`);
   return confine(full, { folder, anywhere }, outsideFolder(folder));
