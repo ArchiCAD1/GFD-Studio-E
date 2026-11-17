@@ -114,11 +114,11 @@ describe('library symbols as CAD blocks', () => {
   });
 
   it('leaves side labels outside the block, as text', () => {
-    const markup = renderToStaticMarkup(<svg><Sym id="rcbo" x={50} y={50} labels /></svg>);
+    const markup = renderToStaticMarkup(<svg><Sym id="contactor" x={50} y={50} labels /></svg>);
     const items = svgToDxf(markup, 100);
     expect(inserts(items)).toHaveLength(1);
-    expect(items.filter((i) => i.type === 'text').map((i) => (i as { text: string }).text)).toEqual(['IΔn']);
-    expect(inserts(items)[0].block.items.some((i) => i.type === 'text' && i.text === 'IΔn')).toBe(false);
+    expect(items.filter((i) => i.type === 'text').map((i) => (i as { text: string }).text)).toEqual(['KM']);
+    expect(inserts(items)[0].block.items.some((i) => i.type === 'text' && i.text === 'KM')).toBe(false);
   });
 
   it('inserts every symbol of the exported SLD sheet, each block defined once', () => {

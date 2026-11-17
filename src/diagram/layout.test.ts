@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHANGEOVER_H, DEWA_EXTRA_Y, LEAF_W, LEVEL_H, ROOT_BUS_Y, layoutSystem } from './layout';
+import { CHANGEOVER_H, DEWA_EXTRA_Y, ELCB_ROW, LEAF_W, LEVEL_H, ROOT_BUS_Y, layoutSystem } from './layout';
 import { busbarReach, wayReach } from './panelLabels';
 import { sampleProject } from '../data/sampleProject';
 import type { Feeder, Project } from '../types';
@@ -211,5 +211,30 @@ describe('room for the busbar description', () => {
     const l = layoutSystem({ ...base, boards: [{ id: 'A', name: 'A' }], feeders: [feeder('A1', 'A')] });
     const a = l.boards[0];
     expect(a.busX2 - a.x).toBeCloseTo(LEAF_W * 0.38);
+  });
+
+  it('with IEC symbols, an ELCB way gives its board a row: levels below and a boxed end board hang lower, the sheet grows', () => {
+    const p: Project = {
+      ...base,
+      boards: [{ id: 'MDB', name: 'M' }, { id: 'SUB', name: 'S', upstreamId: 'MDB' }, { id: 'END', name: 'E', kind: 'DB', upstreamId: 'MDB' }],
+      feeders: [feeder('INC', 'MDB', 'SUB'), feeder('BOX', 'MDB', 'END'), { ...feeder('A', 'MDB'), rcdMa: 30 }, feeder('B', 'SUB')]
+    };
+    for (const frames of [false, true]) {
+      const row = frames ? ELCB_ROW.dewa : ELCB_ROW.standard;
+      const plain = layoutSystem(p, 0, { frames });
+      const l = layoutSystem(p, 0, { frames, iec: true });
+      const at = (lay: typeof l, id: string) => lay.boards.find((b) => b.board.id === id)!;
+      expect(at(plain, 'END').boxed).toBe(true);
+      expect(at(l, 'MDB').elcbRow).toBe(row);
+      expect(at(l, 'SUB').elcbRow).toBeUndefined();
+      expect(at(l, 'MDB').busY).toBe(at(plain, 'MDB').busY); // its own level does not move
+      expect(at(l, 'SUB').busY).toBe(at(plain, 'SUB').busY + row);
+      expect(at(l, 'END').busY).toBe(at(plain, 'END').busY + row);
+      expect(at(l, 'END').headY).toBe(at(plain, 'END').headY + row);
+      expect(l.feeders.find((f) => f.feeder.id === 'B')!.busY).toBe(plain.feeders.find((f) => f.feeder.id === 'B')!.busY + row);
+      expect(l.height).toBe(plain.height + row);
+      // Without IEC symbols the layout is as before.
+      expect(layoutSystem(p, 0, { frames, iec: false }).height).toBe(plain.height);
+    }
   });
 });

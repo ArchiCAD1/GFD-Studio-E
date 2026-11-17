@@ -15,9 +15,16 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.167', date: '2026-11-17',
+    version: '2.172', date: '2026-11-17',
     items: [
       { title: 'SLD: board symbols that show the kind of board', text: 'A board at the end of a feeder is now drawn as a 2:1 symbol whose pattern tells its kind: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, the top half filled for an MCC and a second frame for a main board. The risers, the Board tab, the legend and the equipment strip use the same symbols, existing boards are drawn dashed, and printed sheets no longer show the green check dot.' }
+    ]
+  },
+  {
+    version: '2.170', date: '2026-11-17',
+    items: [
+      { title: 'SLD: earth leakage drawn as on submission drawings', text: 'An ELCB is now drawn as its core-balance CT on the cable, wired to an ELCB box with the sensitivity above it, on its own row under the breaker. RCCB and ELR written in the remarks use the same box with their own word. Only an RCBO stays in the breaker symbol, with its toroid inside it. The breaker text names the device that is drawn (RCBO, ISOLATOR) and no longer repeats the mA.' },
+      { title: 'SLD: larger breakers', text: 'Breakers and switches on the System diagram are drawn 1.5 times larger, so the × and the contacts read clearly; the text stays where it was.' }
     ]
   },
   {
