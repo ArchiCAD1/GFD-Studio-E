@@ -82,8 +82,8 @@ function Incomer({ x, top, busY, side, breaker, instruments, pmu, spd }: {
           <text x={sx + side * 7} y={y('spd') + 3} textAnchor={anchor} className="acc-t b" style={{ fontSize: 8 }}>SPD</text>
         </g>
       )}
-      <rect x={x - 2} y={y('breaker') - 7} width="4" height="31" className="bg-fill" />
-      <SwitchSym x={x} y={y('breaker')} kind={breaker.drawOut ? 'acb' : 'breaker'} />
+      <rect x={x - 2} y={y('breaker') - 9} width="4" height="33" className="bg-fill" />
+      <SwitchSym x={x} y={y('breaker') - 8} kind={breaker.drawOut ? 'acb' : 'breaker'} s={SYM_SCALE.switch} />
       <text x={tx} y={y('breaker') - 2} textAnchor={anchor} className="dev">{lines[0]}</text>
       <text x={tx} y={y('breaker') + 10} textAnchor={anchor} className="dev-k">{lines[1]}</text>
       <text x={tx} y={y('breaker') + 22} textAnchor={anchor} className="dev-k">{lines[2]}</text>

@@ -6,6 +6,7 @@ import { svgToDxf } from './exportSvg';
 import { toDxf, type DxfPrimitive } from '../docs/dxf';
 import { buildSheetDxf } from '../docs/sheetDxf';
 import { dxfExportProject } from '../../tests/fixtures/dxfExport';
+import { ELCB_ROW } from './layout';
 import { earthingDrawing } from './earthingDrawing';
 import { earthingLayout } from '../model/earthingPlan';
 
@@ -138,9 +139,9 @@ describe('SVG to CAD export geometry', () => {
         expect(length.x).toBe(x + 57);
       }
     });
-    // Metadata leaves live/printable SVG baselines unchanged.
+    // Metadata leaves live/printable SVG baselines unchanged (the board's ELCB row, one way having an ELCB unit, sits above the cable text).
     const first = Array.from(groups[0].getElementsByTagName('text')).find((t) => /4C/.test(t.textContent ?? ''))!;
-    expect(Number(first.getAttribute('y'))).toBe(Number(groups[0].getElementsByTagName('line')[0].getAttribute('y1')) + 60);
+    expect(Number(first.getAttribute('y'))).toBe(Number(groups[0].getElementsByTagName('line')[0].getAttribute('y1')) + 60 + ELCB_ROW.dewa);
   });
 
   it.each(['A4', 'A3', 'A2', 'A1'] as const)('scales busbar widths and fitted text together on %s sheets', (size) => {
