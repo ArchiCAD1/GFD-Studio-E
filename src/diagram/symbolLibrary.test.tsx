@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { PANEL_SYMBOL_IDS, placePath, Sym, SYM_BOX, SYMBOL_IDS, SYMBOLS, symSvg, type SymPrim } from './symbolLibrary';
+import { PANEL_SYMBOL_IDS, placePath, Sym, SYM_BOX, SYM_SCALE, SYMBOL_IDS, SYMBOLS, symSvg, type SymPrim } from './symbolLibrary';
 import RiserDiagram, { RiserLegendSvg } from './RiserDiagram';
 import { sampleProject } from '../data/sampleProject';
 import FeederRiserDiagram, { FeederRiserLegendSvg } from './FeederRiserDiagram';
 import { pathPoints } from './svgPath';
-import { FeederSwitchSym, feederSwitchOf, legendEntries, loadSymbolOf, rcdInSwitch, starterSymbolOf, SwitchSym } from './IecSymbols';
+import { elcbUnitOf, FeederSwitchSym, feederSwitchOf, legendEntries, loadSymbolOf, rcdInSwitch, starterSymbolOf, SwitchSym } from './IecSymbols';
 import { sldDevices } from './sldDevices';
 import { ChangeoverIncomers } from './ChangeoverSym';
 import type { Feeder, Project } from '../types';
@@ -75,7 +75,7 @@ describe('symbol library', () => {
     const ys = (k: 'breaker' | 'isolator') => renderToStaticMarkup(<svg><SwitchSym x={0} y={0} kind={k} /></svg>).match(/V\s?(-?[\d.]+)/g);
     expect(ys('breaker')?.[0]).toBe(ys('isolator')?.[0]);
     const svg = renderToStaticMarkup(<svg><SwitchSym x={0} y={0} kind="breaker" /></svg>);
-    expect(svg).toContain('L -5.5 3'); // blade from the pivot at y + 16 to the open tip
+    expect(svg).toContain('V 12 L -4.25 3'); // line from the foot to the blade's pivot at y + 12, then the blade to the open tip
   });
 
   it('maps loads to library symbols', () => {
@@ -116,23 +116,40 @@ describe('SLD symbol mappings', () => {
     expect(sldDevices(fd({ loadType: 'motor' })).starterType).toBe('DOL');
   });
 
-  it('puts the earth leakage protection in the switch: RCBO on a breaker, RCCB on a switch', () => {
+  it('puts only an RCBO in the switch; any other earth leakage is the ELCB unit under the breaker', () => {
     expect(feederSwitchOf(fd({}))).toBe('cb');
-    expect(feederSwitchOf(fd({ rcdMa: 30 }))).toBe('rcbo');
-    expect(feederSwitchOf(fd({ rcdMa: 30, device: 'ISOL' }))).toBe('rccb');
+    expect(feederSwitchOf(fd({ remarks: 'RCBO 30mA' }))).toBe('rcbo');
+    expect(feederSwitchOf(fd({ remarks: 'RCBO 30mA', device: 'ISOL' }))).toBe('rcbo');
     expect(feederSwitchOf(fd({ device: 'ISOL' }))).toBe('isolator');
-    // Remarks: a separate RCCB after the breaker, or an ELR, stay boxed beside the line.
-    expect(feederSwitchOf(fd({ rcdMa: 30, remarks: 'RCCB 30mA' }))).toBe('cb');
-    expect(feederSwitchOf(fd({ rcdMa: 100, remarks: 'ELR' }))).toBe('cb');
-    expect(feederSwitchOf(fd({ rcdMa: 30, remarks: 'no elcb' }))).toBe('cb');
+    expect(rcdInSwitch(fd({ remarks: 'RCBO 30mA' }))).toBe(true);
+    expect(elcbUnitOf(fd({ remarks: 'RCBO 30mA' }))).toBeUndefined();
+    // rcdMa alone is an ELCB; RCCB, RCD and ELR in the remarks keep their word.
+    expect(feederSwitchOf(fd({ rcdMa: 30 }))).toBe('cb');
+    expect(elcbUnitOf(fd({ rcdMa: 30 }))).toEqual({ word: 'ELCB', ma: 30 });
+    expect(feederSwitchOf(fd({ rcdMa: 30, device: 'ISOL' }))).toBe('isolator');
+    expect(elcbUnitOf(fd({ rcdMa: 30, remarks: 'ELCB' }))?.word).toBe('ELCB');
+    expect(elcbUnitOf(fd({ rcdMa: 30, remarks: 'RCCB 30mA' }))).toEqual({ word: 'RCCB', ma: 30 });
+    expect(elcbUnitOf(fd({ remarks: 'RCD 100mA' }))).toEqual({ word: 'RCD', ma: 100 });
+    expect(elcbUnitOf(fd({ rcdMa: 100, remarks: 'ELR' }))).toEqual({ word: 'ELR', ma: 100 });
+    expect(feederSwitchOf(fd({ rcdMa: 30, remarks: 'ELR' }))).toBe('cb');
+    // An ACB keeps its symbol and gets the unit, also when it is written as an RCBO.
     expect(feederSwitchOf(fd({ rcdMa: 300, device: 'ACB' }))).toBe('acb');
-    expect(rcdInSwitch(fd({ rcdMa: 30 }))).toBe(true);
-    expect(rcdInSwitch(fd({ rcdMa: 30, device: 'ACB' }))).toBe(false);
+    expect(feederSwitchOf(fd({ remarks: 'RCBO 300mA', device: 'ACB' }))).toBe('acb');
+    expect(elcbUnitOf(fd({ remarks: 'RCBO 300mA', device: 'ACB' }))).toEqual({ word: 'ELCB', ma: 300 });
+    expect(elcbUnitOf(fd({ rcdMa: 30, remarks: 'no elcb' }))).toBeUndefined();
+    expect(rcdInSwitch(fd({ rcdMa: 30 }))).toBe(false);
   });
 
-  it('draws the RCBO in the breaker slot with its toroid on the line', () => {
-    const svg = renderToStaticMarkup(<svg><FeederSwitchSym x={0} y={0} f={fd({ rcdMa: 30 })} /></svg>);
-    expect(svg).toContain('<ellipse cx="0" cy="19" rx="3" ry="1.5"');
+  it('draws the RCBO in a 24-unit slot at switch scale, its toroid in the foot and its link left of the line', () => {
+    const svg = renderToStaticMarkup(<svg><FeederSwitchSym x={0} y={0} f={fd({ remarks: 'RCBO 30mA' })} s={SYM_SCALE.switch} /></svg>);
+    expect(svg).toContain('data-sym="rcbo"');
+    expect(svg).toContain('data-sym-y="12"'); // centre of a slot from 0 to 24
+    const cy = +/<ellipse[^>]* cy="(-?[\d.]+)"/.exec(svg)![1];
+    expect(cy).toBeGreaterThan(0);
+    expect(cy).toBeLessThan(24);
+    const dash = /<path d="([^"]+)" class="ln" style="[^"]*stroke-dasharray/.exec(svg)![1];
+    const xs = [...dash.matchAll(/[MHL]\s?(-?[\d.]+)/g)].map((m) => +m[1]);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(0);
   });
 
   it('mirrors a flipped symbol about its centre', () => {
@@ -144,11 +161,13 @@ describe('SLD symbol mappings', () => {
 
   it('lists the drawn symbols in the legend', () => {
     const board = { id: 'DB-1', name: 'DB-1', pmu: true, spd: 'T2' } as Project['boards'][number];
-    const project = { boards: [board], feeders: [fd({ loadType: 'motor', starter: 'VFD', rcdMa: 30, kwhMeter: 'CT' }), fd({ id: 'F2', device: 'ISOL', rcdMa: 30 })] } as unknown as Project;
+    const project = { boards: [board], feeders: [fd({ loadType: 'motor', starter: 'VFD', rcdMa: 30, kwhMeter: 'CT' }), fd({ id: 'F2', device: 'ISOL', remarks: 'RCBO 30mA' })] } as unknown as Project;
     const keys = legendEntries(project).map((e) => e.key);
-    expect(keys).toEqual(expect.arrayContaining(['rcbo', 'rccb', 'vfd', 'pmu', 'spd', 'ct', 'kwh']));
+    expect(keys).toEqual(expect.arrayContaining(['rcbo', 'elcb', 'vfd', 'pmu', 'spd', 'ct', 'kwh']));
     expect(keys).not.toContain('dol');
+    expect(keys).not.toContain('rccb');
     expect(keys).not.toContain('rcd');
+    expect(legendEntries({ ...project, feeders: [fd({})] } as unknown as Project).map((e) => e.key)).not.toContain('elcb');
     const legend = renderToStaticMarkup(<svg>{legendEntries(project).find((e) => e.key === 'vfd')!.draw(0, 0)}</svg>);
     expect(legend).toContain('>f1<');
   });

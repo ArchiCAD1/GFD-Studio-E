@@ -42,7 +42,7 @@ describe('SLD library symbols', () => {
     const texts = [...g.querySelectorAll('text')].map((t) => t.textContent);
     expect(texts).toEqual(expect.arrayContaining(['f1', 'f2', 'kWh'])); // VFD symbol and kWh meter
     expect(texts).not.toContain('VFD'); // no boxed starter label in IEC style
-    expect(texts).not.toContain('ELCB'); // the RCBO symbol carries it
-    expect(g.querySelectorAll('ellipse').length).toBe(1); // RCBO toroid
+    expect(texts).toContain('ELCB'); // the ELCB unit under the breaker names it
+    expect(g.querySelectorAll('[data-sym="cbct"]')).toHaveLength(1); // its core-balance CT on the cable
   });
 });

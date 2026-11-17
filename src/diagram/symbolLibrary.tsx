@@ -31,9 +31,10 @@ const t = (x: number, y: number, s: string, b?: true): SymPrim => ({ k: 't', x, 
 const side = (s: string, y = 40): SymPrim => ({ k: 't', x: 48, y, s, side: true, acc: true });
 const toroid = (y: number): SymPrim => ({ k: 'e', cx: 30, cy: y, rx: 6, ry: 3, c: 'open', acc: true });
 
-// Switching parts: fixed contact at y 28, blade pivot at the body bottom.
+// Switching parts: fixed contact at y 28; the blade pivots at y 48, so the frame's foot (48–56) is plain
+// line where an RCD's toroid sits.
 const CON = 'M30 24V28';
-const BLADE = 'M30 56L19 30';
+const BLADE = 'M30 56V48L21.5 30';
 const CROSS = 'M26 24L34 32M34 24L26 32'; // breaker function 07-13-05
 const BAR = 'M25 28H35'; // disconnector function 07-13-06
 const CB = [p(`${CON} ${CROSS} ${BLADE}`)];
@@ -52,7 +53,8 @@ const CROSS_LINES = p('M5 27.5L55 52.5M5 52.5L55 27.5');
 const instrument = (letter: string, sub?: string): SymPrim[] => sub
   ? [c(30, 40, 14), t(30, 36, letter, true), t(30, 48, sub)]
   : [c(30, 40, 14), t(30, 40, letter, true)];
-const rcdLink = [toroid(62), p('M36 62H44V40H24', 'dash', true), { k: 't', x: 48, y: 66, s: 'IΔn', side: true, acc: true } as SymPrim];
+/** An RCD in the frame's foot: the toroid round the line, its operating link (dashed) up the blade side. */
+const RCD: SymPrim[] = [{ k: 'e', cx: 30, cy: 52, rx: 7, ry: 2.6, c: 'open' }, p('M23 52H17V40H26.2', 'dash')];
 /** Ring main unit: two ring switch-disconnectors and a T-off fuse switch-disconnector on one busbar, each the
  * library's own device at half size, blades toward the middle. The ring cables enter at the top on x 18.5 and
  * 41.5; the T-off leaves at the bottom on the line axis. */
@@ -72,9 +74,9 @@ export const SYMBOLS = {
   swdisc: { label: 'Switch-disconnector', iec: '07-13-08', prims: [...ISOL, c(30, 31, 2, 'open')] },
   contactor: { label: 'Contactor', iec: '07-13-02', prims: [p(`${CON} ${BLADE}`), p('M26 28A4 4 0 0 1 34 28', 'open'), side('KM')] },
   fuse: { label: 'Fuse', iec: '07-21-01', prims: [r(24, 24, 12, 32), p('M30 24V56')] },
-  fusesw: { label: 'Fuse switch-disconnector', iec: '07-21-07', prims: [...ISOL, p('M18.1 35.8L24.6 33.2L29.9 46.2L23.4 48.8Z', 'open')] },
-  rcbo: { label: 'RCBO (breaker with RCD)', iec: '07-13-05 + 07-20', prims: [...CB, ...rcdLink] },
-  rccb: { label: 'RCCB / ELCB', iec: '07-13-08 + 07-20', prims: [...ISOL, ...rcdLink] },
+  fusesw: { label: 'Fuse switch-disconnector', iec: '07-21-07', prims: [...ISOL, p('M25.9 32.3L31.02 43.14L25.6 45.7L20.48 34.86Z', 'open')] },
+  rcbo: { label: 'RCBO (breaker with RCD)', iec: '07-13-05 + 07-20', prims: [...CB, ...RCD] },
+  rccb: { label: 'RCCB / ELCB', iec: '07-13-08 + 07-20', prims: [...ISOL, c(30, 31, 2, 'open'), ...RCD] },
   rcd: { label: 'Earth leakage protection (RCD)', iec: '07-20', prims: [p('M30 24V56'), { k: 'e', cx: 30, cy: 40, rx: 6, ry: 3, c: 'open' }] },
   shunt: { label: 'Breaker with shunt trip', iec: '07-13-05 + 07-15', prims: [...CB, p('M25 42H48', 'dash', true), r(48, 36, 12, 12, 'sym', true), { k: 't', x: 54, y: 42, s: 'ST', acc: true }] },
   ats: { label: 'Changeover / ATS', iec: '07-02-05', prims: [p('M18 24V30M42 24V30M30 56L19 31'), side('ATS')] },
@@ -115,6 +117,9 @@ export const SYMBOLS = {
   pmu: { label: 'Power monitoring unit (PMU)', iec: '08-04', prims: [...box('PMU'), ...SIGNAL('RS485')] },
   bms: { label: 'BMS interface', iec: '—', prims: [...box('BMS'), ...SIGNAL('BMS')] },
   faim: { label: 'Fire alarm interface module', iec: '—', prims: [...box('FAIM'), ...SIGNAL('FA')] },
+  /** Ring core round the feeder's cable with a two-turn winding on its left end; the leads end at u 43.33, where
+   * the ELCB box starts at scale 0.75 (x + 10). No line of its own: the cable passes through it. */
+  cbct: { label: 'Core-balance CT wired to an ELCB / RCCB / ELR', iec: '06-09-11', prims: [{ k: 'e', cx: 30, cy: 40, rx: 7.4, ry: 2.9, c: 'open' }, p('M43.33 30.67H25A4.67 4.67 0 0 0 25 40A4.67 4.67 0 0 0 25 49.33H43.33')] },
   elr: { label: 'Earth leakage relay with CBCT', iec: '07-20 + 06-09-11', prims: [p('M30 24V56'), toroid(30), p('M36 30H48V36', 'dash', true), r(38, 36, 20, 14, 'sym', true), { k: 't', x: 48, y: 43, s: 'ELR', acc: true }] },
   lamp: { label: 'Indication lamp', iec: '08-10-01', prims: [p('M30 24V56M30 40H44'), c(50, 40, 6, 'sym', true), p('M46 36L54 44M54 36L46 44', 'ln', true)] },
   spd: { label: 'Surge protective device (SPD)', iec: '07-22-03', prims: [r(22, 24, 16, 32), p('M30 28V52M27 48L30 52L33 48'), p('M30 56V60', 'ln', true), EARTH(60, true)] },
@@ -139,11 +144,12 @@ export const SYMBOL_IDS = Object.keys(SYMBOLS) as SymbolId[];
 /** Boards drawn as one symbol. */
 export const PANEL_SYMBOL_IDS = SYMBOL_IDS.filter((id) => id.startsWith('p-'));
 
-/** Scale per drawing role: switching devices fill the 16-unit breaker slot,
- * loads the 28-unit load slot; the legend draws every symbol at one size.
+/** Scale per drawing role: switching devices fill the 16-unit breaker slot (device) or, on the System
+ * diagram's feeders, spares and incomers, a 24-unit slot (switch); loads the 28-unit
+ * load slot; the legend draws every symbol at one size.
  * A starter's code box (DOL, Y-Δ) is drawn larger, here and in the legend:
  * 22 × 14, so its 7.5 px code keeps about 3 units clear of the box. */
-export const SYM_SCALE = { device: 0.5, starter: 0.8, load: 0.875, legend: 0.6 } as const;
+export const SYM_SCALE = { device: 0.5, switch: 0.75, starter: 0.8, load: 0.875, legend: 0.6 } as const;
 
 const n = (v: number) => +v.toFixed(2);
 
