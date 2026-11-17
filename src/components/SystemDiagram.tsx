@@ -30,7 +30,7 @@ import { sldDevices } from '../diagram/sldDevices';
 import { breakerText, cableLines, fireRatedWarning, icuText, incomerReach, incomerTexts, isolatorText, busbarLines, sparePoles, spareText, supplyReach, textWidth } from '../diagram/panelLabels';
 import { cableSizeText, faultCurrentKA, impedanceToBoard, runsOf, upstreamVoltageDropPct } from '../calc/electrical';
 import { MOTOR_START_DIP_LIMIT_PCT, type GeneratorRun, type OutageScenario } from '../calc/scenario';
-import { boardRatio, COLOR_BY, earthRatio, feederRatio, heatColor, type ColorBy } from '../diagram/heatmap';
+import { boardRatio, COLOR_BY, earthRatio, feederRatio, heatColor, supplyOf, supplyTint, SUPPLY_COLOR, SUPPLY_LEGEND, type ColorBy } from '../diagram/heatmap';
 import { evaluateEarthingAll } from '../calc/earthing';
 import { earthingLayout } from '../model/earthingPlan';
 import { INCOMER_DEVICES, incomerDeviceOf, type Board, type Feeder } from '../types';
@@ -230,13 +230,13 @@ const boardSymbolReach = (project: Project, b: Board) => Math.max(incomerReach(p
   BOARD_SYM / 2 + 8 + Math.max(textWidth(trunc(b.id, 14), 12, true), textWidth('R 000.0 · Y 000.0 · B 000.0 kW', 10.5, true)));
 /** A board with no outgoing ways: the incomer ends on the board's symbol (its pattern tells the kind),
  * with the name and kind on its right. The symbol's body centre is 16 units under its lead-in's start. */
-function BoardSymbol({ project, board: b, x, top, status, sel, place }: { project: Project; board: Board; x: number; top: number; status: string; sel: boolean; place?: string }) {
+function BoardSymbol({ project, board: b, x, top, status, sel, place, tint }: { project: Project; board: Board; x: number; top: number; status: string; sel: boolean; place?: string; tint?: string }) {
   const h = BOARD_SYM / 2;
   const kind = b.kind ?? (b.upstreamId ? 'DB' : 'MDB');
   const s = SYM_SCALE.load;
   return (
     <g className="board-sym">
-      <Sym id={boardSymbolOf(project, b)} x={x} y={top + 16 * s} s={s} existing={!!b.existing} />
+      <Sym id={boardSymbolOf(project, b)} x={x} y={top + 16 * s} s={s} existing={!!b.existing} tint={tint} />
       {sel && <rect x={x - 25 * s} y={top + 3.5 * s} width={50 * s} height={25 * s} style={{ fill: 'none', stroke: 'var(--acc)', strokeWidth: 2 }} />}
       <text className="b lod-name" x={x + h + 8} y={top + 16}>{trunc(b.id, 14)}</text>
       <circle className="status-dot" cx={x + h + 8 + textWidth(trunc(b.id, 14), 12, true) + 7} cy={top + 12} r="3" style={{ fill: `var(--${status})` }} />
@@ -501,6 +501,7 @@ export default function SystemDiagram({
     () => (colorBy === 'earth' ? new Map(evaluateEarthingAll(running).map((e) => [e.feeder.id, e])) : undefined),
     [colorBy, running]
   );
+  const supply = useMemo(() => (colorBy === 'supply' ? supplyOf(project) : undefined), [colorBy, project]);
   const feederHeat = (id: string) => {
     const r = byFeeder.get(id);
     const e = earthing?.get(id);
@@ -1281,6 +1282,7 @@ export default function SystemDiagram({
         {layout.feeders.map((n) => {
           if (cull && (n.x < viewX1 || n.x > viewX2)) return null;
           const f = n.feeder;
+          const supplyC = supply && SUPPLY_COLOR[supply.feeder(f)];
           const r = byFeeder.get(f.id);
           const status = r?.status ?? 'ok';
           const sel = f.id === selectedFeederId;
@@ -1322,8 +1324,8 @@ export default function SystemDiagram({
               {dewa ? <text x={n.x + 10} y={y + 37} className="dev-k" data-dxf-max-width={cadDeviceWidth}>{icuText(f, iec)}</text>
                 : iec && <text x={n.x + 10} y={y + 41} className="acc-t" data-dxf-max-width={cadDeviceWidth}>{polesText(f)} · {f.breakerIcuKa} kA</text>}
               {dewa && <text x={n.x - (iec ? 12 : 5)} y={y + (iec ? 12 : 13)} textAnchor="end" className="acc-t way-no">{wayNo.get(f.id)}</text>}
-              <line x1={n.x} y1={y + 34} x2={n.x} y2={endY} className={`ln ${status !== 'ok' ? status : ''}${cableTypeOf(project, f).fireRated ? ' fr' : ''}`}
-                style={feederHeat(f.id) ? { stroke: feederHeat(f.id), strokeWidth: 3.5 } : undefined} />
+              <line x1={n.x} y1={y + 34} x2={n.x} y2={endY} className={`ln ${status !== 'ok' ? status : ''}${cableTypeOf(project, f).fireRated ? ' fr' : ''}${supplyC ? ' screen-c' : ''}`}
+                style={supplyC ? { stroke: supplyC } : feederHeat(f.id) ? { stroke: feederHeat(f.id), strokeWidth: 3.5 } : undefined} />
               {dewa ? <text className="dev" x={n.x + 10} y={y + 26} data-dxf-max-width={cadDeviceWidth}>{breakerText(f, iec)}</text>
                 : <text className="b" x={n.x + 10} y={y + 30} data-dxf-max-width={cadDeviceWidth}>{f.breakerRatingA} A{(iec ? rcdInSwitch(f) : f.rcdMa) && (sldDevices(f).elcb?.ma ?? f.rcdMa) ? <tspan className="acc-t"> · {iec ? sldDevices(f).elcb?.ma ?? f.rcdMa : f.rcdMa} mA</tspan> : null}</text>}
               <text
@@ -1449,10 +1451,10 @@ export default function SystemDiagram({
                 <>
                   {panel && sym ? (
                     <>
-                      <line x1={n.x} y1={y + 76 + ex} x2={n.x} y2={y + 80 + ex} className="ln" />
+                      <line x1={n.x} y1={y + 76 + ex} x2={n.x} y2={y + 80 + ex} className={supplyC ? 'ln screen-c' : 'ln'} style={supplyC ? { stroke: supplyC } : undefined} />
                       <g className="sched" onDoubleClick={(e) => { e.stopPropagation(); edit(onOpenSchedule, panel.id)(); }}>
                         <title>{`${panel.id}: its final circuits are on the load schedule — double-click to open it`}</title>
-                        <Sym id={sym} x={n.x} y={y + 94 + ex} s={SYM_SCALE.load} existing={!!panel.existing} />
+                        <Sym id={sym} x={n.x} y={y + 94 + ex} s={SYM_SCALE.load} existing={!!panel.existing} tint={supply && supplyTint(supply.board(panel))} />
                       </g>
                     </>
                   ) : iec ? (
@@ -1673,7 +1675,7 @@ export default function SystemDiagram({
                 );
               })()}
               {/* Board box; a framed DEWA panel names itself in the frame header, so its incoming line runs straight on. */}
-              {n.terminal ? <BoardSymbol project={project} board={b} x={n.x} top={n.busY - 58} status={status} sel={sel} place={place} /> : dewa ? <line x1={n.x} y1={n.busY - 58} x2={n.x} y2={n.busY - 22} className="ln" /> : (
+              {n.terminal ? <BoardSymbol project={project} board={b} x={n.x} top={n.busY - 58} status={status} sel={sel} place={place} tint={supply && supplyTint(supply.board(b))} /> : dewa ? <line x1={n.x} y1={n.busY - 58} x2={n.x} y2={n.busY - 22} className="ln" /> : (
                 <>
                   <rect x={n.x - 62} y={n.busY - 58} width="124" height="36" rx="6" className="box" style={sel ? { stroke: 'var(--acc)', strokeWidth: 2 } : undefined} />
                   <text className="b lod-name" x={n.x - 54} y={n.busY - 42}>{trunc(b.id, 14)}</text>
@@ -1892,10 +1894,19 @@ export default function SystemDiagram({
       </svg>
       <ViewZoomChip view={view} W={W} subscribe={subscribeZoom} onFit={() => setVb(full)} />
       {colorBy !== 'none' && (
-        <div className="heat-legend">
+        // The Supply explanation is long: it wraps rather than widening the box over the drawing.
+        <div className="heat-legend" style={colorBy === 'supply' ? { maxWidth: 360 } : undefined}>
           <b>{COLOR_BY.find((c) => c.value === colorBy)?.label}</b>
-          <div className="heat-bar" />
-          <div className="heat-ticks"><span>0</span><span>50%</span><span>85%</span><span>≥100% of limit</span></div>
+          {colorBy === 'supply' ? (
+            <div className="heat-ticks">{SUPPLY_LEGEND.map((k) => (
+              <span key={k.supply}><span style={{ display: 'inline-block', width: 16, height: 3, marginRight: 5, verticalAlign: 'middle', background: SUPPLY_COLOR[k.supply] }} />{k.label}</span>
+            ))}</div>
+          ) : (
+            <>
+              <div className="heat-bar" />
+              <div className="heat-ticks"><span>0</span><span>50%</span><span>85%</span><span>≥100% of limit</span></div>
+            </>
+          )}
           <span className="m">{COLOR_BY.find((c) => c.value === colorBy)?.legend}</span>
         </div>
       )}

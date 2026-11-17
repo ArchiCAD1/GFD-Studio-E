@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.173', date: '2026-11-17',
+    items: [
+      { title: 'SLD: Colour by → Supply', text: 'A new Supply choice under Colour by shows on screen which boards and cables are on emergency supply (red: on or below an emergency board or a board with a standby generator), on a UPS (blue) or existing (grey). Printed sheets, PDF and DXF stay black and white.' }
+    ]
+  },
+  {
     version: '2.172', date: '2026-11-17',
     items: [
       { title: 'SLD: board symbols that show the kind of board', text: 'A board at the end of a feeder is now drawn as a 2:1 symbol whose pattern tells its kind: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, the top half filled for an MCC and a second frame for a main board. The risers, the Board tab, the legend and the equipment strip use the same symbols, existing boards are drawn dashed, and printed sheets no longer show the green check dot.' }
