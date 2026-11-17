@@ -19,8 +19,8 @@ describe('incomer switching device', () => {
     for (const g of incomers) {
       const mask = g.querySelector('rect.bg-fill')!;
       const bottom = Number(mask.getAttribute('y')) + Number(mask.getAttribute('height'));
-      // The blade is the path's last segment, drawn from its pivot at the body bottom: "M30 56L19 30" in the library.
-      const pivot = /M\s*\S+\s+(\S+)\s*L\s*\S+\s+\S+\s*$/.exec(g.querySelector('g.iec path')!.getAttribute('d')!)!;
+      // The blade is the path's last segment, drawn from the foot's end up to its pivot: "M30 56V48L21.5 30" in the library.
+      const pivot = /M\s*\S+\s+(\S+)\s*V\s*\S+\s*L\s*\S+\s+\S+\s*$/.exec(g.querySelector('g.iec path')!.getAttribute('d')!)!;
       expect(bottom).toBeLessThanOrEqual(Number(pivot[1]));
     }
   });
