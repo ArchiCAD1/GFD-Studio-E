@@ -35,7 +35,7 @@ function sizeOf(svg: string) {
 function shift(p: DxfPrimitive, dx: number, dy = 0): DxfPrimitive {
   switch (p.type) {
     case 'line': return { ...p, x1: p.x1 + dx, y1: p.y1 + dy, x2: p.x2 + dx, y2: p.y2 + dy };
-    case 'polyline': return { ...p, points: p.points.map(([x, y]) => [x + dx, y + dy]) };
+    case 'polyline': case 'solid': return { ...p, points: p.points.map(([x, y]) => [x + dx, y + dy]) };
     case 'insert': return { ...p, x: p.x + dx, y: p.y + dy, attribs: p.attribs.map((a) => ({ ...a, x: a.x + dx, y: a.y + dy })), ...(p.extent ? { extent: [[p.extent[0][0] + dx, p.extent[0][1] + dy], [p.extent[1][0] + dx, p.extent[1][1] + dy]] as [[number, number], [number, number]] } : {}) };
     default: return { ...p, x: p.x + dx, y: p.y + dy };
   }
@@ -58,6 +58,7 @@ function placeSvg(svg: string, box: DxfBox, layer?: string, centre = true): { it
     switch (p.type) {
       case 'line': return { ...p, layer: L, x1: X(p.x1), y1: Y(p.y1), x2: X(p.x2), y2: Y(p.y2), ...lt(Math.hypot(p.x2 - p.x1, p.y2 - p.y1) * s), ...(p.width ? { width: p.width * s } : {}) };
       case 'polyline': return { ...p, layer: L, points: p.points.map(([a, b]) => [X(a), Y(b)]), ...lt(run(p.points, p.closed)), ...(p.width ? { width: p.width * s } : {}) };
+      case 'solid': return { ...p, layer: L, points: p.points.map(([a, b]) => [X(a), Y(b)]) };
       case 'circle': return { ...p, layer: L, x: X(p.x), y: Y(p.y), r: p.r * s, ...lt(2 * Math.PI * p.r * s) };
       case 'text': return { ...p, layer: L, x: X(p.x), y: Y(p.y), height: p.height * s, ...(p.width ? { width: p.width * s } : {}) };
       case 'insert': return { ...p, layer: L, x: X(p.x), y: Y(p.y), scale: (p.scale ?? 1) * s, ...(p.extent ? { extent: [[X(p.extent[0][0]), Y(p.extent[0][1])], [X(p.extent[1][0]), Y(p.extent[1][1])]] as [[number, number], [number, number]] } : {}) };

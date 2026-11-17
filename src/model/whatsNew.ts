@@ -15,16 +15,28 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.172', date: '2026-11-17',
+    version: '2.175', date: '2026-11-17',
     items: [
       { title: 'Design CAD: Move, Copy, Rotate, Mirror, Scale and Stretch show the result before the click', text: 'After the base point, every object picked follows the cursor dashed, and each device as its own symbol, faded, so you see where they go before you click. Mirror shows the mirrored copies along the mirror line, and Scale shows the objects at the factor while you type it. After the Stretch window, the drawn objects it caught look picked, with a square on each point that will move. Up to 2,000 objects show; above that, only the rubber line.', action: 'cad', actionLabel: 'Open Design CAD' },
       { title: 'Design CAD: rotate several objects at once', text: 'Rotate now works on several objects picked together. Drawn objects turn about the base point, devices move round it, and cameras and speakers also turn by the angle. Click the angle or type it in degrees.', action: 'cad', actionLabel: 'Open Design CAD' }
     ]
   },
   {
-    version: '2.171', date: '2026-11-17',
+    version: '2.174', date: '2026-11-17',
     items: [
       { title: 'Design CAD: Trim and Extend show the result before the click', text: 'In Trim, the part a click would cut away fades and turns dashed as the cursor passes over a line, so you see what goes before you click. In Extend, the new length shows dashed up to the line it will reach, with a small cross where it meets it. Hold Shift to see the other one, as a Shift-click does. Both commands keep the pick box between clicks and mark only drawn lines, and are quicker on large drawings.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.173', date: '2026-11-17',
+    items: [
+      { title: 'SLD: Colour by → Supply', text: 'A new Supply choice under Colour by shows on screen which boards and cables are on emergency supply (red: on or below an emergency board or a board with a standby generator), on a UPS (blue) or existing (grey). Printed sheets, PDF and DXF stay black and white.' }
+    ]
+  },
+  {
+    version: '2.172', date: '2026-11-17',
+    items: [
+      { title: 'SLD: board symbols that show the kind of board', text: 'A board at the end of a feeder is now drawn as a 2:1 symbol whose pattern tells its kind: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, the top half filled for an MCC and a second frame for a main board. The risers, the Board tab, the legend and the equipment strip use the same symbols, existing boards are drawn dashed, and printed sheets no longer show the green check dot.' }
     ]
   },
   {

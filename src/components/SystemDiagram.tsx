@@ -11,7 +11,7 @@ import { dbSpares, spareBreaker } from '../model/spareWays';
 import { besideScaleOf, FeederSwitchSym, LEGEND_ROW, LEGEND_SYM_X, LEGEND_TEXT_X, elcbUnitOf, legendEntries, legendWidth, LoadSym, polesText, rcdInSwitch, starterSymbolOf, SwitchSym, switchKindOf } from '../diagram/IecSymbols';
 import { legendLineY, legendPxFor, legendRows } from '../diagram/legendLayout';
 import { Sym, SYM_BOX, SYM_SCALE, type SymbolId } from '../diagram/symbolLibrary';
-import { panelSymbolOf } from '../diagram/panelBox';
+import { boardSymbolOf, panelSymbolOf } from '../diagram/panelBox';
 import { izText, type FeederResult, type Status } from '../calc/electrical';
 import { boardSummary, loadTypeOf } from '../calc/summary';
 import { failReasons, quickFixes } from '../calc/quickFix';
@@ -30,7 +30,7 @@ import { sldDevices } from '../diagram/sldDevices';
 import { breakerText, cableLines, fireRatedWarning, icuText, incomerReach, incomerTexts, isolatorText, busbarLines, sparePoles, spareText, supplyReach, textWidth } from '../diagram/panelLabels';
 import { cableSizeText, faultCurrentKA, impedanceToBoard, runsOf, upstreamVoltageDropPct } from '../calc/electrical';
 import { MOTOR_START_DIP_LIMIT_PCT, type GeneratorRun, type OutageScenario } from '../calc/scenario';
-import { boardRatio, COLOR_BY, earthRatio, feederRatio, heatColor, type ColorBy } from '../diagram/heatmap';
+import { boardRatio, COLOR_BY, earthRatio, feederRatio, heatColor, supplyOf, supplyTint, SUPPLY_COLOR, SUPPLY_LEGEND, type ColorBy } from '../diagram/heatmap';
 import { evaluateEarthingAll } from '../calc/earthing';
 import { earthingLayout } from '../model/earthingPlan';
 import { INCOMER_DEVICES, incomerDeviceOf, type Board, type Feeder } from '../types';
@@ -219,7 +219,7 @@ const dbSpareText = (b: Board): string => {
 };
 const trunc = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
-/** Side of the board symbol a board with no outgoing ways is drawn as. */
+/** Nominal width of the board symbol a board with no outgoing ways is drawn as (it is 43.75 wide). */
 const BOARD_SYM = 44;
 /** DEWA style, its dashed panel frame: from this far left of the incomer line (room for the MET),
  * and this far past its text on the right and below. */
@@ -228,25 +228,18 @@ const BOARD_FRAME_IN = 86, BOARD_FRAME_PAD = 8;
  * name and the tags beside the symbol (allowing for a three-figure phase-load line). */
 const boardSymbolReach = (project: Project, b: Board) => Math.max(incomerReach(project, b),
   BOARD_SYM / 2 + 8 + Math.max(textWidth(trunc(b.id, 14), 12, true), textWidth('R 000.0 · Y 000.0 · B 000.0 kW', 10.5, true)));
-/** A board with no outgoing ways: the incomer ends on an enclosure with its busbar and ways drawn
- * inside (a DB one way, a package panel its control rows), with the name and kind on its right. */
-function BoardSymbol({ board: b, x, top, status, sel, place }: { board: Board; x: number; top: number; status: string; sel: boolean; place?: string }) {
-  const k = BOARD_SYM / 16, h = BOARD_SYM / 2;
-  const at = (u: number) => (u - 12) * k; // palette icon units (24 grid, 16 wide box) to offsets
-  const bus = top + 6 * k;
+/** A board with no outgoing ways: the incomer ends on the board's symbol (its pattern tells the kind),
+ * with the name and kind on its right. The symbol's body centre is 16 units under its lead-in's start. */
+function BoardSymbol({ project, board: b, x, top, status, sel, place, tint }: { project: Project; board: Board; x: number; top: number; status: string; sel: boolean; place?: string; tint?: string }) {
+  const h = BOARD_SYM / 2;
   const kind = b.kind ?? (b.upstreamId ? 'DB' : 'MDB');
-  const inner = kind === 'DB' || kind === 'EDB'
-    ? <line x1={x} y1={bus} x2={x} y2={top + 13 * k} className="ln" />
-    : kind === 'MCC' || kind === 'EMCC' || kind === 'FP'
-      ? <path d={`M${x + at(8)} ${top + 10 * k} H${x + at(16)} M${x + at(8)} ${top + 13 * k} H${x + at(16)}`} className="ln" />
-      : <path d={`M${x + at(9)} ${bus} V${top + 14 * k} M${x + at(15)} ${bus} V${top + 14 * k}`} className="ln" />;
+  const s = SYM_SCALE.load;
   return (
     <g className="board-sym">
-      <rect x={x - h} y={top} width={BOARD_SYM} height={BOARD_SYM} rx="2" className="box" style={sel ? { stroke: 'var(--acc)', strokeWidth: 2 } : undefined} />
-      <line x1={x + at(5.5)} y1={bus} x2={x + at(18.5)} y2={bus} className="ln" style={{ strokeWidth: 2.2 }} />
-      {inner}
-      <circle cx={x + h - 6} cy={top + 6} r="3" style={{ fill: `var(--${status})` }} />
+      <Sym id={boardSymbolOf(project, b)} x={x} y={top + 16 * s} s={s} existing={!!b.existing} tint={tint} />
+      {sel && <rect x={x - 25 * s} y={top + 3.5 * s} width={50 * s} height={25 * s} style={{ fill: 'none', stroke: 'var(--acc)', strokeWidth: 2 }} />}
       <text className="b lod-name" x={x + h + 8} y={top + 16}>{trunc(b.id, 14)}</text>
+      <circle className="status-dot" cx={x + h + 8 + textWidth(trunc(b.id, 14), 12, true) + 7} cy={top + 12} r="3" style={{ fill: `var(--${status})` }} />
       <text className="m" x={x + h + 8} y={top + 30}>{`${kind}${b.existing ? ' · EXISTING' : ''}`}</text>
       {place && <text className="m" x={x + h + 8} y={top + 44}>{place}</text>}
     </g>
@@ -508,6 +501,7 @@ export default function SystemDiagram({
     () => (colorBy === 'earth' ? new Map(evaluateEarthingAll(running).map((e) => [e.feeder.id, e])) : undefined),
     [colorBy, running]
   );
+  const supply = useMemo(() => (colorBy === 'supply' ? supplyOf(project) : undefined), [colorBy, project]);
   const feederHeat = (id: string) => {
     const r = byFeeder.get(id);
     const e = earthing?.get(id);
@@ -1288,6 +1282,7 @@ export default function SystemDiagram({
         {layout.feeders.map((n) => {
           if (cull && (n.x < viewX1 || n.x > viewX2)) return null;
           const f = n.feeder;
+          const supplyC = supply && SUPPLY_COLOR[supply.feeder(f)];
           const r = byFeeder.get(f.id);
           const status = r?.status ?? 'ok';
           const sel = f.id === selectedFeederId;
@@ -1329,8 +1324,8 @@ export default function SystemDiagram({
               {dewa ? <text x={n.x + 10} y={y + 37} className="dev-k" data-dxf-max-width={cadDeviceWidth}>{icuText(f, iec)}</text>
                 : iec && <text x={n.x + 10} y={y + 41} className="acc-t" data-dxf-max-width={cadDeviceWidth}>{polesText(f)} · {f.breakerIcuKa} kA</text>}
               {dewa && <text x={n.x - (iec ? 12 : 5)} y={y + (iec ? 12 : 13)} textAnchor="end" className="acc-t way-no">{wayNo.get(f.id)}</text>}
-              <line x1={n.x} y1={y + 34} x2={n.x} y2={endY} className={`ln ${status !== 'ok' ? status : ''}${cableTypeOf(project, f).fireRated ? ' fr' : ''}`}
-                style={feederHeat(f.id) ? { stroke: feederHeat(f.id), strokeWidth: 3.5 } : undefined} />
+              <line x1={n.x} y1={y + 34} x2={n.x} y2={endY} className={`ln ${status !== 'ok' ? status : ''}${cableTypeOf(project, f).fireRated ? ' fr' : ''}${supplyC ? ' screen-c' : ''}`}
+                style={supplyC ? { stroke: supplyC } : feederHeat(f.id) ? { stroke: feederHeat(f.id), strokeWidth: 3.5 } : undefined} />
               {dewa ? <text className="dev" x={n.x + 10} y={y + 26} data-dxf-max-width={cadDeviceWidth}>{breakerText(f, iec)}</text>
                 : <text className="b" x={n.x + 10} y={y + 30} data-dxf-max-width={cadDeviceWidth}>{f.breakerRatingA} A{(iec ? rcdInSwitch(f) : f.rcdMa) && (sldDevices(f).elcb?.ma ?? f.rcdMa) ? <tspan className="acc-t"> · {iec ? sldDevices(f).elcb?.ma ?? f.rcdMa : f.rcdMa} mA</tspan> : null}</text>}
               <text
@@ -1456,10 +1451,10 @@ export default function SystemDiagram({
                 <>
                   {panel && sym ? (
                     <>
-                      <line x1={n.x} y1={y + 76 + ex} x2={n.x} y2={y + 80 + ex} className="ln" />
+                      <line x1={n.x} y1={y + 76 + ex} x2={n.x} y2={y + 80 + ex} className={supplyC ? 'ln screen-c' : 'ln'} style={supplyC ? { stroke: supplyC } : undefined} />
                       <g className="sched" onDoubleClick={(e) => { e.stopPropagation(); edit(onOpenSchedule, panel.id)(); }}>
                         <title>{`${panel.id}: its final circuits are on the load schedule — double-click to open it`}</title>
-                        <Sym id={sym} x={n.x} y={y + 94 + ex} s={SYM_SCALE.load} />
+                        <Sym id={sym} x={n.x} y={y + 94 + ex} s={SYM_SCALE.load} existing={!!panel.existing} tint={supply && supplyTint(supply.board(panel))} />
                       </g>
                     </>
                   ) : iec ? (
@@ -1485,7 +1480,7 @@ export default function SystemDiagram({
                   {feederTags(f.id).map((t, i) => (
                     <text key={t.text} x={n.x} y={y + 177 + ex + (panelPlace ? 13 : 0) + i * 13} textAnchor="middle" className={`res ${t.cls}`}>{t.text}</text>
                   ))}
-                  <circle cx={n.x + 22} cy={y + 78 + ex} r="4" className="status-dot" style={{ fill: `var(--${status})` }} />
+                  <circle cx={n.x + (panel && sym ? 30 : 22)} cy={y + 78 + ex} r="4" className="status-dot" style={{ fill: `var(--${status})` }} />
                 </>
                 );
               })()}
@@ -1680,7 +1675,7 @@ export default function SystemDiagram({
                 );
               })()}
               {/* Board box; a framed DEWA panel names itself in the frame header, so its incoming line runs straight on. */}
-              {n.terminal ? <BoardSymbol board={b} x={n.x} top={n.busY - 58} status={status} sel={sel} place={place} /> : dewa ? <line x1={n.x} y1={n.busY - 58} x2={n.x} y2={n.busY - 22} className="ln" /> : (
+              {n.terminal ? <BoardSymbol project={project} board={b} x={n.x} top={n.busY - 58} status={status} sel={sel} place={place} tint={supply && supplyTint(supply.board(b))} /> : dewa ? <line x1={n.x} y1={n.busY - 58} x2={n.x} y2={n.busY - 22} className="ln" /> : (
                 <>
                   <rect x={n.x - 62} y={n.busY - 58} width="124" height="36" rx="6" className="box" style={sel ? { stroke: 'var(--acc)', strokeWidth: 2 } : undefined} />
                   <text className="b lod-name" x={n.x - 54} y={n.busY - 42}>{trunc(b.id, 14)}</text>
@@ -1899,10 +1894,19 @@ export default function SystemDiagram({
       </svg>
       <ViewZoomChip view={view} W={W} subscribe={subscribeZoom} onFit={() => setVb(full)} />
       {colorBy !== 'none' && (
-        <div className="heat-legend">
+        // The Supply explanation is long: it wraps rather than widening the box over the drawing.
+        <div className="heat-legend" style={colorBy === 'supply' ? { maxWidth: 360 } : undefined}>
           <b>{COLOR_BY.find((c) => c.value === colorBy)?.label}</b>
-          <div className="heat-bar" />
-          <div className="heat-ticks"><span>0</span><span>50%</span><span>85%</span><span>≥100% of limit</span></div>
+          {colorBy === 'supply' ? (
+            <div className="heat-ticks">{SUPPLY_LEGEND.map((k) => (
+              <span key={k.supply}><span style={{ display: 'inline-block', width: 16, height: 3, marginRight: 5, verticalAlign: 'middle', background: SUPPLY_COLOR[k.supply] }} />{k.label}</span>
+            ))}</div>
+          ) : (
+            <>
+              <div className="heat-bar" />
+              <div className="heat-ticks"><span>0</span><span>50%</span><span>85%</span><span>≥100% of limit</span></div>
+            </>
+          )}
           <span className="m">{COLOR_BY.find((c) => c.value === colorBy)?.legend}</span>
         </div>
       )}
