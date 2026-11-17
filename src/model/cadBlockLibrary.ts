@@ -4,6 +4,7 @@ import { expandAll } from './cadBlocks';
 import { segmentsOf } from './cadSketch';
 import { textWidth } from './cadText';
 import type { CadPiece } from './cadCrop';
+import { drawnFromPieces } from './cadTakeOver';
 import type { RefGeometry } from './cadRefs';
 
 /** Design CAD → the Blocks palette (INSERT, S10 of the 2D gap plan): the blocks inserted lately (kept on this
@@ -62,14 +63,25 @@ export function defFromGeometry(name: string, g: RefGeometry): CadBlockDef {
 /** One of the architect's blocks as a block of the app's own: the pieces the engine explodes an insert of it into,
  * moved so that `base` (the insert's place, or the pieces' lowest left corner) is the origin. */
 export function defFromPieces(name: string, pieces0: CadPiece[], base?: Pt, units?: number): CadBlockDef {
-  // Groups of pieces (nested blocks) flattened.
-  const flat = (ps: CadPiece[]): Exclude<CadPiece, { kind: 'group' }>[] => ps.flatMap((p) => (p.kind === 'group' ? flat(p.items) : [p]));
+  // Groups of pieces (nested blocks) flattened, a dimension of a known kind kept whole.
+  const flat = (ps: CadPiece[]): CadPiece[] => ps.flatMap((p) => (p.kind === 'group' && !p.dim ? flat(p.items) : [p]));
   const pieces = flat(pieces0);
-  const pts: Pt[] = pieces.flatMap((p): Pt[] => p.kind === 'line' ? [p.a, p.b] : p.kind === 'arc' || p.kind === 'circle' ? [[p.c[0] - p.r, p.c[1] - p.r]] : p.kind === 'pline' ? p.pts.map(([x, y]) => [x, y]) : p.kind === 'text' || p.kind === 'point' ? [p.at] : p.kind === 'solid' ? p.pts : p.loops.flat().map(([x, y]) => [x, y]));
+  // What the take-over keeps whole (exact pieces): an ellipse, a paragraph text, a patterned hatch, a dimension.
+  const whole = (p: CadPiece) => p.kind === 'ellipse' || p.kind === 'mtext' || (p.kind === 'group' && !!p.dim) || (p.kind === 'hatch' && !p.solid && p.scale !== undefined);
+  const pts: Pt[] = pieces.flatMap((p): Pt[] => p.kind === 'line' ? [p.a, p.b] : p.kind === 'arc' || p.kind === 'circle' ? [[p.c[0] - p.r, p.c[1] - p.r]] : p.kind === 'pline' ? p.pts.map(([x, y]) => [x, y]) : p.kind === 'text' || p.kind === 'point' || p.kind === 'mtext' ? [p.at]
+    : p.kind === 'ellipse' ? [[p.c[0] - Math.hypot(...p.axis), p.c[1] - Math.hypot(...p.axis)]] : p.kind === 'group' ? p.dim?.pts ?? [] : p.kind === 'solid' ? p.pts : p.loops.flat().map(([x, y]) => [x, y]));
   const b: Pt = base ?? (pts.length ? [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1]))] : [0, 0]);
   const at = (q: readonly number[]): Pt => [q[0] - b[0], q[1] - b[1]];
   let n = 0;
   const items = pieces.flatMap((p): SketchItem[] => {
+    if (whole(p)) {
+      // Taken over as in an opened drawing's objects, then moved to the block's origin.
+      return drawnFromPieces([p]).map(({ lt: _lt, ltName: _n, lw: _w, ...it }): SketchItem => ({
+        ...it, id: `b${(n += 1)}`, pts: it.pts.map(at), ...(it.holes ? { holes: it.holes.map((l) => l.map(at)) } : {}),
+        ...(it.hatch ? { hatch: { ...it.hatch, ...(b[0] || b[1] || it.hatch.origin ? { origin: at(it.hatch.origin ?? [0, 0]) } : {}) } } : {})
+      } as SketchItem));
+    }
+    if (p.kind === 'group') return [];
     const s = { id: `b${(n += 1)}`, layer: p.layer, ...(p.color !== undefined && p.color !== 0xff000007 ? { color: `#${p.color.toString(16).padStart(6, '0')}` } : {}) };
     switch (p.kind) {
       case 'line': return [{ ...s, kind: 'line', pts: [at(p.a), at(p.b)] }];

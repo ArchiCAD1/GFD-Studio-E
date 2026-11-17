@@ -38,6 +38,8 @@ const ADDED: Record<string, string> = { ST: '!textStyle', STYLE: '!textStyle', D
   // Right-click menus, phase 1: the tools behind the blank-canvas, command and selection menus.
   P: 'pan', PAN: 'pan', UNDO: '!undo', REDO: '!redo', SELECTALL: '!selectAll', FIND: '!find', FINDREPLACE: '!find', CUTCLIP: '!cutClip', BE: '!bedit', BEDIT: '!bedit', BSAVE: '!bsave', BCLOSE: '!bclose', REFEDIT: '!refedit', REFCLOSE: '!refclose', COUNT: '!count', ADDSELECTED: '!addSelected', QM: '!quickMeasure', QUICKMEASURE: '!quickMeasure',
   ISOLATEOBJECTS: '!isolateObjects', ISO: '!isolateObjects', HIDEOBJECTS: '!hideObjects', UNISOLATEOBJECTS: '!unisolateObjects', UNHIDE: '!unisolateObjects',
+  // Right-click menus, stage 2: Invert selection and Zoom to selection.
+  SELECTINVERT: '!selectInvert', INVERTSELECTION: '!selectInvert', 'Z O': '!zoomSel', 'ZOOM O': '!zoomSel', 'ZOOM OBJECT': '!zoomSel',
   // The File menu and Drafting settings: SAVEAS / DXFOUT open Save As (they were Save DXF), OS opens the Object snap tab
   // (it toggled object snap, as OSNAP and F3 still do).
   SAVEAS: '!saveAs', DXFOUT: '!saveAs', QSAVE: '!save', CLOSEOTHERS: '!closeOthers', EXPORT: '!export', EXPORTPDF: '!exportPdf', PNGOUT: '!pngOut',

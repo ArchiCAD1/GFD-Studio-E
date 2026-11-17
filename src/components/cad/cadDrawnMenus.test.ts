@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { cadCommand } from './cadCommands';
-import { type CtxEntry, type CtxItem } from './cadContextMenu';
+import { allItems, type CtxEntry } from './cadContextMenu';
 import { closedToggled, findCount, findReplace, gripMenu, withVertexAdded, withVertexRemoved } from './cadDrawnMenus';
 import type { SketchItem } from '../../types';
 
-const flat = (list: CtxEntry[]): CtxItem[] => list.flatMap((x) => (x === '-' ? [] : [x, ...(x.sub ?? [])]));
+const flat = allItems;
 const labels = (list: CtxEntry[]) => list.map((x) => (x === '-' ? '-' : x.label));
 const pl = (pts: [number, number][], closed = false): SketchItem => ({ id: 'p', kind: 'pline', layer: '0', pts, ...(closed ? { closed: true } : {}) });
 const zig = pl([[0, 0], [4, 0], [4, 3]]);

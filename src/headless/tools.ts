@@ -30,6 +30,9 @@ export interface ToolContext {
   write?: boolean;
   /** MCP / API: only these tool groups besides the core tools (--tools); absent = every group. */
   groups?: ToolGroup[];
+  /** MCP: project names, file names, parties and addresses are not sent to the AI program (src/headless/privacy.ts);
+   * the default of `lvds mcp`, off with --show-names. */
+  hideNames?: boolean;
   /** MCP: the AI client that called, from its own initialize message (clientLabel). Recorded on changes, proposals and
    * exports so the engineer can see which program made them. Absent on the command line and the local API. */
   client?: string;
