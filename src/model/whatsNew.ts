@@ -15,9 +15,33 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.164', date: '2026-11-16',
+    version: '2.167', date: '2026-11-17',
     items: [
       { title: 'SLD: board symbols that show the kind of board', text: 'A board at the end of a feeder is now drawn as a 2:1 symbol whose pattern tells its kind: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, the top half filled for an MCC and a second frame for a main board. The risers, the Board tab, the legend and the equipment strip use the same symbols, existing boards are drawn dashed, and printed sheets no longer show the green check dot.' }
+    ]
+  },
+  {
+    version: '2.166', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: taken-over notes, ellipses, hatches and dimensions stay themselves', text: 'When an object of an opened drawing is taken over for editing, its paragraph text becomes a note, an ellipse an ellipse, a patterned hatch keeps its pattern, and a dimension becomes a drawn dimension. Splines become polylines, and the command line says so.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.165', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: edit the objects of an opened drawing', text: 'The first edit of an object of the drawing you opened (Move, Rotate, Scale, Offset, Trim, a grip drag, a property…) takes it over as a drawn object with the same layer, colour, linetype, lineweight and arcs; one ⌘Z undoes both the take-over and the edit. Copy keeps the original and adds a drawn copy. An object on a locked layer is refused. The drawing file itself changes only when you save.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: window and crossing picks find the drawing\'s objects', text: 'A window or crossing now picks the objects of the opened drawing as well as the ones drawn here, and Select similar finds the drawing\'s objects of the same kind and layer. Their right-click menu, floating toolbar, grips and Properties work as for drawn objects.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: polylines with arcs', text: 'Polylines with arc segments are drawn, snapped, measured, mirrored and saved with their arcs; Explode gives lines and arcs. Offset, Trim, Extend, Break, Fillet, Chamfer and Join ask you to explode them first.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: saved objects keep their own colour, linetype and lineweight', text: 'Save DXF and Save DWG write each drawn object\'s own colour, linetype and lineweight, not only its layer\'s.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.164', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: right-click menus with icons and one order', text: 'Every right-click menu now shows the ribbon\'s icon for each tool, its shortcut or typed command on the right, and a header naming what is picked. Picked objects get one order everywhere: the object\'s own tools, clipboard and undo, modify, view, select, then Properties and Options. A line\'s own tools are under Line tools, electrical tools show in amber, and Copy (CO) is now Copy selection.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: Invert selection and Zoom to selection', text: 'SELECTINVERT picks everything that was not picked and drops what was. Z O zooms to the objects picked. Both are also on the right-click menu.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: Undo says what it undoes', text: 'The right-click menu names the step, for example Undo Offset or Redo Move.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: right-click menus from the keyboard', text: 'Up and Down move over the rows, Right opens a list, Left closes it, Enter runs the row, Esc closes the list and then the menu, and a letter jumps to the next row that starts with it. Shift+F10 or the menu key opens the menu at the objects picked.', action: 'cad', actionLabel: 'Open Design CAD' }
     ]
   },
   {
