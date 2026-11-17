@@ -8,7 +8,7 @@ import type { DrawingInfo, Project } from '../types';
 import { cableTypeOf, CABLE_TYPE_DEFS, labelCode } from '../model/cableTypes';
 import { cableRefOf } from '../model/cableRefs';
 import { dbSpares, spareBreaker } from '../model/spareWays';
-import { besideScaleOf, FeederSwitchSym, LEGEND_ROW, LEGEND_SYM_X, LEGEND_TEXT_X, legendEntries, legendWidth, LoadSym, polesText, rcdInSwitch, starterSymbolOf, SwitchSym, switchKindOf } from '../diagram/IecSymbols';
+import { besideScaleOf, FeederSwitchSym, LEGEND_ROW, LEGEND_SYM_X, LEGEND_TEXT_X, elcbUnitOf, legendEntries, legendWidth, LoadSym, polesText, rcdInSwitch, starterSymbolOf, SwitchSym, switchKindOf } from '../diagram/IecSymbols';
 import { legendLineY, legendPxFor, legendRows } from '../diagram/legendLayout';
 import { Sym, SYM_BOX, SYM_SCALE, type SymbolId } from '../diagram/symbolLibrary';
 import { panelSymbolOf } from '../diagram/panelBox';
@@ -94,12 +94,13 @@ export function plannedEarthPits(project: Project): Map<string, string[]> {
  * more when its instruments sit outside the frame). */
 export function sldLayout(project: Project, dewa: boolean, cableRefs = false, rootExtraY = 0, planned = plannedEarthPits(project), showPlace = false) {
   const extraY = dewa ? DEWA_EXTRA_Y : 0;
-  let base = layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY });
+  const iec = (project.drawing?.symbols ?? 'iec') === 'iec';
+  let base = layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, iec });
   // A DEWA main board with no outgoing panels has no frame head to hold its earth pits: it
   // draws the standard-style detail in its own band, so the root bus drops by that band.
   if (dewa && base.roots.some((r) => r.terminal && hasEarthPits(r.board) && lvPitCount(r.board, planned) > 0)) {
     rootExtraY += EARTH_BAND_Y;
-    base = layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY });
+    base = layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, iec });
   }
   const earthLead = new Map<string, number>();
   if (dewa) {
@@ -132,7 +133,7 @@ export function sldLayout(project: Project, dewa: boolean, cableRefs = false, ro
     endFrames.set(b.id, { left: BOARD_FRAME_IN, right: BOARD_FRAME_PAD + endBoardReach(project, b, tags, loc ? trunc(loc, 30) : undefined) });
   }
   const layout = rootLead.size || rootReach.size || endFrames.size
-    ? layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, rootLeadX: rootLead, rootReachX: rootReach, endFrameX: endFrames })
+    ? layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, iec, rootLeadX: rootLead, rootReachX: rootReach, endFrameX: endFrames })
     : base;
   return { layout, earthLead };
 }
@@ -488,6 +489,7 @@ export default function SystemDiagram({
     return slots;
   }, [layout]);
   /** Where each board box hangs from (higher than its busbar on a mains / generator changeover). */
+  const elcbRowOf = useMemo(() => new Map(layout.boards.map((n) => [n.board.id, n.elcbRow ?? 0])), [layout]);
   const headOf = useMemo(() => new Map(layout.boards.map((n) => [n.board.id, n.headY])), [layout]);
   /** Box around these panels: board box, summary box, busbar and outgoing ways. */
   const boardsBox = (ids: string[], pad: number) => {
@@ -496,7 +498,7 @@ export default function SystemDiagram({
     const x1 = Math.min(...ns.map((n) => (n.terminal ? n.x - BOARD_FRAME_IN - 4 : n.busX1 - 12))) - pad;
     const x2 = Math.max(...ns.map((n) => (n.terminal ? n.x + 135 : Math.max(n.busX2 + 12, n.x + 135, n.genX !== undefined ? n.genX + CO_GEN_REACH + 5 : -Infinity)))) + pad;
     const y1 = Math.min(...ns.map((n) => n.headY - (dewa ? 165 : 70))) - pad;
-    const y2 = Math.max(...ns.map((n) => n.busY + (n.terminal ? 10 + (showPlace && placeOf(n.board) ? 13 : 0) : 120))) + pad;
+    const y2 = Math.max(...ns.map((n) => n.busY + (n.terminal ? 10 + (showPlace && placeOf(n.board) ? 13 : 0) : 120 + (n.elcbRow ?? 0)))) + pad;
     return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
   };
   /** The sheet outline under a screen point (the smallest one), for dropping a panel on a sheet. */
@@ -1300,8 +1302,8 @@ export default function SystemDiagram({
           return (
             <g key={`${n.boardId}:${w.id}`} className={`spare-way${off(n.boardId) ? ' off' : ''}`}>
               <title>{`${n.boardId}: spare ${w.ratingA} A ${poles} breaker (nothing connected) — edit or delete it on the panel's schedule`}</title>
-              <line x1={n.x} y1={y} x2={n.x} y2={y + 18} className="ln" />
-              {iec ? <SwitchSym x={n.x} y={y + 18} kind={switchKindOf(f)} /> : <rect x={n.x - 6} y={y + 18} width="12" height="16" className="sym" />}
+              <line x1={n.x} y1={y} x2={n.x} y2={y + (iec ? 10 : 18)} className="ln" />
+              {iec ? <SwitchSym x={n.x} y={y + 10} kind={switchKindOf(f)} s={SYM_SCALE.switch} /> : <rect x={n.x - 6} y={y + 18} width="12" height="16" className="sym" />}
               {!iec && <line x1={n.x - 5} y1={y + 32} x2={n.x + 5} y2={y + 20} className="ln" />}
               <line x1={n.x} y1={y + 34} x2={n.x} y2={y + 46} className="ln" />
               <text className={dewa ? 'dev' : 'b'} x={n.x + 10} y={y + 28}>{spareText(w)}</text>
@@ -1318,7 +1320,10 @@ export default function SystemDiagram({
           const status = r?.status ?? 'ok';
           const sel = f.id === selectedFeederId;
           const y = n.busY;
-          const endY = n.childBoardId ? (headOf.get(n.childBoardId) ?? y + layout.levelH) - 58 : y + 76;
+          // Below the breaker's text rows everything hangs lower on a board with an ELCB row (IEC symbols).
+          const ex = elcbRowOf.get(f.boardId) ?? 0;
+          const unit = iec ? elcbUnitOf(f) : undefined;
+          const endY = n.childBoardId ? (headOf.get(n.childBoardId) ?? y + layout.levelH) - 58 : y + 76 + ex;
           const tagY = dewa ? 16 : 0; // DEWA: cable text takes two lines
           const cadSlot = cadSlots.get(f.id) ?? LEAF_W;
           const cadCableDx = f.kwhMeter && !n.childBoardId ? (f.kwhMeter === 'CT' ? 50 : 35) : 0;
@@ -1341,26 +1346,26 @@ export default function SystemDiagram({
               onKeyDown={(e) => (e.key === 'Enter' ? onSelectFeeder(f.id) : e.key === 'F2' && edit(onEditFeeder, f.id)())}
             >
               <title>{`${f.id} — double-click to edit`}</title>
-              <line x1={n.x} y1={y} x2={n.x} y2={y + 18} className="ln" />
-              {iec ? <FeederSwitchSym x={n.x} y={y + 18} f={f} /> : <rect x={n.x - 6} y={y + 18} width="12" height="16" className="sym" />}
+              <line x1={n.x} y1={y} x2={n.x} y2={y + (iec ? 10 : 18)} className="ln" />
+              {iec ? <FeederSwitchSym x={n.x} y={y + 10} f={f} s={SYM_SCALE.switch} /> : <rect x={n.x - 6} y={y + 18} width="12" height="16" className="sym" />}
               {chain?.has(f.id) && (
-                <rect x={n.x - 11} y={y + 13} width="22" height="26" rx="4" className={`disc-ring ${chain.get(f.id)}`}>
+                <rect x={n.x - (iec ? 12 : 11)} y={y + (iec ? 6 : 13)} width={iec ? 24 : 22} height={iec ? 32 : 26} rx="4" className={`disc-ring ${chain.get(f.id)}`}>
                   <title>{`Discrimination: ${chain.get(f.id) === 'ok' ? 'selective' : chain.get(f.id) === 'warn' ? 'partial' : 'not selective'}`}</title>
                 </rect>
               )}
               {!iec && <line x1={n.x - 5} y1={y + 32} x2={n.x + 5} y2={y + 20} className="ln" />}
-              {dewa ? <text x={n.x + 10} y={y + 37} className="dev-k" data-dxf-max-width={cadDeviceWidth}>{icuText(f)}</text>
+              {dewa ? <text x={n.x + 10} y={y + 37} className="dev-k" data-dxf-max-width={cadDeviceWidth}>{icuText(f, iec)}</text>
                 : iec && <text x={n.x + 10} y={y + 41} className="acc-t" data-dxf-max-width={cadDeviceWidth}>{polesText(f)} · {f.breakerIcuKa} kA</text>}
-              {dewa && <text x={n.x - 5} y={y + 13} textAnchor="end" className="acc-t way-no">{wayNo.get(f.id)}</text>}
+              {dewa && <text x={n.x - (iec ? 12 : 5)} y={y + (iec ? 12 : 13)} textAnchor="end" className="acc-t way-no">{wayNo.get(f.id)}</text>}
               <line x1={n.x} y1={y + 34} x2={n.x} y2={endY} className={`ln ${status !== 'ok' ? status : ''}${cableTypeOf(project, f).fireRated ? ' fr' : ''}`}
                 style={feederHeat(f.id) ? { stroke: feederHeat(f.id), strokeWidth: 3.5 } : undefined} />
-              {dewa ? <text className="dev" x={n.x + 10} y={y + 26} data-dxf-max-width={cadDeviceWidth}>{breakerText(f)}</text>
-                : <text className="b" x={n.x + 10} y={y + 30} data-dxf-max-width={cadDeviceWidth}>{f.breakerRatingA} A{f.rcdMa ? <tspan className="acc-t"> · {f.rcdMa} mA</tspan> : null}</text>}
+              {dewa ? <text className="dev" x={n.x + 10} y={y + 26} data-dxf-max-width={cadDeviceWidth}>{breakerText(f, iec)}</text>
+                : <text className="b" x={n.x + 10} y={y + 30} data-dxf-max-width={cadDeviceWidth}>{f.breakerRatingA} A{(iec ? rcdInSwitch(f) : f.rcdMa) && (sldDevices(f).elcb?.ma ?? f.rcdMa) ? <tspan className="acc-t"> · {iec ? sldDevices(f).elcb?.ma ?? f.rcdMa : f.rcdMa} mA</tspan> : null}</text>}
               <text
                 className={`${dewa ? 'acc-t' : 'm'}${onPatchFeeder ? ' cable-lbl' : ''}`}
                 style={dewa ? { fontSize: 9 } : undefined}
                 x={n.x + 7}
-                y={y + (dewa ? 60 : 52)}
+                y={y + (dewa ? 60 : 52) + ex}
                 data-dxf-max-width={cadCableWidth}
                 data-dxf-dy={dewa ? 3 : 0}
                 data-dxf-dx={cadCableDx}
@@ -1379,11 +1384,11 @@ export default function SystemDiagram({
               </text>
               {cableRefs && (() => { const r = cableRefOf(project, f); return (
                 <g className="cable-ref"><title>{`Cable ${r.ref}: ${r.text}`}</title>
-                  <circle cx={n.x - 13} cy={y + (dewa ? 66 : 49)} r="7.5" className="cable-ref-c" />
-                  <text x={n.x - 13} y={y + (dewa ? 69 : 52)} textAnchor="middle" className="cable-ref-t">{r.ref}</text>
-                  <text x={n.x + 7} y={y + (dewa ? 68 : 63)} className="acc-t" style={{ fontSize: 8 }} data-dxf-max-width={cadCableWidth} data-dxf-dy={dewa ? 3 : 0} data-dxf-dx={cadCableDx}>{cable[1]}</text>
+                  <circle cx={n.x - 13} cy={y + (dewa ? 66 : 49) + ex} r="7.5" className="cable-ref-c" />
+                  <text x={n.x - 13} y={y + (dewa ? 69 : 52) + ex} textAnchor="middle" className="cable-ref-t">{r.ref}</text>
+                  <text x={n.x + 7} y={y + (dewa ? 68 : 63) + ex} className="acc-t" style={{ fontSize: 8 }} data-dxf-max-width={cadCableWidth} data-dxf-dy={dewa ? 3 : 0} data-dxf-dx={cadCableDx}>{cable[1]}</text>
                 </g>); })()}
-              {dewa && !cableRefs && <text className="acc-t" style={{ fontSize: 9 }} x={n.x + 7} y={y + 70} data-dxf-max-width={cadCableWidth} data-dxf-dy={3} data-dxf-dx={cadCableDx}>{cable[1]}</text>}
+              {dewa && !cableRefs && <text className="acc-t" style={{ fontSize: 9 }} x={n.x + 7} y={y + 70 + ex} data-dxf-max-width={cadCableWidth} data-dxf-dy={3} data-dxf-dx={cadCableDx}>{cable[1]}</text>}
               {/* Accessories on the feeder, top to bottom: earth leakage (its
                   rating goes with the breaker's), metering on the right below
                   the cable text, local isolator just above the load. */}
@@ -1404,9 +1409,9 @@ export default function SystemDiagram({
                     </g>
                   );
                 };
-                // IEC: an RCBO / RCCB is drawn in the breaker slot, and the starter
-                // as its library symbol at the foot of the column.
-                const elcb = dev.elcb && !(iec && rcdInSwitch(f)) ? dev.elcb : undefined;
+                // IEC: an RCBO is drawn in the breaker slot, any other earth leakage as the ELCB unit under the
+                // breaker's text, and the starter as its library symbol at the foot of the column.
+                const elcb = !iec ? dev.elcb : undefined;
                 const starter = dev.starterType && !n.childBoardId ? dev.starterType : undefined;
                 // IEC: library symbols at the foot of the column, 18 apart: the undervoltage relay, then the starter. A starter's
                 // box hangs below the breaker, linked to the cable under it, clear of the breaker's blade.
@@ -1432,18 +1437,25 @@ export default function SystemDiagram({
                     {elcb && (
                       <g className="acc">
                         <title>{`Earth leakage protection${elcb.ma ? ` ${elcb.ma} mA` : ''}`}</title>
-                        {/* IEC: the library RCD (its toroid) on the cable below the breaker; the box names the device. */}
-                        {iec ? <Sym id="rcd" x={n.x} y={y + 42} s={SYM_SCALE.device} />
-                          : <ellipse cx={n.x - 8 - shiftX - elcb.label.length * 5.2 - 6 - 5} cy={y + 26.5} rx="4.5" ry="2.2" className="sym-ln" />}
+                        <ellipse cx={n.x - 8 - shiftX - elcb.label.length * 5.2 - 6 - 5} cy={y + 26.5} rx="4.5" ry="2.2" className="sym-ln" />
                         {elcb.ma ? <text x={n.x - 8 - shiftX} y={y + 19} textAnchor="end" className="acc-t" style={{ fontSize: 7 }}>{elcb.ma}mA</text> : null}
                       </g>
                     )}
                   </>
                 );
               })()}
+              {unit && (
+                <g className="acc" data-dxf-layer="DEVICE">
+                  <title>{`Earth leakage: ${unit.word}${unit.ma ? ` ${unit.ma} mA` : ''}, core-balance CT on the cable`}</title>
+                  <Sym id="cbct" x={n.x} y={y + (dewa ? 62 : 65)} s={SYM_SCALE.switch} />
+                  <rect x={n.x + 10} y={y + (dewa ? 62 : 65) - 9} width="34" height="18" className="sym" />
+                  <text x={n.x + 27} y={y + (dewa ? 62 : 65) + 3.6} textAnchor="middle" className="acc-t b" style={{ fontSize: 10.5 }}>{unit.word}</text>
+                  {unit.ma ? <text x={n.x + 10} y={y + (dewa ? 62 : 65) - 12} className="acc-t" style={{ fontSize: 10 }}>{dewa ? `${unit.ma}mA` : `${unit.ma} mA`}</text> : null}
+                </g>
+              )}
               {f.kwhMeter && (() => {
                 // Sub-board incomers: below their result labels.
-                const my = n.childBoardId ? y + 128 + tagY : y + 62;
+                const my = n.childBoardId ? y + 128 + tagY + ex : y + 62 + ex;
                 return (
                 <g className="acc">
                   <title>{f.kwhMeter === 'CT' ? 'CT-operated kWh meter' : `${f.kwhMeter} direct kWh meter`}</title>
@@ -1457,10 +1469,10 @@ export default function SystemDiagram({
               {f.localIsolator && !n.childBoardId && (
                 <g className="acc">
                   <title>Local isolator at the equipment</title>
-                  <rect x={n.x - 4} y={y + 66} width="8" height="9" className="bg-fill" />
-                  <circle cx={n.x} cy={y + 67} r="1.6" className="dot" />
-                  <line x1={n.x} y1={y + 75} x2={n.x - 7} y2={y + 67} className="ln" />
-                  {dewa ? <text x={n.x + 10} y={y + 79} className="acc-t" style={{ fontSize: 9 }} data-dxf-max-width={cadDeviceWidth}>{isolatorText(f)}</text> : <text x={n.x - 9} y={y + 74} textAnchor="end" className="acc-t">ISO</text>}
+                  <rect x={n.x - 4} y={y + 66 + ex} width="8" height="9" className="bg-fill" />
+                  <circle cx={n.x} cy={y + 67 + ex} r="1.6" className="dot" />
+                  <line x1={n.x} y1={y + 75 + ex} x2={n.x - 7} y2={y + 67 + ex} className="ln" />
+                  {dewa ? <text x={n.x + 10} y={y + 79 + ex} className="acc-t" style={{ fontSize: 9 }} data-dxf-max-width={cadDeviceWidth}>{isolatorText(f)}</text> : <text x={n.x - 9} y={y + 74 + ex} textAnchor="end" className="acc-t">ISO</text>}
                 </g>
               )}
               {!n.childBoardId && (() => {
@@ -1472,44 +1484,44 @@ export default function SystemDiagram({
                 <>
                   {panel && sym ? (
                     <>
-                      <line x1={n.x} y1={y + 76} x2={n.x} y2={y + 80} className="ln" />
+                      <line x1={n.x} y1={y + 76 + ex} x2={n.x} y2={y + 80 + ex} className="ln" />
                       <g className="sched" onDoubleClick={(e) => { e.stopPropagation(); edit(onOpenSchedule, panel.id)(); }}>
                         <title>{`${panel.id}: its final circuits are on the load schedule — double-click to open it`}</title>
-                        <Sym id={sym} x={n.x} y={y + 94} s={SYM_SCALE.load} />
+                        <Sym id={sym} x={n.x} y={y + 94 + ex} s={SYM_SCALE.load} />
                       </g>
                     </>
                   ) : iec ? (
                     <>
-                      <line x1={n.x} y1={y + 76} x2={n.x} y2={y + 84} className="ln" />
-                      <LoadSym x={n.x} y={y + 94} type={loadTypeOf(f)} motor={isMotor(f)} fireFighting={loadTypeOf(f) === 'fire-pump'} />
+                      <line x1={n.x} y1={y + 76 + ex} x2={n.x} y2={y + 84 + ex} className="ln" />
+                      <LoadSym x={n.x} y={y + 94 + ex} type={loadTypeOf(f)} motor={isMotor(f)} fireFighting={loadTypeOf(f) === 'fire-pump'} />
                     </>
                   ) : (
                     <>
-                      <circle cx={n.x} cy={y + 94} r="18" className={`load ${status}`} />
-                      <g transform={`translate(${n.x} ${y + 94})`} className={`icon ${status}`}>
+                      <circle cx={n.x} cy={y + 94 + ex} r="18" className={`load ${status}`} />
+                      <g transform={`translate(${n.x} ${y + 94 + ex})`} className={`icon ${status}`}>
                         <LoadIcon type={loadTypeOf(f)} />
                       </g>
                     </>
                   )}
-                  <text className="b lod-name" x={n.x} y={y + 132} textAnchor="middle" data-fit-width={cadSlot - 6}>{trunc(panel?.id ?? f.id, 16)}</text>
-                  <text className="m" x={n.x} y={y + 146} textAnchor="middle">{trunc(panel ? panel.name : f.name, 19)}</text>
-                  <text x={n.x} y={y + 160} textAnchor="middle" data-fit-width={cadSlot - 6}>
+                  <text className="b lod-name" x={n.x} y={y + 132 + ex} textAnchor="middle" data-fit-width={cadSlot - 6}>{trunc(panel?.id ?? f.id, 16)}</text>
+                  <text className="m" x={n.x} y={y + 146 + ex} textAnchor="middle">{trunc(panel ? panel.name : f.name, 19)}</text>
+                  <text x={n.x} y={y + 160 + ex} textAnchor="middle" data-fit-width={cadSlot - 6}>
                     {panel ? (() => { const p = panelSummary(project, panel); return `TCL ${fmtFixed(p.tclKw, 2)} · MDL ${fmtFixed(p.mdlKw, 2)} kW`; })() : f.componentId && project.components?.some((c) => c.id === f.componentId) ? trunc(componentLabel(project, project.components!.find((c) => c.id === f.componentId)!, f), 30) : f.kvar ? `${f.capSteps && f.capSteps > 1 ? `${f.capSteps} × ${+(f.kvar / f.capSteps).toFixed(1)}` : f.kvar} kvar${f.detunedPct ? ` · ${f.detunedPct}% det.` : ''}` : `${dewa && !f.generation ? `TCL : ${fmtFixed(f.loadKw, 2)}` : fmtFixed(f.loadKw * f.demandFactor, 0)} kW${f.generation ? ' gen' : ''}${isMotor(f) ? ` · ${starterInfo(starterOf(f)).short}` : ''}`}
                     {!layers?.current && !panel && ` · ${r ? fmtFixed(r.ib, 0) : '–'} A`}
                   </text>
-                  {panelPlace && <text className="m" x={n.x} y={y + 173} textAnchor="middle" data-fit-width={cadSlot - 6}>{panelPlace}</text>}
+                  {panelPlace && <text className="m" x={n.x} y={y + 173 + ex} textAnchor="middle" data-fit-width={cadSlot - 6}>{panelPlace}</text>}
                   {feederTags(f.id).map((t, i) => (
-                    <text key={t.text} x={n.x} y={y + 177 + (panelPlace ? 13 : 0) + i * 13} textAnchor="middle" className={`res ${t.cls}`}>{t.text}</text>
+                    <text key={t.text} x={n.x} y={y + 177 + ex + (panelPlace ? 13 : 0) + i * 13} textAnchor="middle" className={`res ${t.cls}`}>{t.text}</text>
                   ))}
-                  <circle cx={n.x + 22} cy={y + 78} r="4" className="status-dot" style={{ fill: `var(--${status})` }} />
+                  <circle cx={n.x + 22} cy={y + 78 + ex} r="4" className="status-dot" style={{ fill: `var(--${status})` }} />
                 </>
                 );
               })()}
               {n.childBoardId &&
                 feederTags(f.id).map((t, i) => (
-                  <text key={t.text} x={n.x + 7} y={y + 72 + tagY + i * 13} className={`res ${t.cls}`}>{t.text}</text>
+                  <text key={t.text} x={n.x + 7} y={y + 72 + tagY + ex + i * 13} className={`res ${t.cls}`}>{t.text}</text>
                 ))}
-              {sel && <rect x={n.x - 60} y={y + 8} width="120" height={n.childBoardId ? 50 : 160} rx="8" className="sel-ring" />}
+              {sel && <rect x={n.x - 60} y={y + 8} width="120" height={n.childBoardId ? 50 : 160 + ex} rx="8" className="sel-ring" />}
             </g>
           );
         })}
@@ -1651,7 +1663,7 @@ export default function SystemDiagram({
                 // Panel frame: busbar, outgoing ways and incomer; cables cross it at a gland mark.
                 // The panel's name box sits just inside the frame's top-left corner: name, TCL, MDL, location and
                 // the prospective fault level at the board (the breaker's own Icu is on the incomer line).
-                const { x1, x2 } = real.frame!, y2 = real.busY + 47;
+                const { x1, x2 } = real.frame!, y2 = real.busY + 47 + (real.elcbRow ?? 0);
                 const nb = nameBox(b, n);
                 const y1 = nb.top;
                 const gland = (x: number, gy: number) => <path key={`${x}-${gy}`} d={`M${x - 5} ${gy - 4} q3 4 0 8 M${x + 5} ${gy - 4} q-3 4 0 8`} className="ln" />;
@@ -1677,9 +1689,9 @@ export default function SystemDiagram({
                 return (
                   <g className="acc">
                     <title>{`Incomer: ${INCOMER_DEVICES.find((d) => d.value === dev)!.label}`}</title>
-                    {/* Mask the line only over the symbol body (sy … sy + 16), so the blade's pivot meets the line below. */}
-                    <rect x={n.x - 2} y={sy - 1} width="4" height="17" className="bg-fill" />
-                    <SwitchSym x={n.x} y={sy} kind={kind} />
+                    {/* Mask the line only over the symbol body (sy … sy + 16; IEC: sy - 8 … sy + 16), so the blade's pivot meets the line below. */}
+                    <rect x={n.x - 2} y={iec ? sy - 9 : sy - 1} width="4" height={iec ? 25 : 17} className="bg-fill" />
+                    {iec ? <SwitchSym x={n.x} y={sy - 8} kind={kind} s={SYM_SCALE.switch} /> : <SwitchSym x={n.x} y={sy} kind={kind} />}
                     {/* Rating, poles and device, then the breaking capacity: "500 A TP MCCB (NA)", "36 kA". */}
                     {(() => {
                       const t = incomerTexts(project, b)!;
