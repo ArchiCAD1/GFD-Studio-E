@@ -19,7 +19,7 @@ describe('specification — PDF document', () => {
     const html = buildSpecHtml({ ...sampleProject, name: 'Tower <A>' }, doc);
     expect(html).toContain('<h1>Electrical specification</h1>');
     expect(html).toContain('Tower &lt;A&gt;');
-    expect(html).toContain('<li><span>1</span><span>General &lt;scope&gt;</span></li><li><span>2</span><span>Switchboards</span></li>');
+    expect(html).toContain('<li><span>1</span><span>General &lt;scope&gt;<i class="dots"></i></span><span></span></li><li><span>2</span><span>Switchboards<i class="dots"></i></span><span></span></li>');
     expect(html).toContain('<h2>2 Switchboards</h2>');
     expect(html).toContain(`<span>1.1.1</span><span>For Tower &lt;A&gt; at ${sampleProject.voltageV} V.</span>`);
     expect(html).toContain('class="cl h"');
@@ -52,7 +52,8 @@ describe('specification — PDF document', () => {
     const part = entry.build(ctx({ ...sampleProject, spec: doc }))[0];
     expect(part.title).toBe('Specification');
     expect(part.html).toContain('<h2>2 Switchboards</h2>');
-    expect(part.page).toEqual({ pageSize: 'A4', landscape: false, cssPages: true, selfNumbered: true });
+    expect(part.page).toMatchObject({ pageSize: 'A4', landscape: false, cssPages: true, selfNumbered: true });
+    expect(part.page.paginate!({ spec_S3: 4 })).toContain('<span>Switchboards<i class="dots"></i></span><span>4</span>');
     expect(entry.build(ctx({ ...sampleProject, spec: withSetup(doc, { paper: 'A3' }) }))[0].page).toMatchObject({ pageSize: 'A3 portrait' });
   });
 });
@@ -73,7 +74,7 @@ describe('specification — document information and page setup in the PDF', () 
   it('follows the page setup: paper, margins, footer text, the logo in its place and the watermark', () => {
     let d = withInfo(doc, { number: 'E-001', status: 'For tender', mepContractor: 'MEP <Co>' });
     d = addDetail(addDetail(d, 'Plot number', '373'), 'Not filled');
-    d = withSetup(d, { paper: 'A3', landscape: true, marginsMm: { top: 30, right: 20, bottom: 25, left: 20 }, footer: ['{{doc.number}} · {{doc.status}}', '', '{{page}}'], logo: PNG, logoPlace: 'header-right', watermark: 'DRAFT <1>' });
+    d = withSetup(d, { paper: 'A3', landscape: true, marginsMm: { top: 30, right: 20, bottom: 25, left: 20 }, footer: ['{{doc.number}} · {{doc.status}}', '', '{{page}}'], logo: PNG, logoPlace: 'header-right', watermark: 'DRAFT <1>', cover: { on: false } });
     const html = buildSpecHtml(sampleProject, d);
     expect(html).toContain('@page { size: A3 landscape; margin: 30mm 20mm 25mm 20mm;');
     expect(html).toContain('@bottom-left { content: "E-001 · For tender";');
@@ -91,6 +92,60 @@ describe('specification — document information and page setup in the PDF', () 
   });
 });
 
+describe('specification — cover page and contents page', () => {
+  const p: Project = { ...sampleProject, revisions: [{ id: 'A', date: '2026-10-01', description: 'For <review>', by: 'PS', snapshot: sampleProject }] };
+  const full = withInfo(doc, { number: 'E-001', status: 'For tender', client: 'Client Co' });
+
+  it('the cover carries the title, project, number, status, parties, the revision table and the note, on a page with no header or footer', () => {
+    const html = buildSpecHtml(p, withSetup(full, { cover: { note: 'Read with the <drawings>.' } }));
+    const cover = html.slice(html.indexOf('<section class="cover'), html.indexOf('</section>'));
+    expect(html).toContain('@page cover { margin: 18mm; @top-left { content: none; }');
+    expect(cover).toContain('style="height: 258mm"');
+    expect(cover).toContain('<div class="k">For tender</div><h1>Electrical specification</h1>');
+    expect(cover).toContain(`<div class="meta">E-001 · `);
+    expect(cover).toContain('<tr><td>Client</td><td>Client Co</td></tr>');
+    expect(cover).not.toContain('<td>Document number</td>');
+    expect(cover).toContain('<table class="rev"><tr><th>Rev</th><th>Date</th><th>Description</th><th>By</th></tr><tr><td>A</td>');
+    expect(cover).toContain('For &lt;review&gt;</td><td>PS</td>');
+    expect(cover).toContain('<div class="cnote">Read with the &lt;drawings&gt;.</div>');
+    expect(html.slice(html.indexOf('</section>'))).toContain('<section><h2>Contents</h2>');
+  });
+
+  it('each part of the cover can be left off; with no cover the title block is back on the first page', () => {
+    const html = buildSpecHtml(p, withSetup(full, { cover: { parties: false, revisions: false } }));
+    expect(html).not.toContain('<td>Client</td>');
+    expect(html).not.toContain('<table class="rev">');
+    const plain = buildSpecHtml(p, withSetup(full, { cover: { on: false } }));
+    expect(plain).not.toContain('<section class="cover');
+    expect(plain).toContain('<section class="first"><header><h1>Electrical specification</h1>');
+    expect(plain).toContain('<tr><td>Document number</td><td>E-001</td></tr>');
+  });
+
+  it('the contents list the sections with the page each landed on, and the clause headings when asked', () => {
+    const html = buildSpecHtml(p, withSetup(full, { contents: { headings: true } }), { spec_S1: 3, spec_S1_C1: 3, spec_S3: 5 });
+    expect(html).toContain('<li><span>1</span><span>General &lt;scope&gt;<i class="dots"></i></span><span>3</span></li><li class="l2"><span>1.1</span><span>Scope<i class="dots"></i></span><span>3</span></li>');
+    expect(html).toContain('<section id="spec_S3"><a class="dest" href="#spec_S3" data-bm="2 Switchboards"></a><h2>2 Switchboards</h2>');
+    expect(html).toContain('<div id="spec_S1_C1" class="cl h"><span><a class="dest" href="#spec_S1_C1"></a>1.1</span>');
+    const bare = buildSpecHtml(p, withSetup(full, { contents: { pageNumbers: false } }), { spec_S1: 3 });
+    expect(bare).toContain('<li><span>1</span><span>General &lt;scope&gt;</span><span></span></li>');
+    expect(buildSpecHtml(p, withSetup(full, { contents: { on: false } }))).not.toContain('Contents');
+  });
+
+  it('the Word file has the cover on a first page of its own, bookmarks on the sections and page fields in the contents', async () => {
+    const JSZip = (await import('jszip')).default;
+    const xml = async (d: SpecDoc) => (await JSZip.loadAsync(await Packer.toBuffer(buildSpecDocx(p, d)))).file('word/document.xml')!.async('string');
+    const on = await xml(withSetup(full, { contents: { headings: true } }));
+    expect(on).toContain('<w:titlePg/>');
+    expect(on).toContain('w:name="spec_S1"');
+    expect(on).toContain('w:name="spec_S1_C1"');
+    expect(on).toMatch(/PAGEREF spec_S3/);
+    expect(on).toContain('For &lt;review&gt;');
+    const off = await xml(withSetup(full, { cover: { on: false }, contents: { pageNumbers: false } }));
+    expect(off).not.toContain('<w:titlePg/>');
+    expect(off).not.toMatch(/PAGEREF/);
+  });
+});
+
 describe('specification — Word file', () => {
   it('carries the page setup: paper and margins, the header and footer slots with page numbers, and the watermark', async () => {
     const JSZip = (await import('jszip')).default;
@@ -100,7 +155,7 @@ describe('specification — Word file', () => {
     const [body, header, footer] = await Promise.all(['word/document.xml', 'word/header1.xml', 'word/footer1.xml'].map((f) => zip.file(f)!.async('string')));
     expect(body).toMatch(/<w:pgSz w:w="16838" w:h="23811" w:orient="portrait"\/>/);
     expect(body).toMatch(/<w:pgMar w:top="1701" w:right="1134" w:bottom="1417" w:left="1134"/);
-    expect(body).toContain('Document number');
+    expect(body).toContain('E-001');
     expect(header).toContain(sampleProject.name.replace(/&/g, '&amp;'));
     expect(header).toContain('string="DRAFT &amp; &quot;CHECK&quot;"');
     expect(footer).toContain('E-001');

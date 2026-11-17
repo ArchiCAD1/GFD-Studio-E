@@ -28,7 +28,14 @@ export interface SpecSetup {
   logo?: string; // the document's own logo (data: URL); none: the project's company logo
   logoPlace?: SpecLogoPlace; // the logo takes the place of that slot's text
   watermark?: string; // e.g. DRAFT, behind the text of every page
+  cover?: SpecCover; contents?: SpecContents;
 }
+/** The cover page: on unless turned off, with the logo, the parties, the engineer's own details and the revision
+ * table (each on unless turned off) and an optional note at its foot. */
+export interface SpecCover { on?: boolean; logo?: boolean; parties?: boolean; details?: boolean; revisions?: boolean; note?: string }
+/** The contents page: on unless turned off; sections, and the clause headings under them when asked; page numbers
+ * on unless turned off. */
+export interface SpecContents { on?: boolean; headings?: boolean; pageNumbers?: boolean }
 export interface SpecDoc { title: string; sections: SpecSection[]; info?: SpecInfo; setup?: SpecSetup }
 
 // ---- fields from the project
@@ -129,12 +136,12 @@ export const lineText = (l: Pick<SpecLine, 'runs'>): string => l.runs.map((r) =>
 
 // ---- document information and page setup
 
-export const SPEC_SETUP: Required<Omit<SpecSetup, 'logo' | 'watermark'>> = {
+export const SPEC_SETUP: Required<Omit<SpecSetup, 'logo' | 'watermark' | 'cover' | 'contents'>> = {
   paper: 'A4', landscape: false, marginsMm: { top: 22, right: 16, bottom: 20, left: 18 },
   header: ['{{project.name}}', '', '{{doc.title}}'], footer: ['{{project.issue}}', '', 'Page {{page}} of {{pages}}'], logoPlace: 'none'
 };
 export const SPEC_PAPER_MM: Record<SpecPaper, [number, number]> = { A4: [210, 297], A3: [297, 420] };
-export interface SpecPage extends Required<Omit<SpecSetup, 'logo' | 'watermark'>> { logo?: string; watermark?: string }
+export interface SpecPage extends Required<Omit<SpecSetup, 'logo' | 'watermark' | 'cover' | 'contents'>> { logo?: string; watermark?: string; cover: Required<Omit<SpecCover, 'note'>> & { note?: string }; contents: Required<SpecContents> }
 /** The page setup in full: the document's own choices over the defaults, the logo the document's own or else the
  * project's company logo. Margins are kept between 5 and 60 mm so a page always has room for text. */
 export function specSetup(doc: SpecDoc, p: Project): SpecPage {
@@ -145,7 +152,9 @@ export function specSetup(doc: SpecDoc, p: Project): SpecPage {
     paper: s.paper ?? SPEC_SETUP.paper, landscape: s.landscape ?? false,
     marginsMm: { top: mm(m.top, d.top), right: mm(m.right, d.right), bottom: mm(m.bottom, d.bottom), left: mm(m.left, d.left) },
     header: s.header ?? SPEC_SETUP.header, footer: s.footer ?? SPEC_SETUP.footer, logoPlace: s.logoPlace ?? 'none',
-    logo: t(s.logo) ?? t(p.drawing?.logo), watermark: t(s.watermark)
+    logo: t(s.logo) ?? t(p.drawing?.logo), watermark: t(s.watermark),
+    cover: { on: s.cover?.on ?? true, logo: s.cover?.logo ?? true, parties: s.cover?.parties ?? true, details: s.cover?.details ?? true, revisions: s.cover?.revisions ?? true, note: t(s.cover?.note) },
+    contents: { on: s.contents?.on ?? true, headings: s.contents?.headings ?? false, pageNumbers: s.contents?.pageNumbers ?? true }
   };
 }
 export type SlotRun = { text: string } | { page: 'page' | 'pages' };
@@ -170,6 +179,22 @@ export const slotText = (text: string, doc: SpecDoc, p: Project, page = '1', pag
 
 export const withInfo = (doc: SpecDoc, patch: Partial<SpecInfo>): SpecDoc => ({ ...doc, info: { ...doc.info, ...patch } });
 export const withSetup = (doc: SpecDoc, patch: Partial<SpecSetup>): SpecDoc => ({ ...doc, setup: { ...doc.setup, ...patch } });
+export const withCover = (doc: SpecDoc, patch: Partial<SpecCover>): SpecDoc => withSetup(doc, { cover: { ...doc.setup?.cover, ...patch } });
+export const withContents = (doc: SpecDoc, patch: Partial<SpecContents>): SpecDoc => withSetup(doc, { contents: { ...doc.setup?.contents, ...patch } });
+/** The entries of the contents page: each included section, and its clause headings when the setup asks for them.
+ * `id` is where the entry points (the anchor in the PDF, the bookmark in the Word file). */
+export interface SpecEntry { id: string; no: string; title: string; level: 1 | 2 }
+export const specAnchor = (id: string, clause?: string): string => `spec_${id}${clause ? `_${clause}` : ''}`;
+export function specContents(v: SpecView, headings: boolean): SpecEntry[] {
+  return v.blocks.flatMap((b) => [
+    { id: specAnchor(b.id), no: b.no, title: b.title, level: 1 as const },
+    ...(headings ? b.lines.filter((l) => l.kind === 'heading').map((l) => ({ id: specAnchor(b.id, l.id), no: l.no, title: lineText(l), level: 2 as const })) : [])
+  ]);
+}
+/** The revision table of the cover: the project's issued revisions, oldest first (the specification's own
+ * revisions take this place when they come). */
+export const specRevisionRows = (p: Project): { id: string; date: string; description: string; by: string }[] =>
+  (p.revisions ?? []).map((r) => ({ id: r.id, date: r.date, description: r.description, by: r.by ?? '' }));
 export const withTitle = (doc: SpecDoc, title: string): SpecDoc => (title.trim() ? { ...doc, title: title.trim() } : doc);
 /** Adds a detail (name and value) to the document's information; its field is detail.<id>. */
 export function addDetail(doc: SpecDoc, name = '', value = ''): SpecDoc {

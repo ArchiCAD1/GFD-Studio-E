@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import type { Project } from '../types';
-import { addClause, addDetail, addSection, fieldKeys, fieldUses, removeDetail, slotRuns, slotText, specSetup, withDetail, withInfo, withSetup, withTitle, SPEC_SETUP, lineText, moveClause, moveSection, removeClause, removeSection, specFields, specView, starterSpec, withClause, withSectionIncluded, withSectionTitle, type SpecDoc } from './specDoc';
+import { addClause, addDetail, withContents, withCover, addSection, fieldKeys, fieldUses, removeDetail, slotRuns, slotText, specSetup, withDetail, withInfo, withSetup, withTitle, SPEC_SETUP, lineText, moveClause, moveSection, removeClause, removeSection, specFields, specView, starterSpec, withClause, withSectionIncluded, withSectionTitle, type SpecDoc } from './specDoc';
 import { mainBoards } from './transformers';
 
 const field = (p: Project, key: string) => specFields(p).find((f) => f.key === key)!;
@@ -177,7 +177,9 @@ describe('specification — document information and page setup', () => {
   });
 
   it('page setup: defaults, the document\'s own choices, margins kept in range, the project logo unless the document has one', () => {
-    expect(specSetup(doc, bare)).toEqual({ ...SPEC_SETUP, logo: undefined, watermark: undefined });
+    expect(specSetup(doc, bare)).toEqual({ ...SPEC_SETUP, logo: undefined, watermark: undefined,
+      cover: { on: true, logo: true, parties: true, details: true, revisions: true, note: undefined }, contents: { on: true, headings: false, pageNumbers: true } });
+    expect(specSetup(withCover(withContents(doc, { headings: true }), { on: false, note: ' x ' }), bare)).toMatchObject({ cover: { on: false, logo: true, note: 'x' }, contents: { on: true, headings: true } });
     const p: Project = { ...bare, drawing: { logo: 'data:image/png;base64,AAAA' } };
     expect(specSetup(doc, p).logo).toBe('data:image/png;base64,AAAA');
     const s = specSetup(withSetup(doc, { paper: 'A3', landscape: true, marginsMm: { top: 200, right: 1, bottom: NaN, left: 25 }, logo: 'data:image/png;base64,BBBB', watermark: ' DRAFT ' }), p);

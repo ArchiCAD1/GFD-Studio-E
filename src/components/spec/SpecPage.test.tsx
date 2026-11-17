@@ -207,6 +207,23 @@ describe('Specification page', () => {
       expect(spec().setup).toBeUndefined();
     });
 
+    it('turns the cover page and the contents page on and off, and sets what each shows', async () => {
+      saved.length = 0;
+      render(sampleProject);
+      tabTo('Specification');
+      expect(tool('Cover page').getAttribute('aria-pressed')).toBe('true');
+      const tick = (label: string) => act(() => [...document.querySelectorAll<HTMLLabelElement>('.spx-tick')].find((l) => l.textContent!.trim() === label)!.querySelector('input')!.click());
+      tick('List the clause headings'); tick('Revision table'); type('Note on the cover', 'Read with the drawings.');
+      expect(spec().setup).toEqual({ contents: { headings: true }, cover: { revisions: false, note: 'Read with the drawings.' } });
+      await act(async () => { tool('Export PDF').click(); await vi.waitFor(() => expect(saved.length).toBe(1)); });
+      expect(saved[0].html).toContain('<section class="cover');
+      expect(saved[0].html).toContain('class="l2"');
+      press('Cover page'); press('Contents page');
+      expect(spec().setup).toMatchObject({ cover: { on: false }, contents: { on: false } });
+      expect(document.querySelector('.spx-strip')!.textContent).toContain('No cover page · no contents page');
+      expect(document.querySelector<HTMLInputElement>('input[aria-label="Cover: Logo"]')!.disabled).toBe(true);
+    });
+
     it('the header on the page follows the header slots', () => {
       render({ ...sampleProject, spec: { ...starterSpec(), setup: { header: ['{{doc.number}}', 'Tender issue', ''] }, info: { number: 'E-9' } } });
       expect(document.querySelector('.spx-head')!.textContent).toBe('E-9Tender issue');
