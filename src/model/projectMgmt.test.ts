@@ -53,6 +53,13 @@ describe('profile and new project defaults', () => {
     expect(savePrefs(me)).toBe(true);
     expect(loadPrefs()).toEqual(me);
   });
+
+  it('keeps only text panel IDs from a saved Design CAD ribbon order', () => {
+    localStorage.setItem('lvds.preferences', JSON.stringify({ app: { autosaveMin: 2, cadRibbonOrder: ['layers', 7, 'draw', null] } }));
+    expect(loadPrefs().app.cadRibbonOrder).toEqual(['layers', 'draw']);
+    localStorage.setItem('lvds.preferences', JSON.stringify({ app: { autosaveMin: 2, cadRibbonOrder: 'layers' } }));
+    expect(loadPrefs().app.cadRibbonOrder).toBeUndefined();
+  });
 });
 
 describe('trash (web version storage)', () => {

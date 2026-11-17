@@ -1142,14 +1142,15 @@ describe('CAD view', () => {
     expect(project.cadLayerStyle).toEqual({ 'sample-villa-gf.dxf': { 'LV-ANNO': { lock: true }, 'LV-SKETCH': { lt: 'dashed' } } });
     // Index colour by number: open the colour cell, type 8, Enter.
     act(() => { (document.querySelector('[aria-label="LV-SKETCH colour"]') as HTMLButtonElement).click(); });
-    const num = document.querySelector('[aria-label="LV-SKETCH colour number or RGB"]') as HTMLInputElement;
+    const num = document.querySelector('[aria-label="LV-SKETCH colour index number"]') as HTMLInputElement;
     act(() => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(num, '8'); num.dispatchEvent(new Event('input', { bubbles: true })); });
     act(() => { num.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
     expect(project.cadLayerStyle!['sample-villa-gf.dxf']['LV-SKETCH']).toEqual({ lt: 'dashed', color: 'idx:8' });
     expect(document.querySelector('[aria-label="LV-SKETCH colour"]')!.textContent).toBe('Grey (8)');
-    // And from the grid: colour 130.
+    // And from the grid: colour 130, applied with OK.
     act(() => { (document.querySelector('[aria-label="LV-SKETCH colour"]') as HTMLButtonElement).click(); });
-    act(() => { (document.querySelector('[aria-label="LV-SKETCH colour picker"] [aria-label="Colour 130"]') as HTMLButtonElement).click(); });
+    act(() => { (document.querySelector('[role="dialog"] [aria-label="Colour 130"]') as HTMLButtonElement).click(); });
+    act(() => { [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find((b) => b.textContent === 'OK')!.click(); });
     expect(project.cadLayerStyle!['sample-villa-gf.dxf']['LV-SKETCH'].color).toBe('idx:130');
     act(() => { (document.querySelector('[aria-label="Close the layer palette"]') as HTMLButtonElement).click(); });
     expect(document.querySelector('[aria-label="Layer palette"]')).toBeNull();
@@ -1158,7 +1159,9 @@ describe('CAD view', () => {
     await clickAt(X + 2000, 0);
     expect(state.selected).toBe('sk:S1');
     act(() => { (document.querySelector('[aria-label="Object colour"]') as HTMLButtonElement).click(); });
-    act(() => { (document.querySelector('[aria-label="Object colour picker"] [aria-label="Red"]') as HTMLButtonElement).click(); });
+    act(() => { [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] [role="tab"]')].find((b) => b.textContent === 'True colour')!.click(); });
+    act(() => { (document.querySelector('[role="dialog"] [aria-label="Red"]') as HTMLButtonElement).click(); });
+    act(() => { [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find((b) => b.textContent === 'OK')!.click(); });
     pick('Object lineweight', '0.5');
     expect(project.cadSketch![0].items[0]).toMatchObject({ color: '#ff3b30', lw: 0.5 });
     await command('LM');

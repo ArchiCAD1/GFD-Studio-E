@@ -44,6 +44,8 @@ export interface AppPrefs {
   palette?: PalettePref;
   /** Design CAD's ribbon shows each tool's name under its icon (Show labels); absent = icons only, the name on hover. */
   cadLabels?: boolean;
+  /** Design CAD panel IDs in this computer's preferred order; absent = the app's order. */
+  cadRibbonOrder?: string[];
   /** Design CAD drafting settings (DS), checked when read (model/cadDraft draftSettings); absent = the defaults. */
   cadDraft?: unknown;
 }
@@ -65,6 +67,8 @@ export function loadPrefs(): Preferences {
     const app = { ...DEFAULT_PREFS.app, ...v.app };
     if (app.theme !== undefined && !THEMES.includes(app.theme)) delete app.theme;
     if (app.palette !== undefined && !PALETTES.includes(app.palette)) delete app.palette;
+    if (!Array.isArray(app.cadRibbonOrder)) delete app.cadRibbonOrder;
+    else app.cadRibbonOrder = app.cadRibbonOrder.filter((id): id is string => typeof id === 'string');
     return { profile: v.profile ?? {}, defaults: v.defaults ?? {}, app };
   } catch {
     return DEFAULT_PREFS;

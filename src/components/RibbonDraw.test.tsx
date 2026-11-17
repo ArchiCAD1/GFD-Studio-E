@@ -116,6 +116,25 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
     expect(selected()).toBe('Layers & properties');
   });
 
+  it('moves whole panels, keeps the order with Show labels and resets it', () => {
+    const onPanelOrder = vi.fn();
+    const { rerender } = show({ onPanelOrder });
+    const layers = group('Layers');
+    expect((layers.querySelector('.ribbon-caption') as HTMLElement).draggable).toBe(true);
+    click(layers.querySelector('[aria-label="Move Layers panel left"]')!);
+    const order = onPanelOrder.mock.calls[0][0] as string[];
+    rerender({ panelOrder: order });
+    expect(groups()).toEqual(['Draw', 'Modify', 'Layers', 'Blocks', 'Properties', 'Measure and view']);
+
+    rerender({ panelOrder: order, labels: true });
+    pick('Layers & properties');
+    expect(groups()).toEqual(['Layers', 'Properties', 'Measure and view']);
+    const reset = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Reset order') as HTMLButtonElement;
+    expect(reset.disabled).toBe(false);
+    click(reset);
+    expect(onPanelOrder).toHaveBeenLastCalledWith([]);
+  });
+
   it('runs each tool\'s command; a tool\'s other forms are under its arrow, the panel\'s less used tools under its caption', () => {
     const { cad } = show();
     click(tool('Offset'));
