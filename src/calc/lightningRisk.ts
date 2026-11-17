@@ -22,6 +22,9 @@ export const RISK_LEVELS: RiskLevel[] = ['none', 'IV', 'III', 'II', 'I'];
 export const riskLevelLabel = (l: RiskLevel) => (l === 'none' ? 'No protection' : `Class ${l}`);
 export const RISK_NOTE = 'Standard industry calculation. The input data and the results must be verified by a qualified engineer against the applicable standard.';
 
+/** A part of the building with its own height (a tower, a lift overrun, a mast), in the coordinates of the roof outline. */
+export interface RiskPart { outline: [number, number][]; heightM?: number }
+
 export interface RiskInputs {
   shape: RiskShape;
   lengthM?: number;
@@ -29,6 +32,10 @@ export interface RiskInputs {
   heightM?: number;
   /** Roof outline in plan (m), in order round the roof; the last point joins the first. */
   outline?: [number, number][];
+  /** With a roof outline: parts with their own height above ground. Each reaches three times its own height. */
+  parts?: RiskPart[];
+  /** Where the roof outline's own lower left is in its drawing (m), so that parts taken later line up with it. */
+  outlineOrigin?: [number, number];
   /** Collection area measured elsewhere (m²), for the 'area' shape. */
   collectionAreaM2?: number;
   /** Thunderstorm days a year at the site. */
@@ -151,21 +158,30 @@ function reach(a: Pt, b: Pt, d: number, y: number): [number, number] | undefined
 export function offsetAreaM2(outline: Pt[], d: number): number {
   const area = Math.abs(shoelace(outline));
   if (convex(outline)) return area + perimeter(outline) * d + Math.PI * d * d;
-  const ys = outline.map((p) => p[1]);
-  const y0 = Math.min(...ys) - d, y1 = Math.max(...ys) + d, n = 4000, h = (y1 - y0) / n;
+  return unionOffsetAreaM2([{ outline, d }]);
+}
+
+/** Area covered by several outlines, each pushed out by its own distance; where they overlap it counts once (m²).
+ * Summed over thin strips. */
+export function unionOffsetAreaM2(regions: { outline: Pt[]; d: number }[]): number {
+  if (!regions.length) return 0;
+  const y0 = Math.min(...regions.map((g) => Math.min(...g.outline.map((p) => p[1])) - g.d));
+  const y1 = Math.max(...regions.map((g) => Math.max(...g.outline.map((p) => p[1])) + g.d)), n = 4000, h = (y1 - y0) / n;
   let total = 0;
   for (let s = 0; s < n; s++) {
     const y = y0 + (s + 0.5) * h;
     const spans: [number, number][] = [];
-    const cuts: number[] = [];
-    outline.forEach((a, k) => {
-      const b = outline[(k + 1) % outline.length];
-      const span = reach(a, b, d, y);
-      if (span) spans.push(span);
-      if ((a[1] <= y && y < b[1]) || (b[1] <= y && y < a[1])) cuts.push(a[0] + ((y - a[1]) / (b[1] - a[1])) * (b[0] - a[0]));
-    });
-    cuts.sort((p, q) => p - q);
-    for (let k = 0; k + 1 < cuts.length; k += 2) spans.push([cuts[k], cuts[k + 1]]);
+    for (const { outline, d } of regions) {
+      const cuts: number[] = [];
+      outline.forEach((a, k) => {
+        const b = outline[(k + 1) % outline.length];
+        const span = reach(a, b, d, y);
+        if (span) spans.push(span);
+        if ((a[1] <= y && y < b[1]) || (b[1] <= y && y < a[1])) cuts.push(a[0] + ((y - a[1]) / (b[1] - a[1])) * (b[0] - a[0]));
+      });
+      cuts.sort((p, q) => p - q);
+      for (let k = 0; k + 1 < cuts.length; k += 2) spans.push([cuts[k], cuts[k + 1]]);
+    }
     spans.sort((p, q) => p[0] - q[0]);
     let end = -Infinity;
     for (const [lo, hi] of spans) {
@@ -175,6 +191,19 @@ export function offsetAreaM2(outline: Pt[], d: number): number {
     }
   }
   return total * h;
+}
+
+const sound = (o: Pt[]) => o.length >= 3 && o.every((p) => p.every(Number.isFinite)) && Math.abs(shoelace(o)) > 0;
+
+/** For drawing the collection area of a roof outline in a 300 × 190 box at (20, 10): the path of the outline and
+ * of each part (y upwards in the drawing), and the width of its band — twice its reach. The roof outline first. */
+export function riskOutlineSketch(k: RiskInputs): { path: string; band: number }[] | undefined {
+  if (!sound(k.outline ?? []) || !pos(k.heightM)) return undefined;
+  const regions = [{ outline: k.outline!, d: 3 * k.heightM }, ...(k.parts ?? []).filter((part) => sound(part.outline) && pos(part.heightM)).map((part) => ({ outline: part.outline, d: 3 * part.heightM! }))];
+  const edge = (pick: (v: number[]) => number, axis: 0 | 1, sign: 1 | -1) => pick(regions.map((g) => pick(g.outline.map((p) => p[axis])) + sign * g.d));
+  const x0 = edge((v) => Math.min(...v), 0, -1), x1 = edge((v) => Math.max(...v), 0, 1), y0 = edge((v) => Math.min(...v), 1, -1), y1 = edge((v) => Math.max(...v), 1, 1);
+  const s = Math.min(300 / (x1 - x0), 190 / (y1 - y0));
+  return regions.map((g) => ({ band: 2 * g.d * s, path: `M${g.outline.map(([x, y]) => `${(20 + (x - x0) * s).toFixed(1)} ${(10 + (y1 - y) * s).toFixed(1)}`).join('L')}Z` }));
 }
 
 function collection(i: RiskInputs, missing: string[], working: RiskResult['working']): { area?: number; formula?: number } {
@@ -193,11 +222,18 @@ function collection(i: RiskInputs, missing: string[], working: RiskResult['worki
     working.push({ step: 'Collection area', formula: `L × W + 6 × H × (L + W) + 9 × π × H² = ${r2(L)} × ${r2(W)} + 6 × ${r2(H)} × (${r2(L)} + ${r2(W)}) + 9 × π × ${r2(H)}²`, result: `${r2(area)} m²` });
     return { area };
   }
-  const o = i.outline ?? [];
-  const drawn = o.length >= 3 && o.every((p) => p.every(Number.isFinite)) && Math.abs(shoelace(o)) > 0;
+  const o = i.outline ?? [], parts = i.parts ?? [];
+  const drawn = sound(o);
   if (!drawn) missing.push('roof outline');
-  if (!drawn || !pos(i.heightM)) return {};
-  const d = 3 * i.heightM, area = offsetAreaM2(o, d);
+  const high = parts.map((part, n) => (sound(part.outline) && pos(part.heightM)) || (missing.push(`height of part ${n + 1}`), false)).every(Boolean);
+  if (!drawn || !pos(i.heightM) || !high) return {};
+  const d = 3 * i.heightM;
+  if (parts.length) {
+    const area = unionOffsetAreaM2([{ outline: o, d }, ...parts.map((part) => ({ outline: part.outline, d: 3 * part.heightM! }))]);
+    working.push({ step: 'Collection area', formula: `roof outline pushed out by 3 × H = ${r2(d)} m, and ${parts.length} part${parts.length > 1 ? 's' : ''} each pushed out by 3 × its own height (${parts.map((part) => r2(part.heightM!)).join(', ')} m); overlaps counted once`, result: `${r2(area)} m²` });
+    return { area };
+  }
+  const area = offsetAreaM2(o, d);
   const formula = Math.abs(shoelace(o)) + perimeter(o) * d + Math.PI * d * d;
   working.push({ step: 'Collection area', formula: `roof outline pushed out by 3 × H = ${r2(d)} m (roof ${r2(Math.abs(shoelace(o)))} m², perimeter ${r2(perimeter(o))} m)`, result: `${r2(area)} m²` });
   working.push({ step: 'Collection area — cross-check', formula: 'roof + 3 × H × perimeter + 9 × π × H² (the same when the outline has no inward corner, higher when it has)', result: `${r2(formula)} m²` });
