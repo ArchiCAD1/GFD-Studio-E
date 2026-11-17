@@ -28,6 +28,31 @@ import { packageCoverHtml, snapshotId } from '../../src/docs/issuePackage';
 import { registerHtml } from '../../src/docs/drawingRegister';
 import { buildTransmittalHtml } from '../../src/docs/submissionReport';
 import { issueAsSubmission } from '../../src/model/submissions';
+import { addCircuit } from '../../src/model/schedule';
+import { area, mergeArea, newSheet, withCells, withStyle, type Sheet } from '../../src/model/sheets';
+import { fillLinked, linkToBoard } from '../../src/docs/sheetLink';
+import { sheetsHtml } from '../../src/docs/sheetPrint';
+import type { Project } from '../../src/types';
+
+/** A DB schedule in an office's own format (Load schedule → Export → PDF: my format), with enough circuits to run over a page:
+ * a title, the panel's values, two heading rows with merged cells, one row per circuit and a total. */
+function myFormatHtml(project: Project, boardId: string): string {
+  let p = project;
+  for (let i = 0; i < 36; i++) p = addCircuit(p, boardId).project;
+  const at = (r: number, c: number) => ({ r, c });
+  let s: Sheet = withCells(newSheet(), {
+    A1: 'ACME ELECTRICAL CONSULTANTS', A2: 'LOAD DISTRIBUTION SCHEDULE', A3: 'PANEL: ', E3: 'FED FROM: ',
+    A4: 'CCT', B4: 'DESCRIPTION', C4: 'MCB A', D4: 'WIRE mm²', E4: 'LOAD (W)', H4: 'REMARKS', E5: 'R', F5: 'Y', G5: 'B',
+    D7: 'TOTAL', E7: '=SUM(E6:E6)', F7: '=SUM(F6:F6)', G7: '=SUM(G6:G6)'
+  });
+  for (const [a, b] of [[at(1, 1), at(1, 8)], [at(2, 1), at(2, 8)], [at(3, 1), at(3, 4)], [at(3, 5), at(3, 8)], [at(4, 1), at(5, 1)], [at(4, 2), at(5, 2)], [at(4, 3), at(5, 3)], [at(4, 4), at(5, 4)], [at(4, 5), at(4, 7)], [at(4, 8), at(5, 8)]]) s = mergeArea(s, area(a, b));
+  s = withStyle(s, area(at(1, 1), at(2, 8)), { bold: true, align: 'center', border: 'TRBL' });
+  s = withStyle(s, area(at(3, 1), at(3, 8)), { border: 'trbl' });
+  s = withStyle(s, area(at(4, 1), at(5, 8)), { bold: true, align: 'center', fill: true, border: 'trbl' });
+  s = withStyle(s, area(at(6, 1), at(7, 8)), { border: 'trbl' });
+  s = { ...s, widths: { A: 56, B: 260, C: 64, D: 72, E: 72, F: 72, G: 72, H: 200 }, link: { category: 'db', firstRow: 6, rows: [], cells: { A3: { field: 'board.id', before: 'PANEL: ' }, E3: { field: 'board.fedFrom', before: 'FED FROM: ' } }, columns: { A: 'row.ref', B: 'row.room', C: 'row.mcb', D: 'row.wire', E: 'row.R', F: 'row.Y', G: 'row.B', H: 'row.remarks' } } };
+  return sheetsHtml([fillLinked(p, linkToBoard(s, boardId), new Date('2026-10-15T10:00:00Z'))], 'Schedule in my format');
+}
 
 export function printDocs(project = sampleProject): Record<string, string> {
   const run = runCalculations(project);
@@ -53,6 +78,7 @@ export function printDocs(project = sampleProject): Record<string, string> {
     'solar-pv': buildPvReportHtml(p, PV_DEFAULTS, sizePv(PV_DEFAULTS)),
     'cable-tray': buildTrayReportHtml(p, plan, sizeAll(p, plan)),
     'db-load-schedule': buildLoadScheduleHtml(p, board.id),
+    'schedule-my-format': myFormatHtml(p, board.id),
     'md-workbook': workbookHtml(p, buildFormWorkbook(p), 'MD'),
     'cable-schedule': scheduleHtml(p, cableSchedule(p), 'Cable schedule'),
     'dm-d-013': buildDmFormHtml(p, [{ id: 'a', name: 'SS-1', type: 'conventional', transformers: 2 }]),

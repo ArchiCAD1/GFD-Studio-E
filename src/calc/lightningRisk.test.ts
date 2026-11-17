@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lightningRisk, offsetAreaM2, riskStarted, riskText, studyRiskInputs, type RiskInputs } from './lightningRisk';
+import { lightningRisk, offsetAreaM2, riskOutlineSketch, riskStarted, riskText, studyRiskInputs, unionOffsetAreaM2, type RiskInputs } from './lightningRisk';
 
 // A 35 × 26 m villa, 8.5 m high. Every factor is the engineer's own entry, as in a project.
 const base: RiskInputs = {
@@ -152,5 +152,49 @@ describe('lightning risk — in the study', () => {
   it('started: once anything but the shape is entered', () => {
     expect([riskStarted(undefined), riskStarted({ shape: 'area' }), riskStarted({ shape: 'rectangle', damageProbability: {} }), riskStarted({ shape: 'rectangle', thunderDays: 40 }),
       riskStarted({ shape: 'rectangle', damageProbability: { II: 0.05 } })]).toEqual([false, false, false, true, true]);
+  });
+});
+
+describe('lightning risk — parts of the building with their own height', () => {
+  const sq = (x: number, y: number, a: number): [number, number][] => [[x, y], [x + a, y], [x + a, y + a], [x, y + a]];
+  const one = (a: number, d: number) => a * a + 4 * a * d + Math.PI * d * d;
+  const close = (v: number, want: number) => expect(Math.abs(v - want) / want).toBeLessThan(0.001);
+
+  it('apart: the areas add; overlapping: counted once; a lower part inside the roof adds nothing', () => {
+    close(unionOffsetAreaM2([{ outline: sq(0, 0, 10), d: 6 }, { outline: sq(200, 0, 20), d: 9 }]), one(10, 6) + one(20, 9));
+    close(unionOffsetAreaM2([{ outline: sq(0, 0, 10), d: 6 }, { outline: sq(0, 0, 10), d: 6 }]), one(10, 6));
+    close(unionOffsetAreaM2([{ outline: rectangle, d: 25.5 }, { outline: sq(10, 10, 4), d: 9 }]), 6063.82);
+  });
+
+  it('a tall mast on the roof takes over: its own circle, the roof inside it', () => {
+    const r = lightningRisk({ ...base, shape: 'outline', outline: rectangle, parts: [{ outline: sq(17, 12.5, 1), heightM: 30 }] });
+    close(r.collectionAreaM2!, one(1, 90));
+    expect(r.formulaAreaM2).toBeUndefined();
+    expect(r.working[1].formula).toContain('1 part each pushed out by 3 × its own height (30 m); overlaps counted once');
+    // 0.103 strikes a year: even Class I leaves 1.03 × 10⁻⁵, above the tolerable risk.
+    expect(r.minimum).toBe('insufficient');
+  });
+
+  it('a tower beside a low roof: more than the roof alone, less than the two apart', () => {
+    const tower = sq(40, 0, 6), area = lightningRisk({ ...base, shape: 'outline', outline: rectangle, parts: [{ outline: tower, heightM: 20 }] }).collectionAreaM2!;
+    expect(area).toBeGreaterThan(Math.max(6063.82, one(6, 60)));
+    expect(area).toBeLessThan(6063.82 + one(6, 60));
+  });
+
+  it('a part with no height is DATA REQUIRED, by its number', () => {
+    const r = lightningRisk({ ...base, shape: 'outline', outline: rectangle, parts: [{ outline: sq(0, 0, 2), heightM: 12 }, { outline: sq(5, 5, 2) }] });
+    expect(r.missing).toEqual(['height of part 2']);
+    expect(r.collectionAreaM2).toBeUndefined();
+  });
+
+  it('the sketch gives a path and a band for the roof and each part with a height, to one scale', () => {
+    const k: RiskInputs = { shape: 'outline', outline: sq(0, 0, 10), heightM: 5, parts: [{ outline: sq(4, 4, 2), heightM: 10 }, { outline: sq(0, 0, 1) }] };
+    const sk = riskOutlineSketch(k)!;
+    expect(sk).toHaveLength(2);
+    // The part reaches 30 m: the box is 62 m wide and tall, so 190 / 62 px a metre.
+    expect(sk[0].band).toBeCloseTo((30 * 190) / 62, 3);
+    expect(sk[1].band).toBeCloseTo((60 * 190) / 62, 3);
+    expect(sk[0].path.startsWith('M')).toBe(true);
+    expect(riskOutlineSketch({ shape: 'outline', outline: sq(0, 0, 10) })).toBeUndefined();
   });
 });

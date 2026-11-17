@@ -153,3 +153,31 @@ describe('Lightning protection study — risk factor presets', () => {
   });
 });
 
+describe('Lightning protection study — parts with their own height', () => {
+  it('adds a drawn outline as a part, takes its height and counts it in the collection area', () => {
+    let last: Project | undefined;
+    const render = (p: Project) => act(() => root.render(<LightningStudy project={p} onChange={(x) => { last = x; render(x); }} />));
+    const button = (label: string) => [...document.querySelectorAll('button')].find((b) => b.textContent === label)!;
+    const building = { buildings: [{ id: 'V', name: 'Villa', levels: [{ id: 'GF', name: 'Ground', kind: 'ground' as const, heightM: 4 }, { id: 'RF', name: 'Roof', kind: 'roof' as const, heightM: 3 }] }], rooms: [] };
+    const items: import('../../types').SketchItem[] = [{ id: 'R', kind: 'pline', layer: 'A-ROOF', pts: [[0, 0], [35000, 0], [35000, 26000], [0, 26000]], closed: true }, { id: 'T', kind: 'pline', layer: 'A-ROOF', pts: [[17000, 12000], [18000, 12000], [18000, 13000], [17000, 13000]], closed: true }];
+    render({ ...sampleProject, building, cadPlans: [{ building: 'V', level: 'RF', file: 'roof.dwg', units: 4 }], cadSketch: [{ file: 'roof.dwg', items }],
+      lightning: { lengthM: 35, widthM: 26, heightM: 8.5, method: 'mesh', risk: { shape: 'outline', thunderDays: 40, strikeRatio: 1, locationFactor: 1 } } } as Project);
+    expect(button('Add as a part with its own height').disabled).toBe(true);
+    act(() => button('Take roof outline').click());
+    expect(text()).toContain('6063.82 m²');
+    const pick = [...document.querySelectorAll('label.nf')].find((l) => l.querySelector('span')?.textContent === 'Closed outline')!.querySelector('select')!;
+    act(() => { pick.value = 'T'; pick.dispatchEvent(new Event('change', { bubbles: true })); });
+    act(() => button('Add as a part with its own height').click());
+    expect(last!.lightning!.risk!.parts).toEqual([{ outline: [[17, 12], [18, 12], [18, 13], [17, 13]] }]);
+    expect(text()).toContain('height of part 1');
+    const height = document.querySelector<HTMLInputElement>('input[aria-label="Height of part 1"]')!;
+    act(() => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(height, '30'); height.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });
+    expect(last!.lightning!.risk!.parts![0].heightM).toBe(30);
+    expect(text()).toContain('Roof outline and 1 part');
+    expect(document.querySelectorAll('svg path[stroke-linejoin="round"]').length).toBe(2);
+    act(() => button('Remove').click());
+    expect(last!.lightning!.risk!.parts).toEqual([]);
+    expect(text()).toContain('6063.82 m²');
+  });
+});
+

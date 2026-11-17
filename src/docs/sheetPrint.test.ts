@@ -3,7 +3,7 @@ import { sampleProject } from '../data/sampleProject';
 import { withProjectFormat } from '../model/scheduleFormats';
 import { area, mergeArea, newSheet, withCells, withStyle, type Sheet } from '../model/sheets';
 import { scheduleRowKeys } from './scheduleFields';
-import { formatSheetOf, formatSheetsOf, sheetsHtml } from './sheetPrint';
+import { formatSheetOf, formatSheetsOf, headingRows, sheetsHtml } from './sheetPrint';
 import { linkToBoard, panelCategoryOf } from './sheetLink';
 
 const at = (r: number, c: number) => ({ r, c });
@@ -63,6 +63,60 @@ describe('sheetsHtml', () => {
     const two = sheetsHtml([small, small], 't');
     expect(two.match(/page-break-after:always/g)).toHaveLength(1);
     expect(sheetsHtml([small], 't')).not.toContain('page-break-after:always');
+  });
+});
+
+describe('heading rows on every page', () => {
+  /** The DB layout with its rows moved down: a title, a row of the panel's values, two heading rows with merged cells, the pattern row 6. */
+  const tall = (): Sheet => {
+    let s = withCells(newSheet(), { A1: 'Acme Electrical', A3: 'PANEL: ', A4: 'CCT', B4: 'DESCRIPTION', C4: 'LOAD (W)', C5: 'R', D5: 'Y', C7: 'TOTAL' });
+    for (const [a, b] of [[at(4, 1), at(5, 1)], [at(4, 2), at(5, 2)], [at(4, 3), at(4, 4)]]) s = mergeArea(s, area(a, b));
+    s = withStyle(s, area(at(3, 1), at(7, 4)), { border: 'trbl' });
+    return { ...s, link: { category: 'db', firstRow: 6, rows: [], cells: { A3: { field: 'board.id', before: 'PANEL: ' } }, columns: { A: 'row.ref', B: 'row.room', C: 'row.R', D: 'row.Y' } } };
+  };
+  const relink = (s: Sheet, patch: Partial<NonNullable<Sheet['link']>>): Sheet => ({ ...s, link: { ...s.link!, ...patch } });
+
+  it('are the rows directly above the first circuit row, up to the row that holds a value of the panel', () => {
+    expect(headingRows(tall())).toEqual({ top: 4, bottom: 5 });
+    expect(headingRows(dbLayout())).toEqual({ top: 3, bottom: 3 }); // the empty row 2 ends them
+  });
+  it('take a column\'s own heading and watts per unit as headings, and stop at eight rows', () => {
+    expect(headingRows(relink(tall(), { cells: { A3: { field: 'label.ltg' } } }))).toEqual({ top: 3, bottom: 5 });
+    const many = relink(withCells(tall(), Object.fromEntries(Array.from({ length: 13 }, (_, i) => [`A${i + 1}`, 'x']))), { firstRow: 13, cells: {} });
+    expect(headingRows({ ...many, merges: undefined })).toEqual({ top: 5, bottom: 12 });
+  });
+  it('start under a merged area that comes from above, and are none when one runs into the rows, without a link or with nothing above', () => {
+    const from3 = { ...tall(), merges: [{ r0: 3, c0: 1, r1: 4, c1: 1 }] };
+    expect(headingRows(from3)).toEqual({ top: 5, bottom: 5 });
+    expect(headingRows({ ...tall(), merges: [{ r0: 5, c0: 1, r1: 6, c1: 1 }] })).toBeUndefined();
+    const { link: _l, ...bare } = tall();
+    expect(headingRows(bare)).toBeUndefined();
+    expect(headingRows(relink(tall(), { firstRow: 1 }))).toBeUndefined();
+    expect(headingRows(withCells(tall(), { A4: '', B4: '', C4: '', C5: '', D5: '' }))).toEqual({ top: 4, bottom: 5 }); // merged cells still fill the rows
+  });
+  it('print as the head of the table that holds the rows; the rows above are a table of their own with the same columns', () => {
+    const h = sheetsHtml([tall()], 't');
+    expect(h.match(/<table>/g)).toHaveLength(2);
+    expect(h.match(/<thead>/g)).toHaveLength(1);
+    const [above, main] = h.split('</table>');
+    expect(above).not.toContain('<thead>');
+    expect(above.match(/<tr>/g)).toHaveLength(3);
+    expect(/<thead>(.*)<\/thead>/.exec(main)![1].match(/<tr>/g)).toHaveLength(2);
+    expect(/<tbody>(.*)<\/tbody>/.exec(main)![1].match(/<tr>/g)).toHaveLength(2);
+    expect(/<colgroup>.*?<\/colgroup>/.exec(above)![0]).toBe(/<colgroup>.*?<\/colgroup>/.exec(main)![0]);
+    expect(h).toContain('thead { display: table-header-group; break-inside: avoid; }');
+  });
+  it('draw the line between the two tables once: the heading keeps its top line, the row above gives up its bottom line', () => {
+    const h = sheetsHtml([tall()], 't');
+    expect(cell(h, 'PANEL: ')).toContain('border-top:0.5pt solid #000');
+    expect(cell(h, 'PANEL: ')).not.toContain('border-bottom');
+    expect(cell(h, 'CCT')).toContain('border-top:0.5pt solid #000');
+    expect(cell(sheetsHtml([{ ...tall(), link: undefined }], 't'), 'PANEL: ')).toContain('border-bottom:0.5pt solid #000');
+  });
+  it('leave a sheet with no heading rows as one table', () => {
+    const h = sheetsHtml([relink(tall(), { firstRow: 1 })], 't');
+    expect(h.match(/<table>/g)).toHaveLength(1);
+    expect(h).not.toContain('<thead>');
   });
 });
 
