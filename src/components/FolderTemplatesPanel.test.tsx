@@ -91,14 +91,63 @@ describe('the tree editor (C2)', () => {
     expect(host.querySelector('.ft-issues')!.textContent).toContain('not allowed in folder names');
     expect(button('Save template').disabled).toBe(true);
   });
-  it('deletes from the template only, and the Roles and File naming tabs are placeholders for now', async () => {
+  it('deletes from the template only, and previews the folders', async () => {
     await openCopy();
     const n = names().length;
     key(host.querySelector('[role=tree]')!, 'Delete');
     expect(names().length).toBeLessThan(n);
-    click(button('Roles'));
-    expect(host.textContent).toContain('coming in the next update');
     click(button('Preview'));
     expect(host.querySelector('.ft-tree.preview')).toBeTruthy();
+  });
+});
+
+const type = (el: HTMLInputElement | HTMLSelectElement, v: string) => act(() => {
+  const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(el, v);
+  el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }));
+});
+
+describe('the Roles tab (C3)', () => {
+  it('lists every role, moves a role to another folder and saves it', async () => {
+    await openCopy();
+    click(button('Roles'));
+    expect(host.querySelectorAll('.ft-table tbody tr')).toHaveLength(50);
+    const sel = host.querySelector<HTMLSelectElement>('select[aria-label="Folder for Voltage drop report"]')!;
+    expect(sel.value).not.toBe('');
+    type(sel, '');
+    expect(host.textContent).toContain('Unassigned (1)');
+    click(button('Unassigned (1)'));
+    expect(host.querySelectorAll('.ft-table tbody tr')).toHaveLength(1);
+    click(button('Auto-assign by name'));
+    expect(host.textContent).toContain('1 role matched to a folder by name');
+    expect(host.textContent).toContain('Unassigned (0)');
+    click(button('Save template'));
+    await flush();
+    const vd = JSON.stringify(saved[0].folders).match(/"name":"02_Volt_Drop","role":"calcVd"/);
+    expect(vd).toBeTruthy();
+  });
+});
+
+describe('the File naming tab (C4)', () => {
+  it('previews names, switches preset and blocks saving on a pattern that cannot be used', async () => {
+    await openCopy();
+    click(button('File naming'));
+    const preview = () => host.querySelector('.ft-preview')!.textContent!;
+    expect(preview()).toContain('2417-E-DWG-001-B.pdf');
+    type(host.querySelector<HTMLSelectElement>('.grid2 select')!, 'simple');
+    expect(preview()).toContain('AlBarsha-Villas_DWG_B.pdf');
+    const raw = host.querySelector<HTMLInputElement>('input[spellcheck="false"]')!;
+    type(raw, '{ProjectNo}-{Nope}');
+    expect(host.textContent).toContain('{Nope} is not a field a file name can use');
+    expect(button('Save template').disabled).toBe(true);
+    type(raw, '{ProjectNo}-{Type}-{Rev}');
+    expect(button('Save template').disabled).toBe(false);
+    click(host.querySelector('button[aria-label="Remove Type"]')!);
+    expect(host.textContent).toContain('Two document types get the same name');
+    click([...host.querySelectorAll('.ft-chip.add')].find((b) => b.textContent === 'Seq')!);
+    expect(preview()).toContain('2417-B-001.pdf');
+    click(button('Save template'));
+    await flush();
+    expect(saved[0].naming).toMatchObject({ preset: 'custom', pattern: '{ProjectNo}-{Rev}-{Seq:3}' });
   });
 });
