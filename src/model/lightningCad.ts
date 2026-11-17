@@ -1,6 +1,7 @@
 import { lightningProtection, lpsLayout, type LpsInputs } from '../calc/lightningProtection';
 import type { Project, SketchItem } from '../types';
 import { withBlockDef, type CadBlockDef } from './cadBlocks';
+import { areaOf } from './cadMeasure';
 import { plansOf } from './cadPlans';
 import { planScale } from './cadUnits';
 
@@ -46,4 +47,28 @@ export function withLightningBlock(p: Project, file: string): { project: Project
   const scale = planScale(p, file, p.cadPlans?.find((x) => x.file.trim().toLowerCase() === file.trim().toLowerCase())?.units);
   const def = lightningRoofBlock(p.lightning, scale.factor);
   return def ? { project: withBlockDef(p, file, def), unit: scale.label, assumed: scale.assumed } : undefined;
+}
+
+const sameFile = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+export interface RoofOutline { id: string; layer: string; areaM2: number; pts: [number, number][]; arcs: boolean }
+/** Closed outlines the engineer drew over a drawing, in metres from the outline's own lower left, largest first:
+ * the roof outline of the risk assessment is picked from these. A hatch or a revision cloud is not an outline;
+ * arc segments are taken as straight (`arcs` says the outline has some). */
+export function roofOutlines(p: Project, file: string): RoofOutline[] {
+  const items = p.cadSketch?.find((x) => sameFile(x.file, file))?.items ?? [];
+  const f = planScale(p, file, p.cadPlans?.find((x) => sameFile(x.file, file))?.units).factor, mm = (v: number) => Math.round(v * 1000) / 1000;
+  return items.filter((x) => x.kind === 'pline' && x.closed && !x.hatch && !x.cloud && x.pts.length >= 3).map((x) => {
+    const x0 = Math.min(...x.pts.map((q) => q[0])), y0 = Math.min(...x.pts.map((q) => q[1]));
+    const pts = x.pts.map(([a, b]): [number, number] => [mm((a - x0) * f), mm((b - y0) * f)]);
+    return { id: x.id, layer: x.layer, areaM2: Math.round(areaOf(pts).area * 100) / 100, pts, arcs: !!x.bulges?.some((v) => v) };
+  }).filter((o) => o.areaM2 > 0).sort((a, b) => b.areaM2 - a.areaM2);
+}
+
+/** The project with that outline taken as the roof outline of the risk assessment (a copy: take it again after
+ * changing the drawing). */
+export function withRoofOutline(p: Project, file: string, id: string): Project | undefined {
+  const o = roofOutlines(p, file).find((x) => x.id === id);
+  if (!o || !p.lightning) return undefined;
+  return { ...p, lightning: { ...p.lightning, risk: { ...p.lightning.risk, shape: 'outline', outline: o.pts } } };
 }

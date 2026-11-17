@@ -106,3 +106,22 @@ describe('Lightning protection study', () => {
     expect(text()).toContain('1 in 50 years');
   });
 });
+
+describe('Lightning protection study — roof outline for the risk assessment', () => {
+  it('takes a closed outline from the roof drawing as the collection area', () => {
+    let last: Project | undefined;
+    const render = (p: Project) => act(() => root.render(<LightningStudy project={p} onChange={(x) => { last = x; render(x); }} />));
+    const building = { buildings: [{ id: 'V', name: 'Villa', levels: [{ id: 'GF', name: 'Ground', kind: 'ground' as const, heightM: 4 }, { id: 'RF', name: 'Roof', kind: 'roof' as const, heightM: 3 }] }], rooms: [] };
+    const outline: [number, number][] = [[0, 0], [40000, 0], [40000, 15000], [20000, 15000], [20000, 30000], [0, 30000]];
+    render({ ...sampleProject, building, cadPlans: [{ building: 'V', level: 'RF', file: 'roof.dwg', units: 4 }], cadSketch: [{ file: 'roof.dwg', items: [{ id: 'S1', kind: 'pline', layer: 'A-ROOF', pts: outline, closed: true }] }],
+      lightning: { lengthM: 40, widthM: 30, heightM: 8, method: 'mesh', risk: { shape: 'outline', thunderDays: 40, strikeRatio: 1, locationFactor: 1 } } } as Project);
+    expect(text()).toContain('No outline taken yet');
+    expect(text()).toContain('900 m² · 6 points · layer A-ROOF');
+    const take = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Take roof outline')!;
+    act(() => take.click());
+    expect(last!.lightning!.risk).toMatchObject({ shape: 'outline', outline: [[0, 0], [40, 0], [40, 15], [20, 15], [20, 30], [0, 30]] });
+    expect(text()).toContain('Outline taken: 6 points');
+    expect(text()).toContain('Collection area — cross-check');
+    expect(document.querySelectorAll('svg path[stroke-linejoin="round"]').length).toBe(1);
+  });
+});

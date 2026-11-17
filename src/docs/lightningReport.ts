@@ -2,6 +2,7 @@ import { AIR_METHODS, airResultText, lightningProtection, lpsLayout, type LpsInp
 import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskResult } from '../calc/lightningRisk';
 import { CALC_DISCLAIMER, REPORT_STATUS_TEXT } from '../calc/statusText';
 import { boardsInSupplyOrder } from '../calc/summary';
+import { areaOf } from '../model/cadMeasure';
 import { SPD_TYPES, type Project } from '../types';
 import { esc } from './report';
 import { SHEET_CSS, sheetHead } from './upsSolarReport';
@@ -58,7 +59,7 @@ function riskBlocks(k: RiskInputs, risk: RiskResult): LpsBlock[] {
       : risk.minimum === 'none' ? 'No protection is needed by this assessment.' : `Minimum protection from this assessment: ${riskLevelLabel(risk.minimum)}.`;
   const sens = risk.sensitivityMinimum ? [`Sensitivity: with the strike density × ${n2(k.sensitivity!)} the minimum is ${risk.sensitivityMinimum === 'insufficient' ? 'more than Class I' : (risk.sensitivityMinimum === 'none' ? 'no protection' : riskLevelLabel(risk.sensitivityMinimum))}${risk.sensitivityRisk !== undefined ? ` (${riskText(risk.sensitivityRisk)} per year)` : ''}.`] : [];
   return [
-    { key: 'risk', title: 'Risk assessment — preliminary: inputs as entered', riskSketch: k.shape === 'rectangle', pairs: [
+    { key: 'risk', title: 'Risk assessment — preliminary: inputs as entered', riskSketch: k.shape !== 'area', pairs: [
       ['Thunderstorm days', val(k.thunderDays, 'days/yr')],
       ['Strike point ratio', fac(k.strikeRatio)],
       ...(k.strikeDensity !== undefined ? [['Measured strike density', val(k.strikeDensity, '/km²/yr')] as [string, string]] : []),
@@ -81,8 +82,20 @@ function riskBlocks(k: RiskInputs, risk: RiskResult): LpsBlock[] {
   ];
 }
 
-/** The collection area in black and white: the building and the line 3 × height out from it. */
+/** The collection area in black and white: the building and the line 3 × height out from it; for a roof outline,
+ * the outline on the band 3 × height wide round it. */
 export function riskAreaSvg(i: LpsInputs, risk: RiskResult): string {
+  if (i.risk?.shape === 'outline') {
+    const o = i.risk.outline ?? [];
+    if (o.length < 3 || !(i.heightM > 0) || !risk.collectionAreaM2) return '';
+    const d = 3 * i.heightM, xs = o.map((q) => q[0]), ys = o.map((q) => q[1]), x0 = Math.min(...xs) - d, y1 = Math.max(...ys) + d;
+    const s = Math.min(300 / (Math.max(...xs) + d - x0), 190 / (y1 - Math.min(...ys) + d));
+    const path = `M${o.map(([x, y]) => `${(20 + (x - x0) * s).toFixed(1)} ${(10 + (y1 - y) * s).toFixed(1)}`).join('L')}Z`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 230" width="340" height="230" font-family="Arial, sans-serif" font-size="10">
+<path d="${path}" fill="#f2f2f2" stroke="#f2f2f2" stroke-width="${(2 * d * s).toFixed(1)}" stroke-linejoin="round"/>
+<path d="${path}" fill="#fff" stroke="#000" stroke-width="1.6"/>
+<text x="20" y="222">Roof outline ${n2(areaOf(o).area)} m² · reach 3 × height = ${n2(d)} m (shaded) · collection area ${n2(risk.collectionAreaM2)} m²</text></svg>`;
+  }
   if (![i.lengthM, i.widthM, i.heightM].every((v) => Number.isFinite(v) && v > 0)) return '';
   const reach = 3 * i.heightM, k = Math.min(300 / (i.lengthM + 2 * reach), 190 / (i.widthM + 2 * reach)), f = (v: number) => v.toFixed(1);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 230" width="340" height="230" font-family="Arial, sans-serif" font-size="10">

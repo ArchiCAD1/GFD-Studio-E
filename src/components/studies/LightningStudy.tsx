@@ -3,7 +3,7 @@ import { SPD_TYPES, type Project } from '../../types';
 import { AIR_METHODS, airResultText as resultText, lightningProtection, lpsLayout, type AirMethod, type AirResult, type LpsClass, type LpsInputs } from '../../calc/lightningProtection';
 import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskLevel } from '../../calc/lightningRisk';
 import { buildLightningReportHtml, LPS_SECTIONS, type LpsSectionKey } from '../../docs/lightningReport';
-import { lightningPlanFiles, LP_BLOCK, withLightningBlock } from '../../model/lightningCad';
+import { lightningPlanFiles, LP_BLOCK, roofOutlines, withLightningBlock, withRoofOutline } from '../../model/lightningCad';
 import { safeFileName, saveBinary, savePdf } from '../../util/files';
 import { boardsInSupplyOrder } from '../../calc/summary';
 import { NumField, Page, ResultCard, ResultCards, StatusCell, StatusCounts } from '../ui';
@@ -47,6 +47,16 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
     onChange(done.project, true);
     onStatus?.(`Block ${LP_BLOCK} is in ${toFile} (${done.unit}${done.assumed ? ', units assumed' : ''}). In Design CAD: Insert → ${LP_BLOCK}, at a roof corner.`);
   }
+  // Roof outline for the risk assessment: closed outlines drawn over the chosen drawing, the largest first.
+  const outlines = useMemo(() => (toFile ? roofOutlines(project, toFile) : []), [project, toFile]);
+  const [outlineId, setOutlineId] = useState('');
+  const outline = outlines.find((x) => x.id === outlineId) ?? outlines[0];
+  function takeOutline() {
+    const done = toFile && outline ? withRoofOutline({ ...project, lightning: i }, toFile, outline.id) : undefined;
+    if (!done) return;
+    onChange(done, true);
+    onStatus?.(`Roof outline taken from ${toFile}: ${outline!.pts.length} points, ${n2(outline!.areaM2)} m²${outline!.arcs ? ', arc segments taken as straight' : ''}.`);
+  }
   const picked = LPS_SECTIONS.map((x) => x.key).filter((x) => sections.includes(x));
   async function exportReport() {
     setBusy(true);
@@ -67,6 +77,14 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
   const X = (m: number) => 35 + m * k, Y = (m: number) => 30 + m * k;
   // Collection area sketch: the building and its 3 × height reach drawn to fit a 300 × 190 box.
   const reach = 3 * i.heightM, ks = r.invalid ? 0 : Math.min(300 / (i.lengthM + 2 * reach), 190 / (i.widthM + 2 * reach));
+  // The same for a roof outline: its path (y upwards in the drawing) and the scale, for the band 3 × height wide.
+  const ol = useMemo(() => {
+    const o = k0.outline ?? [];
+    if (o.length < 3 || !(reach > 0)) return undefined;
+    const xs = o.map((q) => q[0]), ys = o.map((q) => q[1]), x0 = Math.min(...xs) - reach, y1 = Math.max(...ys) + reach;
+    const s = Math.min(300 / (Math.max(...xs) + reach - x0), 190 / (y1 - Math.min(...ys) + reach));
+    return { s, path: `M${o.map(([x, y]) => `${(20 + (x - x0) * s).toFixed(1)} ${(10 + (y1 - y) * s).toFixed(1)}`).join('L')}Z` };
+  }, [k0.outline, reach]);
 
   return (
     <Page
@@ -115,11 +133,27 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
         </div>
         <div className="dm-head">
           <label className="nf"><span>Collection area</span>
-            <select value={k0.shape === 'area' ? 'area' : 'rectangle'} onChange={(e) => setRisk({ shape: e.target.value as RiskInputs['shape'] })}>
+            <select value={k0.shape} onChange={(e) => setRisk({ shape: e.target.value as RiskInputs['shape'] })}>
+              <option value="outline">Roof outline — from a Design CAD drawing</option>
               <option value="rectangle">Rectangle — the building above</option>
               <option value="area">Entered area</option>
             </select>
           </label>
+          {k0.shape === 'outline' && (
+            <>
+              <label className="nf"><span>Drawing with the roof outline</span>
+                <select value={toFile ?? ''} disabled={!planFiles.length} onChange={(e) => setPlanFile(e.target.value)}>
+                  {planFiles.length ? planFiles.map((x) => <option key={x.file} value={x.file}>{x.label}</option>) : <option value="">No level plan in Design CAD yet</option>}
+                </select>
+              </label>
+              <label className="nf"><span>Closed outline</span>
+                <select value={outline?.id ?? ''} disabled={!outlines.length} onChange={(e) => setOutlineId(e.target.value)}>
+                  {outlines.length ? outlines.map((x) => <option key={x.id} value={x.id}>{n2(x.areaM2)} m² · {x.pts.length} points · layer {x.layer}</option>) : <option value="">No closed outline drawn on it</option>}
+                </select>
+              </label>
+              <button className="chip" disabled={!outline} onClick={takeOutline}>Take roof outline</button>
+            </>
+          )}
           {k0.shape === 'area' && <NumField label="Collection area (entered)" unit="m²" value={k0.collectionAreaM2} min={0} onSet={(v) => setRisk({ collectionAreaM2: v })} optional />}
         </div>
         <div className="dm-head">
@@ -131,7 +165,19 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
           <NumField label="Tolerable risk" unit="/yr" value={k0.tolerableRisk} min={0} onSet={(v) => setRisk({ tolerableRisk: v })} optional />
         </div>
         <p className="m">{RISK_NOTE} A missing value shows DATA REQUIRED; nothing is assumed. One risk component only — physical damage from a direct strike — so the class is a minimum.</p>
-        {k0.shape !== 'area' && !r.invalid && (
+        {k0.shape === 'outline' && (
+          <p className="m">{k0.outline?.length ? `Outline taken: ${k0.outline.length} points. ` : 'No outline taken yet. '}In Design CAD, draw one closed polyline round the roof, then take it here; take it again after changing the drawing. The height is the building height above.</p>
+        )}
+        {k0.shape === 'outline' && ol && (
+          <svg viewBox="0 0 340 230" role="img" aria-label={`Collection area: the roof outline and everything within ${n2(reach)} m of it`} style={{ width: '100%', maxWidth: 420, height: 'auto' }}>
+            <path d={ol.path} fill="var(--mut)" fillOpacity={0.25} stroke="var(--mut)" strokeOpacity={0.25} strokeWidth={2 * reach * ol.s} strokeLinejoin="round" />
+            <path d={ol.path} fill="none" stroke="var(--tx)" strokeWidth={2} />
+            <g fontSize={11} fill="var(--tx)">
+              <text x={20} y={222}>Roof outline · reach 3 × height = {n2(reach)} m (shaded){risk.collectionAreaM2 ? ` · ${n2(risk.collectionAreaM2)} m²` : ''}</text>
+            </g>
+          </svg>
+        )}
+        {k0.shape === 'rectangle' && !r.invalid && (
           <svg viewBox="0 0 340 230" role="img" aria-label={`Collection area: the building and everything within ${n2(reach)} m of it`} style={{ width: '100%', maxWidth: 420, height: 'auto' }}>
             <rect x={20} y={10} width={(i.lengthM + 2 * reach) * ks} height={(i.widthM + 2 * reach) * ks} rx={reach * ks} fill="none" stroke="var(--mut)" strokeWidth={1.2} strokeDasharray="6 4" />
             <rect x={20 + reach * ks} y={10 + reach * ks} width={i.lengthM * ks} height={i.widthM * ks} fill="none" stroke="var(--tx)" strokeWidth={2} />

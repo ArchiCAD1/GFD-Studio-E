@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lightningRisk, offsetAreaM2, riskText, type RiskInputs } from './lightningRisk';
+import { lightningRisk, offsetAreaM2, riskStarted, riskText, studyRiskInputs, type RiskInputs } from './lightningRisk';
 
 // A 35 × 26 m villa, 8.5 m high. Every factor is the engineer's own entry, as in a project.
 const base: RiskInputs = {
@@ -131,5 +131,26 @@ describe('lightning risk — preliminary (physical damage from a direct strike)'
 
   it('small numbers are written as a power of ten', () => {
     expect([riskText(1.2128e-4), riskText(1e-5), riskText(9.996e-6), riskText(0.0243), riskText(0)]).toEqual(['1.21 × 10⁻⁴', '1 × 10⁻⁵', '1 × 10⁻⁵', '0.0243', '0']);
+  });
+});
+
+describe('lightning risk — in the study', () => {
+  it('the rectangle takes the building size of the study, the roof outline its height, an entered area nothing', () => {
+    const size = { lengthM: 35, widthM: 26, heightM: 8.5 };
+    expect(studyRiskInputs(size)).toEqual({ shape: 'rectangle', ...size });
+    expect(studyRiskInputs({ ...size, risk: { shape: 'outline', outline: lShape } })).toEqual({ shape: 'outline', outline: lShape, heightM: 8.5 });
+    expect(studyRiskInputs({ ...size, risk: { shape: 'area', collectionAreaM2: 5000 } })).toEqual({ shape: 'area', collectionAreaM2: 5000 });
+  });
+
+  it('a roof outline shows the area-and-perimeter cross-check in the working', () => {
+    const w = lightningRisk({ ...base, shape: 'outline', outline: lShape, heightM: 8 }).working;
+    expect(w.map((x) => x.step).slice(1, 3)).toEqual(['Collection area', 'Collection area — cross-check']);
+    expect(w[2].result).toBe('6069.56 m²');
+    expect(parseFloat(w[1].result)).toBeLessThan(6069.56);
+  });
+
+  it('started: once anything but the shape is entered', () => {
+    expect([riskStarted(undefined), riskStarted({ shape: 'area' }), riskStarted({ shape: 'rectangle', damageProbability: {} }), riskStarted({ shape: 'rectangle', thunderDays: 40 }),
+      riskStarted({ shape: 'rectangle', damageProbability: { II: 0.05 } })]).toEqual([false, false, false, true, true]);
   });
 });
