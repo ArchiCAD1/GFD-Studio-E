@@ -24,7 +24,7 @@ const kindOf = (b: Board): BoardKind => b.kind ?? (b.upstreamId ? 'DB' : 'MDB');
 const shortKind = (k: BoardKind) => k.replace(/^LV-/, '');
 export function countCol(k: BoardKind): CountCol {
   if (MAIN_KINDS.has(k)) return 'mdb';
-  return k === 'SMDB' ? 'smdb' : k === 'EDB' ? 'edb' : k === 'MCC' || k === 'EMCC' || k === 'FP' ? 'mcc' : k === 'UPS' ? 'ups' : 'db';
+  return k === 'SMDB' || k === 'ESMDB' ? 'smdb' : k === 'EDB' ? 'edb' : k === 'MCC' || k === 'EMCC' || k === 'FP' ? 'mcc' : k === 'UPS' ? 'ups' : 'db';
 }
 const zero = (): RowCounts => ({ mdb: 0, smdb: 0, db: 0, edb: 0, mcc: 0, ups: 0 });
 export const countTotal = (c: RowCounts) => COUNT_COLS.reduce((s, k) => s + c[k], 0);

@@ -25,6 +25,7 @@ export const ABBREVIATIONS: [string, string][] = [
   ['MDB', 'Main distribution board'],
   ['LV-MDB', 'Low-voltage main distribution board'],
   ['LV-ACB', 'Low-voltage ACB panel at the substation'],
+  ['ESMDB', 'Emergency sub-main distribution board'],
   ['LV-EMDB', 'Low-voltage emergency main distribution board'],
   ['MICC', 'Mineral insulated copper cable'],
   ['N/C', 'Normally closed'],

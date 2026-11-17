@@ -3,6 +3,7 @@ import { updateCircuit } from './schedule';
 import { circuitRef } from '../calc/loadSchedule';
 import type { LevelRef } from './levels';
 import { PLAN_SYMBOLS } from './planSymbols';
+import { boardSymbolOf } from '../diagram/panelBox';
 import type { Feeder, PointType, Project } from '../types';
 
 /** Devices the engineer places in the CAD view, in metres on a level's plan (the same coordinates as the room outlines
@@ -81,7 +82,7 @@ export const LV_PALETTE: PaletteItem[] = [
   { id: 'sac', label: 'Split A/C', group: 'Equipment', kind: { lv: 'sac' }, symbol: { shape: 'square', text: 'AC', icon: 'split-ac' } },
   { id: 'wh', label: 'Water heater', group: 'Equipment', kind: { lv: 'wh' }, symbol: { shape: 'square', text: 'WH', icon: 'water-heater' } },
   { id: 'hd', label: 'Hand dryer', group: 'Equipment', kind: { lv: 'hd' }, symbol: { shape: 'rect', text: 'HD', plan: 'hand-dryer' } },
-  { id: 'db', label: 'DB', group: 'Boards', kind: { board: true }, symbol: { shape: 'rect', text: 'DB', icon: 'db' } },
+  { id: 'db', label: 'DB', group: 'Boards', kind: { board: true }, symbol: { shape: 'rect', text: 'DB', icon: 'p-db' } },
   { id: 'isol', label: 'Isolator', group: 'Boards', kind: { lv: 'isol' }, symbol: { shape: 'rect', text: 'IS', plan: 'isolator' } },
   { id: 'isol-fused', label: 'Fused isolator', group: 'Boards', variant: 'fused', kind: { lv: 'isol' }, symbol: { shape: 'rect', text: 'FS', plan: 'fused-isolator' } },
   // No-load accessories: a switch may name the circuit it controls.
@@ -201,7 +202,7 @@ export function placedOn(p: Project, level: LevelRef): PlacedItem[] {
     return { key: `lv:${d.id}`, id: d.id, what: 'lv', x: d.x, y: d.y, label: item?.label ?? d.type, detail: f ? circuitLabel(p, f) : 'circuit removed', symbol: item?.symbol ?? { shape: 'circle', text: '?' }, room: roomName(d.x, d.y), ...(d.rot ? { rot: d.rot } : {}) };
   });
   const boards = p.boards.filter((b) => b.planPoint && b.level?.building === level.building && b.level?.level === level.level).map((b): PlacedItem => ({
-    key: `board:${b.id}`, id: b.id, what: 'board', x: b.planPoint!.x, y: b.planPoint!.y, label: b.id, detail: b.name, symbol: { shape: 'rect', text: 'DB' }, room: b.location
+    key: `board:${b.id}`, id: b.id, what: 'board', x: b.planPoint!.x, y: b.planPoint!.y, label: b.id, detail: b.name, symbol: { shape: 'rect', text: 'DB', plan: boardSymbolOf(p, b) }, room: b.location
   }));
   const accs = (p.cadAccessories ?? []).filter((d) => d.buildingId === level.building && d.levelId === level.level).map((d): PlacedItem => {
     const f = d.feederId ? p.feeders.find((x) => x.id === d.feederId) : undefined;

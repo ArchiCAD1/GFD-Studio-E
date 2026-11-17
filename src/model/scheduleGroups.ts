@@ -19,7 +19,7 @@ export const SCHEDULE_GROUPS: { key: ScheduleGroup; label: string }[] = [
 
 /** True for an explicitly emergency panel, or any panel below an EMDB. */
 function inEmergency(project: Project, b: Board): boolean {
-  if (b.kind === 'EDB' || b.kind === 'EMCC' || b.kind === 'LV-EMDB') return true;
+  if (b.kind === 'EDB' || b.kind === 'ESMDB' || b.kind === 'EMCC' || b.kind === 'LV-EMDB') return true;
   const seen = new Set<string>();
   for (let x: Board | undefined = b; x && !seen.has(x.id); x = x.upstreamId ? boardOf(project, x.upstreamId) : undefined) {
     seen.add(x.id);

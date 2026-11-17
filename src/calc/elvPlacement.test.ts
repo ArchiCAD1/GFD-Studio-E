@@ -52,6 +52,8 @@ describe('ELV placement', () => {
     const p = tower();
     expect(onEssentialSide(p, p.boards[1])).toBe(true);
     expect(onEssentialSide(p, p.boards[3])).toBe(false);
+    const es = { ...p, boards: [...p.boards, lv('ESMDB', 'GF', { kind: 'ESMDB' })] };
+    expect(onEssentialSide(es, es.boards[es.boards.length - 1])).toBe(true); // an ESMDB is essential like an EDB
     const withGen = { ...p, boards: p.boards.map((b) => (b.id === 'MDB' ? { ...b, standby: { kva: 500 } } : b)) };
     expect(onEssentialSide(withGen, withGen.boards[3])).toBe(true);
   });

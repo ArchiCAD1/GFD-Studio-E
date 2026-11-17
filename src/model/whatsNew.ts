@@ -21,6 +21,13 @@ export const RELEASES: Release[] = [
     ]
   },
   {
+    version: '2.184', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: boards drawn by their kind', text: 'A board placed on a plan is now drawn with its SLD pattern: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, a double frame for a main board, and so on, with its tag beside it. Plan sheets print the same symbols and their legend lists each kind shown. Saved DXF and DWG files keep the filled parts solid.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Boards: ESMDB type', text: 'A board can now be set to ESMDB, an emergency sub-main distribution board. It is drawn as a cross with its left and right parts filled, and it counts as emergency supply wherever it is fed from. A sub-main below an EMDB still shows as an ESMDB without changing its type.' }
+    ]
+  },
+  {
     version: '2.183', date: '2026-11-17',
     items: [
       { title: 'Project folders: make a job folder from a template', text: 'New project has a Project folder step: choose a folder template, where the folder goes and its name, untick the folders this job does not need, and the app makes the empty folders. Skip folders keeps things as before. The Overview has a Project folder card that opens the folder, shows which folders are present or missing and makes the missing ones. Only new, empty folders are made: nothing is moved, renamed or deleted. The web version gives the folders as a ZIP file. Project files and exports are still saved where they were.' }

@@ -24,6 +24,11 @@ describe('load schedule groups', () => {
     expect(names.findIndex((n) => n.startsWith(e.boards[0].id))).toBeLessThan(names.indexOf('MCC-1 MD'));
   });
 
+  it('puts a board of kind ESMDB in the emergency tab even on a normal MDB', () => {
+    const b: Board = { id: 'ESMDB-1', name: 'Emergency sub-main', kind: 'ESMDB', upstreamId: 'MDB-1' };
+    expect(scheduleGroupOf({ ...sampleProject, boards: [...sampleProject.boards, b] }, b)).toBe('emg');
+  });
+
   it('groups explicit LV-MDB, EDB and EMCC panel types for schedules', () => {
     const p = {
       ...sampleProject,
