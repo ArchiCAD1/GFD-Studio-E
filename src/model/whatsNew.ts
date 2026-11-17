@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.167', date: '2026-11-17',
+    items: [
+      { title: 'SLD: end boards side by side keep their frames apart', text: 'In DEWA style, two boards with no outgoing ways on neighbouring ways (a UPS board and a fire pump panel, say) no longer draw their dashed frames and text over each other: the second one moves right until its frame is clear, and so does a panel beside one. Drawings whose frames were already clear keep their places.' }
+    ]
+  },
+  {
     version: '2.163', date: '2026-11-16',
     items: [
       { title: 'Design CAD: right-click menus stay inside the drawing', text: 'A right-click near the bottom or right edge of the drawing now opens the menu upward or to the left, so every entry can be reached; a menu taller than the drawing scrolls. A list opens beside its row, and to the left at the right edge.', action: 'cad', actionLabel: 'Open Design CAD' }

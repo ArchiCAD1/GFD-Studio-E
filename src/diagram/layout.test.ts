@@ -189,6 +189,46 @@ describe('DEWA panel frames sized to their labels', () => {
   });
 });
 
+describe('DEWA frames of end boards (endFrameX)', () => {
+  // UPS boards with no ways of their own (end boards), framed 86 left and 150 right of their incomer.
+  const end = (id: string, upstreamId: string) => ({ id, name: id, kind: 'UPS' as const, upstreamId });
+  const ends = (ids: string[]) => new Map(ids.map((id) => [id, { left: 86, right: 150 }]));
+  const x = (l: ReturnType<typeof layoutSystem>, id: string) => l.feeders.find((f) => f.feeder.id === id)!.x;
+  const frame = (l: ReturnType<typeof layoutSystem>, id: string) => l.boards.find((b) => b.board.id === id)!.frame!;
+
+  it('moves an end board clear of the end frame before it, and nothing whose frame clears it already', () => {
+    const p: Project = {
+      ...base,
+      boards: [{ id: 'MDB', name: 'M' }, end('E1', 'MDB'), end('E2', 'MDB'), end('E3', 'MDB')],
+      feeders: [feeder('I1', 'MDB', 'E1'), feeder('I2', 'MDB', 'E2'), feeder('L', 'MDB'), feeder('I3', 'MDB', 'E3')]
+    };
+    const plain = layoutSystem(p, DEWA_EXTRA_Y, { frames: true });
+    const l = layoutSystem(p, DEWA_EXTRA_Y, { frames: true, endFrameX: ends(['E1', 'E2', 'E3']) });
+    expect(x(l, 'I1')).toBe(x(plain, 'I1'));
+    // E2's frame starts the usual gap between frames (2 × FRAME_INSET ≈ 17.7) after E1's, no further.
+    expect(x(l, 'I2') - 86 - (x(l, 'I1') + 150)).toBeCloseTo(17.68, 6);
+    expect(x(l, 'L') - x(l, 'I2')).toBe(LEAF_W);
+    expect(x(l, 'I3') - x(l, 'L')).toBe(LEAF_W);
+    // The standard style draws no frames and keeps its slots.
+    expect(layoutSystem(p, 0, { endFrameX: ends(['E1', 'E2', 'E3']) }).feeders.map((f) => f.x)).toEqual(layoutSystem(p).feeders.map((f) => f.x));
+  });
+
+  it('keeps end boards under neighbouring panels, and the panels beside an end board, clear of its frame', () => {
+    const p: Project = {
+      ...base,
+      boards: [{ id: 'MDB', name: 'M' }, { id: 'S1', name: 'S1', upstreamId: 'MDB' }, { id: 'S2', name: 'S2', upstreamId: 'MDB' },
+        end('E1', 'S1'), end('E2', 'S2'), end('E3', 'MDB'), { id: 'S3', name: 'S3', upstreamId: 'MDB' }],
+      feeders: [feeder('I1', 'MDB', 'S1'), feeder('I2', 'MDB', 'S2'), feeder('I3', 'MDB', 'E3'), feeder('I4', 'MDB', 'S3'),
+        feeder('J1', 'S1', 'E1'), feeder('J2', 'S2', 'E2'), feeder('K1', 'S3'), feeder('K2', 'S3')]
+    };
+    const l = layoutSystem(p, DEWA_EXTRA_Y, { frames: true, endFrameX: ends(['E1', 'E2', 'E3']) });
+    expect(x(l, 'J2') - 86 - (x(l, 'J1') + 150)).toBeGreaterThanOrEqual(17); // E1 and E2, a level below S1 and S2
+    expect(x(l, 'I3') - 86 - frame(l, 'S2').x2).toBeGreaterThanOrEqual(17); // S2, then E3
+    expect(frame(l, 'S3').x1 - (x(l, 'I3') + 150)).toBeGreaterThanOrEqual(17); // E3, then S3
+    expect(x(l, 'K2') - x(l, 'K1')).toBe(LEAF_W);
+  });
+});
+
 describe('room for the busbar description', () => {
   const twoBoards = (frames: boolean): ReturnType<typeof layoutSystem> => layoutSystem({
     ...base,

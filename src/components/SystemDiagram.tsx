@@ -92,7 +92,7 @@ export function plannedEarthPits(project: Project): Map<string, string[]> {
 /** The SLD's layout. DEWA style: a framed main board's LV earth pits stand side by side outside
  * its frame, on the left, so the root takes that much room before it (earthLead, by board id;
  * more when its instruments sit outside the frame). */
-export function sldLayout(project: Project, dewa: boolean, cableRefs = false, rootExtraY = 0, planned = plannedEarthPits(project)) {
+export function sldLayout(project: Project, dewa: boolean, cableRefs = false, rootExtraY = 0, planned = plannedEarthPits(project), showPlace = false) {
   const extraY = dewa ? DEWA_EXTRA_Y : 0;
   let base = layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY });
   // A DEWA main board with no outgoing panels has no frame head to hold its earth pits: it
@@ -121,9 +121,37 @@ export function sldLayout(project: Project, dewa: boolean, cableRefs = false, ro
     const pits = hasEarthPits(b) ? lvPitCount(b, planned) : 0;
     if (pits > 0 && !(dewa && !r.terminal)) rootLead.set(b.id, earthDetailWidth(project, b, pits, planned.get(`lv:${b.id}`)) + EARTH_DETAIL_GAP - 62);
   }
-  const layout = rootLead.size || rootReach.size ? layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, rootLeadX: rootLead, rootReachX: rootReach }) : base;
+  // DEWA: a board with no outgoing ways under another board has a frame from BOARD_FRAME_IN left of its incomer to past
+  // the text beside its symbol, wider than its one slot, so the frames beside it on its level keep clear of it. That
+  // text is as drawn without results (a calculation never moves the drawing); the Level and room line counts when shown.
+  const endFrames = new Map<string, { left: number; right: number }>();
+  for (const n of dewa ? base.boards : []) {
+    if (!n.terminal || n.boxed || base.roots.includes(n)) continue;
+    const b = n.board, loc = showPlace ? boardLocation(project, b) : '';
+    const tags = [...(b.kind === 'UPS' ? [upsTag(project, b).text] : []), ...(n.circuits.length ? circuitLines(project, b, n.circuits) : [])];
+    endFrames.set(b.id, { left: BOARD_FRAME_IN, right: BOARD_FRAME_PAD + endBoardReach(project, b, tags, loc ? trunc(loc, 30) : undefined) });
+  }
+  const layout = rootLead.size || rootReach.size || endFrames.size
+    ? layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, rootLeadX: rootLead, rootReachX: rootReach, endFrameX: endFrames })
+    : base;
   return { layout, earthLead };
 }
+
+/** A UPS board's tag: its rating and how loaded it is by its board's demand. */
+const upsTag = (project: Project, b: Board) => {
+  const pct = upsLoadingPct(project, b);
+  return { text: `UPS ${b.upsKva ?? '—'} kVA${pct !== undefined ? ` · ${fmtFixed(pct, 0)}%` : ''}`, pct };
+};
+/** A board's final circuits as the SLD sums them up: how many (and its spares) with their demand, then the demand per phase. */
+const circuitLines = (project: Project, b: Board, circuits: Feeder[]): [string, string] => {
+  const kw = circuits.reduce((sum, f) => sum + f.loadKw * f.demandFactor, 0);
+  const ph = boardPhaseKw({ ...project, feeders: circuits }, b.id);
+  return [`${circuits.length} circuits${dbSpareText(b)} · ${fmtFixed(kw, 1)} kW`, `R ${fmtFixed(ph.R, 1)} · Y ${fmtFixed(ph.Y, 1)} · B ${fmtFixed(ph.B, 1)} kW`];
+};
+/** How far right of its incomer line the labels of a board with no outgoing ways reach: its incomer device, or the name,
+ * tags and Level and room line beside its symbol. In DEWA style its frame runs BOARD_FRAME_PAD past them. */
+const endBoardReach = (project: Project, b: Board, tags: string[], place?: string) => Math.max(incomerReach(project, b),
+  BOARD_SYM / 2 + 8 + Math.max(textWidth(trunc(b.id, 14), 12, true), textWidth('NO OUTGOING WAYS', 10.5), ...(place ? [textWidth(place, 10.5)] : []), ...tags.map((t) => textWidth(t, 10.5, true))));
 
 /** Gap between an unframed LV earth-pit detail and the incomer line on its right. */
 const EARTH_DETAIL_GAP = 10;
@@ -413,7 +441,7 @@ export default function SystemDiagram({
   const earthLift = !dewa && project.boards.some((b) => !b.upstreamId && hasEarthPits(b)) ? EARTH_BAND_Y : 0;
   // Earth pit IDs (E1, E2 …) from the earthing plan, so the SLD and the earthing sheet agree.
   const earthPits = useMemo(() => plannedEarthPits(project), [project]);
-  const { layout, earthLead } = useMemo(() => sldLayout(project, dewa, cableRefs, earthLift, earthPits), [project, dewa, cableRefs, earthLift, earthPits]);
+  const { layout, earthLead } = useMemo(() => sldLayout(project, dewa, cableRefs, earthLift, earthPits, !!layers?.location), [project, dewa, cableRefs, earthLift, earthPits, layers?.location]);
   const pitIds = (key: string) => m2s(earthPits.get(key));
   // A framed panel's name box: as wide as the room left of the incomer allows (never across it),
   // with the location wrapped onto a second line when it doesn't fit.
@@ -1498,13 +1526,12 @@ export default function SystemDiagram({
           const status = worst([s.loadingStatus, ...(feedersOn.get(b.id) ?? []).map((f) => byFeeder.get(f.id)?.status)]);
           const sel = b.id === selectedBoardId;
           const place = showPlace ? placeOf(b) : undefined;
-          const kw = n.circuits.reduce((sum, f) => sum + f.loadKw * f.demandFactor, 0);
-          const ph = boardPhaseKw({ ...project, feeders: n.circuits }, b.id);
+          const [count, phases] = circuitLines(project, b, n.circuits);
           const failing = n.circuits.filter((f) => byFeeder.get(f.id)?.status !== 'ok').length;
           const circuitTags: Tag[] = n.circuits.length
             ? [
-                { text: `${n.circuits.length} circuits${dbSpareText(b)} · ${fmtFixed(kw, 1)} kW`, cls: 'b' },
-                { text: `R ${fmtFixed(ph.R, 1)} · Y ${fmtFixed(ph.Y, 1)} · B ${fmtFixed(ph.B, 1)} kW`, cls: 'm' },
+                { text: count, cls: 'b' },
+                { text: phases, cls: 'm' },
                 ...(failing ? [{ text: `${failing} circuit${failing > 1 ? 's' : ''} to check`, cls: status }] : [])
               ]
             : [];
@@ -1760,8 +1787,8 @@ export default function SystemDiagram({
               const tags: Tag[] = [
                 ...(n.terminal ? [] : circuitTags),
                 ...(b.kind === 'UPS' ? (() => {
-                  const pct = upsLoadingPct(project, b);
-                  return [{ text: `UPS ${b.upsKva ?? '—'} kVA${pct !== undefined ? ` · ${fmtFixed(pct, 0)}%` : ''}`, cls: pct === undefined ? 'm' : pct > 100 ? 'bad' : pct > 80 ? 'warn' : 'ok' }];
+                  const { text, pct } = upsTag(project, b);
+                  return [{ text, cls: pct === undefined ? 'm' : pct > 100 ? 'bad' : pct > 80 ? 'warn' : 'ok' }];
                 })() : []),
                 // Existing board (plain style; DEWA has it in the name box, a transformer beside its symbol): its recorded demand.
                 ...(!dewa && b.existing && recordedText(project, b) && !(!b.upstreamId && b.sourceKva) ? [{ text: recordedText(project, b)!, cls: 'm' }] : []),
@@ -1778,8 +1805,7 @@ export default function SystemDiagram({
                 const rows = tags.length + Math.max(1, circuitTags.length);
                 const isRoot = layout.roots.some((r) => r.board.id === b.id);
                 const fy1 = n.busY - (b.standby ? 148 : isRoot ? 114 : incomerDeviceOf(b) ? (protectionOf(b) ? 92 : 84) + 10 : 70);
-                const fy2 = ty(rows - 1) + 4 + BOARD_FRAME_PAD, fx1 = n.x - BOARD_FRAME_IN, fx2 = n.x + BOARD_FRAME_PAD + Math.max(incomerReach(project, b),
-                  BOARD_SYM / 2 + 8 + Math.max(textWidth(trunc(b.id, 14), 12, true), textWidth('NO OUTGOING WAYS', 10.5), ...(place ? [textWidth(place, 10.5)] : []), ...[...tags, ...circuitTags].map((t) => textWidth(t.text, 10.5, true))));
+                const fy2 = ty(rows - 1) + 4 + BOARD_FRAME_PAD, fx1 = n.x - BOARD_FRAME_IN, fx2 = n.x + BOARD_FRAME_PAD + endBoardReach(project, b, [...tags, ...circuitTags].map((t) => t.text), place);
                 return (
                   <>
                     {dewa && (

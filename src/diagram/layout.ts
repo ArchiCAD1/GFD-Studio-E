@@ -100,6 +100,9 @@ export interface LayoutOptions {
   /** How far right of a root board's incomer line (by id) its supply and earth-pit labels reach, so the next
    * root starts clear of them. A new panel with no ways has only one slot, narrower than those labels. */
   rootReachX?: Map<string, number>;
+  /** DEWA style: how far left and right of its incomer line the frame of a board with no outgoing ways (not a main
+   * board) reaches, by id. It is wider than the board's one slot, so the frames beside it on its level keep clear of it. */
+  endFrameX?: Map<string, { left: number; right: number }>;
 }
 
 export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions = {}): SystemLayout {
@@ -140,10 +143,16 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
   const feeders: FeederNode[] = [];
   const spares: SpareNode[] = [];
   const placed = new Set<string>();
+  // DEWA: where the last panel frame on each level (by depth) ends.
+  const frameEnd: number[] = [];
 
   /** Places a board and everything below it from `left`; returns the board and where the next one may start. */
   const place = (board: Board, left: number, depth: number): { node: BoardNode; right: number } => {
     placed.add(board.id);
+    // A frame keeps the usual gap (2 × FRAME_INSET) after the last frame on its level. An end board's frame is wider than
+    // its slot on both sides, so where it would close that gap, the board on its right (or the end board) moves right.
+    const end = opts.frames ? opts.endFrameX?.get(board.id) : undefined;
+    if (opts.frames) left = Math.max(left, (frameEnd[depth] ?? -Infinity) + FRAME_INSET + (end ? FRAME_INSET + end.left - LEAF_W / 2 : 0));
     const busY = rootY + depth * levelH;
     const co = isInterlocked(board), inst = instrumentSlot(board);
     let cursor = left + (co ? CHANGEOVER_LEFT * LEAF_W : 0) + (inst ? LEAF_W : 0);
@@ -208,7 +217,8 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
       const x2 = Math.max(node.busX2 + FRAME_OUT, genX !== undefined ? genX + CO_GEN_REACH : -Infinity, reach + FRAME_PAD, x + incomerReach(project, board) + FRAME_PAD);
       node.frame = { x1: node.busX1 - FRAME_OUT, x2 };
       right = Math.max(right, x2 + FRAME_INSET);
-    }
+      frameEnd[depth] = x2;
+    } else if (end) frameEnd[depth] = x + end.right;
     return { node, right };
   };
 
