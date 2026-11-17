@@ -247,7 +247,7 @@ export default function LoadScheduleView({
     if (kind === 'myPdf' || kind === 'myPdfAll') {
       const one = kind === 'myPdf', mine = one ? formatSheetOf(project, board.id) : undefined, sheets = one ? (mine ? [mine] : []) : formatSheetsOf(project);
       if (!sheets.length) { onStatus(one ? 'Choose a format for this panel in Sheets → My formats first.' : 'No panel of this project has a format yet: choose them in Sheets → My formats.'); return; }
-      const m = await savePdf(one ? `${safeFileName(board.id)}-schedule-my-format.pdf` : `${safeFileName(project.name)}-schedules-my-format.pdf`, sheetsHtml(sheets, one ? `${project.name} — ${board.id}` : project.name), { pageSize: 'A4', landscape: true, cssPages: true });
+      const m = await savePdf(one ? `${safeFileName(board.id)}-schedule-my-format.pdf` : `${safeFileName(project.name)}-schedules-my-format.pdf`, sheetsHtml(sheets, one ? `${project.name} — ${board.id}` : project.name), { cssPages: true }); // each sheet on its own paper
       if (m) onStatus(one ? m : `${m} — ${sheets.length} panels`);
       return;
     }

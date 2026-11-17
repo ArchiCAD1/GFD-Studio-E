@@ -97,7 +97,7 @@ describe('Load schedule page and the ribbon', () => {
     expect(savePdf).not.toHaveBeenCalled();
     act(() => root.unmount());
     root = createRoot(document.body.appendChild(document.createElement('div')));
-    const sheet: Sheet = { ...newSheet(), cells: { A1: 'Ref' }, link: { category: 'db', cells: {}, firstRow: 2, rows: [], columns: { A: 'row.ref' } } };
+    const sheet: Sheet = { ...newSheet(), cells: { A1: 'Ref' }, paper: 'A3', link: { category: 'db', cells: {}, firstRow: 2, rows: [], columns: { A: 'row.ref' } } };
     start = withProjectFormat(sampleProject, 'db', { id: 'f', name: 'F', category: 'db', sheet, updatedAt: '2026-11-14' });
     mount();
     expect(published!.sheetFormats).toBe(true);
@@ -106,7 +106,8 @@ describe('Load schedule page and the ribbon', () => {
     expect(savePdf).toHaveBeenCalledTimes(1);
     expect(vi.mocked(savePdf).mock.calls[0][0]).toBe(`${BOARD}-schedule-my-format.pdf`);
     expect(vi.mocked(savePdf).mock.calls[0][1]).toContain(`>${first}</td>`);
-    expect(vi.mocked(savePdf).mock.calls[0][2]).toEqual({ pageSize: 'A4', landscape: true, cssPages: true });
+    expect(vi.mocked(savePdf).mock.calls[0][1]).toContain('@page { size: A3 landscape; margin: 10mm; }'); // the paper of the format
+    expect(vi.mocked(savePdf).mock.calls[0][2]).toEqual({ cssPages: true });
     expect(status).toHaveBeenLastCalledWith('Saved');
     await run('myPdfAll');
     expect(vi.mocked(savePdf).mock.calls[1][0]).toBe(`${safeFileName(sampleProject.name)}-schedules-my-format.pdf`);

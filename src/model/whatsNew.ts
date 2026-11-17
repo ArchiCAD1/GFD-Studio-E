@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.184', date: '2026-11-17',
+    items: [
+      { title: 'PDF in my format: choose the paper', text: 'A schedule in your own format can print on A4 or A3, landscape or portrait. Choose it under PDF paper in Sheets → Link columns; it is saved with the format. A PDF of all panels gives each panel the paper of its format.', action: 'sheets', actionLabel: 'Open Sheets' }
+    ]
+  },
+  {
     version: '2.182', date: '2026-11-17',
     items: [
       { title: 'Folder templates: roles and file naming', text: 'The folder template editor has two more tabs. Roles lists every output the app makes with the folder it saves to: pick a folder, or let Auto-assign match folders to outputs by name. File naming builds the file name from fields such as the project number, document type, number and revision, with a preview for each document type and your own pattern for a type where you need one. Saving files into these folders with these names comes with the project folder step.' }
