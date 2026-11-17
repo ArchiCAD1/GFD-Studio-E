@@ -4,11 +4,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SpecPage from './SpecPage';
 
-const saved: { name: string; bytes?: Uint8Array; html?: string }[] = [];
+const saved: { name: string; bytes?: Uint8Array; html?: string; text?: string }[] = [];
 vi.mock('../../util/files', async (orig) => ({
   ...(await orig<typeof import('../../util/files')>()),
   saveBinary: async (name: string, bytes: Uint8Array) => { saved.push({ name, bytes }); return `Saved ${name}`; },
-  savePdf: async (name: string, html: string) => { saved.push({ name, html }); return `Saved ${name}`; }
+  savePdf: async (name: string, html: string) => { saved.push({ name, html }); return `Saved ${name}`; },
+  saveText: async (name: string, text: string) => { saved.push({ name, text }); return `C:/specs/${name}`; }
 }));
 import { sampleProject } from '../../data/sampleProject';
 import { starterSpec } from '../../model/specDoc';
@@ -19,7 +20,7 @@ import type { Project } from '../../types';
 let root: Root, host: HTMLDivElement, last: Project, changes: number;
 const status: string[] = [];
 const undo = vi.fn();
-beforeEach(() => { host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); changes = 0; status.length = 0; undo.mockClear(); });
+beforeEach(() => { host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); changes = 0; status.length = 0; undo.mockClear(); localStorage.clear(); });
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; });
 
 const render = (p: Project) => { last = p; act(() => root.render(<SpecPage project={p} onChange={(x) => { changes++; render(x); }} onStatus={(m) => status.push(m)} onUndo={undo} />)); };
@@ -185,6 +186,82 @@ describe('Specification page', () => {
     expect(sectionButton('LV switchboards').textContent).toBe('1LV switchboards');
     press('Appendix');
     expect(sectionButton('General requirements').textContent).toBe('1General requirements');
+  });
+
+  describe('templates and the specification file', () => {
+    const card = (label: string) => document.querySelector<HTMLElement>(`section[aria-label="${label}"]`);
+    const setValue = (el: HTMLInputElement | HTMLSelectElement, v: string) => act(() => {
+      const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(el, v);
+      el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }));
+    });
+    const now = () => last.spec ?? starterSpec();
+    const click = (label: string) => act(() => [...document.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent!.trim() === label || b.getAttribute('aria-label') === label)!.click());
+
+    it('saves a heading with its clauses as a template and adds it in another section', () => {
+      render(sampleProject);
+      act(() => lines()[0].click()); // 1.1 Scope, a heading
+      const under = now().sections[0].clauses.findIndex((c, i) => i > 0 && c.kind === 'heading');
+      tabTo('File');
+      press('Save as template');
+      expect(card('Save as template')!.querySelector<HTMLSelectElement>('select')!.value).toBe('clauses');
+      const saveButton = () => [...card('Save as template')!.querySelectorAll('button')].find((b) => b.textContent === 'Save template')!;
+      expect(saveButton().disabled).toBe(true); // no name yet
+      setValue(card('Save as template')!.querySelector<HTMLInputElement>('input[aria-label="Template name"]')!, 'Scope wording');
+      act(() => saveButton().click());
+      expect(status[status.length - 1]).toBe(`Template saved: Scope wording (clauses, ${under} lines)`);
+      expect(card('Templates')!.textContent).toContain('Scope wording');
+      expect(JSON.parse(localStorage.getItem('lvds.specTemplates')!)).toHaveLength(1);
+      // use it in the second section
+      act(() => sectionButton('LV switchboards').click());
+      const before = now().sections[1].clauses.length;
+      click('Use template Scope wording');
+      expect(now().sections[1].clauses.length).toBe(before + under);
+      expect(now().sections[1].clauses[before].text).toBe(now().sections[0].clauses[0].text);
+      expect(new Set(now().sections.flatMap((x) => x.clauses.map((c) => c.id))).size).toBe(now().sections.reduce((n, x) => n + x.clauses.length, 0));
+      click('Delete template Scope wording');
+      expect(card('Templates')!.textContent).toContain('No templates yet');
+      expect(JSON.parse(localStorage.getItem('lvds.specTemplates')!)).toEqual([]);
+    });
+
+    it('saves the whole specification as a template; using it replaces the sections and says how to get back', () => {
+      render(sampleProject);
+      tabTo('File');
+      press('Save as template');
+      setValue(card('Save as template')!.querySelector<HTMLSelectElement>('select')!, 'spec');
+      setValue(card('Save as template')!.querySelector<HTMLInputElement>('input[aria-label="Template name"]')!, 'Office standard');
+      click('Save template');
+      const titles = now().sections.map((x) => x.title);
+      act(() => root.unmount()); root = createRoot(host);
+      render({ ...sampleProject, spec: { title: 'Other', info: { number: 'X-1' }, sections: [{ id: 'S1', title: 'Only', included: true, clauses: [] }] } });
+      tabTo('File');
+      press('Templates');
+      click('Use template Office standard');
+      expect(now().sections.map((x) => x.title)).toEqual(titles);
+      expect(now().info).toEqual({ number: 'X-1' });
+      expect(status[status.length - 1]).toContain('undo to return to yours');
+    });
+
+    it('saves the specification as a file of its own and opens one', async () => {
+      saved.length = 0;
+      render(sampleProject);
+      tabTo('File');
+      await act(async () => { tool('Save specification as').click(); await vi.waitFor(() => expect(saved.length).toBe(1)); });
+      expect(saved[0].name.endsWith('.lvspec')).toBe(true);
+      expect(JSON.parse(saved[0].text!)).toMatchObject({ format: 'lvds-specification', spec: { title: 'Electrical specification' } });
+      const open = async (name: string, text: string) => {
+        const input = document.querySelector<HTMLInputElement>('input[aria-label="Specification file"]')!;
+        Object.defineProperty(input, 'files', { configurable: true, value: [new File([text], name)] });
+        await act(async () => { input.dispatchEvent(new Event('change', { bubbles: true })); await vi.waitFor(() => expect(status[status.length - 1]).toContain(name)); });
+      };
+      await open('other.lvspec', JSON.stringify({ format: 'lvds-specification', version: 1, spec: { title: 'Opened', sections: [{ id: 'S9', title: 'From file', included: true, clauses: [] }] } }));
+      expect(now().title).toBe('Opened');
+      expect(sectionButton('From file')).toBeTruthy();
+      const before = changes;
+      await open('notes.lvspec', 'not a specification');
+      expect(status[status.length - 1]).toBe('notes.lvspec: not a specification saved by LV Design Studio');
+      expect(changes).toBe(before);
+    });
   });
 
   describe('tables and pictures', () => {
