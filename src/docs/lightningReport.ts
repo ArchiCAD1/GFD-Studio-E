@@ -1,4 +1,5 @@
 import { AIR_METHODS, airResultText, lightningProtection, lpsLayout, type LpsInputs, type LpsResult } from '../calc/lightningProtection';
+import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskResult } from '../calc/lightningRisk';
 import { CALC_DISCLAIMER, REPORT_STATUS_TEXT } from '../calc/statusText';
 import { boardsInSupplyOrder } from '../calc/summary';
 import { SPD_TYPES, type Project } from '../types';
@@ -8,8 +9,9 @@ import { SHEET_CSS, sheetHead } from './upsSolarReport';
 /** Lightning protection calculation report: the same content for the PDF sheet, the Word file and the page's
  * section list. Black-and-white; every class value is shown as entered by the engineer. */
 
-export type LpsSectionKey = 'inputs' | 'methods' | 'layout' | 'down' | 'surge' | 'quantities' | 'checks' | 'notes';
+export type LpsSectionKey = 'risk' | 'inputs' | 'methods' | 'layout' | 'down' | 'surge' | 'quantities' | 'checks' | 'notes';
 export const LPS_SECTIONS: { key: LpsSectionKey; label: string }[] = [
+  { key: 'risk', label: 'Risk assessment (preliminary)' },
   { key: 'inputs', label: 'Inputs as entered, with references' },
   { key: 'methods', label: 'All four methods with formulas and working' },
   { key: 'layout', label: 'Roof layout drawing' },
@@ -29,6 +31,8 @@ export interface LpsBlock {
   notes?: string[];
   /** The roof layout drawing goes here (PDF); Word gets the sentence in `notes`. */
   layout?: boolean;
+  /** The collection area sketch goes here (PDF). */
+  riskSketch?: boolean;
 }
 
 const NOT = 'Not entered';
@@ -42,11 +46,60 @@ export const LPS_NOTES = [
   CALC_DISCLAIMER
 ];
 
+export const RISK_SCOPE = 'One risk component only: physical damage from a direct strike. Strikes near the building and on incoming lines are not included, so the class is a minimum.';
+const RISK_CONCEPT = 'Concept stage, for a flat rectangular roof. The risk assessment is preliminary. Not covered: separation distance, natural components, bonding details and installation detailing.';
+
+/** The risk assessment as report sections: inputs as entered, the working with its figures, and the risk for
+ * each protection class. No source of a factor is shown. */
+function riskBlocks(k: RiskInputs, risk: RiskResult): LpsBlock[] {
+  const fac = (v: number | undefined) => (v !== undefined && Number.isFinite(v) ? riskText(v) : NOT);
+  const least = !risk.minimum ? `DATA REQUIRED: ${risk.missing.join(', ')}.`
+    : risk.minimum === 'insufficient' ? 'No protection class brings the risk within the tolerable risk: further measures are needed.'
+      : risk.minimum === 'none' ? 'No protection is needed by this assessment.' : `Minimum protection from this assessment: ${riskLevelLabel(risk.minimum)}.`;
+  const sens = risk.sensitivityMinimum ? [`Sensitivity: with the strike density × ${n2(k.sensitivity!)} the minimum is ${risk.sensitivityMinimum === 'insufficient' ? 'more than Class I' : (risk.sensitivityMinimum === 'none' ? 'no protection' : riskLevelLabel(risk.sensitivityMinimum))}${risk.sensitivityRisk !== undefined ? ` (${riskText(risk.sensitivityRisk)} per year)` : ''}.`] : [];
+  return [
+    { key: 'risk', title: 'Risk assessment — preliminary: inputs as entered', riskSketch: k.shape === 'rectangle', pairs: [
+      ['Thunderstorm days', val(k.thunderDays, 'days/yr')],
+      ['Strike point ratio', fac(k.strikeRatio)],
+      ...(k.strikeDensity !== undefined ? [['Measured strike density', val(k.strikeDensity, '/km²/yr')] as [string, string]] : []),
+      ['Collection area', k.shape === 'area' ? `Entered: ${val(k.collectionAreaM2, 'm²')}` : k.shape === 'outline' ? 'Roof outline pushed out by 3 × height' : 'Building rectangle pushed out by 3 × height'],
+      ['Location factor', fac(k.locationFactor)],
+      ['Fire risk factor', fac(k.fireRisk)],
+      ['Fire provisions factor', fac(k.fireProvisions)],
+      ['Special hazard factor', fac(k.specialHazard)],
+      ['Typical loss', fac(k.typicalLoss)],
+      ['Tolerable risk', k.tolerableRisk !== undefined ? `${riskText(k.tolerableRisk)} per year` : NOT]
+    ], notes: [RISK_NOTE] },
+    { key: 'risk', title: 'Risk assessment — working', table: { headers: ['Step', 'Formula with values', 'Result'], rows: risk.working.map((w) => [w.step, w.formula, w.result]) } },
+    { key: 'risk', title: 'Risk assessment — risk for each protection class', table: {
+      headers: ['Protection', 'Damage probability (entered)', 'Risk per year', 'Against the tolerable risk'],
+      rows: RISK_LEVELS.map((level, n) => {
+        const row = risk.rows[n];
+        return [`${riskLevelLabel(level)}${risk.minimum === level ? ' (minimum)' : ''}`, fac(row.damageProbability), row.risk !== undefined ? riskText(row.risk) : '—', row.risk === undefined ? REPORT_STATUS_TEXT.data : row.ok ? 'OK' : 'Exceeds'];
+      })
+    }, notes: [...sens, least, RISK_SCOPE] }
+  ];
+}
+
+/** The collection area in black and white: the building and the line 3 × height out from it. */
+export function riskAreaSvg(i: LpsInputs, risk: RiskResult): string {
+  if (![i.lengthM, i.widthM, i.heightM].every((v) => Number.isFinite(v) && v > 0)) return '';
+  const reach = 3 * i.heightM, k = Math.min(300 / (i.lengthM + 2 * reach), 190 / (i.widthM + 2 * reach)), f = (v: number) => v.toFixed(1);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 230" width="340" height="230" font-family="Arial, sans-serif" font-size="10">
+<rect x="20" y="10" width="${f((i.lengthM + 2 * reach) * k)}" height="${f((i.widthM + 2 * reach) * k)}" rx="${f(reach * k)}" fill="none" stroke="#000" stroke-width="0.8" stroke-dasharray="5 3"/>
+<rect x="${f(20 + reach * k)}" y="${f(10 + reach * k)}" width="${f(i.lengthM * k)}" height="${f(i.widthM * k)}" fill="none" stroke="#000" stroke-width="1.6"/>
+<line x1="${f(20 + (reach + i.lengthM) * k)}" y1="${f(10 + (reach + i.widthM / 2) * k)}" x2="${f(20 + (2 * reach + i.lengthM) * k)}" y2="${f(10 + (reach + i.widthM / 2) * k)}" stroke="#000" stroke-width="0.8"/>
+<text x="20" y="222">Building ${n2(i.lengthM)} × ${n2(i.widthM)} m · reach 3 × height = ${n2(reach)} m${risk.collectionAreaM2 ? ` · collection area ${n2(risk.collectionAreaM2)} m²` : ''}</text></svg>`;
+}
+
 export function lightningReportBlocks(project: Project, i: LpsInputs, keys: LpsSectionKey[] = ALL, r: LpsResult = lightningProtection(i)): LpsBlock[] {
   const sel = methodOf(i.method);
   const plan = lpsLayout(i, r);
   const boards = boardsInSupplyOrder(project);
+  // The risk sections, its checks and its note are in the report only when a risk assessment has been entered.
+  const started = riskStarted(i.risk), k = studyRiskInputs(i), risk = started ? lightningRisk(k) : undefined;
   const all: LpsBlock[] = [
+    ...(risk ? riskBlocks(k, risk) : []),
     { key: 'inputs', title: 'Inputs as entered', pairs: [
       ['Building (length × width × height)', r.invalid ? NOT : `${n2(i.lengthM)} × ${n2(i.widthM)} × ${n2(i.heightM)} m`],
       ['Protection class', i.lpsClass ? `Class ${i.lpsClass}` : NOT],
@@ -91,8 +144,8 @@ export function lightningReportBlocks(project: Project, i: LpsInputs, keys: LpsS
         ['Earth pits', `${r.earthPits}`, 'no.'], ['Ring earth conductor', n2(r.ringConductorM), 'm']
       ]
     } },
-    { key: 'checks', title: 'Checks', table: { headers: ['Status', 'Check'], rows: r.checks.map((c) => [REPORT_STATUS_TEXT[c.status], c.text]) } },
-    { key: 'notes', title: 'Assumptions and disclaimer', notes: LPS_NOTES }
+    { key: 'checks', title: 'Checks', table: { headers: ['Status', 'Check'], rows: [...r.checks, ...(risk?.checks ?? [])].map((c) => [REPORT_STATUS_TEXT[c.status], c.text]) } },
+    { key: 'notes', title: 'Assumptions and disclaimer', notes: risk ? [...LPS_NOTES.slice(0, 2), RISK_CONCEPT, RISK_SCOPE, RISK_NOTE, ...LPS_NOTES.slice(3)] : LPS_NOTES }
   ];
   return all.filter((b) => keys.includes(b.key));
 }
@@ -122,7 +175,7 @@ export function buildLightningReportHtml(project: Project, keys: LpsSectionKey[]
     const table = b.table ? (b.table.rows.length
       ? `<table><tr>${b.table.headers.map((h) => `<th style="width:auto">${esc(h)}</th>`).join('')}</tr>${b.table.rows.map((row) => `<tr>${row.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</table>`
       : '<p class="note">None.</p>') : '';
-    const drawing = b.layout ? lightningLayoutSvg(i, r) : '';
+    const drawing = b.layout ? lightningLayoutSvg(i, r) : b.riskSketch ? riskAreaSvg(i, lightningRisk(studyRiskInputs(i))) : '';
     const notes = (b.notes ?? []).map((t) => `<p class="note">${esc(t)}</p>`).join('');
     return `<h2>${esc(b.title)}</h2>${pairs}${table}${drawing}${notes}`;
   }).join('');
