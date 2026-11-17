@@ -60,7 +60,7 @@ Estimated at 4 characters per token.
 | T3 | Read the module document for the task only | — | — | Done in this PR (rule in `AGENTS.md`) |
 | T4 | Module test file with a short reporter while working, full suite once | — | — | Done in this PR (rule in `AGENTS.md`) |
 | T5 | `lvds mcp --tools <groups>` | about 13,000 tokens of tool definitions with `--write` | about 4,900 with `--tools core` (19 tools) | PR #621 |
-| T6 | `fields` option and header + value rows in list results | full object per row | 40–60 % fewer (estimate) | Not started |
+| T6 | Lists of records as columns and rows on MCP (`src/headless/compact.ts`); `--full-rows` sends records | full object per row | measured: `list_panels` 47 % smaller, `circuit_results` 40 %, `get_panel` 38 %, `run_checks` 20 % | Done. A `fields` option to pick columns is not built |
 | T7 | High-level build tools first ([[AI agent proposal]]) | about 3,000 calls per G+10 | about 150 | Not started |
 
 ## Which model for which task
