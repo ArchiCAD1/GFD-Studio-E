@@ -2,6 +2,7 @@ import type { Project, ProjectStatus } from '../types';
 import { currentRevision } from './revisions';
 import type { FileStamp, SaveOutcome } from './saveSafety';
 import { packRevisions, unpackRevisions } from './revisionStore';
+import { webGet, webRemove, webSet } from './webStore';
 import { fmtDate } from '../util/format';
 
 /** Saving and opening projects: JSON files in the projects folder in the
@@ -84,7 +85,7 @@ export async function loadProjectStamped(file: string): Promise<{ project: Proje
     }
     return { project: unpackRevisions(p), stamp: r.stamp };
   }
-  const s = localStorage.getItem(fileKey(file));
+  const s = await webGet(fileKey(file));
   if (!s) throw new Error(`${file} is not in this browser`);
   return { project: unpackRevisions(JSON.parse(s) as Project) };
 }
@@ -106,7 +107,7 @@ export async function saveProjectFile(file: string | undefined, p: Project, opts
     return r.conflict ? { conflict: true, file: r.file, disk: r.disk } : { file: r.file, stamp: r.stamp };
   }
   const f = file ?? `${slug(p.name)}-${(p.id ?? String(Date.now())).replace(/[^a-z0-9]/gi, '').slice(0, 8)}.json`;
-  localStorage.setItem(fileKey(f), JSON.stringify(packRevisions(p))); // throws when the browser's storage is full
+  await webSet(fileKey(f), JSON.stringify(packRevisions(p))); // throws when the browser cannot store it
   localStorage.setItem(INDEX, JSON.stringify([metaOf(f, p, Date.now()), ...readIndex().filter((m) => m.file !== f)]));
   return { file: f };
 }
@@ -115,12 +116,12 @@ export async function saveProjectFile(file: string | undefined, p: Project, opts
 export async function deleteProjectFile(file: string): Promise<void> {
   const b = bridge();
   if (b) { await b.projects.delete(file); return; }
-  const text = localStorage.getItem(fileKey(file));
+  const text = await webGet(fileKey(file));
   if (text) {
     const p = (() => { try { return JSON.parse(text) as Project; } catch { return undefined; } })();
-    writeTrash([{ trashFile: `${Date.now()}__${file}`, file, name: p?.name ?? file, id: p?.id, deletedAt: Date.now(), daysLeft: TRASH_DAYS, text }, ...readTrash()]);
+    await writeTrash([{ trashFile: `${Date.now()}__${file}`, file, name: p?.name ?? file, id: p?.id, deletedAt: Date.now(), daysLeft: TRASH_DAYS, text }, ...(await readTrash())]);
   }
-  localStorage.removeItem(fileKey(file));
+  await webRemove(fileKey(file));
   localStorage.setItem(INDEX, JSON.stringify(readIndex().filter((m) => m.file !== file)));
 }
 
@@ -130,35 +131,36 @@ export const TRASH_DAYS = 30;
 export interface TrashedProject { trashFile: string; file: string; name: string; id?: string; deletedAt: number; daysLeft: number }
 type WebTrashed = TrashedProject & { text: string };
 const TRASH = 'lvds.trash';
-const readTrash = (): WebTrashed[] => {
+const readTrash = async (): Promise<WebTrashed[]> => {
   try {
     const now = Date.now();
-    return (JSON.parse(localStorage.getItem(TRASH) ?? '[]') as WebTrashed[])
+    return (JSON.parse((await webGet(TRASH)) ?? '[]') as WebTrashed[])
       .filter((t) => now - t.deletedAt < TRASH_DAYS * 86400000)
       .map((t) => ({ ...t, daysLeft: Math.max(0, Math.ceil(TRASH_DAYS - (now - t.deletedAt) / 86400000)) }));
   } catch { return []; }
 };
-const writeTrash = (list: WebTrashed[]) => localStorage.setItem(TRASH, JSON.stringify(list));
+const writeTrash = (list: WebTrashed[]) => webSet(TRASH, JSON.stringify(list));
 
 export async function listTrash(): Promise<TrashedProject[]> {
   const b = bridge();
   if (b) return b.projects.trashList ? b.projects.trashList() : [];
-  return readTrash().map(({ text: _t, ...t }) => t);
+  return (await readTrash()).map(({ text: _t, ...t }) => t);
 }
 
 /** Puts a deleted project back; resolves to the file it is now saved as. */
 export async function restoreProject(trashFile: string): Promise<string> {
   const b = bridge();
   if (b) { if (!b.projects.restore) throw new Error('Restore needs the latest desktop app'); return b.projects.restore(trashFile); }
-  const t = readTrash().find((x) => x.trashFile === trashFile);
+  const trash = await readTrash();
+  const t = trash.find((x) => x.trashFile === trashFile);
   if (!t) throw new Error('That project is no longer in the trash');
   const taken = new Set(readIndex().map((m) => m.file));
   let file = t.file, n = 2;
   while (taken.has(file)) file = `${t.file.replace(/\.json$/i, '')}-${n++}.json`;
   const p = JSON.parse(t.text) as Project;
-  localStorage.setItem(fileKey(file), t.text);
+  await webSet(fileKey(file), t.text);
   localStorage.setItem(INDEX, JSON.stringify([metaOf(file, p, Date.now()), ...readIndex()]));
-  writeTrash(readTrash().filter((x) => x.trashFile !== trashFile));
+  await writeTrash(trash.filter((x) => x.trashFile !== trashFile));
   return file;
 }
 
@@ -166,7 +168,7 @@ export async function restoreProject(trashFile: string): Promise<string> {
 export async function emptyTrash(): Promise<void> {
   const b = bridge();
   if (b) { await b.projects.emptyTrash?.(); return; }
-  localStorage.removeItem(TRASH);
+  await webRemove(TRASH);
 }
 
 // ---- Recovery copy of unsaved work -----------------------------------------
