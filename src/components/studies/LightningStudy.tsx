@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { SPD_TYPES, type Project } from '../../types';
 import { AIR_METHODS, airResultText as resultText, lightningProtection, lpsLayout, type AirMethod, type AirResult, type LpsClass, type LpsInputs } from '../../calc/lightningProtection';
+import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskLevel } from '../../calc/lightningRisk';
 import { buildLightningReportHtml, LPS_SECTIONS, type LpsSectionKey } from '../../docs/lightningReport';
 import { lightningPlanFiles, LP_BLOCK, withLightningBlock } from '../../model/lightningCad';
 import { safeFileName, saveBinary, savePdf } from '../../util/files';
@@ -25,7 +26,14 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
   const boards = useMemo(() => boardsInSupplyOrder(project), [project]);
   const spdLabel = (t?: string) => SPD_TYPES.find((x) => x.value === t)?.label;
   const noSpd = boards.length > 0 && !boards.some((b) => b.spd);
-  const checks = noSpd ? [...r.checks, { status: 'warn' as const, text: 'No board has surge protection set on the SLD' }] : r.checks;
+  const risk = useMemo(() => lightningRisk(studyRiskInputs(i)), [i]);
+  const k0: RiskInputs = i.risk ?? { shape: 'rectangle' };
+  const started = riskStarted(i.risk);
+  const setRisk = (p: Partial<RiskInputs>) => set({ risk: { ...k0, ...p } });
+  const setProbability = (level: RiskLevel, v: number | undefined) => setRisk({ damageProbability: { ...k0.damageProbability, [level]: v } });
+  const minClass = risk.minimum && risk.minimum !== 'none' && risk.minimum !== 'insufficient' ? risk.minimum : undefined;
+  const minText = (m: typeof risk.minimum) => (!m ? 'Data required' : m === 'insufficient' ? 'More than Class I' : riskLevelLabel(m));
+  const checks = [...r.checks, ...(started ? risk.checks : []), ...(noSpd ? [{ status: 'warn' as const, text: 'No board has surge protection set on the SLD' }] : [])];
 
   const [sections, setSections] = useState<LpsSectionKey[]>(LPS_SECTIONS.map((x) => x.key));
   const [format, setFormat] = useState<Format>('pdf');
@@ -57,6 +65,8 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
   // Roof plan: the roof drawn to fit a 400 × 250 box, 35 px in from the corner.
   const k = r.invalid ? 0 : Math.min(400 / i.lengthM, 250 / i.widthM);
   const X = (m: number) => 35 + m * k, Y = (m: number) => 30 + m * k;
+  // Collection area sketch: the building and its 3 × height reach drawn to fit a 300 × 190 box.
+  const reach = 3 * i.heightM, ks = r.invalid ? 0 : Math.min(300 / (i.lengthM + 2 * reach), 190 / (i.widthM + 2 * reach));
 
   return (
     <Page
@@ -65,11 +75,20 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
         <>
           External protection for one building with a flat, rectangular roof. Enter the protection class and its design values from your own risk assessment and your copy of the standard, and the ESE advance
           time from the manufacturer's test certificate — the app has no values of a standard built in. It compares four air termination methods, then works out the down conductors and earth pits of the one
-          you choose. Method references: IEC 62305-3; NFC 17-102 for early streamer emission (ESE) terminals. Not covered: the risk assessment, separation distance and detailing.
+          you choose. Method references: IEC 62305-3; NFC 17-102 for early streamer emission (ESE) terminals. A preliminary risk assessment gives the minimum protection class. Not covered: separation distance and detailing.
         </>
       }
     >
       <ResultCards>
+        {started && (
+          <>
+            <ResultCard label="Risk without protection" value={risk.rows[0].risk !== undefined ? riskText(risk.rows[0].risk) : 'Data required'} status={risk.rows[0].risk !== undefined ? undefined : 'bad'}
+              sub={risk.rows[0].risk === undefined ? 'per year' : risk.rows[0].ok ? 'per year · within the tolerable risk' : `per year · exceeds tolerable ${riskText(k0.tolerableRisk!)}`} />
+            <ResultCard label="Minimum protection class" value={minText(risk.minimum)} status={risk.minimum && risk.minimum !== 'insufficient' ? undefined : 'bad'} sub="from the risk assessment · physical damage only" />
+            <ResultCard label="Direct strikes on building" value={risk.yearsBetweenStrikes ? `1 in ${n2(Math.round(risk.yearsBetweenStrikes))} years` : '—'}
+              sub={risk.strikesPerYear !== undefined ? `${riskText(risk.strikesPerYear)} a year` : 'Not worked out yet'} />
+          </>
+        )}
         <ResultCard label="Protection class" value={i.lpsClass ? `Class ${i.lpsClass}` : 'Not entered'} status={i.lpsClass ? undefined : 'bad'} sub={i.riskRef?.trim() ? `entered by you · ${i.riskRef.trim()}` : 'entered by you'} />
         <ResultCard label="Air termination" value={r.invalid || r.selected.status === 'data' ? 'Data required' : methodLabel(i.method)} status={r.invalid || r.selected.status === 'data' ? 'bad' : undefined}
           sub={r.invalid ? 'Building size not set' : r.selected.status === 'data' ? r.selected.missing.join(', ') : resultText(r.selected)} />
@@ -84,6 +103,77 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
           <NumField label="Length" unit="m" value={i.lengthM || undefined} min={0} onSet={(v) => set({ lengthM: v ?? 0 })} optional />
           <NumField label="Width" unit="m" value={i.widthM || undefined} min={0} onSet={(v) => set({ widthM: v ?? 0 })} optional />
           <NumField label="Height" unit="m" value={i.heightM || undefined} min={0} onSet={(v) => set({ heightM: v ?? 0 })} optional />
+        </div>
+      </section>
+
+      <section className="dm-card">
+        <h4>Risk assessment — preliminary</h4>
+        <div className="dm-head">
+          <NumField label="Thunderstorm days" unit="days/yr" value={k0.thunderDays} min={0} onSet={(v) => setRisk({ thunderDays: v })} optional />
+          <NumField label="Strike point ratio" value={k0.strikeRatio} min={0} onSet={(v) => setRisk({ strikeRatio: v })} optional />
+          <NumField label="Measured strike density (optional)" unit="/km²/yr" value={k0.strikeDensity} min={0} onSet={(v) => setRisk({ strikeDensity: v })} optional />
+        </div>
+        <div className="dm-head">
+          <label className="nf"><span>Collection area</span>
+            <select value={k0.shape === 'area' ? 'area' : 'rectangle'} onChange={(e) => setRisk({ shape: e.target.value as RiskInputs['shape'] })}>
+              <option value="rectangle">Rectangle — the building above</option>
+              <option value="area">Entered area</option>
+            </select>
+          </label>
+          {k0.shape === 'area' && <NumField label="Collection area (entered)" unit="m²" value={k0.collectionAreaM2} min={0} onSet={(v) => setRisk({ collectionAreaM2: v })} optional />}
+        </div>
+        <div className="dm-head">
+          <NumField label="Location factor" value={k0.locationFactor} min={0} onSet={(v) => setRisk({ locationFactor: v })} optional />
+          <NumField label="Fire risk factor" value={k0.fireRisk} min={0} onSet={(v) => setRisk({ fireRisk: v })} optional />
+          <NumField label="Fire provisions factor" value={k0.fireProvisions} min={0} onSet={(v) => setRisk({ fireProvisions: v })} optional />
+          <NumField label="Special hazard factor" value={k0.specialHazard} min={0} onSet={(v) => setRisk({ specialHazard: v })} optional />
+          <NumField label="Typical loss" value={k0.typicalLoss} min={0} onSet={(v) => setRisk({ typicalLoss: v })} optional />
+          <NumField label="Tolerable risk" unit="/yr" value={k0.tolerableRisk} min={0} onSet={(v) => setRisk({ tolerableRisk: v })} optional />
+        </div>
+        <p className="m">{RISK_NOTE} A missing value shows DATA REQUIRED; nothing is assumed. One risk component only — physical damage from a direct strike — so the class is a minimum.</p>
+        {k0.shape !== 'area' && !r.invalid && (
+          <svg viewBox="0 0 340 230" role="img" aria-label={`Collection area: the building and everything within ${n2(reach)} m of it`} style={{ width: '100%', maxWidth: 420, height: 'auto' }}>
+            <rect x={20} y={10} width={(i.lengthM + 2 * reach) * ks} height={(i.widthM + 2 * reach) * ks} rx={reach * ks} fill="none" stroke="var(--mut)" strokeWidth={1.2} strokeDasharray="6 4" />
+            <rect x={20 + reach * ks} y={10 + reach * ks} width={i.lengthM * ks} height={i.widthM * ks} fill="none" stroke="var(--tx)" strokeWidth={2} />
+            <line x1={20 + (reach + i.lengthM) * ks} y1={10 + (reach + i.widthM / 2) * ks} x2={20 + (2 * reach + i.lengthM) * ks} y2={10 + (reach + i.widthM / 2) * ks} stroke="var(--acc)" strokeWidth={1.5} />
+            <g fontSize={11} fill="var(--tx)">
+              <text x={20} y={222}>Building {n2(i.lengthM)} × {n2(i.widthM)} m · reach 3 × height = {n2(reach)} m{risk.collectionAreaM2 ? ` · ${n2(risk.collectionAreaM2)} m²` : ''}</text>
+            </g>
+          </svg>
+        )}
+        {risk.working.length > 0 && (
+          <table>
+            <thead><tr><th>Step</th><th>Formula</th><th className="num">Result</th></tr></thead>
+            <tbody>
+              {risk.working.map((w) => <tr key={w.step}><td>{w.step}</td><td style={{ whiteSpace: 'normal' }}>{w.formula}</td><td className="num">{w.result}</td></tr>)}
+            </tbody>
+          </table>
+        )}
+        <table>
+          <thead><tr><th>Protection</th><th>Damage probability (entered by you)</th><th className="num">Risk per year</th><th>Against the tolerable risk</th></tr></thead>
+          <tbody>
+            {RISK_LEVELS.map((level, n) => {
+              const row = risk.rows[n], p = k0.damageProbability?.[level];
+              return (
+                <tr key={level}>
+                  <td>{riskLevelLabel(level)}{risk.minimum === level ? ' (minimum)' : ''}</td>
+                  <td>
+                    <input key={`${p ?? ''}`} aria-label={`Damage probability — ${riskLevelLabel(level)}`} inputMode="decimal" style={{ width: 80 }} defaultValue={p ?? ''}
+                      onBlur={(e) => { const t = e.target.value.trim().replace(',', '.'), v = t === '' ? undefined : Number(t); if (v === undefined || (Number.isFinite(v) && v >= 0)) { if (v !== p) setProbability(level, v); } else e.target.value = p === undefined ? '' : String(p); }} />
+                  </td>
+                  <td className="num">{row.risk !== undefined ? riskText(row.risk) : '—'}</td>
+                  {row.risk === undefined ? <StatusCell status="bad">{started ? 'DATA REQUIRED' : '—'}</StatusCell> : <StatusCell status={row.ok ? 'ok' : 'bad'}>{row.ok ? 'OK' : 'Exceeds'}</StatusCell>}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div className="dm-head">
+          <NumField label="Sensitivity: strike density multiplier" value={k0.sensitivity} min={0} onSet={(v) => setRisk({ sensitivity: v })} optional />
+          {risk.sensitivityMinimum && <span>With the strike density × {n2(k0.sensitivity!)}: {minText(risk.sensitivityMinimum)}{risk.sensitivityRisk !== undefined ? ` (${riskText(risk.sensitivityRisk)})` : ''}</span>}
+          <button className="chip primary" disabled={!minClass} onClick={() => minClass && set({ lpsClass: minClass, riskRef: i.riskRef?.trim() ? i.riskRef : 'Preliminary risk assessment in this study' })}>
+            {minClass ? `Use Class ${minClass} in this study` : risk.minimum === 'none' ? 'No protection is needed by this assessment' : 'Use the minimum class in this study'}
+          </button>
         </div>
       </section>
 

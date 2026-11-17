@@ -80,4 +80,29 @@ describe('Lightning protection study', () => {
     act(() => button().click());
     expect(last.cadBlockDefs?.find((x) => x.file === 'roof.dwg')?.defs.map((d) => d.name)).toEqual(['LP-ROOF-LAYOUT']);
   });
+
+  it('risk assessment: saved with the study, gives the minimum class and passes it to the design values', () => {
+    render({ ...sampleProject, lightning: { lengthM: 35, widthM: 26, heightM: 8.5, method: 'mesh' } });
+    expect(text()).not.toContain('Minimum protection class');
+    const entries: [string, string][] = [['Thunderstorm days', '40'], ['Strike point ratio', '1'], ['Location factor', '1'], ['Fire risk factor', '0.02'],
+      ['Fire provisions factor', '0.5'], ['Special hazard factor', '1'], ['Typical loss', '0.5'], ['Tolerable risk', '1e-5']];
+    entries.forEach(([label, value]) => enter(field(label), value));
+    expect(text()).toContain('DATA REQUIRED');
+    const p = (level: string) => document.querySelector<HTMLInputElement>(`input[aria-label="Damage probability — ${level}"]`)!;
+    ([['No protection', '1'], ['Class IV', '0.2'], ['Class III', '0.1'], ['Class II', '0.05'], ['Class I', '0.02']] as const).forEach(([level, value]) => enter(p(level), value));
+    expect(last.lightning?.risk).toMatchObject({ shape: 'rectangle', thunderDays: 40, tolerableRisk: 1e-5, damageProbability: { none: 1, II: 0.05 } });
+    expect(text()).toContain('Class II (minimum)');
+    expect(text()).toContain('1.21 × 10⁻⁴');
+    expect(text()).toContain('1 in 41 years');
+    expect(text()).toContain('6063.82 m²');
+    const use = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Use Class II in this study')!;
+    act(() => use.click());
+    expect(last.lightning).toMatchObject({ lpsClass: 'II', riskRef: 'Preliminary risk assessment in this study' });
+  });
+
+  it('risk assessment: an entered collection area replaces the rectangle', () => {
+    render({ ...sampleProject, lightning: { lengthM: 35, widthM: 26, heightM: 8.5, method: 'mesh', risk: { shape: 'area', collectionAreaM2: 5000, strikeDensity: 4, locationFactor: 1 } } });
+    expect(field('Collection area (entered)').value).toBe('5000');
+    expect(text()).toContain('1 in 50 years');
+  });
 });

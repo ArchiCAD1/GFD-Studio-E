@@ -7,8 +7,10 @@
  * No value of a standard is built in. The protection class, mesh size, sphere radius, protection angle and
  * down conductor spacing are entered from the engineer's own risk assessment and copy of the standard, and the
  * ESE advance time from the manufacturer's test certificate. A value that is missing gives DATA REQUIRED for
- * the method that needs it — nothing is assumed. Flat roof, plan geometry, metres. Not covered: the risk
- * assessment itself, separation distance, and detailing. */
+ * the method that needs it — nothing is assumed. Flat roof, plan geometry, metres. Not covered: separation
+ * distance and detailing. The preliminary risk assessment is in lightningRisk.ts. */
+
+import type { RiskInputs } from './lightningRisk';
 
 export type LpsClass = 'I' | 'II' | 'III' | 'IV';
 export type AirMethod = 'mesh' | 'angle' | 'sphere' | 'ese';
@@ -28,6 +30,8 @@ export interface LpsInputs {
   lpsClass?: LpsClass;
   /** The risk assessment it comes from, e.g. a document number. */
   riskRef?: string;
+  /** Preliminary risk assessment of this study (lightningRisk.ts); the rectangle shape takes the building size above. */
+  risk?: RiskInputs;
   /** Mesh size for the class (m). */
   meshM?: number;
   /** Rolling sphere radius for the class (m); also the ESE striking distance. */
