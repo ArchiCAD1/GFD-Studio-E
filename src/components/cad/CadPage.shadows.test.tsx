@@ -276,6 +276,37 @@ describe('Move, Copy, Rotate, Mirror, Scale and Stretch show the result before t
     expect(r0(item('S1').pts)).toEqual(shown);
   });
 
+  it('Mirror, Scale and Stretch take typed points, as Move and Rotate do', async () => {
+    await start();
+    // Mirror S2 about the line x = X + 6 m, typed: a copy at X + 8 m (the original kept).
+    await dragWindow([X + 3500, -2500], [X + 4500, 2500]);
+    await command('MIRROR');
+    await command(`${X + 6000},-5000`);
+    await until(() => hist().includes('MIRROR  Specify second point of the mirror line:'));
+    await command('@0,10000');
+    await until(() => hist().includes('Erase source objects?'));
+    await command('');
+    await until(() => said().includes('mirrored'));
+    expect(items().some((x) => r0(x.pts).join() === [[X + 8000, -2000], [X + 8000, 2000]].join())).toBe(true);
+    // Scale S1 about its start, the base point typed.
+    await dragWindow([X - 500, -500], [X + 8500, 500]);
+    await command('SCALE');
+    await command(`${X},0`);
+    await until(() => hist().includes('SCALE  Specify scale factor <2>:'));
+    await command('2');
+    await until(() => said().includes('scaled × 2'));
+    expect(r0(item('S1').pts)).toEqual([[X, 0], [X + 16000, 0]]);
+    // Stretch S3's top end 1 m up, both points typed.
+    await command('STRETCH');
+    await dragWindow([X + 10500, 2500], [X + 9500, 1500]);
+    await until(() => hist().includes('STRETCH  Specify base point:'));
+    await command(`${X + 10000},2000`);
+    await until(() => hist().includes('STRETCH  Specify second point:'));
+    await command('@0,1000');
+    await until(() => said().includes('STRETCH  1 drawn object'));
+    expect(r0(item('S3').pts)).toEqual([[X + 10000, -2000], [X + 10000, 3000]]);
+  });
+
   it("Copy and Mirror of the opened drawing's objects: the shadow is what the click then adds", async () => {
     const WALL: [number, number] = [15900, 6000]; // a wall line of the sample plan (A-WALL)
     const walls = () => items().filter((x) => x.layer === 'A-WALL').map((x) => r0(x.pts));
