@@ -3,7 +3,7 @@ import { sampleProject } from '../data/sampleProject';
 import type { LpsInputs } from '../calc/lightningProtection';
 import type { Project } from '../types';
 import { blockDefsOf } from './cadBlocks';
-import { lightningPlanFiles, lightningRoofBlock, LP_BLOCK, LP_LAYER, roofOutlines, withLightningBlock, withRoofOutline } from './lightningCad';
+import { lightningPlanFiles, lightningRoofBlock, LP_BLOCK, LP_LAYER, roofOutlines, withLightningBlock, withRoofOutline, withRoofPart } from './lightningCad';
 
 const study: LpsInputs = { lengthM: 40, widthM: 25, heightM: 18, method: 'mesh', meshM: 10, sphereRadiusM: 30, rodHeightM: 3, downSpacingM: 10 };
 
@@ -91,5 +91,38 @@ describe('roof outline for the lightning risk assessment', () => {
     expect(done.lightning!.risk!.outline).toHaveLength(6);
     expect(withRoofOutline(p, 'Roof.dwg', 'S3')).toBeUndefined();
     expect(withRoofOutline({ ...p, lightning: undefined }, 'Roof.dwg', 'S2')).toBeUndefined();
+  });
+});
+
+describe('parts of the roof with their own height', () => {
+  // Millimetres: a 40 × 30 m roof with its corner at (5, 2) m, a 4 m square lift overrun on it and a mast drawn as a circle.
+  const roof: [number, number][] = [[5000, 2000], [45000, 2000], [45000, 32000], [5000, 32000]];
+  const lift: [number, number][] = [[15000, 12000], [19000, 12000], [19000, 16000], [15000, 16000]];
+  const p: Project = { ...sampleProject, lightning: { ...study, risk: { shape: 'outline', thunderDays: 40 } }, cadSketch: [{ file: 'Roof.dwg', items: [
+    { id: 'R', kind: 'pline', layer: 'A-ROOF', pts: roof, closed: true },
+    { id: 'L', kind: 'pline', layer: 'A-ROOF', pts: lift, closed: true },
+    { id: 'M', kind: 'circle', layer: 'A-MAST', pts: [[40000, 27000]], r: 500 }
+  ] }] };
+
+  it('a circle is offered as an outline, and every outline says where it is in the drawing', () => {
+    const list = roofOutlines(p, 'Roof.dwg');
+    expect(list.map((x) => [x.id, x.origin])).toEqual([['R', [5, 2]], ['L', [15, 12]], ['M', [39.5, 26.5]]]);
+    expect(list[2].pts).toHaveLength(48);
+    expect(list[2].areaM2).toBeCloseTo(Math.PI * 0.25, 1);
+  });
+
+  it('a part is placed where it is in the drawing relative to the roof outline, with its height still to enter', () => {
+    const withRoof = withRoofOutline(p, 'Roof.dwg', 'R')!;
+    expect(withRoof.lightning!.risk).toMatchObject({ outlineOrigin: [5, 2], thunderDays: 40 });
+    const done = withRoofPart(withRoofPart(withRoof, 'Roof.dwg', 'L')!, 'Roof.dwg', 'M')!;
+    const parts = done.lightning!.risk!.parts!;
+    expect(parts[0]).toEqual({ outline: [[10, 10], [14, 10], [14, 14], [10, 14]] });
+    expect(parts[1].outline[0]).toEqual([35.5, 25]);
+  });
+
+  it('needs a roof outline first; taking the roof outline again drops the parts', () => {
+    expect(withRoofPart(p, 'Roof.dwg', 'L')).toBeUndefined();
+    const done = withRoofPart(withRoofOutline(p, 'Roof.dwg', 'R')!, 'Roof.dwg', 'L')!;
+    expect(withRoofOutline(done, 'Roof.dwg', 'R')!.lightning!.risk!.parts).toBeUndefined();
   });
 });

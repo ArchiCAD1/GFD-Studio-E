@@ -1,5 +1,5 @@
 import { revisionStamp } from '../model/revisions';
-import { lineText, slotRuns, specAnchor, specContents, specFields, specRevisionRows, specSetup, specView, SPEC_PAPER_MM, SPEC_PARTIES, type SpecDoc, type SpecLine, type SpecPage, type SpecView } from '../model/specDoc';
+import { captionText, lineText, slotRuns, specAnchor, specContents, specFields, specRevisionRows, specSetup, specView, SPEC_PAPER_MM, SPEC_PARTIES, type SpecDoc, type SpecLine, type SpecPage, type SpecView } from '../model/specDoc';
 import type { Project } from '../types';
 import { cssImage, cssStr } from './printDoc';
 import { destMarker } from './outline';
@@ -21,6 +21,11 @@ const CSS = `
   ol.contents li.l2 { padding-left: 34px; grid-template-columns: 40px 1fr auto; font-size: 9.5pt; }
   ol.contents .dots { border-bottom: 0.5pt dotted #000; margin-bottom: 3px; } ol.contents li > span:nth-child(2) { display: flex; gap: 6px; } ol.contents li > span:nth-child(2) i { flex: 1; font-style: normal; }
   a.dest { display: block; height: 0; }
+  figure.blk { margin: 8px 0 10px 46px; } figure.blk.brk { break-before: page; } figure.blk.pic { break-inside: avoid; }
+  figure.blk figcaption { font-size: 9pt; font-weight: 700; margin: 0 0 3px; } figure.blk.pic figcaption { margin: 3px 0 0; }
+  figure.blk img { display: block; height: auto; }
+  table.tb { border-collapse: collapse; width: 100%; font-size: 9pt; } table.tb th, table.tb td { border: 0.4pt solid #000; padding: 1.2mm 1.8mm; text-align: left; vertical-align: top; }
+  table.tb thead { display: table-header-group; } table.tb tr { break-inside: avoid; }
   @page cover { margin: 18mm; @top-left { content: none; } @top-center { content: none; } @top-right { content: none; } @bottom-left { content: none; } @bottom-center { content: none; } @bottom-right { content: none; } }
   .cover { page: cover; display: flex; flex-direction: column; }
   .cover .ctop { display: flex; justify-content: space-between; align-items: flex-end; gap: 10mm; border-bottom: 1.2pt solid #000; padding-bottom: 4mm; min-height: 20mm; font-size: 11pt; font-weight: 700; }
@@ -79,6 +84,19 @@ export function missingList(v: SpecView): { label: string; clauses: string[] }[]
   for (const m of v.missing) by.set(m.label, [...(by.get(m.label) ?? []), m.clauseNo || `section ${m.sectionNo}`]);
   return [...by].map(([label, clauses]) => ({ label, clauses }));
 }
+/** A table or a picture of the text, with its numbered caption (above a table, under a picture). A picture that is
+ * not a plain PNG or JPEG is left out, its caption kept. */
+function blockHtml(l: SpecLine): string {
+  const cap = lineHtml(l), caption = `<figcaption>${esc(l.label ?? '')}${cap.trim() ? ` — ${cap}` : ''}</figcaption>`, brk = l.breakBefore ? ' brk' : '';
+  if (l.table) {
+    const row = (cells: string[], tag: 'th' | 'td') => `<tr>${cells.map((c) => `<${tag}>${esc(c)}</${tag}>`).join('')}</tr>`;
+    const [head, ...rest] = l.table.rows;
+    return `<figure class="blk${brk}">${caption}<table class="tb">${l.table.header ? `<thead>${row(head, 'th')}</thead>` : ''}<tbody>${(l.table.header ? rest : l.table.rows).map((x) => row(x, 'td')).join('')}</tbody></table></figure>`;
+  }
+  const ok = l.image && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(l.image.src);
+  return `<figure class="blk pic${brk}">${ok ? `<img src="${l.image!.src}" style="width: ${l.image!.widthPct}%" alt="">` : ''}${caption}</figure>`;
+}
+
 /** `pages`: the page each contents entry landed on, from a first print (see specPdfPage); none: no numbers yet. */
 export function buildSpecHtml(project: Project, doc: SpecDoc, pages: Record<string, number> = {}): string {
   const v = specView(doc, project), missing = missingList(v), setup = specSetup(doc, project);
@@ -107,6 +125,7 @@ ${c.note ? `<div class="cnote">${esc(c.note)}</div>` : ''}</section>`;
     front = `<section class="first"><header><h1>${esc(doc.title)}</h1><div class="meta">${esc(project.name)} · ${stamp}</div></header>${infoTable(specInfoRows(doc, project))}${contents}${warn}</section>`;
   }
   const sections = v.blocks.map((b) => `<section id="${specAnchor(b.id)}">${destMarker(specAnchor(b.id), b.heading)}<h2>${esc(b.heading)}</h2>${b.lines.map((l) => {
+    if (l.table || l.image) return blockHtml(l);
     const id = specAnchor(b.id, l.id), anchored = l.kind === 'heading' && setup.contents.on && setup.contents.headings;
     return `<div${anchored ? ` id="${id}"` : ''} class="cl ${l.kind === 'heading' ? 'h' : l.kind === 'note' ? 'n' : ''}${l.level ? ` l${l.level}` : ''}${l.breakBefore ? ' brk' : ''}"><span>${anchored ? `<a class="dest" href="#${id}"></a>` : ''}${esc(l.no)}</span><span>${lineHtml(l)}</span></div>`;
   }).join('')}</section>`).join('');
@@ -115,4 +134,4 @@ ${c.note ? `<div class="cnote">${esc(c.note)}</div>` : ''}</section>`;
 
 /** The specification as plain text lines (number, tab, text), for a quick copy or a check. */
 export const specPlainText = (project: Project, doc: SpecDoc): string =>
-  specView(doc, project).blocks.map((b) => [b.appendix ? b.heading : `${b.no}\t${b.title}`, ...b.lines.map((l) => `${'\t'.repeat(l.kind === 'heading' ? 0 : l.level)}${l.no}\t${lineText(l)}`)].join('\n')).join('\n\n');
+  specView(doc, project).blocks.map((b) => [b.appendix ? b.heading : `${b.no}\t${b.title}`, ...b.lines.flatMap((l) => (l.table ? [captionText(l), ...l.table.rows.map((r) => r.join('\t'))] : l.image ? [captionText(l)] : [`${'\t'.repeat(l.kind === 'heading' ? 0 : l.level)}${l.no}\t${lineText(l)}`]))].join('\n')).join('\n\n');

@@ -9,15 +9,20 @@ import { mainBoards } from './transformers';
  * or exported, so the specification follows the design. A field the project has no value for shows DATA REQUIRED.
  * The clause wording is the engineer's own: the starter set is plain wording to edit, not text of any standard. */
 
-export type SpecKind = 'heading' | 'clause' | 'note';
+export type SpecKind = 'heading' | 'clause' | 'note' | 'table' | 'image';
+/** A table in the text: its cells as text, the first row a header unless turned off. */
+export interface SpecTable { rows: string[][]; header?: boolean }
+/** A picture in the text: the picture itself (data: URL, PNG or JPEG), its size in pixels, and how wide it prints
+ * as a share of the text width (60 % unless set). */
+export interface SpecImage { src: string; w: number; h: number; widthPct?: number }
 /** `level`: how far the line is indented under the one above. A heading at level 1 is a sub-heading (2.1.1); a
  * clause at level 1 is a lettered item a), b) … under its clause, at level 2 a numbered item i), ii) …; a note only
  * moves in. `breakBefore`: the line starts a new page. */
-export interface SpecClause { id: string; kind: SpecKind; text: string; level?: number; breakBefore?: boolean }
+export interface SpecClause { id: string; kind: SpecKind; text: string; level?: number; breakBefore?: boolean; table?: SpecTable; image?: SpecImage } // a table's or picture's text is its caption
 /** `appendix`: the section is an appendix — lettered A, B … and placed after the numbered sections. */
 export interface SpecSection { id: string; title: string; included: boolean; clauses: SpecClause[]; appendix?: boolean }
 /** The deepest level a line of this kind takes. */
-export const maxLevel = (kind: SpecKind): number => (kind === 'heading' ? 1 : 2);
+export const maxLevel = (kind: SpecKind): number => (kind === 'heading' ? 1 : kind === 'table' || kind === 'image' ? 0 : 2);
 /** A detail the engineer adds to the document's information (name and value), usable in a clause as a field. */
 export interface SpecDetail { id: string; name: string; value: string }
 /** The document's own information: its number and status, the parties, and any further details. A party left
@@ -94,7 +99,8 @@ export function specFields(p: Project, doc: SpecDoc | undefined = p.spec): SpecF
 
 export type SpecRun = { text: string } | { field: string; label: string; value?: string };
 /** `no`: the number printed on the line; `ref`: how the line is named elsewhere (an item is "2.1.1 a)"). */
-export interface SpecLine { id: string; kind: SpecKind; no: string; ref: string; level: number; breakBefore: boolean; runs: SpecRun[] }
+/** `label`: "Table 1" or "Figure 2" for a table or picture, numbered through the document; its `runs` are the caption. */
+export interface SpecLine { id: string; kind: SpecKind; no: string; ref: string; level: number; breakBefore: boolean; runs: SpecRun[]; label?: string; table?: Required<SpecTable>; image?: SpecImage & { widthPct: number } }
 /** `heading`: the block's title as printed ("2 Switchboards", "Appendix A — Schedules"). */
 export interface SpecBlock { id: string; no: string; title: string; heading: string; appendix: boolean; lines: SpecLine[] }
 export interface SpecMissing { sectionNo: string; clauseNo: string; key: string; label: string }
@@ -130,7 +136,7 @@ const levelOf = (c: SpecClause): number => Math.min(maxLevel(c.kind), Math.max(0
 export function specView(doc: SpecDoc, p: Project): SpecView {
   const fields = new Map(specFields(p, doc).map((f) => [f.key, f]));
   const blocks: SpecBlock[] = [], missing: SpecMissing[] = [];
-  let s = 0, ap = 0;
+  let s = 0, ap = 0, tn = 0, fn = 0;
   const included = doc.sections.filter((x) => x.included);
   for (const sec of [...included.filter((x) => !x.appendix), ...included.filter((x) => x.appendix)]) {
     const no = sec.appendix ? letters(++ap).toUpperCase() : String(++s);
@@ -147,15 +153,19 @@ export function specView(doc: SpecDoc, p: Project): SpecView {
         if (level === 0) { clauseNo = num = h2 ? `${no}.${h}.${h2}.${++c}` : h ? `${no}.${h}.${++k}` : `${no}.${++t}`; a = 0; r = 0; ref = num; }
         else if (level === 1) { num = `${letters(++a)})`; r = 0; ref = `${clauseNo} ${num}`.trim(); }
         else { num = `${roman(++r)})`; ref = `${clauseNo}${a ? ` ${letters(a)})` : ''} ${num}`.trim(); }
-      } else ref = clauseNo;
+      } else ref = cl.kind === 'table' && cl.table ? `Table ${tn + 1}` : cl.kind === 'image' && cl.image ? `Figure ${fn + 1}` : clauseNo;
       const runs = runsOf(cl.text, fields);
       for (const x of runs) if ('field' in x && x.value === undefined) missing.push({ sectionNo: no, clauseNo: ref, key: x.field, label: x.label });
-      return { id: cl.id, kind: cl.kind, no: num, ref, level, breakBefore: !!cl.breakBefore, runs };
+      const block = cl.kind === 'table' && cl.table ? { label: `Table ${++tn}`, table: { rows: cl.table.rows, header: cl.table.header ?? true } }
+        : cl.kind === 'image' && cl.image ? { label: `Figure ${++fn}`, image: { ...cl.image, widthPct: Math.min(100, Math.max(10, cl.image.widthPct ?? 60)) } } : {};
+      return { id: cl.id, kind: cl.kind, no: num, ref, level, breakBefore: !!cl.breakBefore, runs, ...block };
     });
     blocks.push({ id: sec.id, no, title: sec.title, heading: sec.appendix ? `Appendix ${no} — ${sec.title}` : `${no} ${sec.title}`, appendix: !!sec.appendix, lines });
   }
   return { blocks, missing };
 }
+/** The caption of a table or picture as printed: "Table 1 — caption", or the label alone. */
+export const captionText = (l: SpecLine): string => { const c = lineText(l).trim(); return c ? `${l.label} — ${c}` : l.label ?? ''; };
 /** A line as plain text, fields filled in (DATA REQUIRED where the project has no value). */
 export const lineText = (l: Pick<SpecLine, 'runs'>): string => l.runs.map((r) => ('text' in r ? r.text : r.value ?? `DATA REQUIRED: ${r.label}`)).join('');
 
@@ -259,18 +269,18 @@ export function moveSection(doc: SpecDoc, id: string, by: -1 | 1): SpecDoc {
 }
 
 /** Adds a clause to a section: after the clause `after`, or at the end. */
-export function addClause(doc: SpecDoc, sectionId: string, kind: SpecKind, text: string, after?: string): SpecDoc {
+export function addClause(doc: SpecDoc, sectionId: string, kind: SpecKind, text: string, after?: string, block: Pick<SpecClause, 'table' | 'image'> = {}): SpecDoc {
   const id = nextId(doc, 'C');
   return mapSection(doc, sectionId, (s) => {
     const i = after ? s.clauses.findIndex((c) => c.id === after) : -1;
     const clauses = [...s.clauses];
     // A line added under an indented line of its kind starts at that level (the next item of the list).
     const level = i >= 0 && s.clauses[i].kind === kind && s.clauses[i].level ? { level: s.clauses[i].level } : {};
-    clauses.splice(i < 0 ? clauses.length : i + 1, 0, { id, kind, text, ...level });
+    clauses.splice(i < 0 ? clauses.length : i + 1, 0, { id, kind, text, ...level, ...block });
     return { ...s, clauses };
   });
 }
-export const withClause = (doc: SpecDoc, sectionId: string, clauseId: string, change: Partial<Pick<SpecClause, 'text' | 'kind' | 'breakBefore'>>): SpecDoc =>
+export const withClause = (doc: SpecDoc, sectionId: string, clauseId: string, change: Partial<Pick<SpecClause, 'text' | 'kind' | 'breakBefore' | 'table' | 'image'>>): SpecDoc =>
   mapSection(doc, sectionId, (s) => ({ ...s, clauses: s.clauses.map((c) => (c.id === clauseId ? { ...c, ...change } : c)) }));
 /** Moves a line in (+1) or out (−1) one level, within what its kind allows. */
 export const indentClause = (doc: SpecDoc, sectionId: string, clauseId: string, by: -1 | 1): SpecDoc =>

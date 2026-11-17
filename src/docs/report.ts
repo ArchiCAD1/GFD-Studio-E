@@ -7,8 +7,13 @@ import { PRINT, PRINT_BASE_CSS, STATUS_CSS } from './printStyles';
 /** Shared pieces of the plain print documents: escaping, status tallies, the black-and-white
  * additions and the page-1 document block. The calculation report itself is in calcReport.ts. */
 
-export const esc = (v: unknown) =>
-  String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const NEEDS_ESCAPE = /[&<>"']/;
+// Most cells of a report are numbers and plain words: those are returned as they are.
+export const esc = (v: unknown) => {
+  const s = typeof v === 'string' ? v : String(v ?? '');
+  return NEEDS_ESCAPE.test(s) ? s.replace(/[&<>"']/g, (c) => ESCAPES[c]) : s;
+};
 
 export const tally = (statuses: Status[]) => {
   const n = (s: Status) => statuses.filter((x) => x === s).length;

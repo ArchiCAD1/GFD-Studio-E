@@ -15,15 +15,21 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.181', date: '2026-11-17',
+    version: '2.182', date: '2026-11-17',
     items: [
       { title: 'Folder templates: roles and file naming', text: 'The folder template editor has two more tabs. Roles lists every output the app makes with the folder it saves to: pick a folder, or let Auto-assign match folders to outputs by name. File naming builds the file name from fields such as the project number, document type, number and revision, with a preview for each document type and your own pattern for a type where you need one. Saving files into these folders with these names comes with the project folder step.' }
     ]
   },
   {
-    version: '2.180', date: '2026-11-17',
+    version: '2.181', date: '2026-11-17',
     items: [
       { title: 'Folder templates: library and editor', text: 'Profile & preferences has a new Folder templates tab. It lists the built-in folder templates (locked) and your own. Duplicate one, then add, rename, delete, drag, indent and renumber its folders, and choose which outputs each folder is for. Problems such as a character Windows does not allow are shown as you type. Templates are kept on this computer and can be shared as a file. Nothing is created on disk yet: making a project\'s folders from a template comes next.' }
+    ]
+  },
+  {
+    version: '2.180', date: '2026-11-17',
+    items: [
+      { title: 'PDF in my format: headings on every page', text: 'A schedule in your own format that runs over one page now has its column headings again at the top of each following page (Load schedule → Export → PDF: my format). The headings are the rows directly above the first circuit row; the title and the panel\'s details stay on the first page.' }
     ]
   },
   {
