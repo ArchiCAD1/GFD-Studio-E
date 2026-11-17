@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import {
   AlignLeft, ArrowDown, ArrowUp, Baseline, Bold, Braces, ClipboardPaste, Copy, FilePlus2, FileText, FileType, FolderOpen, Heading1, Heading2, Italic, List, ListOrdered, PaintBucket, Paintbrush,
-  BookOpen, Columns3, Image as ImageIcon, Rows3, Table as TableIcon, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
+  BookmarkPlus, BookOpen, LibraryBig, Save, Columns3, Image as ImageIcon, Rows3, Table as TableIcon, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
 } from 'lucide-react';
 import type { Project } from '../../types';
 import {
@@ -11,7 +11,11 @@ import {
 import { addCol, addRow, deleteCol, deleteRow, imageFromDataUrl, setCell, tableFromSheet, tableFromText, tableSize, IMAGE_MAX_BYTES } from '../../model/specBlocks';
 import { Big, Group, Icons, IconTool, PageRibbon, RIBBON_CSS, Rows, Small } from '../pageRibbon';
 import { buildSpecHtml, specPdfPage } from '../../docs/specReport';
-import { safeFileName, saveBinary, savePdf } from '../../util/files';
+import { safeFileName, saveBinary, savePdf, saveText } from '../../util/files';
+import {
+  applyTemplate, loadTemplates, removeTemplate, saveTemplates, specFileText, specFromFileText, templateNameError, templateOf, templateSummary, withTemplate,
+  SPEC_FILE_EXT, TEMPLATE_KINDS, TEMPLATE_MAX_CHARS, type SpecTemplate, type SpecTemplateKind
+} from '../../model/specTemplates';
 
 /** Specification: the project specification as sections of numbered clauses whose values come from the project.
  * It has the section list, the page with clause editing, the File, Home and Specification tabs of the ribbon (the
@@ -54,6 +58,8 @@ const CSS = `${RIBBON_CSS}
 .spx-blk-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; font-size: 11.5px; }
 .spx-blk-tools button, .spx-blk-tools select { height: 28px; padding: 0 8px; border: 1px solid currentColor; border-radius: 4px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .spx-blk-tools button:disabled { opacity: .45; cursor: default; }
+.spx-tpl { display: grid; grid-template-columns: minmax(0, 1fr) auto 36px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+.spx-tpl button { height: 34px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--p2); color: var(--tx); font: inherit; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .spx-pic { display: block; max-width: 100%; height: auto; }
 .spx-line.sel { border-color: #b8860b; background: #fffbea; }
 .spx-line textarea { box-sizing: border-box; width: 100%; min-height: 64px; border: 1px solid #999; padding: 4px 6px; font: inherit; font-weight: 400; font-style: normal; color: #1a1a1a; background: #fff; resize: vertical; }
@@ -118,6 +124,11 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
   const save = (next: SpecDoc) => onChange({ ...project, spec: next }, true);
   const included = doc.sections.filter((s) => s.included).length;
   const [busy, setBusy] = useState(false);
+  const [panel, setPanel] = useState<null | 'save' | 'library'>(null);
+  const [templates, setTemplates] = useState<SpecTemplate[]>(loadTemplates);
+  const [tplName, setTplName] = useState('');
+  const [tplKind, setTplKind] = useState<SpecTemplateKind>('section');
+  const specFile = useRef<HTMLInputElement>(null);
   async function exportAs(kind: 'docx' | 'pdf') {
     setBusy(true);
     try {
@@ -174,6 +185,40 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
     if (!sheet) return;
     if (!rows) { onStatus?.(`Table from sheet: ${sheet.name} is empty`); return; }
     addBlock('table', { table: { rows } }, `Table added from sheet ${sheet.name}: ${rows.length} × ${rows[0].length} (a copy — it does not follow the sheet)`);
+  };
+  // ---- templates and the specification's own file
+  const keepTemplates = (list: SpecTemplate[]): boolean => {
+    if (!saveTemplates(list)) { onStatus?.('Templates: this computer’s storage did not take the library (it may be full)'); return false; }
+    setTemplates(list);
+    return true;
+  };
+  const tplError = templateNameError(tplName) ?? (tplKind === 'clauses' && !clause ? 'Click the heading or clause to save first.' : undefined);
+  const saveTemplate = () => {
+    const t = tplError ? undefined : templateOf(doc, tplKind, tplName, { sectionId: section!.id, clauseId: clause?.id });
+    if (!t) return;
+    if (JSON.stringify(t).length > TEMPLATE_MAX_CHARS) { onStatus?.('Template not saved: it is too large for the library (its pictures) — remove or shrink the pictures, or use Save specification as'); return; }
+    const next = withTemplate(templates, t);
+    if (!keepTemplates(next.list)) return;
+    onStatus?.(`Template ${next.updated ? 'updated' : 'saved'}: ${t.name} (${TEMPLATE_KINDS[t.kind].toLowerCase()}, ${templateSummary(t)})`);
+    setTplName(''); setPanel('library');
+  };
+  const putTemplate = (t: SpecTemplate) => {
+    const r = applyTemplate(doc, t, { sectionId: section!.id, clauseId: clause?.id });
+    save(r.doc);
+    if (t.kind === 'clauses') setClauseId(null); else { setSectionId(r.added[0]); setClauseId(null); }
+    onStatus?.(t.kind === 'spec' ? `Specification replaced by the template ${t.name} (undo to return to yours)` : `Template added: ${t.name} (${templateSummary(t)})`);
+  };
+  const saveSpecFile = async () => {
+    const name = `${safeFileName(project.name)} — ${safeFileName(doc.title)}.${SPEC_FILE_EXT}`;
+    try { const path = await saveText(name, specFileText(doc), 'LV Design Studio specification', SPEC_FILE_EXT); if (path !== null) onStatus?.(`Specification saved as a file: ${path || name}`); }
+    catch (e) { onStatus?.(`Save failed: ${String((e as Error)?.message ?? e)}`); }
+  };
+  const openSpecFile = async (file: File | undefined) => {
+    if (!file) return;
+    const next = specFromFileText(await file.text());
+    if (!next) { onStatus?.(`${file.name}: not a specification saved by LV Design Studio`); return; }
+    save(next); setSectionId(next.sections[0].id); setClauseId(null);
+    onStatus?.(`Specification opened from ${file.name}: ${next.sections.length} section${next.sections.length === 1 ? '' : 's'} (undo to return to the one before)`);
   };
   const isBlock = clause?.kind === 'table' || clause?.kind === 'image';
   const setTable = (c: SpecClause, table: NonNullable<SpecClause['table']>) => save(withClause(doc, section!.id, c.id, { table }));
@@ -234,7 +279,15 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
           <>
             <Group name="Specification">
               <Big icon={FilePlus2} label="Starter wording" onClick={startOver} />
-              <Big icon={FolderOpen} label="Open Word template" />
+              <Rows>
+                <Small icon={FolderOpen} label="Open specification" onClick={() => specFile.current?.click()} />
+                <Small icon={Save} label="Save specification as" onClick={() => void saveSpecFile()} />
+                <Small icon={FolderOpen} label="Open Word template" />
+              </Rows>
+            </Group>
+            <Group name="Templates">
+              <Big icon={LibraryBig} label="Templates" onClick={() => setPanel(panel === 'library' ? null : 'library')} />
+              <Big icon={BookmarkPlus} label="Save as template" onClick={() => { setTplKind(clause ? 'clauses' : 'section'); setPanel(panel === 'save' ? null : 'save'); }} />
             </Group>
             <Group name="Sections">
               <Big icon={Plus} label="Add section" onClick={addNewSection} />
@@ -359,6 +412,42 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
 
       <input ref={picFile} type="file" accept="image/png,image/jpeg" aria-label="Picture file" hidden onChange={(e) => { addPicture(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       <input ref={logoFile} type="file" accept="image/png,image/jpeg" aria-label="Logo picture" hidden onChange={(e) => { readLogo(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
+      <input ref={specFile} type="file" accept={`.${SPEC_FILE_EXT},application/json`} aria-label="Specification file" hidden onChange={(e) => { void openSpecFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
+      {panel === 'save' && tab !== 'setup' && (
+        <section className="spx-card" aria-label="Save as template">
+          <h4>Save as template</h4>
+          <div className="spx-form" style={{ maxWidth: 640 }}>
+            <label>What to save</label>
+            <select aria-label="What to save" value={tplKind} onChange={(e) => setTplKind(e.target.value as SpecTemplateKind)}>
+              <option value="clauses">{clause ? (clause.kind === 'heading' ? 'The selected heading with its clauses' : 'The selected line') : 'A heading with its clauses (click one first)'}</option>
+              <option value="section">This section — {section.title}</option>
+              <option value="spec">The whole specification, with its page setup</option>
+            </select>
+            <label>Template name</label>
+            <input aria-label="Template name" value={tplName} placeholder="e.g. MCCB — moulded case circuit breakers" onChange={(e) => setTplName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') saveTemplate(); }} />
+          </div>
+          <div className="spx-blk-tools">
+            <button type="button" onClick={saveTemplate} disabled={!!tplError}>Save template</button>
+            <button type="button" onClick={() => setPanel(null)}>Close</button>
+            <span>{tplName && tplError ? tplError : 'Fields stay fields: the template fills in from the project it is used in. A template of the same name and kind is replaced.'}</span>
+          </div>
+        </section>
+      )}
+      {panel === 'library' && tab !== 'setup' && (
+        <section className="spx-card" aria-label="Templates">
+          <h4>Templates</h4>
+          {templates.length === 0 && <p className="spx-note">No templates yet. Write a product specification once — a heading with its clauses, a section or the whole document — then use Save as template.</p>}
+          {templates.map((t) => (
+            <div key={t.id} className="spx-tpl">
+              <span><b>{t.name}</b><br /><span className="spx-note">{TEMPLATE_KINDS[t.kind]} · {templateSummary(t)} · saved {t.updatedAt}</span></span>
+              <button type="button" aria-label={`Use template ${t.name}`} onClick={() => putTemplate(t)}>{t.kind === 'spec' ? 'Replace specification' : t.kind === 'section' ? 'Add after this section' : 'Add here'}</button>
+              <button type="button" aria-label={`Delete template ${t.name}`} title="Delete this template from the library" onClick={() => { if (keepTemplates(removeTemplate(templates, t.id))) onStatus?.(`Template deleted: ${t.name}`); }}><Trash2 size={15} aria-hidden /></button>
+            </div>
+          ))}
+          <p className="spx-note">Clauses go in after the clause being edited (at the end of the section when none). The library is kept on this computer and synced with your LV Database library file.</p>
+          <div className="spx-blk-tools"><button type="button" onClick={() => setPanel(null)}>Close</button></div>
+        </section>
+      )}
       {tab === 'setup' ? (
         <div className="spx-setup">
           <section className="spx-card" aria-label="Document and parties">

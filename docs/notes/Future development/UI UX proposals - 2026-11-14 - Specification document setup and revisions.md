@@ -32,8 +32,9 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
 | 1 + 2 | Specification tab of the page ribbon: document title, number, status, parties, own details (each a field); paper, orientation, margins; header and footer (left, centre, right, with fields and page numbers); logo and its position; watermark. Applied to the PDF and the Word file. | done (#571) |
 | 3 | Cover page (logo, title, project, number, status, parties, own details, revision table, note; no header or footer) and contents page (sections, optionally clause headings, page numbers), each on unless turned off. The revision table lists the project's issued revisions until stage 7 gives the specification its own. | done (#648) |
 | 4 | Indent / outdent (sub-headings 2.1.3; items a), b) … and i), ii) …), a page break before a line, appendices (lettered, after the numbered sections). | done (#650) |
-| 5 | Tables and pictures as blocks in the text flow, with numbered captions (Table 1, Figure 1). A table comes from cells copied in Sheets or Excel and pasted on the page, from one of the project's sheets (a copy), or empty; cells, rows, columns and the header row are edited on the page. A picture is a PNG or JPEG (up to 1 MB, kept in the project file), from a file or pasted, at a chosen share of the text width. | this change |
-| 6 | Template library; Save as; open a Word document; values to fields. | |
+| 5 | Tables and pictures as blocks in the text flow, with numbered captions (Table 1, Figure 1). A table comes from cells copied in Sheets or Excel and pasted on the page, from one of the project's sheets (a copy), or empty; cells, rows, columns and the header row are edited on the page. A picture is a PNG or JPEG (up to 1 MB, kept in the project file), from a file or pasted, at a chosen share of the text width. | done (#652) |
+| 6a | Template library (a heading with its clauses, a section, or the whole specification; fields stay fields; kept on the computer and synced with the library file). The specification as a file of its own: Save specification as, Open specification (`.lvspec`). | this change |
+| 6b | Open a Word document; turn its values into live fields. | next |
 | 7 | Specification revisions with highlight, cloud and revision marks. | |
 
 ## Changes to what is on screen (stage 1 + 2)
@@ -70,6 +71,12 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
   and its own tools (rows, columns, header row; picture width). Ctrl+V on the page turns copied cells into
   a table and a copied picture into a picture; plain text is left to the text box.
 - Not in this stage: a table that follows its sheet live, merged cells, column widths, cell formatting.
+
+## Changes to what is on screen (stage 6a)
+
+- File tab: "Open specification" and "Save specification as" beside Starter wording; a "Templates" group with
+  Templates (the library: use or delete) and Save as template (what to save, and its name).
+- "Open Word template" stays greyed until stage 6b.
 
 ## Not checked on screen
 
