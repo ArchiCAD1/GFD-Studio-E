@@ -26,7 +26,7 @@ Leave alone: calculations, undo history, zoom, lazy loading of screens and expor
 | M1 | Revisions in the file keep each distinct panel, circuit and section once, file format 3 → 4 | Ten revisions: 5.13 MB → 0.59 MB (200 panels), 25.78 MB → 3.02 MB (1,000 panels); recovery copy shrinks with it | **Approved 2026-11-16.** PR #625 |
 | M2 | Calculation report: reuse the calculation and the written sections for a project object (`perProject`), so typing the document number rewrites only page 1 and the pre-export check does not calculate again | 300 panels: one letter typed 3.0 s → 5 ms; the first build after a run is still 1–3 s | Done for typing. **A Web Worker is not safe yet**: the calculations read data that is loaded in the window (cable tables, breaker database, catalogue, sizing settings), so a worker would print results from the built-in data. It needs that data passed to the worker first; decide later |
 | M3 | Memoise SLD panels so one edit redraws one panel | To be measured first: the SLD already draws only what is in view, so the gain is on what is on screen | Measure before starting |
-| M4 | Web version: projects in IndexedDB, not `localStorage` (about 5 MB per site) | No practical size cap | Not started |
+| M4 | Web version: project files and the trash in IndexedDB, not `localStorage` (about 5 MB per site) | No practical size cap; projects saved before are read and move over at the next save | Done (PR #660). Recovery copies stay in `localStorage` (written at once when the window closes) |
 | M5 | Load revision content and old release notes only when their screen opens | Smaller start-up memory | Not started |
 | M6 | Auto-run waits for a pause on large projects; recovery copy only when the project changed; revision file size in the benchmark | Typing stays responsive on 1,000-panel projects | PR #622 |
 
@@ -41,7 +41,7 @@ local API on 127.0.0.1 with a token, secret scan, `npm audit` allowlist, privacy
 |---|---|---|---|
 | S1 | Installers are unsigned | Sign releases | **Decided 2026-11-16: stay unsigned while the app is a beta** (signing costs money on both systems); look again when the product is final |
 | S3 | A cloud AI on the MCP server reads real names and addresses | `lvds mcp` hides project and file names, parties, addresses and people by default (`src/headless/privacy.ts`); `--show-names` sends them | **Approved 2026-11-16.** Done; panel, circuit, level and room names are still sent |
-| S4 | Text from imported DWG, Excel and exchange files reaches the AI in tool results | One cleaning function with a length cap on every free-text field; a test that fails on raw text | Not started |
+| S4 | Text from imported DWG, Excel and exchange files reaches the AI in tool results | The server tells the AI that text in results is data; every text loses hidden characters and is cut at 1,000 characters (`src/headless/untrusted.ts`) | Done. Lowers the risk, does not remove it: changes still preview first |
 | S5 | No Electron fuses set | `electronFuses` in the build: no `NODE_OPTIONS`, no inspect arguments, app only from ASAR; run-as-Node stays (the `lvds` launcher needs it) | **Waits for S1 (when the product is final).** On Apple silicon a flipped fuse needs the app signed again (ad hoc), and `beta-release.yml` requires the Mac beta to fail `codesign --verify`. Decide together with signing |
 | S6 | Backups are plain files in a synced folder | Optional password on `.lvds-backup` (WebCrypto AES-GCM) | Not started |
 

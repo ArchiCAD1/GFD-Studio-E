@@ -10,6 +10,8 @@ export interface TemplatesState { templates: FolderTemplate[]; defaultId: string
 
 export interface TemplatesClient {
   list: () => Promise<TemplatesState>;
+  /** The web version's store can answer at once. */
+  listNow?: () => TemplatesState;
   save: (t: FolderTemplate) => Promise<TemplatesState>;
   delete: (id: string) => Promise<TemplatesState>;
   setDefault: (id: string | null) => Promise<TemplatesState>;
@@ -41,6 +43,7 @@ export function webTemplatesClient(storage: Store | undefined = typeof localStor
   };
   return {
     list: async () => read(),
+    listNow: read,
     save: async (t) => {
       const cur = read();
       const old = cur.templates.find((x) => x.id === t.id);
