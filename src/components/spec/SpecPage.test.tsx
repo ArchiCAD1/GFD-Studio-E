@@ -187,6 +187,79 @@ describe('Specification page', () => {
     expect(sectionButton('General requirements').textContent).toBe('1General requirements');
   });
 
+  describe('tables and pictures', () => {
+    const paste = (target: Element, text: string) => act(() => {
+      const e = new Event('paste', { bubbles: true, cancelable: true });
+      Object.defineProperty(e, 'clipboardData', { value: { getData: (t: string) => (t === 'text/plain' ? text : ''), files: [] } });
+      target.dispatchEvent(e);
+    });
+    const page = () => document.querySelector('.spx-paper')!;
+    const cellBox = (r: number, c: number) => document.querySelector<HTMLInputElement>(`.spx-tb input[aria-label$="row ${r} column ${c}"]`)!;
+    const leave = (el: HTMLInputElement, v: string) => act(() => { el.focus(); el.value = v; el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });
+    const toolIn = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('.spx-blk-tools button')].find((b) => b.textContent!.trim() === label)!;
+
+    it('cells copied from a sheet and pasted on the page become a table after the clause being edited', () => {
+      render(sampleProject);
+      act(() => lines()[1].click());
+      paste(page(), 'Board\tRating\nMDB-1\t1600 A\n');
+      const c = spec().sections[0].clauses;
+      expect(c[2]).toMatchObject({ kind: 'table', text: '', table: { rows: [['Board', 'Rating'], ['MDB-1', '1600 A']] } });
+      expect(status[status.length - 1]).toBe('Table added from the copied cells: 2 rows × 2 columns');
+      expect(document.querySelector('.spx-tb th input')).not.toBeNull(); // selected, ready to edit
+    });
+
+    it('plain text pasted on the page is left alone', () => {
+      render(sampleProject);
+      const before = changes;
+      paste(page(), 'Only a sentence.');
+      expect(changes).toBe(before);
+    });
+
+    it('edits a cell and the caption, adds and deletes rows and columns, and turns the header row off', () => {
+      render(sampleProject);
+      press('Add table');
+      const table = () => spec().sections[0].clauses.find((x) => x.kind === 'table')!;
+      expect(table().table!.rows).toEqual([['', '', ''], ['', '', ''], ['', '', '']]);
+      leave(cellBox(1, 1), 'Board');
+      leave(document.querySelector<HTMLInputElement>('.spx-capin')!, 'Main boards');
+      expect(table()).toMatchObject({ text: 'Main boards', table: { rows: [['Board', '', ''], ['', '', ''], ['', '', '']] } });
+      act(() => cellBox(2, 2).focus());
+      act(() => toolIn('Add row').click());
+      act(() => toolIn('Add column').click());
+      expect(table().table!.rows.map((r) => r.length)).toEqual([4, 4, 4, 4]);
+      act(() => cellBox(4, 4).focus());
+      act(() => toolIn('Delete row').click());
+      expect(toolIn('Delete column').disabled).toBe(true); // no cell chosen after a delete
+      act(() => cellBox(1, 4).focus());
+      act(() => toolIn('Delete column').click());
+      expect(table().table!.rows).toEqual([['Board', '', ''], ['', '', ''], ['', '', '']]);
+      act(() => document.querySelector<HTMLInputElement>('.spx-blk-tools input[type="checkbox"]')!.click());
+      expect(table().table!.header).toBe(false);
+      expect(document.querySelector('.spx-tb th')).toBeNull();
+      expect(tool('Clause heading').disabled).toBe(true);
+      expect(tool('Indent').disabled).toBe(true);
+    });
+
+    it('copies one of the project sheets in as a table', () => {
+      render({ ...sampleProject, sheets: { sheets: [{ id: 'SH1', name: 'Loads', cells: { A1: 'Load', B1: 'kW', A2: 'Total', B2: '=40+2' }, styles: {}, widths: {}, rows: 40, cols: 12 }] } } as Project);
+      act(() => { const sel = document.querySelector<HTMLSelectElement>('select[aria-label="Table from sheet"]')!; sel.value = 'SH1'; sel.dispatchEvent(new Event('change', { bubbles: true })); });
+      expect(spec().sections[0].clauses.find((x) => x.kind === 'table')!.table!.rows).toEqual([['Load', 'kW'], ['Total', '42']]);
+      expect(status[status.length - 1]).toContain('sheet Loads: 2 × 2');
+    });
+
+    it('shows a picture with its numbered caption and sets its width', () => {
+      const image = { src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAoCAIAAAC6iKlyAAAAc0lEQVR4Xu3QQQ0AIBDAMMC/5yOIYK/WwJLtmVn8d/4neIyOGB0xOmJ0xOiI0RGjI0ZHjI4YHTE6YnTE6IjREaMjRkeMjhgdMTpidMToiNERoyNGR4yOGB0xOmJ0xOiI0RGjI0ZHjI4YHTE6YnTE6IjRkQub1QNNNLL5wAAAAABJRU5ErkJggg==', w: 120, h: 40 };
+      const base = starterSpec();
+      render({ ...sampleProject, spec: { ...base, sections: base.sections.map((x, i) => (i ? x : { ...x, clauses: [...x.clauses, { id: 'P1', kind: 'image' as const, text: 'Riser', image }] })) } });
+      const pic = document.querySelector<HTMLElement>('[data-clause="P1"]')!;
+      expect(pic.querySelector('.spx-cap')!.textContent).toBe('Figure 1 — Riser');
+      expect(pic.querySelector<HTMLImageElement>('img')!.style.width).toBe('60%');
+      act(() => pic.click());
+      act(() => { const sel = document.querySelector<HTMLSelectElement>('select[aria-label="Picture width"]')!; sel.value = '40'; sel.dispatchEvent(new Event('change', { bubbles: true })); });
+      expect(spec().sections[0].clauses.find((x) => x.id === 'P1')!.image).toEqual({ ...image, widthPct: 40 });
+    });
+  });
+
   describe('Specification tab: document information and page setup', () => {
     const box = (label: string) => document.querySelector<HTMLInputElement>(`.spx-setup [aria-label="${label}"]`)!;
     const type = (label: string, v: string) => act(() => { const el = box(label); el.value = v; el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });

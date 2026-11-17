@@ -31,8 +31,8 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
 |---|---|---|
 | 1 + 2 | Specification tab of the page ribbon: document title, number, status, parties, own details (each a field); paper, orientation, margins; header and footer (left, centre, right, with fields and page numbers); logo and its position; watermark. Applied to the PDF and the Word file. | done (#571) |
 | 3 | Cover page (logo, title, project, number, status, parties, own details, revision table, note; no header or footer) and contents page (sections, optionally clause headings, page numbers), each on unless turned off. The revision table lists the project's issued revisions until stage 7 gives the specification its own. | done (#648) |
-| 4 | Indent / outdent (sub-headings 2.1.3; items a), b) … and i), ii) …), a page break before a line, appendices (lettered, after the numbered sections). | this change |
-| 5 | Tables and pictures as blocks; paste from Sheets and Excel. | |
+| 4 | Indent / outdent (sub-headings 2.1.3; items a), b) … and i), ii) …), a page break before a line, appendices (lettered, after the numbered sections). | done (#650) |
+| 5 | Tables and pictures as blocks in the text flow, with numbered captions (Table 1, Figure 1). A table comes from cells copied in Sheets or Excel and pasted on the page, from one of the project's sheets (a copy), or empty; cells, rows, columns and the header row are edited on the page. A picture is a PNG or JPEG (up to 1 MB, kept in the project file), from a file or pasted, at a chosen share of the text width. | this change |
 | 6 | Template library; Save as; open a Word document; values to fields. | |
 | 7 | Specification revisions with highlight, cloud and revision marks. | |
 
@@ -62,6 +62,14 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
   dashed line marked "Page break"; an appendix is headed "Appendix A — title" and lettered in the section list.
 - Numbering: a heading and a clause that stand side by side now share one run of numbers, so a clause written
   before the first heading (2.1) no longer has the same number as that heading (now 2.2).
+
+## Changes to what is on screen (stage 5)
+
+- Home tab: a "Tables and pictures" group — Add table, Paste cells, Add picture, Table from sheet.
+- On the page a table or picture sits in the text flow under its clause; clicking it shows its caption box
+  and its own tools (rows, columns, header row; picture width). Ctrl+V on the page turns copied cells into
+  a table and a copied picture into a picture; plain text is left to the text box.
+- Not in this stage: a table that follows its sheet live, merged cells, column widths, cell formatting.
 
 ## Not checked on screen
 
