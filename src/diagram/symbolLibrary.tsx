@@ -229,18 +229,21 @@ const DASH = { strokeDasharray: '2 1.5' };
 
 /** Draw a library symbol with its body centre at (x, y). `flip` mirrors it
  * top to bottom, for a device drawn upward from a busbar. `existing` draws a
- * board symbol's outline dashed with its pattern pulled in. */
-export function Sym({ id, x, y, s = 1, labels = false, flip = false, existing = false }: { id: SymbolId; x: number; y: number; s?: number; labels?: boolean; flip?: boolean; existing?: boolean }) {
+ * board symbol's outline dashed with its pattern pulled in. `tint` colours it
+ * on screen only (Colour by → Supply); its group is marked `screen-c`, so the
+ * print shows it as drawn. */
+export function Sym({ id, x, y, s = 1, labels = false, flip = false, existing = false, tint }: { id: SymbolId; x: number; y: number; s?: number; labels?: boolean; flip?: boolean; existing?: boolean; tint?: string }) {
   const X = (u: number) => n(x + (u - SYM_CX) * s);
   const Y = (v: number) => n(y + (v - SYM_CY) * (flip ? -s : s));
   const map = (u: number, v: number): [number, number] => [X(u), Y(v)];
   const { prims, edgeAt, mapOf } = primMaps(id, map, existing);
   return (
-    <g className="iec" data-sym={id} data-sym-x={x} data-sym-y={y} data-sym-s={s} data-sym-flip={flip ? 1 : undefined} data-sym-ex={existing ? 1 : undefined}>
+    <g className={tint ? 'iec screen-c' : 'iec'} data-sym={id} data-sym-x={x} data-sym-y={y} data-sym-s={s} data-sym-flip={flip ? 1 : undefined} data-sym-ex={existing ? 1 : undefined}>
       {prims.map((q, i) => {
         const edgeEx = i === edgeAt;
         const cls = q.k === 't' ? '' : edgeEx ? 'ln' : CLASS[q.c ?? (q.k === 'p' ? 'ln' : 'sym')];
-        const style = q.k !== 't' && edgeEx ? EDGE_DASH : q.k !== 't' && q.c === 'dash' ? DASH : undefined;
+        const base = q.k !== 't' && edgeEx ? EDGE_DASH : q.k !== 't' && q.c === 'dash' ? DASH : undefined;
+        const style = tint && q.k !== 't' ? { ...base, ...(cls === 'sym-fill' ? { fill: tint } : { stroke: tint }) } : base;
         const m = mapOf(i);
         switch (q.k) {
           case 'p': return <path key={i} d={placePath(q.d, m, s, flip)} className={cls} style={style} />;
@@ -249,7 +252,7 @@ export function Sym({ id, x, y, s = 1, labels = false, flip = false, existing = 
           case 'r': { const b = rectOf(q, m); return <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} className={cls} style={style} />; }
           case 't':
             if (q.side && !labels) return null;
-            return <text key={i} x={X(q.x)} y={Y(q.y) + (q.b ? 4 : 3)} textAnchor={q.side ? 'start' : 'middle'} className={q.b ? 'iec-t b' : 'iec-t s'} data-sym-side={q.side ? 1 : undefined}>{q.s}</text>;
+            return <text key={i} x={X(q.x)} y={Y(q.y) + (q.b ? 4 : 3)} textAnchor={q.side ? 'start' : 'middle'} className={q.b ? 'iec-t b' : 'iec-t s'} style={tint ? { fill: tint } : undefined} data-sym-side={q.side ? 1 : undefined}>{q.s}</text>;
         }
       })}
     </g>

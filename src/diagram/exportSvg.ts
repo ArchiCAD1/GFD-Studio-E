@@ -7,13 +7,16 @@ export { pathPoints } from './svgPath';
 
 /** The SLD for printing and CAD: the live diagram copied with its computed
  * styles written in, dark-theme colours turned into black-on-white (heat
- * colours kept), and on-screen-only parts such as the check-status dots removed. */
+ * colours kept), and on-screen-only parts such as the check-status dots and
+ * the Colour by → Supply colours removed. */
 
 const STYLE_PROPS = ['stroke', 'stroke-width', 'stroke-dasharray', 'fill', 'opacity', 'font-size', 'font-weight', 'font-family', 'text-anchor', 'display', 'writing-mode'];
 const DROP = '.bus-hit, .sel-ring, title, .grid-bg, .status-dot';
 /** Marks in a status colour on screen (revision clouds, cable references, circuits that
  * fail a check) that print black, like the rest of the drawing. */
 const PRINT_BLACK = '.rev-cloud path, .cable-ref-c, .ln.warn, .ln.bad, .load.warn, .load.bad, .icon.warn *, .icon.bad *';
+/** Colours shown on screen only (Colour by → Supply): taken off while the styles are read, so the drawing prints as drawn. */
+const SCREEN_ONLY = '.screen-c, .screen-c *';
 const KEEP_FILL = new Set(['none', '#ffffff', 'rgba(0, 0, 0, 0)']);
 
 /** Theme colour (rgb string) → print colour. */
@@ -35,7 +38,19 @@ function printPalette(): Map<string, string> {
 
 export function printableSvg(live: SVGSVGElement, width: number, height: number): string {
   // The palette below maps the dark theme's colours; read everything with it in force.
-  return withPrintTheme(() => printableSvgDark(live, width, height));
+  return withPrintTheme(() => withoutScreenColours(live, () => printableSvgDark(live, width, height)));
+}
+
+/** Runs `read` with the screen-only colours taken off the live drawing, then puts them back exactly
+ * (one pass each way, so the styles are worked out again only once). */
+function withoutScreenColours<T>(live: SVGSVGElement, read: () => T): T {
+  const lifted = [...live.querySelectorAll<SVGElement>(SCREEN_ONLY)].map((el) => [el, el.getAttribute('style')] as const);
+  for (const [el] of lifted) { el.style.removeProperty('stroke'); el.style.removeProperty('fill'); }
+  try {
+    return read();
+  } finally {
+    for (const [el, style] of lifted) { if (style === null) el.removeAttribute('style'); else el.setAttribute('style', style); }
+  }
 }
 
 function printableSvgDark(live: SVGSVGElement, width: number, height: number): string {
