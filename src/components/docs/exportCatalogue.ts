@@ -38,6 +38,7 @@ import { buildVariationHtml } from '../../docs/variationReport';
 import { buildSubmissionRegisterHtml } from '../../docs/submissionReport';
 import { buildDashboardHtml } from '../../docs/dashboardPdf';
 import { buildingSummaryHtml } from '../../docs/buildingSummary';
+import { projectNumber } from '../../model/projectNumber';
 
 /** The export centre's catalogue: every PDF document the app makes from the saved project and the
  * last calculation run, in the seven groups of the PDF plan. Each entry is built by the same
@@ -95,7 +96,7 @@ export const CATALOGUE: CatalogueEntry[] = [
       const data: CalcData = { project: run.project, results: run.results, earthing: run.earthing, selectivity: run.selectivity };
       const sections = setup.studies.map((k) => buildSection(k, data, scope));
       const title = setup.title || defaultTitle(setup.studies, matchingType(setup));
-      const meta: ReportMeta = { title, docNo: setup.docNo, projectNo: setup.projectNo, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus };
+      const meta: ReportMeta = { title, docNo: setup.docNo, projectNo: setup.projectNo || projectNumber(c.project) || undefined, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus };
       const opts = { designBasis: setup.designBasis !== false, results: setup.resultsSummary !== false, data, calculatedAt: run.at, current: true };
       const make = (pages: Record<string, number>) => buildStudyReportHtml(p, scope, sections, meta, {}, { ...opts, pages });
       return one(title, name(c, title), make({}), { cssPages: true, frame: pageFrame(reportDoc(p, meta)), paginate: make });

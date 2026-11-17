@@ -107,6 +107,7 @@ export default function ProjectSettings({ project, onSave, onClose }: { project:
         <label>Consultant<input value={info.consultant ?? ''} onChange={(e) => setInfo('consultant', e.target.value)} /></label>
         <label>Consultant / contractor (form footer)<input value={info.contractor ?? ''} onChange={(e) => setInfo('contractor', e.target.value)} /></label>
         <label>Area<input value={info.area ?? ''} placeholder="e.g. VILLA, UAE" onChange={(e) => setInfo('area', e.target.value)} /></label>
+        <label>Project number<input value={info.projectNo ?? ''} maxLength={40} onChange={(e) => setInfo('projectNo', e.target.value)} /></label>
         <label>Plot no.<input value={info.plotNo ?? ''} onChange={(e) => setInfo('plotNo', e.target.value)} /></label>
         <label>Planned completion date<input value={info.plannedCompletion ?? ''} onChange={(e) => setInfo('plannedCompletion', e.target.value)} /></label>
         <label>Tel<input value={info.tel ?? ''} onChange={(e) => setInfo('tel', e.target.value)} /></label>

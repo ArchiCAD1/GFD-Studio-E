@@ -1,8 +1,10 @@
 # Project folders — decisions for the owner (2026-11-17)
 
-Raised while building F1 and F3 of `UI UX proposals - 2026-11-09 - Project folders.md`. Nothing here is built.
+Raised while building F1 and F3 of `UI UX proposals - 2026-11-09 - Project folders.md`. Decisions 1 to 3 are decided (below); decision 1 is being built separately.
 
 ## 1. Where the project file lives
+
+**Decided (17 Nov 2026): option B.** A copy of the project file is saved into the job folder on each save. Being built separately.
 
 F1 says: "With a project folder, the project file is saved in the folder that has the `projectFile` role."
 
@@ -18,11 +20,15 @@ Recommendation: B.
 
 ## 2. Folder conditions the brief does not know
 
+**Decided (17 Nov 2026): add the fields.** Fire, ELV, tender and supervision are added to the brief's scope. See `UI UX proposals - 2026-11-17 - Project number and brief scope.md`.
+
 The brief's scope has Solar PV and UPS, so folders marked `scope:pv` and `scope:standby` start ticked from it. It has nothing for `scope:fire`, `scope:elv`, `stage:tender` or `service:supervision`, so those folders start unticked and the user ticks them on the Project folder step.
 
 Option: add these four to the brief's scope list, so they also drive readiness and deliverables. That changes the Scope step's wording and list, so it needs its own approval.
 
 ## 3. The project number
+
+**Decided (17 Nov 2026): add the field.** See `UI UX proposals - 2026-11-17 - Project number and brief scope.md`.
 
 Folder names use `{ProjectNo}`. A project has no project number of its own; the only one is typed in Study reports. The Project folder step therefore suggests the folder name from the project's name alone and lets the user type the rest.
 
