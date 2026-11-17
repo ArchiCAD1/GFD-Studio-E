@@ -73,6 +73,17 @@ describe('step names for Undo and Redo', () => {
     expect([h.futureLabels, name(h)]).toEqual([[], 'Erase']);
   });
 
+  it('join merges into the step before whatever the time: one undo, the newer label (else the older)', () => {
+    let h = record(reset('a'), 'b', 1000, 0, 'Move');
+    h = record(h, 'c', 90000, 0, 'Copy', true);
+    expect([h.past, name(h)]).toEqual([['a'], 'Copy']);
+    h = record(h, 'd', 91000, 0, undefined, true);
+    expect([h.past.length, name(h)]).toEqual([1, 'Copy']);
+    expect(undo(h).present).toBe('a');
+    // With nothing before it, a joined change is a step of its own.
+    expect(record(reset('a'), 'b', 5, 600, 'Move', true).past).toEqual(['a']);
+  });
+
   it('the labels stay level with the steps when the history is capped', () => {
     let h = reset(0);
     for (let i = 1; i <= MAX_STEPS + 5; i += 1) h = record(h, i, i * 10000, 600, `S${i}`);

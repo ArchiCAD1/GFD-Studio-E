@@ -21,6 +21,16 @@ export const LINETYPE_IDS = Object.keys(LINETYPES) as LinetypeId[];
 /** Lineweights (mm); 0 = Default. */
 export const LINEWEIGHTS = [0, 0.13, 0.18, 0.25, 0.35, 0.5, 0.7, 1];
 
+/** The app's linetype for a drawing's linetype name: by id or label, case and spaces aside; the "2" / "X2" (and
+ * ".5") variants fall in the same family. Undefined for one the app has none like (ByLayer, ByBlock, others). */
+export function linetypeIdOf(name: string): LinetypeId | undefined {
+  const n = name.toLowerCase().replace(/[\s_-]/g, '').replace(/x?\d+(\.\d+)?$|x?\.\d+$/, '');
+  return LINETYPE_IDS.find((id) => id === n || LINETYPES[id].label.toLowerCase().replace(/\s/g, '') === n);
+}
+/** The standard lineweight (mm) nearest a drawing's lineweight in hundredths of a mm; undefined for none or Default. */
+export const lineweightOf = (hundredths: number | undefined): number | undefined =>
+  hundredths && hundredths > 0 ? LINEWEIGHTS.slice(1).reduce((b, w) => (Math.abs(w - hundredths / 100) < Math.abs(b - hundredths / 100) ? w : b)) : undefined;
+
 /** `noPrint`: the layer shows on screen but stays off the sheets. `freeze`: hidden, not picked, left out of zoom extents
  * and the sheets (apart from Off, which only hides). */
 /** `color`: '' / absent, a named or true colour (#rrggbb) or an index colour ('idx:8'), see cadColours.ts. */
