@@ -98,8 +98,8 @@ describe('design tokens', () => {
       'components/Form4Sizing.tsx': 10, 'components/PaperPreview.tsx': 1, 'components/ProjectsDashboard.tsx': 1, 'components/cad/CadCanvas.tsx': 19, 'components/cad/CadFilePaper.tsx': 5,
       'components/docs/sheetRender.tsx': 1, 'components/sld/SheetMarkupLayer.tsx': 6, 'components/sld/SheetWorkspace.tsx': 8, 'diagram/symbolLibrary.tsx': 8,
       // The specification's page is paper: white, black text, and the shaded and red marks on project values;
-      // plus the footer rule of the page and the white behind the logo preview.
-      'components/spec/SpecPage.tsx': 17
+      // plus the footer rule of the page, the white behind the logo preview and the grey page-break mark.
+      'components/spec/SpecPage.tsx': 19
     };
     for (const f of walk(root).filter((p) => p.endsWith('.tsx') && !/\.test\./.test(p))) {
       const n = (readFileSync(f, 'utf8').match(/['"`(:\s]#[0-9a-f]{3,8}\b/gi) ?? []).length;

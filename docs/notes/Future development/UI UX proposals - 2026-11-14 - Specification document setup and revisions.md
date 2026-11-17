@@ -30,8 +30,8 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
 | Stage | Content | State |
 |---|---|---|
 | 1 + 2 | Specification tab of the page ribbon: document title, number, status, parties, own details (each a field); paper, orientation, margins; header and footer (left, centre, right, with fields and page numbers); logo and its position; watermark. Applied to the PDF and the Word file. | done (#571) |
-| 3 | Cover page (logo, title, project, number, status, parties, own details, revision table, note; no header or footer) and contents page (sections, optionally clause headings, page numbers), each on unless turned off. The revision table lists the project's issued revisions until stage 7 gives the specification its own. | this change |
-| 4 | Indent / outdent, page breaks, appendices. | |
+| 3 | Cover page (logo, title, project, number, status, parties, own details, revision table, note; no header or footer) and contents page (sections, optionally clause headings, page numbers), each on unless turned off. The revision table lists the project's issued revisions until stage 7 gives the specification its own. | done (#648) |
+| 4 | Indent / outdent (sub-headings 2.1.3; items a), b) … and i), ii) …), a page break before a line, appendices (lettered, after the numbered sections). | this change |
 | 5 | Tables and pictures as blocks; paste from Sheets and Excel. | |
 | 6 | Template library; Save as; open a Word document; values to fields. | |
 | 7 | Specification revisions with highlight, cloud and revision marks. | |
@@ -54,6 +54,14 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
 - The summary strip says whether the document has a cover and a contents page.
 - Exports: a new specification now starts with a cover page and has the contents on a page of their own
   with page numbers. Turning the cover off gives the former first page (title block, then contents).
+
+## Changes to what is on screen (stage 4)
+
+- Home tab, Clauses group: Indent, Outdent, Page break. File tab, Sections group: Appendix.
+- On the page an indented line moves in and takes a letter or a small roman number; a page break shows as a
+  dashed line marked "Page break"; an appendix is headed "Appendix A — title" and lettered in the section list.
+- Numbering: a heading and a clause that stand side by side now share one run of numbers, so a clause written
+  before the first heading (2.1) no longer has the same number as that heading (now 2.2).
 
 ## Not checked on screen
 

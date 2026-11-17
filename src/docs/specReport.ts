@@ -32,6 +32,8 @@ const CSS = `
   .cnote { font-size: 9pt; margin-top: 5mm; }
   .cl { display: grid; grid-template-columns: 46px 1fr; gap: 4px; margin: 3px 0; break-inside: avoid; }
   .cl.h { font-weight: 700; margin-top: 10px; break-after: avoid; } .cl.n { font-style: italic; }
+  .cl.l1 { margin-left: 46px; grid-template-columns: 28px 1fr; } .cl.l2 { margin-left: 74px; grid-template-columns: 28px 1fr; }
+  .cl.h.l1 { margin-left: 0; grid-template-columns: 46px 1fr; font-size: 10pt; margin-top: 6px; } .cl.brk { break-before: page; }
   .req { font-weight: 700; text-decoration: underline; }
   .missing { border: 1px solid #000; padding: 6px 8px; margin: 10px 0; font-size: 9pt; }
   section { break-before: page; } section.first { break-before: auto; }
@@ -104,13 +106,13 @@ ${c.note ? `<div class="cnote">${esc(c.note)}</div>` : ''}</section>`;
   } else {
     front = `<section class="first"><header><h1>${esc(doc.title)}</h1><div class="meta">${esc(project.name)} · ${stamp}</div></header>${infoTable(specInfoRows(doc, project))}${contents}${warn}</section>`;
   }
-  const sections = v.blocks.map((b) => `<section id="${specAnchor(b.id)}">${destMarker(specAnchor(b.id), `${b.no} ${b.title}`)}<h2>${esc(b.no)} ${esc(b.title)}</h2>${b.lines.map((l) => {
+  const sections = v.blocks.map((b) => `<section id="${specAnchor(b.id)}">${destMarker(specAnchor(b.id), b.heading)}<h2>${esc(b.heading)}</h2>${b.lines.map((l) => {
     const id = specAnchor(b.id, l.id), anchored = l.kind === 'heading' && setup.contents.on && setup.contents.headings;
-    return `<div${anchored ? ` id="${id}"` : ''} class="cl ${l.kind === 'heading' ? 'h' : l.kind === 'note' ? 'n' : ''}"><span>${anchored ? `<a class="dest" href="#${id}"></a>` : ''}${esc(l.no)}</span><span>${lineHtml(l)}</span></div>`;
+    return `<div${anchored ? ` id="${id}"` : ''} class="cl ${l.kind === 'heading' ? 'h' : l.kind === 'note' ? 'n' : ''}${l.level ? ` l${l.level}` : ''}${l.breakBefore ? ' brk' : ''}"><span>${anchored ? `<a class="dest" href="#${id}"></a>` : ''}${esc(l.no)}</span><span>${lineHtml(l)}</span></div>`;
   }).join('')}</section>`).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(project.name)} — ${esc(doc.title)}</title><style>${pageCss(doc, project, setup)}${CSS}</style></head><body>${mark}${front}${sections}</body></html>`;
 }
 
 /** The specification as plain text lines (number, tab, text), for a quick copy or a check. */
 export const specPlainText = (project: Project, doc: SpecDoc): string =>
-  specView(doc, project).blocks.map((b) => [`${b.no}\t${b.title}`, ...b.lines.map((l) => `${l.no}\t${lineText(l)}`)].join('\n')).join('\n\n');
+  specView(doc, project).blocks.map((b) => [b.appendix ? b.heading : `${b.no}\t${b.title}`, ...b.lines.map((l) => `${'\t'.repeat(l.kind === 'heading' ? 0 : l.level)}${l.no}\t${lineText(l)}`)].join('\n')).join('\n\n');

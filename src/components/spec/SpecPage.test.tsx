@@ -157,6 +157,36 @@ describe('Specification page', () => {
     expect(tool('Export Word').disabled).toBe(true);
   });
 
+  it('indents a clause into a lettered item and back, and marks a page break before it', () => {
+    render(sampleProject);
+    act(() => lines()[2].click());
+    expect(tool('Outdent').disabled).toBe(true);
+    press('Indent');
+    expect(lines()[2].textContent!.startsWith('a)')).toBe(true);
+    expect(lines()[2].classList.contains('l1')).toBe(true);
+    press('Indent');
+    expect(spec().sections[0].clauses[2].level).toBe(2);
+    expect(tool('Indent').disabled).toBe(true);
+    press('Outdent'); press('Outdent');
+    expect(lines()[2].textContent!.startsWith('1.1.2')).toBe(true);
+    press('Page break');
+    expect(spec().sections[0].clauses[2].breakBefore).toBe(true);
+    expect(lines()[2].classList.contains('brk')).toBe(true);
+    expect(tool('Page break').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('makes a section an appendix: lettered, after the numbered sections', () => {
+    render(sampleProject);
+    tabTo('File');
+    press('Appendix');
+    expect(spec().sections[0].appendix).toBe(true);
+    expect(sectionButton('General requirements').textContent).toBe('AGeneral requirements');
+    expect(paper()).toContain('Appendix A — General requirements');
+    expect(sectionButton('LV switchboards').textContent).toBe('1LV switchboards');
+    press('Appendix');
+    expect(sectionButton('General requirements').textContent).toBe('1General requirements');
+  });
+
   describe('Specification tab: document information and page setup', () => {
     const box = (label: string) => document.querySelector<HTMLInputElement>(`.spx-setup [aria-label="${label}"]`)!;
     const type = (label: string, v: string) => act(() => { const el = box(label); el.value = v; el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });
