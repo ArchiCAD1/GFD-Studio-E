@@ -5,6 +5,8 @@ import { cpcOf } from '../calc/cableTable';
 import { faultCurrentKA, impedanceToBoard, runsOf } from '../calc/electrical';
 import { atsLines, atsOf, isInterlocked } from '../model/changeover';
 import { deviceKind, devicePoles } from './deviceText';
+import { elcbUnitOf, rcdInSwitch } from './IecSymbols';
+import { sldDevices } from './sldDevices';
 
 /** What a DEWA-style panel prints beside its ways and its incomer, shared by the SLD (which draws it) and the layout
  * (which sizes each panel's frame, and the room after it, to it), so a panel's labels stay inside its own frame. */
@@ -25,10 +27,16 @@ const SCREEN_ALLOWANCE = 1.06;
 export const textWidth = (text: string, px: number, bold = false): number =>
   [...text].reduce((w, c) => w + (EM_OF.get(c)?.[bold ? 1 : 0] ?? 1), 0) * px * SCREEN_ALLOWANCE;
 
-/** Breaker of a way, DEWA wording: "160A TPN MCCB". */
-export const breakerText = (f: Feeder) => `${f.breakerRatingA}A ${devicePoles(f)} ${deviceKind(f)}`;
-/** Its breaking capacity, and the earth leakage rating with it: "25 kA · 30mA ELCB". */
-export const icuText = (f: Feeder) => `${f.breakerIcuKa} kA${f.rcdMa ? ` · ${f.rcdMa}mA ELCB` : ''}`;
+/** Breaker of a way, DEWA wording: "160A TPN MCCB". The word is the device drawn: ISOLATOR for a switch-disconnector,
+ * RCBO (IEC symbols) when the earth leakage is in the breaker symbol. */
+export const breakerText = (f: Feeder, iec = false) => `${f.breakerRatingA}A ${devicePoles(f)} ${iec && rcdInSwitch(f) ? 'RCBO' : f.device === 'ISOL' ? 'ISOLATOR' : deviceKind(f)}`;
+/** Its breaking capacity, and the earth leakage rating with it: "25 kA · 30mA ELCB". With IEC symbols the mA follows
+ * only an RCBO ("10 kA · 30mA"); any other earth leakage names itself in its own box. */
+export const icuText = (f: Feeder, iec = false) => {
+  if (!iec) return `${f.breakerIcuKa} kA${f.rcdMa ? ` · ${f.rcdMa}mA ELCB` : ''}`;
+  const ma = rcdInSwitch(f) ? sldDevices(f).elcb?.ma ?? f.rcdMa : undefined;
+  return `${f.breakerIcuKa} kA${ma ? ` · ${ma}mA` : ''}`;
+};
 /** Local isolator at the equipment. */
 export const isolatorText = (f: Feeder) => `${f.breakerRatingA}A ${devicePoles(f)} ISOLATOR (W/P)`;
 /** A cable that should be fire rated and isn't, flagged after its size. */
@@ -45,11 +53,14 @@ export function cableLines(project: Project, f: Feeder, cableRefs = false): [str
 
 /** How far right of its line a way's labels reach: breaker, breaking capacity, cable and isolator (results are left
  * out, so a calculation never moves the drawing). `load`: the way ends at a load, not at a sub-board's incomer. */
-export function wayReach(project: Project, f: Feeder, load: boolean, cableRefs = false): number {
+export function wayReach(project: Project, f: Feeder, load: boolean, cableRefs = false, iec = false): number {
   const [c1, c2] = cableLines(project, f, cableRefs);
+  const unit = iec ? elcbUnitOf(f) : undefined;
   return Math.max(
-    10 + textWidth(breakerText(f), 11, true),
-    10 + textWidth(icuText(f), 10),
+    10 + textWidth(breakerText(f, iec), 11, true),
+    10 + textWidth(icuText(f, iec), 10),
+    unit ? 10 + 34 : 0,
+    unit?.ma ? 10 + textWidth(`${unit.ma}mA`, 10) : 0,
     7 + textWidth(`${c1}${fireRatedWarning(project, f) ? ' ⚠ FR' : ''}`, 9),
     7 + textWidth(c2, cableRefs ? 8 : 9),
     load && f.localIsolator ? 10 + textWidth(isolatorText(f), 9) : 0
