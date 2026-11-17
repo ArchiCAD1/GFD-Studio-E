@@ -15,9 +15,15 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.184', date: '2026-11-17',
+    version: '2.185', date: '2026-11-17',
     items: [
       { title: 'PDF in my format: choose the paper', text: 'A schedule in your own format can print on A4 or A3, landscape or portrait. Choose it under PDF paper in Sheets → Link columns; it is saved with the format. A PDF of all panels gives each panel the paper of its format.', action: 'sheets', actionLabel: 'Open Sheets' }
+    ]
+  },
+  {
+    version: '2.183', date: '2026-11-17',
+    items: [
+      { title: 'Project folders: make a job folder from a template', text: 'New project has a Project folder step: choose a folder template, where the folder goes and its name, untick the folders this job does not need, and the app makes the empty folders. Skip folders keeps things as before. The Overview has a Project folder card that opens the folder, shows which folders are present or missing and makes the missing ones. Only new, empty folders are made: nothing is moved, renamed or deleted. The web version gives the folders as a ZIP file. Project files and exports are still saved where they were.' }
     ]
   },
   {
