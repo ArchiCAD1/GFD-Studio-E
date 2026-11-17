@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.177', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: Space twice repeats the last command', text: 'When a command ends, the command line now says which one Space starts again, for example "Space repeats TRIM". In a command that keeps going, such as Trim or Offset, the first Space or Enter ends it and the second starts it again. Enter with nothing picked now also ends Mirror, Scale, Align, Array, Join, Draw order, Move, Rotate and the text tools, as it ends the other commands.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.176', date: '2026-11-17',
     items: [
       { title: 'Design CAD: Move, Copy, Rotate, Mirror, Scale and Stretch show the result before the click', text: 'After the base point, every object picked follows the cursor dashed, and each device as its own symbol, faded, so you see where they go before you click. Mirror shows the mirrored copies along the mirror line, and Scale shows the objects at the factor while you type it. After the Stretch window, the drawn objects it caught look picked, with a square on each point that will move. Up to 2,000 objects show; above that, only the rubber line.', action: 'cad', actionLabel: 'Open Design CAD' },

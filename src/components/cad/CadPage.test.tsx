@@ -3025,6 +3025,40 @@ describe('CAD command line', () => {
     expect([d.style.left, d.style.top]).toEqual([`${window.innerWidth - 240}px`, '0px']);
   });
 
+  it('Space twice: the first press ends a command that keeps going, the next starts it again; the command line says which (2026-11-17)', async () => {
+    await start();
+    const space = () => { act(() => { (document.querySelector('input[aria-label="Command"]') as HTMLInputElement).blur(); }); tap(' '); };
+    const again = (tool: string, label: string) => {
+      space();
+      expect([tool, state.tool]).toEqual([tool, 'none']);
+      expect(hist()).toBe(`Command: Click an object to see what it is · Space repeats ${label}`);
+      space();
+      expect(state.tool).toBe(tool);
+    };
+    // At the prompt each comes back to after every use (Offset's, after its distance).
+    for (const [typed, tool, label] of [['TR', 'trim', 'TRIM'], ['EX', 'extend', 'EXTEND'], ['F', 'fillet', 'FILLET'], ['CHA', 'chamfer', 'CHAMFER'], ['BR', 'break', 'BREAK'], ['X', 'explode', 'EXPLODE'], ['O', 'offset', 'OFFSET']] as const) {
+      await command(typed);
+      if (tool === 'offset') await command('');
+      again(tool, label);
+      key('Escape');
+    }
+    // Those that end after one use, still waiting for their objects: the first press ends them too.
+    for (const [typed, tool, label] of [['M', 'move', 'MOVE'], ['CO', 'copy', 'COPY'], ['RO', 'rotate', 'ROTATE'], ['MI', 'mirror', 'MIRROR'], ['SC', 'scale', 'SCALE'], ['S', 'stretch', 'STRETCH'], ['AL', 'align', 'ALIGN'], ['AR', 'array', 'ARRAY'], ['J', 'join', 'JOIN']] as const) {
+      await command(typed);
+      again(tool, label);
+      key('Escape');
+    }
+    // A move done ends it, and says so; one press starts it again.
+    await command('M');
+    await clickAt(X + 2000, 0);
+    await clickAt(X, 0);
+    await command('@0,500');
+    expect(items()[0].pts[0][1]).toBeCloseTo(500, 0);
+    expect(hist()).toBe('Command: Click an object to see what it is · Space repeats MOVE');
+    space();
+    expect(state.tool).toBe('move');
+  });
+
   it('Space held to pan does not end the step; tapped it does; held long with no tool it does not repeat', async () => {
     await start();
     await command('PL');
