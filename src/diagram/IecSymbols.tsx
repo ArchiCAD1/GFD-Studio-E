@@ -18,35 +18,40 @@ export type SwitchKind = 'breaker' | 'acb' | 'isolator' | 'nonauto';
 export const switchKindOf = (f: Feeder): SwitchKind =>
   f.device === 'ISOL' ? 'isolator' : f.device === 'ACB' || breakerTypeOf(f) === 'ACB' ? 'acb' : 'breaker';
 
-/** Switching device in a vertical line from (x, y) to (x, y + 16), drawn
+/** Switching device in a vertical slot from (x, y) to (x, y + 32 s), drawn
  * from the symbol library: circuit breaker (07-13-05), withdrawable ACB (with
  * the drawout marks), non-automatic breaker (isolating bar above the ×),
- * switch-disconnector (07-13-06 bar on the fixed contact). */
-export function SwitchSym({ x, y, kind }: { x: number; y: number; kind: SwitchKind }) {
-  return <Sym id={kind === 'breaker' ? 'cb' : kind} x={x} y={y + 8} s={SYM_SCALE.device} />;
+ * switch-disconnector (07-13-06 bar on the fixed contact). The slot height
+ * follows the scale: 16 units at device scale, 24 at switch scale. */
+export function SwitchSym({ x, y, kind, s = SYM_SCALE.device }: { x: number; y: number; kind: SwitchKind; s?: number }) {
+  return <Sym id={kind === 'breaker' ? 'cb' : kind} x={x} y={y + 16 * s} s={s} />;
 }
 
-export type SwitchSymbol = 'cb' | 'acb' | 'nonauto' | 'isolator' | 'rcbo' | 'rccb';
+export type SwitchSymbol = 'cb' | 'acb' | 'nonauto' | 'isolator' | 'rcbo';
 const SWITCH_SYM: Record<SwitchKind, SwitchSymbol> = { breaker: 'cb', acb: 'acb', isolator: 'isolator', nonauto: 'nonauto' };
 
-/** Symbol in a feeder's switching slot: an RCBO (breaker) or RCCB (switch)
- * when the earth leakage protection is part of it, else the plain switch.
- * An ACB keeps its own symbol; an ELR, or an RCCB after a breaker, stays a
- * separate boxed device. */
+/** Symbol in a feeder's switching slot: an RCBO (breaker or switch-disconnector)
+ * only when the earth leakage is written as RCBO; every other earth leakage
+ * (ELCB, RCCB, RCD, ELR) is drawn as the ELCB unit under the breaker's text,
+ * so the slot keeps the plain switch. An ACB keeps its own symbol. */
 export function feederSwitchOf(f: Feeder): SwitchSymbol {
   const kind = switchKindOf(f);
-  const elcb = sldDevices(f).elcb?.label;
-  if (!elcb || elcb === 'ELR' || kind === 'acb' || kind === 'nonauto') return SWITCH_SYM[kind];
-  if (kind === 'breaker') return elcb === 'RCCB' ? 'cb' : 'rcbo';
-  return elcb === 'RCBO' ? 'rcbo' : 'rccb';
+  return sldDevices(f).elcb?.label === 'RCBO' && (kind === 'breaker' || kind === 'isolator') ? 'rcbo' : SWITCH_SYM[kind];
 }
 
-/** True when the feeder's switching symbol already shows its earth leakage protection. */
-export const rcdInSwitch = (f: Feeder) => ['rcbo', 'rccb'].includes(feederSwitchOf(f));
+/** True when the feeder's switching symbol already shows its earth leakage protection (an RCBO). */
+export const rcdInSwitch = (f: Feeder) => feederSwitchOf(f) === 'rcbo';
 
-/** A feeder's switching device in the 16-unit slot from (x, y) to (x, y + 16). */
-export function FeederSwitchSym({ x, y, f }: { x: number; y: number; f: Feeder }) {
-  return <Sym id={feederSwitchOf(f)} x={x} y={y + 8} s={SYM_SCALE.device} />;
+/** The earth leakage unit drawn under the breaker's text (core-balance CT on the cable, wired to a box with
+ * its word, sensitivity above): every earth leakage but an RCBO in the switch. Words: ELCB, RCCB, RCD, ELR. */
+export function elcbUnitOf(f: Feeder): { word: string; ma?: number } | undefined {
+  const e = sldDevices(f).elcb;
+  return e && !rcdInSwitch(f) ? { word: e.label === 'RCBO' ? 'ELCB' : e.label, ma: e.ma } : undefined;
+}
+
+/** A feeder's switching device in the slot from (x, y) to (x, y + 32 s): 16 units at device scale, 24 at switch scale. */
+export function FeederSwitchSym({ x, y, f, s = SYM_SCALE.device }: { x: number; y: number; f: Feeder; s?: number }) {
+  return <Sym id={feederSwitchOf(f)} x={x} y={y + 16 * s} s={s} />;
 }
 
 const STARTER_SYM: Record<StarterType, SymbolId> = { DOL: 'dol', SD: 'sd', SS: 'ss', VFD: 'vfd' };
@@ -101,8 +106,14 @@ export function legendEntries(project: Project): LegendEntry[] {
   if (has('isolator')) add('isol', 'Switch-disconnector', (x, y) => <Sym id="isolator" x={x} y={y} s={SYM_SCALE.legend} />);
   const switches = new Set(drawn.map(feederSwitchOf));
   if (switches.has('rcbo')) add('rcbo', 'RCBO: breaker with earth leakage protection', (x, y) => <Sym id="rcbo" x={x} y={y} s={SYM_SCALE.legend} />);
-  if (switches.has('rccb')) add('rccb', 'RCCB / ELCB: switch with earth leakage protection', (x, y) => <Sym id="rccb" x={x} y={y} s={SYM_SCALE.legend} />);
-  if (drawn.some((f) => sldDevices(f).elcb && !rcdInSwitch(f))) add('rcd', 'Earth leakage protection (RCD / ELR toroid), device named beside it', (x, y) => <Sym id="rcd" x={x} y={y} s={SYM_SCALE.legend} />);
+  if (drawn.some((f) => elcbUnitOf(f))) add('elcb', 'Earth leakage: core-balance CT wired to the ELCB (or RCCB, ELR), sensitivity above', (x, y) => (
+    <g>
+      <line x1={x} y1={y - 12} x2={x} y2={y + 12} className="ln" />
+      <Sym id="cbct" x={x - 6} y={y} s={SYM_SCALE.legend} />
+      <rect x={x + 2} y={y - 5.5} width="20" height="11" className="sym" />
+      <text x={x + 12} y={y + 2.5} textAnchor="middle" className="iec-t s" style={{ fontSize: 6.5, fontWeight: 700 }}>ELCB</text>
+    </g>
+  ));
   if (loads.some((f) => sldDevices(f).extras.includes('UVR'))) add('uvr', 'Undervoltage relay (UVR)', (x, y) => <Sym id="uvr" x={x} y={y} s={SYM_SCALE.legend} />);
   const prot = shown.map((b) => b.protection);
   if (drawn.some((f) => f.kwhMeter === 'CT') || shown.some((b) => b.protection?.ctRatio || b.supply?.ctRatio)) add('ct', 'Current transformer', (x, y) => <Sym id="ct" x={x} y={y} s={SYM_SCALE.legend} />);
