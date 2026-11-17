@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aligned, alignOf, arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, isPath, join, mirrored, offset, pathLength,
-  scaled, sketchInWindow, stretched, trim, type Seg
+  scaled, sketchInWindow, stretched, trim, trimPiece, extendPiece, crossingsOf, reachesOf, type Seg
 } from './cadEdit';
 import type { SketchItem } from '../types';
 
@@ -51,6 +51,39 @@ describe('Trim and Extend — at drawn lines and the architect\'s walls', () => 
     const xline = line('XL', [5, 10], [5, 11], { infinite: 'xline' });
     expect(pts(trim(target, [8, 0], edgesFor([target, xline], target.id, [])))).toEqual([[[0, 0], [5, 0]]]);
     expect(isPath(xline)).toBe(false);
+  });
+
+  it('the shadow before the click is the piece the click then cuts away or adds', () => {
+    const long = (q: Pt[]) => q.slice(1).reduce((t, p, i) => t + Math.hypot(p[0] - q[i][0], p[1] - q[i][1]), 0);
+    const r3 = (q: Pt[]) => q.map((p) => p.map((v) => +v.toFixed(3)));
+    // An open line: the piece between two crossings, and the end pieces back to a crossing.
+    const l = line('S1', [1, 2], [17, 2]), cross = line('S2', [13, 0.5], [13, 4]), edges = edgesFor([l, cross], 'S1', walls);
+    expect(r3(trimPiece(l, [11, 2], crossingsOf(l, edges))!.pts)).toEqual([[9, 2], [13, 2]]);
+    expect(trimPiece(l, [11, 2], crossingsOf(l, edges))).toMatchObject({ kind: 'line', layer: 'LV-SKETCH' });
+    for (const at of [[11, 2], [2, 2], [15, 2]] as Pt[]) {
+      const piece = trimPiece(l, at, crossingsOf(l, edges))!, r = trim(l, at, edges);
+      expect(long(piece.pts)).toBeCloseTo(r.cut!);
+      expect(long(piece.pts) + r.items!.reduce((t, x) => t + long(x.pts), 0)).toBeCloseTo(16); // the shadow and what stays: the whole line
+    }
+    // A tray's piece is still a tray, so its shadow is drawn as the tray is.
+    const tray = { ...line('T1', [1, 4], [11, 4]), kind: 'pline' as const, tray: { widthMm: 300, service: 'Power', route: 'TR-1' } };
+    expect(trimPiece(tray, [10, 4], crossingsOf(tray, edgesFor([tray], 'T1', walls)))).toMatchObject({ kind: 'pline', tray: { widthMm: 300 }, pts: [[9, 4], [11, 4]] });
+    // A closed shape: the side clicked, also when that piece runs over the shape's start; it is the part the cut opens.
+    const sq: SketchItem = { id: 'S1', kind: 'pline', layer: 'L', pts: [[7, 1], [11, 1], [11, 3], [7, 3]], closed: true };
+    expect(r3(trimPiece(sq, [10, 2], crossingsOf(sq, walls.slice(4)))!.pts)).toEqual([[9, 1], [11, 1], [11, 3], [9, 3]]);
+    expect(r3(trimPiece(sq, [7.5, 2], crossingsOf(sq, walls.slice(4)))!.pts)).toEqual([[9, 3], [7, 3], [7, 1], [9, 1]]);
+    expect(trim(sq, [7.5, 2], walls.slice(4))).toMatchObject({ cut: 6 });
+    expect(r3(trim(sq, [7.5, 2], walls.slice(4)).items![0].pts)).toEqual([[9, 1], [11, 1], [11, 3], [9, 3]]);
+    expect(trimPiece(sq, [10, 2], crossingsOf(sq, walls.slice(4)))!.closed).toBeUndefined();
+    // Nothing crossing it, or a shape Trim does not cut: no shadow.
+    expect(trimPiece(line('S3', [2, 7], [5, 7]), [3, 7], crossingsOf(line('S3', [2, 7], [5, 7]), walls))).toBeNull();
+    expect(trimPiece({ id: 'C1', kind: 'circle', layer: 'L', pts: [[5, 5]], r: 1 }, [6, 5], [3])).toBeNull();
+    // Extend: from the end nearer the click to the line ahead, as the click then lengthens it.
+    const e = line('S1', [2, 7], [6, 7]);
+    expect(r3(extendPiece(e, [5.5, 7], reachesOf(e, walls))!)).toEqual([[6, 7], [18, 7]]);
+    expect(r3(extendPiece(e, [2.2, 7], reachesOf(e, walls))!)).toEqual([[2, 7], [0, 7]]);
+    expect(extendPiece(e, [5, 7], reachesOf(e, []))).toBeNull();
+    expect(extendPiece(sq, [10, 2], reachesOf(sq, walls))).toBeNull();
   });
 });
 
@@ -287,6 +320,7 @@ describe('Polylines with arc segments: the straight-segment tools refuse and ask
     const a = arcs('A');
     expect(trim(a, [1, 0], walls).error).toBe(WHY);
     expect(extend(a, [4, 4], walls).error).toBe(WHY);
+    expect([trimPiece(a, [1, 0], crossingsOf(a, walls)), extendPiece(a, [4, 4], reachesOf(a, walls))]).toEqual([null, null]); // and no shadow
     expect(offset(a, 1, [1, 1]).error).toBe(WHY);
     expect(breakAt(a, [1, 0]).error).toBe(WHY);
     expect(fillet(a, [1, 0], plain, [1, 1], 1).error).toBe(WHY);

@@ -67,6 +67,9 @@ describe('attribute prompts in a dialog (S11)', () => {
     expect(cursorModeOf('move', 'MOVE  Specify base point:')).toBe('point');
     expect(cursorModeOf('selsim', 'SELECTSIMILAR  Select objects or [Settings]:')).toBe('objects');
     expect(cursorModeOf('dimang', 'DIMANGULAR  Select second line:')).toBe('objects');
+    // Trim and Extend pick a line at every click: the pick box stays after each cut.
+    expect(cursorModeOf('trim', 'TRIM  2.40 m cut off · ⌘Z to undo')).toBe('objects');
+    expect(cursorModeOf('extend', 'EXTEND  No line ahead of that end to reach.')).toBe('objects');
     // The command's name alone is not a request to select.
     expect(cursorModeOf('selsim', 'SELECTSIMILAR  1 picked')).toBe('point');
     // Something following the cursor (a grip dragged with no command): a point.

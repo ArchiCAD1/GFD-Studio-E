@@ -5,13 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CadCanvas, { type CadToggles } from './CadCanvas';
 import { DRAFT_DEFAULTS } from '../../model/cadDraft';
 import type { CadView } from '../../engines/cad/cadEngine';
+import type { SketchItem } from '../../types';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 class Stub { moveTo() {} lineTo() {} closePath() {} observe() {} disconnect() {} }
 Object.assign(globalThis, { Path2D: Stub, ResizeObserver: Stub });
 
 /** One stroke on the cursor layer: its width and the path's moves, lines and boxes since the last beginPath. */
-type Stroke = { w: number; ops: (string | number)[][]; c?: unknown; alpha?: unknown };
+type Stroke = { w: number; ops: (string | number)[][]; c?: unknown; alpha?: unknown; dash?: unknown };
 let strokes: Stroke[] = [];
 /** Filled squares (grips): their colour and box. */
 let fills: { c: unknown; box: number[] }[] = [], paths: { c: unknown; ops: (string | number)[][] }[] = [];
@@ -26,7 +27,7 @@ function recorder() {
     moveTo: (x, y) => { ops.push(['M', x, y]); },
     lineTo: (x, y) => { ops.push(['L', x, y]); },
     rect: (x, y, w, h) => { ops.push(['R', x, y, w, h]); },
-    stroke: () => { strokes.push({ w: props.lineWidth as number, ops: [...ops], c: props.strokeStyle, alpha: props.globalAlpha }); },
+    stroke: () => { strokes.push({ w: props.lineWidth as number, ops: [...ops], c: props.strokeStyle, alpha: props.globalAlpha, dash: props.dash }); },
     fillRect: (x, y, w, h) => { fills.push({ c: props.fillStyle, box: [x, y, w, h] }); },
     arc: (x, y, r) => { ops.push(['A', x, y, r]); },
     fill: () => { paths.push({ c: props.fillStyle, ops: [...ops] }); },
@@ -150,6 +151,44 @@ describe('what a click would pick is marked first', () => {
     const away = cursorAt(200, 100).line;
     expect(last(fills)!.c).not.toBe('#f5c04a');
     expect(last(away.ops)).toEqual(['R', 194.5, 94.5, 12, 12]);
+  });
+});
+
+describe('Trim and Extend: the shadow before the click', () => {
+  beforeEach(() => { for (const [k, v] of [['--acc', '#f5b301'], ['--cad-bg', '#15171a'], ['--cad-snap', '#37d67a']]) document.documentElement.style.setProperty(k, v); });
+  const piece: SketchItem = { id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[100, 250], [500, 250]], color: '#ff8800' };
+  const band = (w: number) => strokes.findIndex((s) => s.c === '#15171a' && s.w === w);
+
+  it('Trim: the piece under a band in the canvas colour, then dashed in its own colour at 35 %, in place of the hover mark', () => {
+    draw({ cursorMode: 'objects', hover: { sketch: piece }, cutAway: [piece] });
+    cursorAt(300, 250);
+    const i = band(5);
+    expect(strokes[i].ops).toHaveLength(2);
+    expect(strokes[i + 1]).toMatchObject({ c: '#ff8800', w: 1.5, alpha: 0.35, dash: [6, 4], ops: strokes[i].ops });
+    expect(strokes.find((s) => s.w === 7)).toBeUndefined();
+    // No shadow (nothing crosses the line there): the hover mark, as before.
+    draw({ cursorMode: 'objects', hover: { sketch: piece } });
+    cursorAt(300, 250);
+    expect(strokes.find((s) => s.w === 7)).toMatchObject({ c: '#f5b301', alpha: 0.4 });
+  });
+
+  it("a tray's piece fades at its own width; a picked line's band covers its 6 px halo", () => {
+    draw({ cursorMode: 'objects', cutAway: [{ ...piece, kind: 'pline', tray: { widthMm: 300 } }] });
+    cursorAt(300, 250);
+    expect(band(6)).toBeGreaterThanOrEqual(0);
+    expect(strokes.find((s) => s.alpha === 0.35)).toMatchObject({ w: 2.5 });
+    draw({ cursorMode: 'objects', cutAway: [piece], selectedSketch: ['S1'] });
+    cursorAt(300, 250);
+    expect(band(8)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('Extend: a cross 8 px across in the snap colour where the new length meets the line ahead', () => {
+    draw({ cursorMode: 'objects', hover: { sketch: piece }, preview: [{ id: '_', layer: '', kind: 'line', pts: [[500, 250], [700, 250]] }], meets: [[700, 250]] });
+    cursorAt(300, 250);
+    const x = strokes.find((s) => s.c === '#37d67a' && s.w === 1.5 && s.ops.length === 4)!;
+    const [[, x0, y0], [, x1, y1]] = x.ops as [string, number, number][];
+    expect([x1 - x0, y1 - y0]).toEqual([8, 8]);
+    expect(strokes.find((s) => s.w === 7)).toBeUndefined();
   });
 });
 

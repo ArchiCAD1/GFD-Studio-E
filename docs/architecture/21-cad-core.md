@@ -31,7 +31,7 @@ These fields are defined in `src/types.ts` (:594–620). A DWG is written only w
 | File | Kind | Key functions or components | What they do |
 |---|---|---|---|
 | `src/components/cad/CadPage.tsx` (3556 lines) | screen | `CadPage`, `change` (:629), `run` (:2295), `act` table (:2524), `writeCopy` (:905), `removeSelected` (:881), `copyClip`/`pasteClip` (:1592/:1601), `exportAs`, CROP handler (:860) | The whole Design CAD page: command dispatch, tools, every edit, save and export. |
-| `src/components/cad/CadCanvas.tsx` | screen | `CadCanvas` (sketch drawing :462–525) | Draws the plan segments, drawn items (hatches, leaders with arrowheads, dashed cable routes), devices with their symbol shapes, wiring, grips and snaps. |
+| `src/components/cad/CadCanvas.tsx` | screen | `CadCanvas` (sketch drawing :462–525) | Draws the plan segments, drawn items (hatches, leaders with arrowheads, dashed cable routes), devices with their symbol shapes, wiring, grips and snaps; on the cursor layer, previews and the Trim and Extend shadows (`cutAway`, `meets`). |
 | `src/components/cad/cadCommands.ts` | model | `CAD_COMMANDS`, `CadAction`, `cadCommand`, `toolAlias` | Command and alias table. |
 | `src/components/cad/cadState.ts` | store | `useCad`, `CadTool`, `SavedCopy`, `rememberPath`, `pathOfPlan`, `rememberedDrawing`, `markDirty` | Open drawing tabs, tool, toggles, the session-only saved-copy map, and drawing paths in local storage. |
 | `src/components/cad/cadFileMenu.ts` | screen | `cadFileMenu`, `planLevel`, `setPlanLevel` | Plans per level, Replace plan, Units menu. |
@@ -43,7 +43,7 @@ These fields are defined in `src/types.ts` (:594–620). A DWG is written only w
 | `src/components/cad/cadClipboardStore.ts` | store | `putClip`, `getClip` | Clipboard copy kept in memory, plus the system clipboard. |
 | `src/components/cad/cadViewHistory.ts` | store | `rememberView`, `previousView` | ZOOM Previous history, per open drawing, in memory. |
 | `src/model/cadSketch.ts` | model | `shapesOut` (:549), `ShapeOut` (:548), `blockDefsOut`, `pointStyleOut`, `dimOf`, `snapPoints`, `itemAt`, `typedPoint`, `trayLine` | Drawn-object geometry, and conversion to what the engine writes. |
-| `src/model/cadEdit.ts` | model | `trim`, `extend`, `offset`, `fillet`, `chamfer`, `breakAt`, `join`, `explode`, `mirrored` (:270), `scaled`, `stretched`, `arrayRect`, `arrayPolar`, `gripMoved` | Edit operations on drawn objects (pure functions). |
+| `src/model/cadEdit.ts` | model | `trim`, `extend`, `trimPiece`, `extendPiece` (from `crossingsOf`, `reachesOf`), `offset`, `fillet`, `chamfer`, `breakAt`, `join`, `explode`, `mirrored` (:270), `scaled`, `stretched`, `arrayRect`, `arrayPolar`, `gripMoved` | Edit operations on drawn objects (pure functions); the Trim and Extend shadows before the click share their cut code. |
 | `src/model/cadBlocks.ts` | model | `CadBlockDef`, `blockDefsOf`, `withBlockDef`, `expandInsert`, `explodeInsert`, `attributePlacements` | Block table per drawing file. |
 | `src/model/cadBlockLibrary.ts` | model | `defFromGeometry` (:43), `defFromPieces` (:59), `loadRecentBlocks`, `pushRecentBlock` | Blocks from a library drawing, or from an architect's block; recent blocks. |
 | `src/model/cadAttributes.ts`, `cadText.ts`, `cadMtext.ts`, `cadDims.ts`, `cadHatch.ts`, `cadAnnotate.ts`, `cadPoints.ts`, `cadStyles.ts`, `dxfDimStyles.ts` | model | `leaderItems`, `textCorners`, `toDxfMtext`, `readDxfDimStyles` (:60), `currentTextStyle` | Annotation objects and styles. |

@@ -122,13 +122,15 @@ export const pickRadiusPx = (d: Pick<DraftSettings, 'pickBoxPx'>): number => d.p
  * `point` (crosshair only) or `objects` (pick box only). */
 export type CursorMode = 'ready' | 'point' | 'objects';
 
+/** Commands that pick an object at every click (never a point): the pick box stays after each cut or lengthening. */
+const PICKING = new Set(['trim', 'extend']);
 /** The cursor's shape from the tool running and its prompt (the command line's last line): a prompt that asks to
  * select ("MOVE  Select object, then specify base point:") wants objects; any other prompt in a command wants a point.
  * `placing`: something follows the cursor to its insertion point (a block, pasted objects, a grip being dragged). */
 export function cursorModeOf(tool: string, prompt: string | undefined, placing = false): CursorMode {
   if (placing) return 'point';
   if (tool === 'none') return 'ready';
-  return prompt && /\bSelect\b/.test(prompt) ? 'objects' : 'point';
+  return PICKING.has(tool) || (prompt && /\bSelect\b/.test(prompt)) ? 'objects' : 'point';
 }
 
 /** Parses typed extra polar angles ("60, 120"), keeping those between 0 and 360°. */
