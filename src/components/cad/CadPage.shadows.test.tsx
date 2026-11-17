@@ -307,6 +307,36 @@ describe('Move, Copy, Rotate, Mirror, Scale and Stretch show the result before t
     expect(r0(item('S3').pts)).toEqual([[X + 10000, -2000], [X + 10000, 3000]]);
   });
 
+  it("Copy and Mirror of the opened drawing's objects: the shadow is what the click then adds", async () => {
+    const WALL: [number, number] = [15900, 6000]; // a wall line of the sample plan (A-WALL)
+    const walls = () => items().filter((x) => x.layer === 'A-WALL').map((x) => r0(x.pts));
+    await start();
+    await clickAt(...WALL);
+    await command('CO');
+    await until(() => state.tool === 'copy');
+    await flush();
+    await clickAt(...WALL);
+    await hover(WALL[0] + 500, WALL[1]);
+    await until(() => (seen.last.preview?.length ?? 0) > 0);
+    const copied = seen.last.preview!.map((it) => r0(it.pts));
+    await clickAt(WALL[0] + 500, WALL[1]);
+    await until(() => said().startsWith('COPY  1 object copied as drawn objects'));
+    expect(walls()).toEqual(copied);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    // Mirror: the drawing's wall again, about a line 1 m to its right.
+    await clickAt(...WALL);
+    await command('MI');
+    await until(() => hist().includes('MIRROR  Specify first point of the mirror line:'));
+    await flush();
+    await clickAt(WALL[0] + 1000, WALL[1] - 3000);
+    await clickAt(WALL[0] + 1000, WALL[1] + 3000);
+    await until(() => hist().includes('Erase source objects?') && (seen.last.preview?.length ?? 0) > 0);
+    const mirroredWall = seen.last.preview!.map((it) => r0(it.pts));
+    await command('');
+    await until(() => said().includes('mirrored'));
+    expect(walls()).toEqual([...copied, ...mirroredWall]);
+  });
+
   const many = (n: number): Project => ({ ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: Array.from({ length: n }, (_, i) => line(`L${i}`, [X + i * 5, 5000], [X + i * 5, 5500])) }] });
   const moveAll = async (n: number) => {
     await start(many(n));

@@ -63,17 +63,18 @@ export function useMenuPlace(ref: RefObject<HTMLElement | null>, left: number, t
   return style;
 }
 
-/** The list opened beside a row of the menu (`row` the row's element, null when none is open). */
-export function useListPlace(menu: RefObject<HTMLElement | null>, row: HTMLElement | null, list: RefObject<HTMLElement | null>, key: unknown): CSSProperties | undefined {
+/** The list opened beside a row of the menu (`row` the row's element, null when none is open). A list of a list is
+ * placed beside the first list (`beside`) in place of the menu; the area stays the menu's. */
+export function useListPlace(menu: RefObject<HTMLElement | null>, row: HTMLElement | null, list: RefObject<HTMLElement | null>, key: unknown, beside?: RefObject<HTMLElement | null>): CSSProperties | undefined {
   const [style, setStyle] = useState<CSSProperties | undefined>(undefined);
   useLayoutEffect(() => {
     const m = menu.current, l = list.current, area = m?.offsetParent as HTMLElement | null | undefined;
     let next: CSSProperties | undefined;
     if (m && l && row && area && area.clientWidth > 0 && area.clientHeight > 0) {
-      const p = placeList(boxOf(m.getBoundingClientRect()), boxOf(row.getBoundingClientRect()), { width: l.offsetWidth, height: l.offsetHeight }, boxOf(area.getBoundingClientRect()));
+      const p = placeList(boxOf((beside?.current ?? m).getBoundingClientRect()), boxOf(row.getBoundingClientRect()), { width: l.offsetWidth, height: l.offsetHeight }, boxOf(area.getBoundingClientRect()));
       next = { position: 'fixed', left: p.left, top: p.top, ...(p.maxHeight !== undefined ? { maxHeight: p.maxHeight } : {}) };
     }
     setStyle((s) => (s && next && sameStyle(s, next) ? s : next));
-  }, [menu, row, list, key]);
+  }, [menu, row, list, key, beside]);
   return style;
 }

@@ -278,4 +278,13 @@ describe('hatches: islands, origin and what they save', () => {
     p = updateSketch(p, 'GF.dwg', moved(sketchOf(p, 'GF.dwg')[0], 20, 0));
     expect(sketchOf(p, 'GF.dwg')[1].pts[0]).toEqual([20, 0]);
   });
+
+  it('shapesOut writes an object\'s own colour, linetype (with its pattern) and lineweight; none leaves it by layer', () => {
+    const [a] = shapesOut([{ id: 'a', ...line, color: 'idx:5', lt: 'dashed', lw: 0.35 }], 0.001);
+    expect(a).toMatchObject({ color: 'idx:5', lt: 'DASHED', lw: 35, ltdash: [600, -300] });
+    const [b] = shapesOut([{ id: 'b', ...line, color: '#FF0000', ltName: 'ACAD_ISO02W100', lt: 'dashed' }], 0.01);
+    expect(b).toMatchObject({ color: '#ff0000', lt: 'ACAD_ISO02W100' }); expect(b.ltdash).toBeUndefined(); expect(b.lw).toBeUndefined();
+    const [c] = shapesOut([{ id: 'c', ...line }], 0.001);
+    expect(c).toEqual({ layer: 'LV-SKETCH', kind: 'line', pts: [[0, 0], [4000, 0]], closed: undefined, r: undefined, a0: undefined, a1: undefined, id: 'c' });
+  });
 });

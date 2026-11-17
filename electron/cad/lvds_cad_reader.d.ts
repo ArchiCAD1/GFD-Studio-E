@@ -34,6 +34,19 @@ export class CadDoc {
      */
     pick(x: number, y: number, tol: number, layers_on: Uint8Array, closed_only: boolean): string;
     /**
+     * Every object of `kind` (ObjInfo `kind`, e.g. "Line", "Block") on layer index `layer`, shown and not erased, as JSON
+     * {objects: [ObjInfo with its id], truncated}; for a block also the same block name (`block`, "" otherwise). At most
+     * 20 000 objects. For Select similar.
+     */
+    pick_like(kind: string, layer: number, block: string, layers_on: Uint8Array): string;
+    /**
+     * The objects inside (window) or touching (crossing) the rectangle with corners (x0, y0), (x1, y1) in any order, on
+     * shown layers and not erased, as JSON {objects: [ObjInfo with its id], truncated}. Window: every drawn segment and
+     * text box of the object lies inside; crossing: any segment or text box meets the rectangle. A block insert is one
+     * object. At most 20 000 objects. The grid finds the candidates, so a small box on a big drawing stays fast.
+     */
+    pick_window(x0: number, y0: number, x1: number, y1: number, crossing: boolean, layers_on: Uint8Array): string;
+    /**
      * Colour of each segment: 0xRRGGBB, or 0xFF000007 for the foreground (index 7).
      */
     segment_colors(): Uint32Array;
@@ -67,8 +80,9 @@ export class CadDoc {
 /**
  * The exact pieces of model-space objects (CROP), by handle, as JSON {pieces: {handle: [piece]}, truncated} — see
  * doc/explode.rs. Read from the drawing's bytes, like saving, so the open view keeps no second copy of the drawing.
+ * `exact` (the take-over of objects): ellipses, paragraph texts, text alignment, hatch patterns and dimensions are kept whole.
  */
-export function explodeObjects(bytes: Uint8Array, handles_json: string): string;
+export function explodeObjects(bytes: Uint8Array, handles_json: string, exact: boolean): string;
 
 export function exportDwg(bytes: Uint8Array, devices_json: string, shapes_json: string, erased_json: string, version: string): Uint8Array;
 
@@ -93,6 +107,8 @@ export interface InitOutput {
     readonly caddoc_new: (a: number, b: number, c: number) => void;
     readonly caddoc_outlines: (a: number, b: number) => void;
     readonly caddoc_pick: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly caddoc_pick_like: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
+    readonly caddoc_pick_window: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly caddoc_segment_colors: (a: number, b: number) => void;
     readonly caddoc_segment_layers: (a: number, b: number) => void;
     readonly caddoc_segment_linetypes: (a: number, b: number) => void;
@@ -100,7 +116,7 @@ export interface InitOutput {
     readonly caddoc_set_erased: (a: number, b: number, c: number, d: number) => void;
     readonly caddoc_snap: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
     readonly caddoc_take_layout: (a: number, b: number) => number;
-    readonly explodeObjects: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly explodeObjects: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly exportDwg: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly exportDxf: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly readDrawing: (a: number, b: number, c: number) => void;
