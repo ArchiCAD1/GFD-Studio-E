@@ -1126,6 +1126,8 @@ export interface ProjectInfo {
   tel?: string;
   fax?: string;
   plotNo?: string;
+  /** The job's own number (for example P2611), used in folder names and as the reports' project number. */
+  projectNo?: string;
   area?: string; // e.g. "VILLA, UAE"
   plannedCompletion?: string;
   builtUpAreaM2?: number;

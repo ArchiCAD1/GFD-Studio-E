@@ -20,6 +20,11 @@ describe('names and scope from the project', () => {
     expect(folderVars(p)).toEqual({ ProjectShort: 'Villa Jumeirah', ProjectNo: 'P2611', Client: 'Sample LLC', Plot: '345' });
     expect(folderVars({ name: 'X' } as Project)).toEqual({ ProjectShort: 'X' });
   });
+  it('uses the project number of the project before the one typed for reports', () => {
+    const p = { name: 'Villa', info: { projectNo: ' P2700 ' }, studyReport: { projectNo: 'P2611' } } as unknown as Project;
+    expect(folderVars(p).ProjectNo).toBe('P2700');
+    expect(folderVars({ name: 'Villa', info: { projectNo: '  ' }, studyReport: { projectNo: 'P2611' } } as unknown as Project).ProjectNo).toBe('P2611');
+  });
   it('suggests the project folder name, leaving out a number that is not known', () => {
     expect(suggestedRootName(t, { ProjectNo: 'P2611', ProjectShort: 'Villa Jumeirah' })).toBe('P2611_Villa Jumeirah');
     expect(suggestedRootName(t, { ProjectShort: 'Villa: A/B.' })).toBe('Villa- A-B');
@@ -29,6 +34,15 @@ describe('names and scope from the project', () => {
   it('switches on the conditions the brief knows', () => {
     expect(folderFlags({ brief: { scope: ['sld', 'solar', 'ups'] } } as unknown as Project)).toEqual(['scope:pv', 'scope:standby']);
     expect(folderFlags({} as Project)).toEqual([]);
+  });
+  it('switches on a folder condition for each of the four newer scope items, and none for a brief without them', () => {
+    const flags = (scope: string[]) => folderFlags({ brief: { scope } } as unknown as Project);
+    expect(flags(['fire'])).toEqual(['scope:fire']);
+    expect(flags(['elv'])).toEqual(['scope:elv']);
+    expect(flags(['tender'])).toEqual(['stage:tender']);
+    expect(flags(['supervision'])).toEqual(['service:supervision']);
+    expect(flags(['sld', 'loads', 'studies', 'earthing', 'pfc', 'containment', 'boq'])).toEqual([]);
+    expect(flags(['supervision', 'ups', 'fire', 'solar'])).toEqual(['scope:pv', 'scope:standby', 'scope:fire', 'service:supervision']);
   });
   it('names the project\'s buildings B1, B2…', () => {
     const p = { building: { buildings: [{ id: 'x', name: 'Tower A', levels: [] }, { id: 'y', name: ' ', levels: [] }], rooms: [] } } as unknown as Project;

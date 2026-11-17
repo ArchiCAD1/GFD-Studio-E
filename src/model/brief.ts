@@ -5,7 +5,7 @@ import type { MainView } from '../views';
  * Set in the New project wizard (or later from the Overview). A project without a brief (older files,
  * Quick create) behaves as before: everything is in scope. */
 export type ProjectRole = 'consultant' | 'contractor';
-export type ScopeId = 'sld' | 'loads' | 'studies' | 'earthing' | 'ups' | 'solar' | 'pfc' | 'containment' | 'boq';
+export type ScopeId = 'sld' | 'loads' | 'studies' | 'earthing' | 'ups' | 'solar' | 'pfc' | 'containment' | 'boq' | 'fire' | 'elv' | 'tender' | 'supervision';
 export type PartyRole = 'owner' | 'consultant' | 'contractor' | 'authority';
 
 export interface Party { role: PartyRole; name: string; contact?: string; tel?: string; email?: string }
@@ -35,8 +35,16 @@ export const SCOPE_ITEMS: { id: ScopeId; label: string; hint: string }[] = [
   { id: 'solar', label: 'Solar PV', hint: 'Array and inverter sizing' },
   { id: 'pfc', label: 'Power factor correction', hint: 'Capacitor banks' },
   { id: 'containment', label: 'Cable containment', hint: 'Trays, trunking, conduit' },
-  { id: 'boq', label: 'Bill of quantities', hint: 'Quantities, rates and contractor scope' }
+  { id: 'boq', label: 'Bill of quantities', hint: 'Quantities, rates and contractor scope' },
+  { id: 'fire', label: 'Fire alarm / Civil Defence', hint: 'Fire alarm, Civil Defence submission' },
+  { id: 'elv', label: 'ELV systems', hint: 'Data, CCTV, access control, public address' },
+  { id: 'tender', label: 'Tender stage', hint: 'Tender drawings, documents and queries' },
+  { id: 'supervision', label: 'Site supervision', hint: 'Site visits, inspections and approvals' }
 ];
+
+/** Scope items added later. They are off in every default scope and every existing project, drive the project's
+ * folders only, and are not listed as left out in the design basis. */
+export const OPTIONAL_SCOPE: ScopeId[] = ['fire', 'elv', 'tender', 'supervision'];
 
 export const defaultScope = (role: ProjectRole): ScopeId[] => (role === 'consultant' ? ['sld', 'loads', 'studies', 'earthing'] : ['loads', 'boq', 'containment', 'earthing']);
 

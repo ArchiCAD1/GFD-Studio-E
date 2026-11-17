@@ -189,18 +189,19 @@ export function NewProjectWizard({ initialName, company, taken, templates = [], 
   folderParent?: string; folderClient?: TemplatesClient; folderDisk?: FolderDisk;
   /** Design references to choose the authority and rule set from (default: built-in and yours). */
   references?: DesignReference[];
-  onQuick: (name: string) => void; onCreate: (name: string, brief: ProjectBrief, template?: SetupTemplate, reference?: DesignReference, formats?: Partial<Record<PanelCategory, ScheduleFormat>>, folder?: FolderChoice) => void; onCancel: () => void;
+  onQuick: (name: string) => void; onCreate: (name: string, brief: ProjectBrief, template?: SetupTemplate, reference?: DesignReference, formats?: Partial<Record<PanelCategory, ScheduleFormat>>, folder?: FolderChoice, projectNo?: string) => void; onCancel: () => void;
 }) {
   const [tpl, setTpl] = useState<SetupTemplate | undefined>();
   const [formats] = useState(() => loadFormats());
   const [formatIds, setFormatIds] = useState<Record<PanelCategory, string>>({ db: '', smdb: '', mdb: '', mcc: '' });
   const [step, setStep] = useState(0);
   const [name, setName] = useState(initialName);
+  const [projectNo, setProjectNo] = useState('');
   const [brief, setBrief] = useState<ProjectBrief | null>(null);
   const folderTemplates = useFolderTemplates(folderClient);
   const [skipFolder, setSkipFolder] = useState(false);
   const [picked, setPicked] = useState<FolderChoice | null>(null);
-  const folderVarsNow = useMemo(() => ({ ProjectShort: name.trim() || initialName }), [name, initialName]);
+  const folderVarsNow = useMemo(() => ({ ProjectShort: name.trim() || initialName, ...(projectNo.trim() && { ProjectNo: projectNo.trim() }) }), [name, initialName, projectNo]);
   const folderFlagsNow = useMemo(() => folderFlags({ brief: brief ?? undefined }), [brief]);
   /** Until the user changes something on the Project folder step, the choice follows the name and the scope. */
   const folderChoice = picked ?? firstChoice(folderTemplates, folderVarsNow, folderFlagsNow, folderParent);
@@ -231,7 +232,7 @@ export function NewProjectWizard({ initialName, company, taken, templates = [], 
   const chosen = Object.fromEntries(PANEL_CATEGORIES.flatMap((c) => { const f = formats.find((x) => x.id === formatIds[c.key]); return f ? [[c.key, f]] : []; })) as Partial<Record<PanelCategory, ScheduleFormat>>;
   const canNext = step === 0 ? !!name.trim() && !!brief : true;
   return (
-    <Modal onClose={onCancel} style={{ maxWidth: 680 }} onSubmit={(e) => { e.preventDefault(); if (step < STEPS.length - 1) { if (canNext) setStep(step + 1); } else if (brief && name.trim() && folderOk) onCreate(name.trim(), brief, tpl, ruleSet, chosen, skipFolder ? undefined : folderChoice); }}>
+    <Modal onClose={onCancel} style={{ maxWidth: 680 }} onSubmit={(e) => { e.preventDefault(); if (step < STEPS.length - 1) { if (canNext) setStep(step + 1); } else if (brief && name.trim() && folderOk) onCreate(name.trim(), brief, tpl, ruleSet, chosen, skipFolder ? undefined : folderChoice, projectNo.trim() || undefined); }}>
       <h3>New project <span className="m">— step {step + 1} of {STEPS.length}: {STEPS[step]}</span></h3>
       <div className="tabs feeder-tabs" role="tablist">
         {STEPS.map((s, i) => <button key={s} type="button" role="tab" aria-selected={step === i} className={step === i ? 'on' : ''} disabled={i > 0 && !brief} onClick={() => (i === 0 || brief) && setStep(i)}>{i + 1}. {s}</button>)}
@@ -240,6 +241,7 @@ export function NewProjectWizard({ initialName, company, taken, templates = [], 
         {step === 0 && (
           <>
             <label>Project name<input autoFocus value={name} onFocus={(e) => e.target.select()} onChange={(e) => setName(e.target.value)} /></label>
+            <label style={{ marginTop: 8 }}>Project number (optional)<input value={projectNo} maxLength={40} onChange={(e) => setProjectNo(e.target.value)} /></label>
             {duplicate && <p className="m" style={{ color: 'var(--warn, #e2a03f)' }}>A project with this name already exists. It is kept as a separate project.</p>}
             {templates.length > 0 && (
               <label style={{ marginTop: 8 }}>Start from

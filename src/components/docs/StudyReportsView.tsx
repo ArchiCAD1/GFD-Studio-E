@@ -31,6 +31,7 @@ import { PaperPreview } from '../PaperPreview';
 import { useStable } from '../../util/useStable';
 import { offerSubmission } from '../../model/submissions';
 import { currentRevision, revisionStamp } from '../../model/revisions';
+import { projectNumber } from '../../model/projectNumber';
 
 const noop = () => {};
 /** A table row with a status cell that is a warning or worse. */
@@ -106,7 +107,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
   const [tabPicked, setTab] = useState<'boards' | 'studies' | 'output' | 'sld' | 'contents' | 'checks' | 'preview'>('boards');
   const presets = project.studyReportPresets ?? [];
   const title = setup.title || defaultTitle(setup.studies, matchingType(setup));
-  const reportMeta: ReportMeta = useMemo(() => ({ title, docNo: setup.docNo, projectNo: setup.projectNo, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus }), [title, setup]);
+  const reportMeta: ReportMeta = useMemo(() => ({ title, docNo: setup.docNo, projectNo: setup.projectNo || projectNumber(project) || undefined, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus }), [title, setup, project]);
   const issues = useMemo(() => validateReport({ project: calc, meta: reportMeta, scope, sections, data, stale, designBasis: basisOpt.designBasis, resultsSummary: basisOpt.results }),
     [calc, reportMeta, scope, sections, data, stale, basisOpt.designBasis, basisOpt.results]);
   const ic = issueCounts(issues);
@@ -133,7 +134,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
     try {
       const slds: Partial<Record<StudyReportKind, string>> = {};
       if (setup.sld) for (const k of sldStudies(sections.map((s) => s.key))) slds[k] = await captureSld(drawing, data, k);
-      const meta: ReportMeta = { title, docNo: setup.docNo, projectNo: setup.projectNo, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus };
+      const meta: ReportMeta = { title, docNo: setup.docNo, projectNo: setup.projectNo || projectNumber(project) || undefined, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus };
       const base = safeFileName(`${project.name} ${setup.docNo ?? ''}`.trim());
       const scopeTag = scope.all ? '' : ` ${scope.roots.map((b) => b.id).join('+')}`;
       if (setup.separate && sections.length > 1) {
@@ -207,7 +208,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
       const snapSections = setup.studies.map((k) => buildSection(k, snapData, snapScope));
       const slds: Partial<Record<StudyReportKind, string>> = {};
       if (setup.sld) for (const k of sldStudies(snapSections.map((s) => s.key))) slds[k] = await captureSld(drawingProject(p, snapScope), snapData, k);
-      const meta: ReportMeta = { title, docNo: setup.docNo, projectNo: setup.projectNo, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus };
+      const meta: ReportMeta = { title, docNo: setup.docNo, projectNo: setup.projectNo || projectNumber(project) || undefined, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus };
       const parts: Uint8Array[] = [];
       parts.push(await toBytes({ html: buildDashboardHtml(p, buildDashboard(p, snap)), cssPages: true }));
       // The study report exactly as Export PDF makes it: contents page numbers, header and footer.
@@ -381,7 +382,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
             </select></label>
           </div>
           {(() => {
-            const gaps = missingFields(reportDoc(project, { title, docNo: setup.docNo, projectNo: setup.projectNo, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus }));
+            const gaps = missingFields(reportDoc(project, { title, docNo: setup.docNo, projectNo: setup.projectNo || projectNumber(project) || undefined, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy, approvedBy: setup.approvedBy, issueStatus: setup.issueStatus }));
             return gaps.length ? <p className="warn">Shown as "Not defined" in the report: {gaps.join(', ')}. Client, consultant and contractor come from the project information; the revision from Revisions.</p> : null;
           })()}
           <label className="sr-standards">Project standards and specifications <span className="m">(one per line; listed under Codes and standards — none are assumed)</span>
