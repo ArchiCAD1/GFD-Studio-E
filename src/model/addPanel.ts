@@ -7,7 +7,7 @@ import { below } from './moveBoard';
 /** Adding a panel with a chosen id: the core of the add_panel tool (headless/editTools.ts) and of Push to load schedule (sheets). */
 
 /** Board ratings for a new panel, A, as the diagram palette gives them (src/model/sldEdit.ts). */
-export const BOARD_RATING: Record<BoardKind, number> = { MC: 400, 'LV-ACB': 1600, MDB: 1600, 'LV-MDB': 1600, SMDB: 250, DB: 63, EDB: 63, MCC: 400, EMCC: 400, EMDB: 250, 'LV-EMDB': 800, FP: 250, UPS: 32 };
+export const BOARD_RATING: Record<BoardKind, number> = { MC: 400, 'LV-ACB': 1600, MDB: 1600, 'LV-MDB': 1600, SMDB: 250, ESMDB: 250, DB: 63, EDB: 63, MCC: 400, EMCC: 400, EMDB: 250, 'LV-EMDB': 800, FP: 250, UPS: 32 };
 
 export interface NewPanel { name?: string; ratedA?: number; lengthM?: number; location?: string; transformerKva?: number; impedancePct?: number }
 
@@ -61,7 +61,7 @@ export function connectPanel(p: Project, id: string, parentId: string, a: { rate
   return addIncomer({ ...p, boards: p.boards.map((b) => (b.id === id ? next : b)) }, next, parent, a.lengthM ?? 30).project;
 }
 
-const PREFIXES: [string, BoardKind][] = ([['LV-EMDB', 'LV-EMDB'], ['LVEMDB', 'LV-EMDB'], ['LV-MDB', 'LV-MDB'], ['LVMDB', 'LV-MDB'], ['LV-ACB', 'LV-ACB'], ['ESMDB', 'SMDB'], ['EMDB', 'EMDB'], ['EMCC', 'EMCC'], ['SMDB', 'SMDB'], ['EDB', 'EDB'], ['MDB', 'MDB'], ['MCC', 'MCC'], ['UPS', 'UPS'], ['DB', 'DB'], ['FP', 'FP'], ['MC', 'MC']] as [string, BoardKind][])
+const PREFIXES: [string, BoardKind][] = ([['LV-EMDB', 'LV-EMDB'], ['LVEMDB', 'LV-EMDB'], ['LV-MDB', 'LV-MDB'], ['LVMDB', 'LV-MDB'], ['LV-ACB', 'LV-ACB'], ['ESMDB', 'ESMDB'], ['EMDB', 'EMDB'], ['EMCC', 'EMCC'], ['SMDB', 'SMDB'], ['EDB', 'EDB'], ['MDB', 'MDB'], ['MCC', 'MCC'], ['UPS', 'UPS'], ['DB', 'DB'], ['FP', 'FP'], ['MC', 'MC']] as [string, BoardKind][])
   .sort((x, y) => y[0].length - x[0].length);
 /** The names a panel number starts with, longest first. */
 export const PANEL_PREFIXES = PREFIXES.map(([x]) => x);

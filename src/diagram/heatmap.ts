@@ -58,7 +58,7 @@ export function heatColor(ratio: number): string {
  * onEssentialSide, calc/elvPlacement.ts); UPS: on or below a UPS board; the nearest one up the network decides.
  * Existing: an existing board or circuit on normal supply (its dashed outline shows existing in every view). */
 export type Supply = 'normal' | 'emergency' | 'ups' | 'existing';
-const EMERGENCY_KINDS = new Set<BoardKind>(['EMDB', 'LV-EMDB', 'EDB', 'EMCC']);
+const EMERGENCY_KINDS = new Set<BoardKind>(['EMDB', 'LV-EMDB', 'EDB', 'ESMDB', 'EMCC']);
 export const SUPPLY_COLOR: Record<Supply, string> = {
   normal: 'var(--mut)', emergency: 'var(--bad)', ups: 'var(--ph-b)', existing: 'color-mix(in srgb, var(--mut) 70%, var(--bg))'
 };

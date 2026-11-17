@@ -3,8 +3,9 @@ import type { ShapeOut } from './cadSketch';
 
 /** Design CAD → plan symbols: the symbols of sockets, switches, boards, isolators and boxes on a floor plan, drawn in
  * paper mm about the device's point (a socket's stem and a switch's stroke point down the sheet until devices carry a
- * rotation). They are annotation: a symbol prints at the same size at every scale (src/model/cadAnnotate.ts,
- * `symbolUnits`). The same geometry draws the canvas, the plan sheets and the saved DXF / DWG. */
+ * rotation). A board is drawn by its kind, with the SLD's board patterns (`p-*`). Symbols are annotation: one prints at
+ * the same size at every scale (src/model/cadAnnotate.ts, `symbolUnits`). The same geometry draws the canvas, the plan
+ * sheets and the saved DXF / DWG. */
 
 type Pt = [number, number];
 
@@ -31,8 +32,14 @@ const Q = (s: string, x = 2.9, y = 1.6): SymPrim => ({ k: 'text', at: [x, -y], s
 const socket = (): SymPrim[] => [{ k: 'arc', c: [0, 0], r: 1.75, a0: 180, a1: 360 }, L(0, 1.75, 0, 3.25), L(-2.4, 0, 2.4, 0)];
 /** A switch: a small circle and its stroke with the end tick. */
 const sw = (): SymPrim[] => [C(0, 1.5, 0.75), L(0.38, 0.85, 1.9, -1.75), L(1.9, -1.75, 2.68, -1.3)];
-/** A board or panel: a rectangle with its tag. */
+/** A panel with its tag in a rectangle. */
 const board = (s: string, w = 6): SymPrim[] => [R(-w / 2, -1.75, w, 3.5), T(0, 0, s)];
+
+/** A board by its kind: the SLD's 2:1 board patterns (src/diagram/symbolLibrary.tsx) at 7 × 3.5 mm; the board's tag is
+ * written beside it (the device label), not in it. */
+const EDGE = R(-3.5, -1.75, 7, 3.5), INNER = R(-3.01, -1.26, 6.02, 2.52);
+const X_ = (w: number, h: number) => [L(-w, -h, w, h), L(-w, h, w, -h)];
+const pattern = (...p: SymPrim[]): SymPrim[] => [EDGE, ...p];
 
 const sym = (id: string, label: string, group: PlanSymbolGroup, prims: SymPrim[]): PlanSymbol => ({ id, label, group, prims });
 
@@ -54,10 +61,18 @@ const LIST: PlanSymbol[] = [
   sym('push-button', 'Push button', 'switch', [C(0, 0, 1.25), C(0, 0, 0.55)]),
   sym('switch-panel', 'Switch panel', 'switch', board('SP')),
 
-  sym('mdb', 'Main distribution board', 'board', board('MDB', 7.5)),
-  sym('db', 'Distribution board', 'board', board('DB')),
-  sym('panel', 'Panel board', 'board', board('P')),
-  sym('mc-board', 'Mechanical board', 'board', board('M/C')),
+  sym('p-mdb', 'Main distribution board (MDB)', 'board', pattern(INNER, F(-3.01, -1.26, 3.01, -1.26, -3.01, 1.26), L(-3.01, 1.26, 3.01, -1.26))),
+  sym('p-emdb', 'Emergency main distribution board (EMDB)', 'board', pattern(INNER, F(-3.01, -1.26, 0, 0, -3.01, 1.26), F(3.01, -1.26, 0, 0, 3.01, 1.26), ...X_(3.01, 1.26))),
+  sym('p-smdb', 'Sub-main distribution board (SMDB)', 'board', pattern(F(-3.5, -1.75, 3.5, -1.75, -3.5, 1.75), L(-3.5, 1.75, 3.5, -1.75))),
+  sym('p-esmdb', 'Emergency sub-main distribution board (ESMDB)', 'board', pattern(F(-3.5, -1.75, 0, 0, -3.5, 1.75), F(3.5, -1.75, 0, 0, 3.5, 1.75), ...X_(3.5, 1.75))),
+  sym('p-db', 'Distribution board (DB)', 'board', pattern(L(-3.5, 1.75, 3.5, -1.75))),
+  sym('p-edb', 'Emergency distribution board (EDB)', 'board', pattern(...X_(3.5, 1.75))),
+  sym('p-mcc', 'Motor control centre (MCC)', 'board', pattern(F(-3.5, -1.75, 3.5, -1.75, 3.5, 0, -3.5, 0), L(-3.5, 0, 3.5, 0))),
+  sym('p-emcc', 'Emergency motor control centre (EMCC)', 'board', pattern(F(-3.5, -1.75, 3.5, -1.75, 0, 0), F(-3.5, 1.75, 3.5, 1.75, 0, 0), ...X_(3.5, 1.75))),
+  sym('p-fp', 'Fire pump panel (FP)', 'board', pattern(L(-3.5, 0, 3.5, 0))),
+  sym('p-ups', 'UPS output board (UPS)', 'board', pattern(T(0, 0, 'UPS', 1.4))),
+  sym('p-mc', 'Meter cabinet (MC)', 'board', pattern(T(0, 0, 'MC', 1.4))),
+  sym('p-apfc', 'Capacitor panel (APFC)', 'board', pattern(T(0, 0, 'APFC', 1.4))),
   sym('cb-box', 'Circuit breaker box', 'board', [R(-3, -1.75, 6, 3.5), L(-2.2, 0, -0.9, 0), L(0.9, 0, 2.2, 0), L(0.9, 0, -1, -1.1), L(-1.25, -0.45, -0.55, 0.45), L(-1.25, 0.45, -0.55, -0.45)]),
 
   sym('isolator', 'Isolator', 'isolator', [R(-3, -1.75, 6, 3.5), L(-2.2, 0, -0.9, 0), L(0.9, 0, 2.2, 0), L(0.9, 0, -1, -1.1), L(-0.9, -0.55, -0.9, 0.55), C(-0.5, 0, 0.4)]),
@@ -135,12 +150,12 @@ export function planSymbolSvg(id: string, x: number, y: number, k = 1, tag?: str
   return `<g fill="#fff" stroke="#000" stroke-width="0.25">${body}</g>`;
 }
 
-/** The symbol as saved in a DXF / DWG on `layer` (drawing units): lines, circles and its text. */
+/** The symbol as saved in a DXF / DWG on `layer` (drawing units): lines, circles and its text; a filled path is a solid hatch. */
 export function planSymbolShapes(id: string, layer: string, x: number, y: number, k: number, tag?: string, rot = 0): ShapeOut[] {
   const g = symbolGeom(id, x, y, k, tag, rot);
   if (!g) return [];
   return [
-    ...g.paths.map((p): ShapeOut => ({ layer, kind: p.pts.length > 2 || p.closed ? 'pline' : 'line', pts: p.pts, ...(p.closed ? { closed: true } : {}) })),
+    ...g.paths.map((p): ShapeOut => (p.fill ? { layer, kind: 'hatch', pts: [], loops: [p.pts], solid: true } : { layer, kind: p.pts.length > 2 || p.closed ? 'pline' : 'line', pts: p.pts, ...(p.closed ? { closed: true } : {}) })),
     ...g.circles.map((c): ShapeOut => ({ layer, kind: 'circle', pts: [c.c], r: c.r })),
     ...g.texts.map((t): ShapeOut => ({ layer, kind: 'text', pts: [[t.side ? t.at[0] : t.at[0] - textWidth(t.s, t.h) / 2, t.at[1] - t.h / 2]], text: t.s, h: t.h, rot: 0 }))
   ];

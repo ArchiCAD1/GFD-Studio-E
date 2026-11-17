@@ -57,13 +57,15 @@ describe('colour by supply', () => {
     b('EX-DB', { upstreamId: 'SMDB', existing: { recordedKva: 20 } }),
     b('EX-EM', { upstreamId: 'EMDB', existing: { recordedKva: 20 } }),
     b('EDB', { kind: 'EDB', upstreamId: 'MDB' }),
+    b('ESMDB', { kind: 'ESMDB', upstreamId: 'MDB' }),
+    b('ESM-DB', { upstreamId: 'ESMDB' }),
     b('GEN-ROOT', { kind: 'MDB', standby }),
     b('GEN-DB', { upstreamId: 'GEN-ROOT' })
   ];
   const f = (id: string, boardId: string, extra: Partial<Feeder> = {}): Feeder => ({ ...sampleProject.feeders[0], id, boardId, feedsBoardId: undefined, existing: undefined, ...extra });
   const feeders: Feeder[] = [
     f('F-EMDB', 'MDB', { feedsBoardId: 'EMDB' }), f('F-UPS', 'MDB', { feedsBoardId: 'UPS' }), f('C-EM', 'EMDB'),
-    f('C-EX', 'SMDB', { existing: true }), f('C-NEW', 'EX-DB'), f('F-EX', 'SMDB', { feedsBoardId: 'EX-DB' })
+    f('C-EX', 'SMDB', { existing: true }), f('C-NEW', 'EX-DB'), f('F-EX', 'SMDB', { feedsBoardId: 'EX-DB' }), f('F-ESM', 'MDB', { feedsBoardId: 'ESMDB' })
   ];
   const sup = supplyOf({ ...sampleProject, boards, feeders } as Project);
   const of = (id: string) => sup.board(boards.find((x) => x.id === id)!);
@@ -79,6 +81,8 @@ describe('colour by supply', () => {
     expect(of('EX-DB')).toBe('existing');
     expect(of('EX-EM')).toBe('emergency');
     expect(of('EDB')).toBe('emergency');
+    expect(of('ESMDB')).toBe('emergency'); // a kind-ESMDB board on a normal MDB
+    expect(of('ESM-DB')).toBe('emergency');
     expect(of('GEN-ROOT')).toBe('emergency');
     expect(of('GEN-DB')).toBe('emergency');
   });
@@ -86,6 +90,7 @@ describe('colour by supply', () => {
   it('gives a feeder its end board\'s supply, and a final circuit its own board\'s', () => {
     expect(fd('F-EMDB')).toBe('emergency');
     expect(fd('F-UPS')).toBe('ups');
+    expect(fd('F-ESM')).toBe('emergency');
     expect(fd('C-EM')).toBe('emergency');
     expect(fd('C-EX')).toBe('existing');
     expect(fd('C-NEW')).toBe('normal');

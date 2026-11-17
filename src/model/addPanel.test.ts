@@ -32,7 +32,7 @@ describe('addPanel', () => {
 
 describe('panelKindOf', () => {
   it('reads the kind a panel number starts with, longest first, in any case', () => {
-    const kinds = { 'LV-EMDB-1': 'LV-EMDB', LVEMDB2: 'LV-EMDB', 'lv-mdb': 'LV-MDB', LVMDB: 'LV-MDB', 'LV-ACB-1': 'LV-ACB', 'EMDB-1': 'EMDB', EMCC1: 'EMCC', 'EDB-1': 'EDB', 'ESMDB-1': 'SMDB', 'SMDB-GF': 'SMDB', 'MDB-X': 'MDB', MCC1: 'MCC', 'mcc-2': 'MCC', 'DB-GF': 'DB', 'UPS-1': 'UPS', 'FP-1': 'FP', 'MC-9': 'MC', SMDB: 'SMDB', ' db-1 ': 'DB' };
+    const kinds = { 'LV-EMDB-1': 'LV-EMDB', LVEMDB2: 'LV-EMDB', 'lv-mdb': 'LV-MDB', LVMDB: 'LV-MDB', 'LV-ACB-1': 'LV-ACB', 'EMDB-1': 'EMDB', EMCC1: 'EMCC', 'EDB-1': 'EDB', 'ESMDB-1': 'ESMDB', 'SMDB-GF': 'SMDB', 'MDB-X': 'MDB', MCC1: 'MCC', 'mcc-2': 'MCC', 'DB-GF': 'DB', 'UPS-1': 'UPS', 'FP-1': 'FP', 'MC-9': 'MC', SMDB: 'SMDB', ' db-1 ': 'DB' };
     for (const [id, kind] of Object.entries(kinds)) expect(panelKindOf(id), id).toBe(kind);
   });
 

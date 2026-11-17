@@ -119,7 +119,7 @@ function equipmentOf(project: Project): Omit<EarthItem, 'pits' | 'linked'>[] {
     const gLv = lv.filter((b) => subOf(b) === g);
     for (const b of gLv) out.push({ key: `lv:${b.id}`, kind: 'lv', group: g, equipment: b.id, point: 'Main earth bar (MET)', defaultPits: lv.length === 1 ? 2 : 1 });
     // SMDBs may have their own pits where the design asks for it (none by default).
-    for (const b of project.boards.filter((x) => x.kind === 'SMDB' && gLv.some((m) => m.id === mainOfId(project, x.id)))) out.push({ key: `sub:${b.id}`, kind: 'sub', group: g, equipment: b.id, point: 'Earth bar', defaultPits: 0 });
+    for (const b of project.boards.filter((x) => (x.kind === 'SMDB' || x.kind === 'ESMDB') && gLv.some((m) => m.id === mainOfId(project, x.id)))) out.push({ key: `sub:${b.id}`, kind: 'sub', group: g, equipment: b.id, point: 'Earth bar', defaultPits: 0 });
   }
   // Standby generators (a board fed through an ATS): neutral and frame earths, each to its own pit, never joined.
   // Listed after everything else, so adding a generator never renumbers pits that already have IDs.

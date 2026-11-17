@@ -135,6 +135,13 @@ describe('earthing schematic', () => {
     expect(d.svg).not.toMatch(/NaN|undefined/);
   });
 
+  it('an ESMDB gets a sub-main earth-bar row like an SMDB', () => {
+    const p = { ...sampleProject, boards: [...sampleProject.boards, { id: 'ESMDB-1', name: 'E', kind: 'ESMDB' as const, upstreamId: 'MDB-1' }] };
+    expect(earthingLayout(p).items.find((i) => i.key === 'sub:ESMDB-1')).toMatchObject({ kind: 'sub', equipment: 'ESMDB-1', pits: 0 }); // a row, no pits by default
+    const q = { ...p, earthingPlan: { pits: { 'sub:ESMDB-1': 1 } } };
+    expect(earthingLayout(q).pits.some((x) => x.kind === 'sub' && x.itemKey === 'sub:ESMDB-1')).toBe(true);
+  });
+
   it('large site: 10 transformers on 5 RMUs, 10 MDBs, SMDBs with their own pits — two-row drawing', () => {
     let p = applyTransformers(sampleProject, planTransformers(sampleProject, Array.from({ length: 9 }, () => ({ kva: 1500 })), false, 2));
     p = setRmu(p, 'MDB-1', 'RMU-5'); // RMU-5 feeds the 9th new one and the existing TX-1
