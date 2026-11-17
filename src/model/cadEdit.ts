@@ -366,14 +366,26 @@ export function aligned(it: SketchItem, s1: Pt, t: { a: number; k: number; dx: n
   const turned = t.a ? rotated(it, s1, t.a) : it;
   return moved(t.k !== 1 ? scaled(turned, s1, t.k) : turned, t.dx, t.dy);
 }
+/** Objects Stretch moves whole when one of their points is in the window. */
+const STRETCH_WHOLE: SketchItem['kind'][] = ['circle', 'arc', 'text', 'mtext', 'point', 'insert', 'attdef'];
+const inWindowOf = (a: Pt, b: Pt) => {
+  const [x0, y0, x1, y1] = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+  return (q: Pt) => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1;
+};
 /** Stretch: the points inside the window move by (dx, dy); a circle, arc or text moves when its point is inside. */
 export function stretched(it: SketchItem, a: Pt, b: Pt, dx: number, dy: number): SketchItem | null {
-  const [x0, y0, x1, y1] = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
-  const inBox = (q: Pt) => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1;
+  const inBox = inWindowOf(a, b);
   if (!it.pts.some(inBox)) return null;
   const holes = it.holes ? { holes: it.holes.map((h) => h.map((q) => (inBox(q) ? add(q, [dx, dy]) : q))) } : {};
-  if (it.kind === 'circle' || it.kind === 'arc' || it.kind === 'text' || it.kind === 'mtext' || it.kind === 'point' || it.kind === 'insert' || it.kind === 'attdef') return { ...it, ...holes, pts: it.pts.map((q) => add(q, [dx, dy])) };
+  if (STRETCH_WHOLE.includes(it.kind)) return { ...it, ...holes, pts: it.pts.map((q) => add(q, [dx, dy])) };
   return { ...it, ...holes, pts: it.pts.map((q) => (inBox(q) ? add(q, [dx, dy]) : q)) };
+}
+/** The points of an object a Stretch window moves, for the squares shown once the window is dragged: all of them for a
+ * circle, text, block…, else those inside it (an island's too); none when no point of its outline is inside. */
+export function stretchPoints(it: SketchItem, a: Pt, b: Pt): Pt[] {
+  const inBox = inWindowOf(a, b);
+  if (!it.pts.some(inBox)) return [];
+  return [...(STRETCH_WHOLE.includes(it.kind) ? it.pts : it.pts.filter(inBox)), ...(it.holes ?? []).flat().filter(inBox)];
 }
 /** Rectangular array: rows × columns of copies, `dx` / `dy` apart (the original is the first). */
 export function arrayRect(it: SketchItem, rows: number, cols: number, dx: number, dy: number): Omit<SketchItem, 'id'>[] {

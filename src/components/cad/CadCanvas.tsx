@@ -53,6 +53,47 @@ interface Landing { at: Pt; snap?: { p: Pt; kind: number }; guide?: { from: Pt[]
 export type ZoomReq = { n: number; do: { kind: 'window'; a: Pt; b: Pt } | { kind: 'scale'; k: number; relative: boolean } | { kind: 'previous' } };
 /** Where a drawing was zoomed or panned to: it stays there until Fit, also while its tab or the page is left. */
 const placeOf = new WeakMap<CadView, ViewT>();
+/** A device's symbol in drawing units, at (x, y) from the drawing's origin under the view transform: a plan symbol's
+ * lines and circles with its filled pieces, else its shape. The caller sets the colour, width and alpha. */
+function strokeDevice(ctx: CanvasRenderingContext2D, d: CanvasDevice, x: number, y: number) {
+  const r = d.r, g = d.plan ? symbolGeom(d.plan, x, y, r / SYMBOL_R_MM, d.tag, d.rot) : undefined;
+  if (g) {
+    // A plan symbol: its lines and circles, the filled pieces in the line's colour.
+    ctx.beginPath();
+    for (const p of g.paths) { if (p.fill) continue; p.pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); if (p.closed) ctx.closePath(); }
+    for (const c of g.circles) { if (c.fill) continue; ctx.moveTo(c.c[0] + c.r, c.c[1]); ctx.arc(c.c[0], c.c[1], c.r, 0, 2 * Math.PI); }
+    ctx.stroke();
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath();
+    for (const p of g.paths) { if (!p.fill) continue; p.pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath(); }
+    for (const c of g.circles) { if (!c.fill) continue; ctx.moveTo(c.c[0] + c.r, c.c[1]); ctx.arc(c.c[0], c.c[1], c.r, 0, 2 * Math.PI); }
+    ctx.fill();
+    return;
+  }
+  ctx.beginPath();
+  if (d.shape === 'square' || d.shape === 'rect') ctx.rect(x - r, y - (d.shape === 'rect' ? r * 0.6 : r), 2 * r, d.shape === 'rect' ? r * 1.2 : 2 * r);
+  else if (d.shape === 'twin') { ctx.rect(x - r, y - r * 0.6, 2 * r, r * 1.2); ctx.moveTo(x, y - r * 0.6); ctx.lineTo(x, y + r * 0.6); }
+  else if (d.shape === 'triangle') { ctx.moveTo(x, y + r); ctx.lineTo(x + r, y - r * 0.8); ctx.lineTo(x - r, y - r * 0.8); ctx.closePath(); }
+  else if (d.shape === 'diamond') { ctx.moveTo(x, y + r); ctx.lineTo(x + r, y); ctx.lineTo(x, y - r); ctx.lineTo(x - r, y); ctx.closePath(); }
+  else if (d.shape === 'hexagon') { for (let k = 0; k < 6; k += 1) { const a = (k * Math.PI) / 3; if (k) ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a)); else ctx.moveTo(x + r, y); } ctx.closePath(); }
+  else if (d.shape === 'camera') { ctx.rect(x - r, y - r * 0.5, r * 1.4, r); ctx.moveTo(x + r * 0.4, y); ctx.lineTo(x + r, y + r * 0.4); ctx.lineTo(x + r, y - r * 0.4); ctx.closePath(); }
+  else if (d.shape === 'speaker') { ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.moveTo(x + r * 0.5, y); ctx.arc(x, y, r * 0.5, 0, 2 * Math.PI); }
+  else { ctx.arc(x, y, r, 0, 2 * Math.PI); }
+  if (d.shape === 'cross') { const k = r * 0.7; ctx.moveTo(x - k, y - k); ctx.lineTo(x + k, y + k); ctx.moveTo(x - k, y + k); ctx.lineTo(x + k, y - k); }
+  ctx.stroke();
+}
+/** A device's letters at screen point (sx, sy): a plan symbol's own texts, else its letter, and its label beside it
+ * (none below 4 px). The caller sets the fill colour. */
+function deviceText(ctx: CanvasRenderingContext2D, d: CanvasDevice, sx: number, sy: number, scale: number) {
+  const px = d.r * scale;
+  if (px < 4) return;
+  const g = d.plan ? symbolGeom(d.plan, 0, 0, d.r / SYMBOL_R_MM, d.tag, d.rot) : undefined;
+  // A plan symbol's own text, its capitals at the symbol's height.
+  if (g) for (const t of g.texts) { const cap = t.h * scale; ctx.font = `${cap / 0.716}px system-ui, sans-serif`; ctx.textAlign = t.side ? 'left' : 'center'; ctx.fillText(t.s, sx + t.at[0] * scale, sy - t.at[1] * scale + cap / 2); }
+  else if (d.text) { ctx.font = `600 ${Math.min(px * 0.8, 40)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(d.text, sx, sy + px * 0.3); }
+  if (px >= 7 && d.label) { ctx.font = `${Math.min(Math.max(px * 0.6, 9), 16)}px system-ui, sans-serif`; ctx.textAlign = 'left'; ctx.fillText(d.label, sx + (d.plan && g ? ((symbolBox(d.plan, d.tag, d.rot)!.x1 + 0.6) / SYMBOL_R_MM) * px : px * 1.3), sy + px * 0.3); }
+}
+
 /** Each drawing's texts' widths per px of font, measured once (for the bars of texts too small to read). */
 const widthsOf = new WeakMap<CadView, Map<string, number>>();
 
@@ -68,7 +109,7 @@ export function gridStep(scale: number): number {
 /** The drawing in a CAD model space: lines by layer and colour, texts at their height, a crosshair cursor with the snap
  * point under it, live coordinates. Wheel zooms at the cursor (two-finger scroll pans, pinch zooms), the middle button
  * or Space + drag pans, a middle double-click fits. */
-export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = false, fitKey, onCursor, onClick, marks, highlight, devices = [], wiring = [], sketch: sketchIn = [], selectedSketch, extraSnaps = [], preview = [], unitsPerMm = 1, labels = {}, covers = [], gaps, numbersTyped = false, windowSelect = false, onWindow, onContext, panLeft = false, overlay, grips = [], hotGrip: hotGripIn = -1, pickedObjects, onGripStart, onGripEnd, layerStyle = {}, refs = [], refSnap, fitBox, fixed = false, onView, extents, draft = DRAFT_DEFAULTS, zoom, onZoomMenu, onDouble, pointStyle = POINT_STYLE_DEFAULT, blocks = [], onDrop, fadeExcept, cursorMode = 'ready', hover, cutAway, meets }: {
+export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = false, fitKey, onCursor, onClick, marks, highlight, devices = [], wiring = [], sketch: sketchIn = [], selectedSketch, extraSnaps = [], preview = [], unitsPerMm = 1, labels = {}, covers = [], gaps, numbersTyped = false, windowSelect = false, onWindow, onContext, panLeft = false, overlay, grips = [], hotGrip: hotGripIn = -1, pickedObjects, onGripStart, onGripEnd, layerStyle = {}, refs = [], refSnap, fitBox, fixed = false, onView, extents, draft = DRAFT_DEFAULTS, zoom, onZoomMenu, onDouble, pointStyle = POINT_STYLE_DEFAULT, blocks = [], onDrop, fadeExcept, cursorMode = 'ready', hover, cutAway, meets, shadowDevices, movingPoints }: {
   view: CadView;
   /** Objects of the drawing erased in the app (CROP): their lines, texts and fills are not drawn. */
   hidden?: ErasedParts;
@@ -161,6 +202,12 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
    * (`meets`, a small cross). Either takes the place of the hover mark. */
   cutAway?: SketchItem[];
   meets?: Pt[];
+  /** Devices on the move (Move, Copy, Rotate, Stretch): their own symbol at 45 % where the click would put them, drawn
+   * on the cursor layer so the plan is not redrawn on each move. */
+  shadowDevices?: CanvasDevice[];
+  /** Stretch: the points its window caught, which will move — squares in the grip look (not grips: a click there is
+   * the base point). */
+  movingPoints?: Pt[];
   /** How drawn points are shown (PTYPE). */
   pointStyle?: PointStyle;
   /** The drawing's own blocks: an insert among the drawn objects is drawn as what its block shows. */
@@ -234,8 +281,8 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
   marksRef.current = marks;
   const previewRef = useRef(preview);
   previewRef.current = preview;
-  const cutRef = useRef(cutAway), meetsRef = useRef(meets);
-  cutRef.current = cutAway; meetsRef.current = meets;
+  const cutRef = useRef(cutAway), meetsRef = useRef(meets), shadowDevRef = useRef(shadowDevices), movingRef = useRef(movingPoints);
+  cutRef.current = cutAway; meetsRef.current = meets; shadowDevRef.current = shadowDevices; movingRef.current = movingPoints;
   const [o0, o1] = view.info.origin;
   // Colours are read from CSS on each draw, so a palette or mode change redraws.
   const [theme, setTheme] = useState(screenAppearance);
@@ -691,35 +738,11 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     // Devices placed in the app: symbols in drawing units (they zoom with the plan), letters and labels below.
     const elvC = colour('--cad-elv', '#4aa8ff'), selC = colour('--cad-snap', '#37d67a');
     for (const d of devices) {
-      const x = d.x - o0, y = d.y - o1, r = d.r;
+      const x = d.x - o0, y = d.y - o1;
       ctx.strokeStyle = d.selected ? selC : d.elv ? elvC : lvC;
       ctx.lineWidth = (d.selected ? 3 : 1.5) / scale;
       ctx.globalAlpha = d.ghost ? 0.45 : 1; // a Fill room preview
-      const g = d.plan ? symbolGeom(d.plan, x, y, r / SYMBOL_R_MM, d.tag, d.rot) : undefined;
-      if (g) {
-        // A plan symbol: its lines and circles, the filled pieces in the line's colour.
-        ctx.beginPath();
-        for (const p of g.paths) { if (p.fill) continue; p.pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); if (p.closed) ctx.closePath(); }
-        for (const c of g.circles) { if (c.fill) continue; ctx.moveTo(c.c[0] + c.r, c.c[1]); ctx.arc(c.c[0], c.c[1], c.r, 0, 2 * Math.PI); }
-        ctx.stroke();
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.beginPath();
-        for (const p of g.paths) { if (!p.fill) continue; p.pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.closePath(); }
-        for (const c of g.circles) { if (!c.fill) continue; ctx.moveTo(c.c[0] + c.r, c.c[1]); ctx.arc(c.c[0], c.c[1], c.r, 0, 2 * Math.PI); }
-        ctx.fill();
-        continue;
-      }
-      ctx.beginPath();
-      if (d.shape === 'square' || d.shape === 'rect') ctx.rect(x - r, y - (d.shape === 'rect' ? r * 0.6 : r), 2 * r, d.shape === 'rect' ? r * 1.2 : 2 * r);
-      else if (d.shape === 'twin') { ctx.rect(x - r, y - r * 0.6, 2 * r, r * 1.2); ctx.moveTo(x, y - r * 0.6); ctx.lineTo(x, y + r * 0.6); }
-      else if (d.shape === 'triangle') { ctx.moveTo(x, y + r); ctx.lineTo(x + r, y - r * 0.8); ctx.lineTo(x - r, y - r * 0.8); ctx.closePath(); }
-      else if (d.shape === 'diamond') { ctx.moveTo(x, y + r); ctx.lineTo(x + r, y); ctx.lineTo(x, y - r); ctx.lineTo(x - r, y); ctx.closePath(); }
-      else if (d.shape === 'hexagon') { for (let k = 0; k < 6; k += 1) { const a = (k * Math.PI) / 3; if (k) ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a)); else ctx.moveTo(x + r, y); } ctx.closePath(); }
-      else if (d.shape === 'camera') { ctx.rect(x - r, y - r * 0.5, r * 1.4, r); ctx.moveTo(x + r * 0.4, y); ctx.lineTo(x + r, y + r * 0.4); ctx.lineTo(x + r, y - r * 0.4); ctx.closePath(); }
-      else if (d.shape === 'speaker') { ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.moveTo(x + r * 0.5, y); ctx.arc(x, y, r * 0.5, 0, 2 * Math.PI); }
-      else { ctx.arc(x, y, r, 0, 2 * Math.PI); }
-      if (d.shape === 'cross') { const k = r * 0.7; ctx.moveTo(x - k, y - k); ctx.lineTo(x + k, y + k); ctx.moveTo(x - k, y + k); ctx.lineTo(x + k, y - k); }
-      ctx.stroke();
+      strokeDevice(ctx, d, x, y);
     }
     ctx.globalAlpha = 1;
     // Texts in screen space, their capitals at the drawn height (as CAD measures text); too small to read (capitals
@@ -767,15 +790,10 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     for (const [fill, bar] of bars) { ctx.fillStyle = fill; ctx.fill(bar); }
     ctx.globalAlpha = 1;
     for (const d of devices) {
-      const px = d.r * scale;
-      if (px < 4) continue;
+      if (d.r * scale < 4) continue;
       const sx = (d.x - o0 - ox) * scale, sy = size.h - (d.y - o1 - oy) * scale;
       ctx.fillStyle = d.selected ? selC : d.elv ? elvC : lvC;
-      const g = d.plan ? symbolGeom(d.plan, 0, 0, d.r / SYMBOL_R_MM, d.tag, d.rot) : undefined;
-      // A plan symbol's own text, its capitals at the symbol's height.
-      if (g) for (const t of g.texts) { const cap = t.h * scale; ctx.font = `${cap / 0.716}px system-ui, sans-serif`; ctx.textAlign = t.side ? 'left' : 'center'; ctx.fillText(t.s, sx + t.at[0] * scale, sy - t.at[1] * scale + cap / 2); }
-      else if (d.text) { ctx.font = `600 ${Math.min(px * 0.8, 40)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(d.text, sx, sy + px * 0.3); }
-      if (px >= 7 && d.label) { ctx.font = `${Math.min(Math.max(px * 0.6, 9), 16)}px system-ui, sans-serif`; ctx.textAlign = 'left'; ctx.fillText(d.label, sx + (d.plan && g ? ((symbolBox(d.plan, d.tag, d.rot)!.x1 + 0.6) / SYMBOL_R_MM) * px : px * 1.3), sy + px * 0.3); }
+      deviceText(ctx, d, sx, sy, scale);
     }
     // Wiring tags, at screen size beside the home run (in red when it has none).
     ctx.font = '600 11px system-ui, sans-serif'; ctx.textAlign = 'left';
@@ -870,6 +888,11 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       }
       ctx.fill(); ctx.stroke();
     });
+    for (const q of movingRef.current ?? []) {
+      const gx = Math.round((q[0] - o0 - ox) * scale), gy = Math.round(size.h - (q[1] - o1 - oy) * scale), gh = ds.gripPx / 2;
+      ctx.fillStyle = gripCol; ctx.strokeStyle = gripBg; ctx.lineWidth = 1;
+      ctx.fillRect(gx - gh, gy - gh, ds.gripPx, ds.gripPx); ctx.strokeRect(gx - gh, gy - gh, ds.gripPx, ds.gripPx);
+    }
     // What a click would pick: an amber outline at 40 % over it (not while a grip is under the box).
     const hv = hoverRef.current;
     if (ds.hoverMark && hv && !hv.picked && at && underGrip < 0 && modeRef.current !== 'point' && !handRef.current && !cutRef.current?.length && !meetsRef.current?.length) {
@@ -892,17 +915,18 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       ctx.restore();
     }
     // What a Trim click would cut away: hidden under a band in the canvas colour, then dashed in its own colour at 35 %.
+    const sketchC = colour('--cad-sketch', '#7fd1ff');
     for (const it of cutRef.current ?? []) {
       const ef = effective(it, layerStyle), w = ef.lw && toggles.lwt !== false ? Math.max(1.5, ef.lw * 6) : it.tray ? 2.5 : 1.5;
       ctx.beginPath();
       for (const [a, b] of segmentsOf(it)) { ctx.moveTo((a[0] - o0 - ox) * scale, size.h - (a[1] - o1 - oy) * scale); ctx.lineTo((b[0] - o0 - ox) * scale, size.h - (b[1] - o1 - oy) * scale); }
       ctx.setLineDash([]); ctx.strokeStyle = colour('--cad-bg', BG); ctx.lineWidth = isSel(it.id) ? 8 : w + 3.5; ctx.stroke(); // a picked line's halo is 6 px
-      ctx.globalAlpha = 0.35; ctx.strokeStyle = ef.color ?? colour('--cad-sketch', '#7fd1ff'); ctx.lineWidth = w; ctx.setLineDash([6, 4]); ctx.stroke();
+      ctx.globalAlpha = 0.35; ctx.strokeStyle = ef.color ?? sketchC; ctx.lineWidth = w; ctx.setLineDash([6, 4]); ctx.stroke();
       ctx.globalAlpha = 1; ctx.setLineDash([]);
     }
     const pv = previewRef.current;
     if (pv.length) {
-      ctx.strokeStyle = colour('--cad-sketch', '#7fd1ff');
+      ctx.strokeStyle = sketchC;
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
@@ -916,6 +940,16 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       }
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+    const sd = shadowDevRef.current;
+    if (sd?.length) {
+      const lvC = colour('--cad-dev', snapC), elvC = colour('--cad-elv', snapC);
+      ctx.save(); ctx.globalAlpha = 0.45;
+      ctx.setTransform(dpr * scale, 0, 0, -dpr * scale, -dpr * ox * scale, dpr * (size.h + oy * scale));
+      for (const d of sd) { ctx.strokeStyle = d.elv ? elvC : lvC; ctx.lineWidth = 1.5 / scale; strokeDevice(ctx, d, d.x - o0, d.y - o1); }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      for (const d of sd) { ctx.fillStyle = d.elv ? elvC : lvC; deviceText(ctx, d, (d.x - o0 - ox) * scale, size.h - (d.y - o1 - oy) * scale, scale); }
+      ctx.restore();
     }
     // Where an Extend click's new length meets the line ahead: a cross 8 px across.
     if (meetsRef.current?.length) {
@@ -1113,7 +1147,7 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
   // After zoom / pan, or the canvas resized: the cursor's drawing point moves, so it is tracked again. When only the
   // marks change (a pick, the cursor moving in a tool), they are redrawn without reporting the cursor back (that would loop).
   useEffect(() => { if (mouse.current) track(mouse.current[0], mouse.current[1]); else drawCursor(null); }, [t, size.w, size.h]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { drawCursor(mouse.current ? lastAt.current?.at ?? null : null, mouse.current ? lastAt.current?.snap : undefined, mouse.current ? lastAt.current?.guide : undefined); }, [marks, preview, cutAway, meets, theme, grips, hotGripIn, draft, cursorMode, hover, hand, shiftOn, still]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { drawCursor(mouse.current ? lastAt.current?.at ?? null : null, mouse.current ? lastAt.current?.snap : undefined, mouse.current ? lastAt.current?.guide : undefined); }, [marks, preview, cutAway, meets, shadowDevices, movingPoints, theme, grips, hotGripIn, draft, cursorMode, hover, hand, shiftOn, still]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** The whole drawing in view, with a margin (FIT / ZE, 0, a double click of the wheel, the zoom chip). */
   const fitT = (): ViewT => {

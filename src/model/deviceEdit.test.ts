@@ -5,7 +5,7 @@ import { elvPlacedOn } from '../components/elv/elvCadDevices';
 import { placeDevices } from '../elv/placed';
 import {
   alongLine, arranged, circuitAfter, copyDevices, countBy, deleteDevices, editsFor, inWindow, matchDevice, moveDevices, onBoard,
-  placeAlong, renameBoard, replaceDevices, replacements, toCircuit, typeOf
+  placeAlong, renameBoard, replaceDevices, replacements, rotateDevices, toCircuit, typeOf
 } from './deviceEdit';
 import type { Project } from '../types';
 
@@ -126,6 +126,24 @@ describe('Edit devices — changing', () => {
     expect(pts(d).ltg).toBe(pts(p).ltg! - 5);
     expect(d.elvDevices).toEqual([]);
     expect(countBy(all(), (x) => x.label)).toBe('5 × Light, 1 × Socket 13 A, 2 × Smoke detector');
+  });
+});
+
+describe('Edit devices — Rotate with other objects', () => {
+  it('they move round the base point; a camera and a speaker turn by the angle, a light and a smoke detector keep their way', () => {
+    let { p } = corridor();
+    p = placeDevices(p, 'V', 'GF', [{ type: 'camera', x: 4, y: 2, rotationDeg: 350 }, { type: 'ceiling-speaker', x: 6, y: 2 }]).project;
+    const all = [...placedOn(p, gf), ...elvPlacedOn(p, gf)];
+    const light = all.find((d) => d.label === 'Light' && d.x === 2.2)!, smoke = all.find((d) => d.label === 'Smoke detector' && d.x === 4.5)!;
+    const cam = all.find((d) => d.what === 'elv' && d.x === 4)!, spk = all.find((d) => d.what === 'elv' && d.x === 6)!;
+    const next = rotateDevices(p, [light, smoke, cam, spk], [2, 2], Math.PI / 2, gf);
+    const at = (id: string) => { const d = [...placedOn(next, gf), ...elvPlacedOn(next, gf)].find((x) => x.id === id)!; return [+d.x.toFixed(3), +d.y.toFixed(3)]; };
+    // 90° anticlockwise about (2, 2): (x, y) goes to (2 − (y − 2), 2 + (x − 2)).
+    expect([at(light.id), at(smoke.id), at(cam.id), at(spk.id)]).toEqual([[-1.6, 2.2], [0.7, 4.5], [2, 4], [2, 6]]);
+    const elv = (id: string) => next.elvDevices!.find((e) => e.id === id)!;
+    expect([elv(cam.id).rotationDeg, elv(spk.id).rotationDeg, elv(smoke.id).rotationDeg]).toEqual([80, 90, undefined]);
+    expect(next.lvPoints!.find((d) => d.id === light.id)!.rot).toBe(p.lvPoints!.find((d) => d.id === light.id)!.rot);
+    expect(pts(next)).toEqual(pts(p)); // counts unchanged
   });
 });
 
