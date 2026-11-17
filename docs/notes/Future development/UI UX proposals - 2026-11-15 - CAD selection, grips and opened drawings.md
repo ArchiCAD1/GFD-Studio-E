@@ -1,6 +1,6 @@
 # UI UX proposal – Design CAD selection, grips and opened drawings (2026-11-15)
 
-Status: **approved 2026-11-15 with all five suggested answers**: objects of an opened drawing editable and taken over on the first edit; dashed in their own colour + blue halo; grips on each picked object up to 100; circle centre + 4 quadrants and arc centre, 2 ends and middle; an architect's plan protected by locking its layers or attaching it as a reference (no new switch). Step 1 built in PR 615 (v2.160).
+Status: **approved 2026-11-15 with all five suggested answers**: objects of an opened drawing editable and taken over on the first edit; dashed in their own colour + blue halo; grips on each picked object up to 100; circle centre + 4 quadrants and arc centre, 2 ends and middle; an architect's plan protected by locking its layers or attaching it as a reference (no new switch). Step 1 built in PR 615 (v2.160). Step 2 built in v2.165 (with the right-click plan's step 3). Step 3 of this plan still leaves: MTEXT as notes, ellipses as ellipses, patterned hatches with their pattern, dimensions as drawn dimensions, and splines said as polylines on the command line.
 
 Built differently from the mockup: the hot grip's right-click menu gained Mirror through this point but not Scale, because the SCALE tool does not yet take the grip as its base point; Stretch is the grip drag itself.
 

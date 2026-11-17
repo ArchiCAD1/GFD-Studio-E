@@ -100,6 +100,16 @@ describe('right-click menus (phase 1)', () => {
   });
 });
 
+describe('QUICKMEASURE on polylines with arc segments', () => {
+  it('a closed polyline of two straight sides and a half circle: length and area count the arc', () => {
+    const d = 2, p = { id: 'P', kind: 'pline', layer: '0', closed: true, pts: [[0, 0], [d, 0], [d, 1], [0, 1]], bulges: [0, 0, 0, 0] } as SketchItem;
+    // A bulge of 1 on the side from (2,0) to (2,1) makes it a half circle of diameter 1.
+    const q = measureOf([{ ...p, bulges: [0, 1, 0, 0] } as SketchItem]);
+    expect(q.length).toBeCloseTo(2 + Math.PI / 2 + 2 + 1, 6);
+    expect(q.area).toBeCloseTo(2 + Math.PI / 8, 6);
+  });
+});
+
 describe('QUICKMEASURE on hatches', () => {
   it('a hatch\'s area is its net area, islands taken out', () => {
     const h: SketchItem = { id: 'H', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: [[0, 0], [10, 0], [10, 10], [0, 10]], hatch: { pattern: 'ansi31', scale: 3, angle: 0 }, holes: [[[2, 2], [4, 2], [4, 4], [2, 4]]] };

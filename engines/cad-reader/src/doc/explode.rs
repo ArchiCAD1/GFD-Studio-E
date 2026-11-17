@@ -9,7 +9,7 @@
 use super::{rgb_of, spline_points, Affine, INK, MAX_DEPTH};
 use acadrust::entities::mtext_format::parse_mtext;
 use acadrust::entities::{BoundaryEdge, EntityType};
-use acadrust::types::Color;
+use acadrust::types::{Color, LineWeight};
 use acadrust::CadDocument;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -25,6 +25,8 @@ pub(crate) struct Style {
     pub layer: String,
     #[serde(skip_serializing_if = "Option::is_none")] pub color: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")] pub lt: Option<String>,
+    /// Lineweight in hundredths of a millimetre, when set on the entity itself (or taken from its insert via ByBlock).
+    #[serde(skip_serializing_if = "Option::is_none")] pub lw: Option<i16>,
 }
 
 /// One piece of an exploded object (world coordinates, radians). Arcs run anticlockwise a0 → a1 (a1 > a0); polyline
@@ -44,9 +46,9 @@ pub(crate) enum Piece {
     Group { #[serde(flatten)] s: Style, items: Vec<Piece> },
 }
 
-/// The layer, colour and linetype an entity is drawn with (resolved).
+/// The layer, colour, linetype and lineweight (None = by layer) an entity is drawn with (resolved).
 #[derive(Clone)]
-struct Ctx { layer: String, rgb: u32, lt: String }
+struct Ctx { layer: String, rgb: u32, lt: String, lw: Option<i16> }
 
 struct Ex<'a> {
     doc: &'a CadDocument,
@@ -103,7 +105,7 @@ impl<'a> Ex<'a> {
 
     fn layer_of(&self, name: &str) -> (u32, String) { self.layers.get(name).cloned().unwrap_or((INK, String::new())) }
 
-    fn ctx(&self, layer: &str, color: &Color, linetype: &str, parent: Option<&Ctx>) -> Ctx {
+    fn ctx(&self, layer: &str, color: &Color, linetype: &str, weight: LineWeight, parent: Option<&Ctx>) -> Ctx {
         let layer = match parent { Some(p) if layer == "0" => p.layer.clone(), _ => layer.to_string() };
         let (lrgb, llt) = self.layer_of(&layer);
         let rgb = match color {
@@ -114,12 +116,13 @@ impl<'a> Ex<'a> {
         };
         let named = linetype.trim().to_uppercase();
         let lt = if named == "BYBLOCK" { parent.map_or(llt.clone(), |p| p.lt.clone()) } else if named.is_empty() || named == "BYLAYER" { llt } else { named };
-        Ctx { layer, rgb, lt }
+        let lw = match weight { LineWeight::ByBlock => parent.and_then(|p| p.lw), LineWeight::Value(v) if v >= 0 => Some(v), _ => None };
+        Ctx { layer, rgb, lt, lw }
     }
 
     fn style(&self, c: &Ctx) -> Style {
         let (lrgb, llt) = self.layer_of(&c.layer);
-        Style { layer: c.layer.clone(), color: (c.rgb != lrgb).then_some(c.rgb), lt: (!c.lt.is_empty() && c.lt != llt).then(|| c.lt.clone()) }
+        Style { layer: c.layer.clone(), color: (c.rgb != lrgb).then_some(c.rgb), lt: (!c.lt.is_empty() && c.lt != llt).then(|| c.lt.clone()), lw: c.lw }
     }
 
     fn push(&mut self, out: &mut Vec<Piece>, p: Piece) {
@@ -190,7 +193,7 @@ impl<'a> Ex<'a> {
     fn entity(&mut self, out: &mut Vec<Piece>, e: &EntityType, t: &Affine, parent: Option<&Ctx>, depth: u32) {
         let c = e.common();
         if c.invisible || self.truncated { return; }
-        let cx = self.ctx(&c.layer, &c.color, &c.linetype, parent);
+        let cx = self.ctx(&c.layer, &c.color, &c.linetype, c.line_weight, parent);
         let s = self.style(&cx);
         let mirror = |n: &acadrust::types::Vector3, t: &Affine| if n.z < -0.5 { t.then(&Affine::scale(-1.0, 1.0)) } else { *t };
         match e {
@@ -306,7 +309,7 @@ impl<'a> Ex<'a> {
                 }
                 for a in &x.attributes {
                     if a.common.invisible || a.value.trim().is_empty() { continue; }
-                    let ac = self.ctx(&a.common.layer, &a.common.color, &a.common.linetype, Some(&cx));
+                    let ac = self.ctx(&a.common.layer, &a.common.color, &a.common.linetype, a.common.line_weight, Some(&cx));
                     let s = self.style(&ac);
                     self.push(out, Piece::Text { s, at: pt(t, (a.insertion_point.x, a.insertion_point.y)), h: a.height * t.size(), rot: a.rotation + t.angle(), text: a.value.clone(), tag: Some(a.tag.clone()) });
                 }
@@ -378,6 +381,21 @@ mod tests {
         assert!(pl[0].1 && pl[0].0.len() == 4, "the box stays one closed polyline");
         assert!((pl[1].0[0][2] - 1.0).abs() < 1e-12, "the bulge is kept");
         assert!(p.iter().any(|x| matches!(x, Piece::Hatch { solid: true, loops, .. } if loops.len() == 1 && loops[0].len() == 4)));
+    }
+
+    #[test]
+    fn lineweight_set_on_the_entity_only() {
+        let mut doc = CadDocument::new();
+        let mut set = acadrust::entities::Line::from_coords(0.0, 0.0, 0.0, 10.0, 0.0, 0.0);
+        set.common.line_weight = LineWeight::Value(35);
+        let by_layer = acadrust::entities::Line::from_coords(0.0, 5.0, 0.0, 10.0, 5.0, 0.0);
+        doc.add_entity(EntityType::Line(set)).unwrap();
+        doc.add_entity(EntityType::Line(by_layer)).unwrap();
+        let hs: Vec<String> = doc.model_space_entities().map(|e| format!("{:X}", e.common().handle.value())).collect();
+        let (m, _) = explode(&doc, &hs);
+        let lw = |h: &String| match &m[h][0] { Piece::Line { s, .. } => s.lw, _ => panic!("a line") };
+        assert_eq!((lw(&hs[0]), lw(&hs[1])), (Some(35), None));
+        assert!(serde_json::to_string(&m[&hs[1]][0]).unwrap().find("\"lw\"").is_none(), "ByLayer: no lw in the JSON");
     }
 
     #[test]
@@ -455,7 +473,7 @@ mod tests {
         assert!(p.iter().any(|x| matches!(x, Piece::Arc { s, .. } if s.layer == "E-SYM" && s.color == Some(0xFF0000))));
         assert!(p.iter().any(|x| matches!(x, Piece::Line { s, .. } if s.layer == "E-SYM" && s.color.is_none())));
         // ByBlock on a ByLayer insert: the insert layer's colour (no colour of its own); on a green insert: green.
-        assert_eq!(circles(&p)[0].0, Style { layer: "E-LIGHT".into(), color: None, lt: None });
+        assert_eq!(circles(&p)[0].0, Style { layer: "E-LIGHT".into(), color: None, lt: None, lw: None });
         assert_eq!(circles(&pieces(&d, 8))[0].0.color, Some(0x00FF00));
     }
 

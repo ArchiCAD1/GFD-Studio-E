@@ -148,3 +148,17 @@ describe('right-click menu of drawn objects: one order', () => {
     }
   });
 });
+
+describe('right-click menu of the opened drawing\'s objects: the drawn-object menu on their stand-ins', () => {
+  it('a block of the drawing has its own Block tools (page actions), in the same one order; no Filter', () => {
+    const m = menu([sk({ id: 'dw:1A:0' }), sk({ id: 'dw:1A:1', kind: 'circle', pts: [[0, 0]], r: 1 })], { dwBlock: 'L1', lengthM: undefined });
+    expect(labels(m)).toContain('Block tools');
+    expect(labels(m)).not.toContain('Filter');
+    const tools = subs(m, 'Block tools');
+    expect(tools.map((x) => x.label)).toEqual(['Count instances', 'Explode into drawn objects', 'Copy as a block of this drawing', 'Crop…', 'Select all of this block']);
+    expect(tools.every((x) => x.act === 'dw')).toBe(true);
+    expect(tools.map((x) => x.arg)).toEqual(['count', 'explode', 'copyblock', 'crop', 'selblock']);
+    expect(labels(m).slice(-3)).toEqual(['-', 'Properties', 'Options…']);
+  });
+});
+

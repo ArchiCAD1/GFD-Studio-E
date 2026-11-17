@@ -30,6 +30,8 @@ export interface DrawnMenuState extends MenuCommon {
   withAtts?: (it: SketchItem) => boolean;
   /** One path picked: its length in metres. */
   lengthM?: number;
+  /** The one object picked is a block of the opened drawing (its name): `items` are the pieces it stands in as, and it has its own Block tools. */
+  dwBlock?: string;
 }
 
 /** One entry that edits the drawn objects picked (act 'sk'), with the edit's value in `arg` after a bar. */
@@ -58,6 +60,12 @@ const OPEN: Record<string, CtxItem> = {
   join: sk('Join…', 'jointool', undefined, 'J', { icon: 'join' }), reverse: sk('Reverse direction', 'reverse', undefined, undefined, { icon: 'reverse' })
 };
 const qm = (): CtxItem => sk('Quick measure', 'qmeasure', undefined, 'QM', { icon: 'qmeasure' });
+
+/** The tools of a block of the opened drawing picked: counted, taken apart, copied as a block of the app, cropped, or all of it selected (act 'dw'). */
+function dwBlockTools(): CtxEntry[] {
+  const dw = (label: string, action: string, key?: string, icon?: CtxIcon): CtxItem => ({ label, act: 'dw', arg: action, ...(key ? { key } : {}), ...(icon ? { icon } : {}) });
+  return [{ label: 'Block tools', icon: 'tools', sub: [dw('Count instances', 'count'), dw('Explode into drawn objects', 'explode', 'X', 'explode'), dw('Copy as a block of this drawing', 'copyblock', 'INSERT'), dw('Crop…', 'crop', 'CROP'), '-', dw('Select all of this block', 'selblock')] }];
+}
 
 /** The kind's own tools of one drawn object: one row with a list (a tray and a cable route are electrical: flat rows). */
 function kindTools(s: DrawnMenuState, it: SketchItem): CtxEntry[] {
@@ -116,13 +124,13 @@ function manyTools(items: readonly SketchItem[]): CtxEntry[] {
 /** The menu of the drawn objects picked (and devices with them). */
 export function drawnMenu(s: DrawnMenuState): CtxEntry[] {
   const { items, devices } = s, n = items.length + devices, one = n === 1 ? items[0] : undefined;
-  const own = one ? (one.hatch ? hatchTools(one) : kindTools(s, one)) : devices ? [] : manyTools(items);
+  const own = s.dwBlock !== undefined ? dwBlockTools() : one ? (one.hatch ? hatchTools(one) : kindTools(s, one)) : devices ? [] : manyTools(items);
   const edits = sketchEditsFor([...items], devices), has = (e: SketchEdit) => edits.includes(e);
   const kinds = new Set([...items.map(kindOf), ...(devices ? ['Devices'] : [])]);
   const modify: CtxEntry[] = [sk('Erase', 'erase', undefined, 'Del', { icon: 'erase', bad: true }), sk('Move', 'move', undefined, 'M', { icon: 'move' }), sk('Copy selection', 'copy', undefined, 'CO', { icon: 'copy' }),
     ...(has('scale') || (one && isPath(one) && !one.tray && !devices) ? [sk('Scale', 'scale', undefined, 'SC', { icon: 'scale' })] : []), ...(has('rotate') ? [sk('Rotate', 'rotate', undefined, 'RO', { icon: 'rotate' })] : []), ...(has('mirror') ? [sk('Mirror', 'mirror', undefined, 'MI', { icon: 'mirror' })] : []),
     ...(devices ? [] : [{ label: 'Draw order', icon: 'draworder', sub: DRAW_ORDER.map((x) => sk(x.label, 'draworder', x.id)) } as CtxItem])];
-  const filter: CtxEntry[] = kinds.size > 1 ? [{ label: 'Filter', icon: 'filter', sub: [
+  const filter: CtxEntry[] = kinds.size > 1 && s.dwBlock === undefined ? [{ label: 'Filter', icon: 'filter', sub: [
     ...(devices ? [sk('Devices only', 'filter', 'devices', String(devices)), sk('Drawn objects only', 'filter', 'drawn', String(items.length)), '-' as const] : []),
     ...[...new Set(items.map(kindOf))].map((k) => sk(`${k} only`, 'filter', k, String(items.filter((it) => kindOf(it) === k).length)))] }] : [];
   return groups(

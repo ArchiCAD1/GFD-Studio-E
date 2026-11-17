@@ -19,6 +19,8 @@ export function engineOps() {
     },
     snap: (x: number, y: number, r: number, mask: number, layersOn: Uint8Array, fx = NaN, fy = NaN) => (doc ? doc.snap(x, y, r, mask, layersOn, fx, fy) : new Float64Array()),
     pick: (x: number, y: number, tol: number, layersOn: Uint8Array, closedOnly: boolean) => (doc ? doc.pick(x, y, tol, layersOn, closedOnly) : ''),
+    pickWindow: (x0: number, y0: number, x1: number, y1: number, crossing: boolean, layersOn: Uint8Array) => (doc ? doc.pick_window(x0, y0, x1, y1, crossing, layersOn) : ''),
+    pickLike: (kind: string, layer: number, block: string, layersOn: Uint8Array) => (doc ? doc.pick_like(kind, layer, block, layersOn) : ''),
     save: (as: 'dxf' | 'dwg', bytes: Uint8Array, devices: string, shapes: string, erased = '[]', version = '') => (as === 'dwg' ? exportDwg : exportDxf)(bytes, devices, shapes, erased, version),
     /** Objects of the open drawing erased in the app (CROP): no longer picked or snapped to. */
     erase: (handles: string) => (doc ? doc.set_erased(handles) : '{"objects":[],"ranges":[]}'),

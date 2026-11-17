@@ -6,6 +6,7 @@ import type { LinetypeId } from './cadLayerStyle';
 import type { Edit } from './cadEdit';
 import { ellipsePoints } from './cadSketch';
 import { noteCorners } from './cadMtext';
+import { outlineArea } from './cadRooms';
 
 /** Design CAD → CROP: a true crop of a block (or of drawn items), not a clip. The block's geometry is cut along a closed
  * boundary (rectangle, polygon, circle, or a closed polyline with arcs); what is inside stays as real geometry (sketch
@@ -23,7 +24,7 @@ type V3 = [number, number, number];
 
 /** The style of an exploded piece: its layer, and its colour (0xRRGGBB, or 0xFF000007 for the foreground) and linetype
  * where they differ from its layer's. */
-export interface PieceStyle { layer: string; color?: number; lt?: string }
+export interface PieceStyle { layer: string; color?: number; lt?: string; /** Lineweight in hundredths of a mm, when set on the entity itself. */ lw?: number }
 /** One piece of an exploded drawing object, in world coordinates (engines/cad-reader/src/doc/explode.rs). Arcs run
  * anticlockwise a0 → a1 (radians); polyline vertices are [x, y, bulge]. */
 export type CadPiece = PieceStyle & (
@@ -399,13 +400,20 @@ export function pieceLength(p: CadPiece): number {
     default: return 0;
   }
 }
-export function itemLength(it: Pick<SketchItem, 'kind' | 'pts' | 'closed' | 'r' | 'a0' | 'a1' | 'infinite'>): number {
+export function itemLength(it: Pick<SketchItem, 'kind' | 'pts' | 'closed' | 'r' | 'a0' | 'a1' | 'infinite' | 'bulges'>): number {
   if (it.infinite) return 0;
   if (it.kind === 'circle') return TAU * (it.r ?? 0);
   if (it.kind === 'arc') { let w = (it.a1 ?? 0) - (it.a0 ?? 0); while (w <= 0) w += TAU; return (it.r ?? 0) * w; }
   if (it.kind !== 'line' && it.kind !== 'pline') return 0;
   const pts = it.closed && it.pts.length > 2 ? [...it.pts, it.pts[0]] : it.pts;
-  return pts.reduce((s, q, i) => (i ? s + dist(q, pts[i - 1]) : 0), 0);
+  // A polyline's arc segments by their arc length: chord × θ / (2 sin(θ/2)), θ = 4 atan|bulge|.
+  const side = (a: P2, b: P2, k: number) => { const th = 4 * Math.atan(Math.abs(k)), c = dist(a, b); return k && th > 1e-12 ? (c * th) / (2 * Math.sin(th / 2)) : c; };
+  return pts.reduce((s, q, i) => (i ? s + side(pts[i - 1], q, it.bulges?.[i - 1] ?? 0) : 0), 0);
+}
+/** The area of a closed drawn object (drawing units²): a circle, or a closed polyline with its arc segments; 0 otherwise. */
+export function closedArea(it: Pick<SketchItem, 'kind' | 'pts' | 'closed' | 'r' | 'bulges'>): number {
+  if (it.kind === 'circle') return Math.PI * (it.r ?? 0) ** 2;
+  return (it.kind === 'pline' || it.kind === 'line') && it.closed && it.pts.length > 2 ? Math.abs(outlineArea(it.pts, it.bulges)) : 0;
 }
 
 /** A cropped hatch's own pattern, found by its layer and outline (drawing units), with its pattern name. */
