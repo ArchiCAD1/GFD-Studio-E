@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { cellAt, cellName, colName, formulaFunctions, SHEET_FUNCTIONS, type CellValue } from '../calc/sheetFormula';
+import { headingRows } from './sheetPrint';
 import { areaCells, DEFAULT_COLS, DEFAULT_ROWS, DEFAULT_WIDTH, MAX_COLS, MAX_ROWS, newSheet, sheetNameError, sheetValues, type Area, type Sheet, type SheetStyle } from '../model/sheets';
 
 // ExcelJS loads only when a file is opened or saved (the page imports this file on demand).
@@ -161,12 +162,22 @@ export function reportText(fileName: string, r: XlsxReport): string {
   return `${parts.join(' · ')}.`;
 }
 
-/** The book as an Excel workbook: formulas as formulas, with the app's values as their saved results. */
+/** The book as an Excel workbook: formulas as formulas, with the app's values as their saved results. Worksheet names are made unique;
+ * a linked sheet (a schedule) gets the paper of its format, fitted to the page width, with its heading rows repeated on every printed page. */
 export function buildXlsx(sheets: Sheet[]): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'LV Design Studio';
+  const used = new Set<string>();
   for (const s of sheets) {
-    const ws = wb.addWorksheet(s.name.replace(/[\\/?*[\]:]/g, ' ').slice(0, 31));
+    const base = s.name.replace(/[\\/?*[\]:]/g, ' ').slice(0, 31);
+    let name = base;
+    for (let n = 2; used.has(name.toLowerCase()); n++) name = `${base.slice(0, 31 - ` ${n}`.length)} ${n}`;
+    used.add(name.toLowerCase());
+    const ws = wb.addWorksheet(name);
+    if (s.link) {
+      const paper = s.paper ?? 'A4', h = headingRows(s);
+      ws.pageSetup = { ...ws.pageSetup, paperSize: (paper.startsWith('A3') ? 8 : 9) as ExcelJS.PaperSize, orientation: paper.includes('portrait') ? 'portrait' : 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, ...(h ? { printTitlesRow: `${h.top}:${h.bottom}` } : {}) };
+    }
     const values = sheetValues(s);
     for (const [k, typed] of Object.entries(s.cells)) {
       const c = ws.getCell(k), r = values[k];

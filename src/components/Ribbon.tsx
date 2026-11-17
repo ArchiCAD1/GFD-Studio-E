@@ -148,7 +148,7 @@ export interface RibbonActions {
     canBalance: boolean; imbalancePct?: number; onBalance: () => void;
     onCopy: () => void; onPaste: () => void;
     exporting: boolean;
-    onExport: (kind: 'excel' | 'pdf' | 'csv' | 'pack' | 'template' | 'myPdf' | 'myPdfAll') => void;
+    onExport: (kind: 'excel' | 'pdf' | 'csv' | 'pack' | 'template' | 'myPdf' | 'myPdfAll' | 'myXlsx' | 'myXlsxAll') => void;
     /** The board on screen has a sheet linked to it, or the project has a format for its panel category: Export → Open in my format works. */
     sheetFormat: boolean; onOpenSheet: () => void;
     /** The project has a panel with a format of the user's (a sheet linked to a board, or a format for a category): Export → PDF: my format, all panels works. */
@@ -782,6 +782,8 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
           { label: 'Open in my format', title: !ls || !(ls.grid || lsMd) ? 'On a board\'s form' : ls.sheetFormat ? 'This panel as a sheet in your own format, in Sheets' : 'Choose a format for this panel in Sheets → My formats first', onClick: () => ls?.onOpenSheet(), disabled: !ls || !(ls.grid || lsMd) || !ls.sheetFormat },
           { label: 'PDF: my format', title: !ls || !(ls.grid || lsMd) ? 'On a board\'s form' : ls.sheetFormat ? 'This panel as a PDF in your own format' : 'Choose a format for this panel in Sheets → My formats first', onClick: () => ls?.onExport('myPdf'), disabled: !ls || !(ls.grid || lsMd) || !ls.sheetFormat },
           { label: 'PDF: my format, all panels', title: 'Every panel that has a format of yours, one page each, in one PDF', onClick: () => ls?.onExport('myPdfAll'), disabled: !ls || !ls.sheetFormats },
+          { label: 'Excel: my format', title: !ls || !(ls.grid || lsMd) ? 'On a board\'s form' : ls.sheetFormat ? 'This panel as an Excel file in your own format' : 'Choose a format for this panel in Sheets → My formats first', onClick: () => ls?.onExport('myXlsx'), disabled: !ls || !(ls.grid || lsMd) || !ls.sheetFormat },
+          { label: 'Excel: my format, all panels', title: 'Every panel that has a format of yours, one sheet each, in one Excel file', onClick: () => ls?.onExport('myXlsxAll'), disabled: !ls || !ls.sheetFormats },
           { label: 'Form details…', title: lsMd || lsTx ? 'Project, area, owner, plot, consultant and contractor on the authority forms' : 'On a panel\'s form or the TCL summary', onClick: () => ls?.onFormDetails(), disabled: !lsMd && !lsTx, sep: true }
         ] }
     ]

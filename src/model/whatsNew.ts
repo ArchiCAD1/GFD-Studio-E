@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.187', date: '2026-11-17',
+    items: [
+      { title: 'Excel in my format', text: 'Load schedule → Export has Excel: my format and Excel: my format, all panels: the schedule as an Excel file in your own format, filled from the project, one sheet per panel. The file opens with the paper of the format, fitted to the page width, and its heading rows repeat on every printed page.' }
+    ]
+  },
+  {
     version: '2.185', date: '2026-11-17',
     items: [
       { title: 'PDF in my format: choose the paper', text: 'A schedule in your own format can print on A4 or A3, landscape or portrait. Choose it under PDF paper in Sheets → Link columns; it is saved with the format. A PDF of all panels gives each panel the paper of its format.', action: 'sheets', actionLabel: 'Open Sheets' }
