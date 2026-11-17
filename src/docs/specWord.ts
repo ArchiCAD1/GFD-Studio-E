@@ -13,7 +13,7 @@ import { fmtDate } from '../util/format';
 
 const INDENT = 850; // twips: where clause text starts, the number hanging before it
 const STEP = 480; // twips: one level of indent (items a), b) … and i), ii) …)
-const runs = (l: SpecLine, more: { bold?: boolean; italics?: boolean } = {}) =>
+const runs = (l: SpecLine, more: { bold?: boolean; italics?: boolean; size?: number } = {}) =>
   l.runs.map((r) => ('text' in r ? new TextRun({ text: r.text, ...more }) : r.value !== undefined ? new TextRun({ text: r.value, ...more }) : new TextRun({ text: `DATA REQUIRED: ${r.label}`, bold: true, underline: {} })));
 
 const TWIP = 1440 / 25.4; // twips per mm
@@ -24,6 +24,15 @@ function logoRun(logo: string | undefined, width = 108, height = 36): ImageRun |
   const bin = atob(m[2]), bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new ImageRun({ type: m[1] === 'png' ? 'png' : 'jpg', data: bytes, transformation: { width, height } });
+}
+/** A picture of the text at its share of the text width (`wide`, in pixels), its own proportions kept. */
+function pictureRun(image: NonNullable<SpecLine['image']>, wide: number): ImageRun | undefined {
+  const m = image.src.match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
+  if (!m) return undefined;
+  const bin = atob(m[2]), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const width = Math.round((wide * image.widthPct) / 100);
+  return new ImageRun({ type: m[1] === 'png' ? 'png' : 'jpg', data: bytes, transformation: { width, height: Math.max(1, Math.round((width * image.h) / image.w)) } });
 }
 /** A header or footer: its three slots as one row of a borderless table (left, centre, right). */
 function slotRow(edge: 'header' | 'footer', slots: readonly string[], doc: SpecDoc, project: Project, s: SpecPage): Table {
@@ -97,6 +106,21 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
     body.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new Bookmark({ id: specAnchor(b.id), children: [new TextRun(b.heading)] })] }));
     for (const l of b.lines) {
       const brk = l.breakBefore ? { pageBreakBefore: true } : {};
+      if (l.table || l.image) {
+        const caption = (before: number, after: number) => new Paragraph({ ...(l.table ? brk : {}), keepNext: !!l.table, indent: { left: INDENT }, spacing: { before, after }, children: [new TextRun({ text: l.label ?? '', bold: true, size: 18 }), ...(l.runs.some((r) => !('text' in r) || r.text.trim()) ? [new TextRun({ text: ' — ', bold: true, size: 18 }), ...runs(l, { bold: true, size: 18 })] : [])] });
+        if (l.table) {
+          const t = l.table, line = { style: BorderStyle.SINGLE, size: 4, color: '000000' }, box = { top: line, bottom: line, left: line, right: line };
+          body.push(caption(120, 60), new Table({
+            width: { size: textWide - INDENT, type: WidthType.DXA }, indent: { size: INDENT, type: WidthType.DXA },
+            rows: t.rows.map((cells, i) => new TableRow({ tableHeader: t.header && i === 0, cantSplit: true, children: cells.map((c) => new TableCell({ borders: box, margins: { top: 40, bottom: 40, left: 90, right: 90 }, children: [new Paragraph({ children: [new TextRun({ text: c, size: 18, bold: t.header && i === 0 })] })] })) }))
+          }), new Paragraph({ spacing: { after: 60 }, children: [] }));
+        } else {
+          const pic = pictureRun(l.image!, (textWide - INDENT) / 15); // 15 twips to a pixel
+          if (pic) body.push(new Paragraph({ ...brk, keepNext: true, indent: { left: INDENT }, spacing: { before: 120 }, children: [pic] }));
+          body.push(caption(40, 160));
+        }
+        continue;
+      }
       const left = INDENT + (l.kind === 'heading' ? 0 : l.level * STEP), hang = l.level ? STEP : INDENT; // an item's letter hangs in a narrower column
       if (l.kind === 'heading') body.push(new Paragraph({ ...brk, heading: l.level ? HeadingLevel.HEADING_3 : HeadingLevel.HEADING_2, tabStops: [{ type: TabStopType.LEFT, position: INDENT }], children: marked ? [new Bookmark({ id: specAnchor(b.id, l.id), children: [new TextRun(`${l.no}\t`), ...runs(l)] })] : [new TextRun(`${l.no}\t`), ...runs(l)] }));
       else if (l.kind === 'note') body.push(new Paragraph({ ...brk, indent: { left }, spacing: { after: 100 }, children: runs(l, { italics: true }) }));

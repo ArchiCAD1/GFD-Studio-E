@@ -76,7 +76,8 @@ export function EquipmentScheduleView({ project, onStatus }: { project: Project;
 
 export function ReportView({ project, onStatus, stale = false, docNo, onDocNo }: { project: Project; onStatus: Status; stale?: boolean; onRun?: () => void;
   /** The live document number (the report itself may show the last calculated project). */ docNo?: string; onDocNo?: (v: string) => void }) {
-  const html = useMemo(() => buildReportHtml({ ...project, calcReportDocNo: docNo }), [project, docNo]);
+  // The calculation and its sections come from `project` itself: typing the document number rewrites only page 1.
+  const html = useMemo(() => buildReportHtml({ ...project, calcReportDocNo: docNo }, project), [project, docNo]);
   const [busy, setBusy] = useState(false);
   // The same pre-export check as the study reports. Its document-data warnings are left out:
   // this report has no cover, and blank prepared / checked / approved are left for signing.

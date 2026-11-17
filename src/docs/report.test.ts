@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
-import { buildReportHtml, calcReportSections, CALC_REPORT_STUDIES } from './calcReport';
+import { forgetNetworks } from '../calc/network/index';
+import { buildReportHtml, calcReportData, calcReportSections, CALC_REPORT_STUDIES } from './calcReport';
+import { esc } from './report';
 import { runCalculations } from '../calc/runs';
 import { buildSection, scopeOf, tableHtml } from './studyReport';
 
@@ -53,5 +55,31 @@ describe('calculation report and study report: one source', () => {
   it('prints every study-report table unchanged', () => {
     const html = buildReportHtml(p);
     for (const k of CALC_REPORT_STUDIES) for (const t of buildSection(k, data, scope).tables) expect(html).toContain(tableHtml(t));
+  });
+
+  it('a report for the same calculation with another document number is the same as one built whole', () => {
+    const typed = buildReportHtml({ ...sampleProject, calcReportDocNo: 'CR-00' }, sampleProject);
+    const next = buildReportHtml({ ...sampleProject, calcReportDocNo: 'CR-001' }, sampleProject);
+    expect(next).toBe(buildReportHtml({ ...sampleProject, calcReportDocNo: 'CR-001' }));
+    expect(typed).toBe(buildReportHtml({ ...sampleProject, calcReportDocNo: 'CR-00' }));
+    expect(next).not.toBe(typed);
+    // The calculation is worked out once for a project object…
+    expect(calcReportData(sampleProject)).toBe(calcReportData(sampleProject));
+    // …and again for an edited project, and when the data behind the results changes.
+    const edited = { ...sampleProject, feeders: sampleProject.feeders.map((f) => (f.id === 'GF-SKT' ? { ...f, loadKw: f.loadKw + 5 } : f)) };
+    expect(buildReportHtml(edited)).not.toBe(buildReportHtml(sampleProject));
+    const before = calcReportData(sampleProject);
+    forgetNetworks();
+    expect(calcReportData(sampleProject)).not.toBe(before);
+    expect(calcReportData(sampleProject)).toEqual(before);
+  });
+
+  it('text is escaped, plain values are left as they are', () => {
+    expect(esc('MDB-1 <A&B> "x" \'y\'')).toBe('MDB-1 &lt;A&amp;B&gt; &quot;x&quot; &#39;y&#39;');
+    expect(esc('Ground floor DB')).toBe('Ground floor DB');
+    expect(esc(12.5)).toBe('12.5');
+    expect(esc(undefined)).toBe('');
+    expect(esc(null)).toBe('');
+    expect(esc(0)).toBe('0');
   });
 });

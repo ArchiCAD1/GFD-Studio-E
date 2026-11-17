@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import type { Project } from '../types';
-import { addClause, addDetail, indentClause, specContents, withAppendix, withContents, withCover, addSection, fieldKeys, fieldUses, removeDetail, slotRuns, slotText, specSetup, withDetail, withInfo, withSetup, withTitle, SPEC_SETUP, lineText, moveClause, moveSection, removeClause, removeSection, specFields, specView, starterSpec, withClause, withSectionIncluded, withSectionTitle, type SpecDoc } from './specDoc';
+import { addClause, addDetail, captionText, indentClause, specContents, withAppendix, withContents, withCover, addSection, fieldKeys, fieldUses, removeDetail, slotRuns, slotText, specSetup, withDetail, withInfo, withSetup, withTitle, SPEC_SETUP, lineText, moveClause, moveSection, removeClause, removeSection, specFields, specView, starterSpec, withClause, withSectionIncluded, withSectionTitle, type SpecDoc } from './specDoc';
 import { mainBoards } from './transformers';
 
 const field = (p: Project, key: string) => specFields(p).find((f) => f.key === key)!;
@@ -250,5 +250,35 @@ describe('specification — indent levels, page breaks and appendices', () => {
     const x = withClause(d, 'S2', 'C9', { breakBefore: true });
     expect(specView(x, sampleProject).blocks[0].lines.map((l) => l.breakBefore).filter(Boolean).length).toBe(1);
     expect(specView(withClause(x, 'S2', 'C9', { breakBefore: false }), sampleProject).blocks[0].lines.some((l) => l.breakBefore)).toBe(false);
+  });
+});
+
+describe('specification — tables and pictures in the text', () => {
+  const pic = { src: 'data:image/png;base64,AAAA', w: 200, h: 100 };
+  let d: SpecDoc = { title: 'Spec', sections: [{ id: 'S1', title: 'General', included: true, clauses: [{ id: 'C1', kind: 'heading', text: 'Scope' }, { id: 'C2', kind: 'clause', text: 'See the table.' }] }, { id: 'S2', title: 'Boards', included: true, clauses: [] }] };
+  d = addClause(d, 'S1', 'table', 'Boards of {{project.name}}', 'C2', { table: { rows: [['Board', 'A'], ['MDB', '1600']] } });
+  d = addClause(d, 'S1', 'clause', 'After the table.');
+  d = addClause(d, 'S2', 'image', '', undefined, { image: pic });
+  d = addClause(d, 'S2', 'table', '', undefined, { table: { rows: [['x']], header: false } });
+  const v = specView(d, sampleProject);
+
+  it('a table or picture takes no clause number; tables and figures are numbered through the document', () => {
+    expect(v.blocks[0].lines.map((l) => l.no)).toEqual(['1.1', '1.1.1', '', '1.1.2']);
+    expect(v.blocks.flatMap((b) => b.lines).filter((l) => l.label).map((l) => captionText(l))).toEqual([`Table 1 — Boards of ${sampleProject.name}`, 'Figure 1', 'Table 2']);
+    expect(v.blocks[0].lines[2].table).toEqual({ rows: [['Board', 'A'], ['MDB', '1600']], header: true });
+    expect(v.blocks[1].lines[1].table!.header).toBe(false);
+    expect(v.blocks[1].lines[0].image).toEqual({ ...pic, widthPct: 60 });
+  });
+
+  it('a caption with a field that has no value is listed against its table', () => {
+    const x = withClause(d, 'S1', d.sections[0].clauses[2].id, { text: 'For {{doc.number}}' });
+    expect(specView(x, sampleProject).missing).toEqual([{ sectionNo: '1', clauseNo: 'Table 1', key: 'doc.number', label: 'Document number' }]);
+  });
+
+  it('a table or picture is not indented, and its width stays between 10 and 100 %', () => {
+    const id = d.sections[0].clauses[2].id;
+    expect(indentClause(d, 'S1', id, 1).sections[0].clauses[2].level).toBe(0);
+    const wide = withClause(d, 'S2', d.sections[1].clauses[0].id, { image: { ...pic, widthPct: 400 } });
+    expect(specView(wide, sampleProject).blocks[1].lines[0].image!.widthPct).toBe(100);
   });
 });
