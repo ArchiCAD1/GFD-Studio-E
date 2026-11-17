@@ -7,10 +7,10 @@ Anything not written here stays as it is today. **Built:** S1 (v2.068, `feat/cad
 "Yes, Step 5" on 2026-11-10); S6 (v2.078, `feat/cad-mtext`, "Yes, Step 6" on 2026-11-10); S7 (v2.079,
 `feat/cad-draworder`, "Yes, Step 7" on 2026-11-10); S8 (v2.080, `feat/cad-point-divide-measure`, "Yes, Step 8" on 2026-11-10); S9 (v2.081,
 `feat/cad-block-define`, "Yes, Step 9" on 2026-11-10); S10 (v2.082, `feat/cad-block-insert`, "Yes, Step 10" on 2026-11-10); S11 (v2.083,
-`feat/cad-block-attributes`, "Yes, Step 11" on 2026-11-10); S12 (v2.186, `feat/cad-multileader`, "Go ahead" on
+`feat/cad-block-attributes`, "Yes, Step 11" on 2026-11-10); S12 (v2.189, `feat/cad-multileader`, "Go ahead" on
 2026-11-17) — see the end of this note.
 
-## Built in v2.186 (S12)
+## Built in v2.189 (S12)
 
 - **S12** A multileader is a drawn object of `kind: 'mleader'`: pts[0] is the start of its landing, pts[1..] its
   arrowheads (straight leaders), its words a note (`note`, `h`, `w`) placed middle left beyond the landing, or middle
