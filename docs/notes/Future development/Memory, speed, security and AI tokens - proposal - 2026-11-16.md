@@ -24,7 +24,7 @@ Leave alone: calculations, undo history, zoom, lazy loading of screens and expor
 | # | Proposal | Expected | Status |
 |---|---|---|---|
 | M1 | Revisions in the file keep each distinct panel, circuit and section once, file format 3 → 4 | Ten revisions: 5.13 MB → 0.59 MB (200 panels), 25.78 MB → 3.02 MB (1,000 panels); recovery copy shrinks with it | **Approved 2026-11-16.** PR #625 |
-| M2 | Build the calculation report in a Web Worker, then cache the HTML per panel | No window freeze (today up to 10.8 s); rebuild after one edit 80–90 % faster (estimate) | Not started |
+| M2 | Calculation report: reuse the calculation and the written sections for a project object (`perProject`), so typing the document number rewrites only page 1 and the pre-export check does not calculate again | 300 panels: one letter typed 3.0 s → 5 ms; the first build after a run is still 1–3 s | Done for typing. **A Web Worker is not safe yet**: the calculations read data that is loaded in the window (cable tables, breaker database, catalogue, sizing settings), so a worker would print results from the built-in data. It needs that data passed to the worker first; decide later |
 | M3 | Memoise SLD panels so one edit redraws one panel | To be measured first: the SLD already draws only what is in view, so the gain is on what is on screen | Measure before starting |
 | M4 | Web version: projects in IndexedDB, not `localStorage` (about 5 MB per site) | No practical size cap | Not started |
 | M5 | Load revision content and old release notes only when their screen opens | Smaller start-up memory | Not started |
