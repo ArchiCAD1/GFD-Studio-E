@@ -38,6 +38,8 @@ const ADDED: Record<string, string> = { ST: '!textStyle', STYLE: '!textStyle', D
   // Right-click menus, phase 1: the tools behind the blank-canvas, command and selection menus.
   P: 'pan', PAN: 'pan', UNDO: '!undo', REDO: '!redo', SELECTALL: '!selectAll', FIND: '!find', FINDREPLACE: '!find', CUTCLIP: '!cutClip', BE: '!bedit', BEDIT: '!bedit', BSAVE: '!bsave', BCLOSE: '!bclose', REFEDIT: '!refedit', REFCLOSE: '!refclose', COUNT: '!count', ADDSELECTED: '!addSelected', QM: '!quickMeasure', QUICKMEASURE: '!quickMeasure',
   ISOLATEOBJECTS: '!isolateObjects', ISO: '!isolateObjects', HIDEOBJECTS: '!hideObjects', UNISOLATEOBJECTS: '!unisolateObjects', UNHIDE: '!unisolateObjects',
+  // Right-click menus, stage 2: Invert selection and Zoom to selection.
+  SELECTINVERT: '!selectInvert', INVERTSELECTION: '!selectInvert', 'Z O': '!zoomSel', 'ZOOM O': '!zoomSel', 'ZOOM OBJECT': '!zoomSel',
   // The File menu and Drafting settings: SAVEAS / DXFOUT open Save As (they were Save DXF), OS opens the Object snap tab
   // (it toggled object snap, as OSNAP and F3 still do).
   SAVEAS: '!saveAs', DXFOUT: '!saveAs', QSAVE: '!save', CLOSEOTHERS: '!closeOthers', EXPORT: '!export', EXPORTPDF: '!exportPdf', PNGOUT: '!pngOut',
@@ -56,6 +58,8 @@ const ADDED: Record<string, string> = { ST: '!textStyle', STYLE: '!textStyle', D
   // Command aliases (2026-11-14): A and B of the proposal.
   N: '!new', AT: '!attDef', AE: 'attedit', '-I': 'insert', ISOLATE: '!isolateObjects', UNISOLATE: '!unisolateObjects', PT: 'point', RC: 'revcloud',
   BS: '!bsave', BC: '!bclose', '-B': 'block', SA: '!save', EXP: '!export', OR: '!ortho', SN: '!snap', AL: 'align', ALIGNH: '!alignDevices',
+  // Infinite construction geometry (2026-11-16): the conventional AutoCAD-compatible names and shortcut.
+  XL: 'xline', XLINE: 'xline', RAY: 'ray',
   PLOT: '!plot', PP: '!plot', PRINT: '!plot', OP: '!options', OPTIONS: '!options', UN: '!unitsTab', UNITS: '!unitsTab',
   PR: '!properties', PROPS: '!properties', PROPERTIES: '!properties', CH: '!properties', RE: '!regen', REGEN: '!regen', REA: '!regen', REGENALL: '!regen' };
 const outcome = (c: string) => { const x = cadCommand(c); return x && ('tool' in x ? x.tool : `!${x.action}`); };

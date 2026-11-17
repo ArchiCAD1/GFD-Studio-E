@@ -1,11 +1,10 @@
 # Working rules (for AI sessions)
 
-- Mac arm64 only; no paid services, CI or installers.
+The rules for AI sessions are in `AGENTS.md` at the top of the repository: that file is the only one to read at
+the start of a session. This note keeps the working habits that are not there.
+
 - Show results rounded to **1–2 decimals** (Ω and PF may keep 3).
 - **Tab pages, not pop-up dialogs.**
-- Do not change UI colours, icon or control sizes without asking first.
-- Work on a branch → PR → "merge all PRs" → `npm run update-app`.
-- ChatGPT also edits this folder – only commit your own files.
+- No paid services.
+- Other AI programs also edit this folder – only commit your own files.
 - Keep tested issues, proposed solutions and dated retest evidence in `docs/notes/Issues and solutions/` for Obsidian. Do not mark a proposed solution as fixed until its correction has been verified.
-
-Start a new AI session with: _"read docs/notes/Status.md and Working rules.md"_

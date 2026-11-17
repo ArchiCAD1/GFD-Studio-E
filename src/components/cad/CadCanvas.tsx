@@ -3,7 +3,7 @@ import { INK, SNAP, SNAP_NAMES, type CadView } from '../../engines/cad/cadEngine
 import type { ErasedParts } from '../../model/cadErased';
 import { ortho as orthoFrom } from '../../model/cadMeasure';
 import { DRAFT_DEFAULTS, otrack, pickRadiusPx, polarAngles, polarTrack, snapToSpacing, type CursorMode, type DraftSettings } from '../../model/cadDraft';
-import { dimOf, segmentsOf, trayLabel, trayLine, TRAY_TEXT_MM } from '../../model/cadSketch';
+import { constructionSegment, dimOf, segmentsOf, trayLabel, trayLine, TRAY_TEXT_MM } from '../../model/cadSketch';
 import { textBaseAt, textCorners } from '../../model/cadText';
 import { SYMBOL_R_MM } from '../../model/cadAnnotate';
 import { symbolBox, symbolGeom } from '../../model/planSymbols';
@@ -644,6 +644,10 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       }
       ctx.beginPath();
       if (it.tray) for (const q of trayText ? trayLine(it, trayH).pieces : [it.pts]) q.forEach((p, i) => (i ? ctx.lineTo(p[0] - o0, p[1] - o1) : ctx.moveTo(p[0] - o0, p[1] - o1)));
+      else if (it.infinite) {
+        const s = constructionSegment(it, [vx0 + o0, vy0 + o1, vx1 + o0, vy1 + o1]);
+        if (s) { ctx.moveTo(s[0][0] - o0, s[0][1] - o1); ctx.lineTo(s[1][0] - o0, s[1][1] - o1); }
+      }
       else for (const [a, b] of segmentsOf(it, 0.001 / unitsPerMm)) { ctx.moveTo(a[0] - o0, a[1] - o1); ctx.lineTo(b[0] - o0, b[1] - o1); }
       // A cable route is dashed; so is a linetype that shows at this zoom.
       const dash = it.cable ? [10 / scale, 5 / scale] : ef.dash.length && ef.dash.reduce((t, v) => t + v, 0) * ltScale * scale >= 4 ? ef.dash.map((v) => v * ltScale) : [];
@@ -870,7 +874,11 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
         const a = scr([view.segs[i * 4], view.segs[i * 4 + 1]]), b = scr([view.segs[i * 4 + 2], view.segs[i * 4 + 3]]);
         ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]);
       }
-      if (hv.sketch) for (const [a0, b0] of segmentsOf(hv.sketch)) { const a = scr(a0), b = scr(b0); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+      if (hv.sketch) {
+        const box: [number, number, number, number] = [o0 + ox, o1 + oy, o0 + ox + size.w / scale, o1 + oy + size.h / scale];
+        const infinite = constructionSegment(hv.sketch, box);
+        for (const [a0, b0] of hv.sketch.infinite ? (infinite ? [infinite] : []) : segmentsOf(hv.sketch)) { const a = scr(a0), b = scr(b0); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+      }
       const d = hv.device ? devicesRef.current.find((x) => x.key === hv.device) : undefined;
       if (d) { const [dx, dy] = scr([d.x, d.y]), r = Math.max(d.r * scale, 6) + 3; ctx.moveTo(dx + r, dy); ctx.arc(dx, dy, r, 0, 2 * Math.PI); }
       ctx.stroke();
@@ -882,9 +890,13 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       ctx.lineWidth = 1.5;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
-      for (const it of pv) for (const [a, b] of segmentsOf(it)) {
-        ctx.moveTo((a[0] - o0 - ox) * scale, size.h - (a[1] - o1 - oy) * scale);
-        ctx.lineTo((b[0] - o0 - ox) * scale, size.h - (b[1] - o1 - oy) * scale);
+      const box: [number, number, number, number] = [o0 + ox, o1 + oy, o0 + ox + size.w / scale, o1 + oy + size.h / scale];
+      for (const it of pv) {
+        const infinite = constructionSegment(it, box);
+        for (const [a, b] of it.infinite ? (infinite ? [infinite] : []) : segmentsOf(it)) {
+          ctx.moveTo((a[0] - o0 - ox) * scale, size.h - (a[1] - o1 - oy) * scale);
+          ctx.lineTo((b[0] - o0 - ox) * scale, size.h - (b[1] - o1 - oy) * scale);
+        }
       }
       ctx.stroke();
       ctx.setLineDash([]);

@@ -46,6 +46,15 @@ const instrument = (letter: string, sub?: string): SymPrim[] => sub
   ? [c(30, 40, 14), t(30, 36, letter, true), t(30, 48, sub)]
   : [c(30, 40, 14), t(30, 40, letter, true)];
 const rcdLink = [toroid(62), p('M36 62H44V40H24', 'dash', true), { k: 't', x: 48, y: 66, s: 'IΔn', side: true, acc: true } as SymPrim];
+/** Ring main unit: two ring switch-disconnectors and a T-off fuse switch-disconnector on one busbar, each the
+ * library's own device at half size, blades toward the middle. The ring cables enter at the top on x 18.5 and
+ * 41.5; the T-off leaves at the bottom on the line axis. */
+const RMU: SymPrim[] = [
+  p('M18.5 24V26M16 26H21M18.5 37L24 27M41.5 24V26M39 26H44M41.5 37L36 27'), c(18.5, 27.5, 1, 'open'), c(41.5, 27.5, 1, 'open'),
+  p('M18.5 37H41.5', 'thick'),
+  p('M30 37V42M27.5 42H32.5M30 56L24.5 43'), p('M24.05 45.9L27.3 44.6L29.95 51.1L26.7 52.4Z', 'open'),
+  side('RMU')
+];
 
 export const SYMBOLS = {
   // Switching & protective devices
@@ -82,6 +91,7 @@ export const SYMBOLS = {
   tx: { label: 'Transformer, two-winding', iec: '06-09-01', prims: [c(30, 33, 9, 'open'), c(30, 47, 9, 'open')] },
   gen: { label: 'Generator, three-phase', iec: '06-04-01', prims: instrument('G', '3~') },
   incomer: { label: 'Authority supply', iec: '—', prims: [p('M16 40H44M30 40V56'), p('M18 36L30 24L42 36Z', 'open')] },
+  rmu: { label: 'Ring main unit (RMU): 2 × ring switch + T-off fuse switch', iec: '07-13-08 + 07-21-07', prims: RMU },
   pv: { label: 'Solar PV with inverter', iec: '04-26 + 06-14', prims: [r(16, 24, 28, 32), p('M16 56L44 24'), t(23, 33, '='), t(37, 49, '~'), p('M6 12L13 19M10 19H13V16M12 6L19 13M16 13H19V10', 'ln', true)] },
   // Metering, monitoring & interfaces
   ct: { label: 'Current transformer', iec: '06-09-11', prims: [p('M30 24V56M36 40H44'), c(30, 40, 6, 'open'), side('CT')] },

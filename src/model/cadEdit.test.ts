@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  aligned, alignOf, arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, join, mirrored, offset, pathLength,
+  aligned, alignOf, arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, isPath, join, mirrored, offset, pathLength,
   scaled, sketchInWindow, stretched, trim, type Seg
 } from './cadEdit';
 import type { SketchItem } from '../types';
@@ -44,6 +44,13 @@ describe('Trim and Extend — at drawn lines and the architect\'s walls', () => 
     const t = extend(tray, [6.9, 4], walls);
     expect(t.items![0]).toMatchObject({ kind: 'pline', tray: { widthMm: 300, route: 'TR-1' }, pts: [[3, 4], [9, 4]] });
     expect(extend(line('S2', [2, 7], [6, 7]), [5, 7], [])).toEqual({ error: 'No line ahead of that end to reach.' });
+  });
+
+  it('uses an infinite construction line as a trim edge, beyond its two defining points', () => {
+    const target = line('S1', [0, 0], [10, 0]);
+    const xline = line('XL', [5, 10], [5, 11], { infinite: 'xline' });
+    expect(pts(trim(target, [8, 0], edgesFor([target, xline], target.id, [])))).toEqual([[[0, 0], [5, 0]]]);
+    expect(isPath(xline)).toBe(false);
   });
 });
 
@@ -178,6 +185,14 @@ describe('Mirror, Scale, Stretch, Array, grips, window', () => {
     expect(pathLength(items[1])).toBe(6);
   });
 
+  it('only crossing windows pick infinite construction geometry that crosses them', () => {
+    const xline = line('XL', [10, 10], [11, 11], { infinite: 'xline' });
+    const ray = line('R', [10, 10], [11, 10], { infinite: 'ray' });
+    expect(sketchInWindow([xline, ray], [0, 0], [4, 4], false)).toEqual([]);
+    expect(sketchInWindow([xline, ray], [4, 4], [0, 0], true).map((x) => x.id)).toEqual(['XL']);
+    expect(sketchInWindow([ray], [4, 12], [0, 8], true)).toEqual([]); // the box is behind the ray
+  });
+
   it('mirrors, scales and grips an ellipse by its axis; the path tools leave a revision cloud alone', () => {
     const e: SketchItem = { id: 'E', kind: 'ellipse', layer: 'L', pts: [[10, 0]], ax: [4, 0], ratio: 0.5 };
     const m = mirrored(e, [0, 0], [0, 1]); // about the y axis
@@ -263,3 +278,27 @@ describe('Align', () => {
     expect(arc.a1).toBeCloseTo(1 + Math.PI / 2, 9);
   });
 });
+
+describe('Polylines with arc segments: the straight-segment tools refuse and ask for Explode', () => {
+  const arcs = (id: string, extra: Partial<SketchItem> = {}): SketchItem => ({ id, kind: 'pline', layer: 'L', pts: [[0, 0], [4, 0], [4, 4]], bulges: [0, 0.5, 0], ...extra });
+  const plain = line('P', [0, 1], [4, 1]);
+  const WHY = 'This polyline has arc segments: explode it first (X).';
+  it('Trim, Extend, Offset, Break, Fillet, Chamfer and Join', () => {
+    const a = arcs('A');
+    expect(trim(a, [1, 0], walls).error).toBe(WHY);
+    expect(extend(a, [4, 4], walls).error).toBe(WHY);
+    expect(offset(a, 1, [1, 1]).error).toBe(WHY);
+    expect(breakAt(a, [1, 0]).error).toBe(WHY);
+    expect(fillet(a, [1, 0], plain, [1, 1], 1).error).toBe(WHY);
+    expect(chamfer(plain, [1, 1], a, [1, 0], 1, 1).error).toBe(WHY);
+    expect(join([a, plain], 0.01).error).toBe(WHY);
+  });
+  it('a polyline with no real bulge (zeros) still works as a straight one', () => {
+    expect(offset(arcs('B', { bulges: [0, 0, 0] }), 1, [1, 1]).error).toBeUndefined();
+  });
+  it('Explode still gives lines and arcs', () => {
+    const r = explode(arcs('C'));
+    expect(r.items!.map((x) => x.kind)).toEqual(['line', 'arc']);
+  });
+});
+

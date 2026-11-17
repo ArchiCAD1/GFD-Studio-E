@@ -57,6 +57,18 @@ describe('symbol library', () => {
     expect(loadSymbolOf('hvac', true)).toBe('motor');
   });
 
+  it('draws the RMU with its two ring ways entering at the top and the T-off leaving on the line axis', () => {
+    const pts = (SYMBOLS.rmu.prims as SymPrim[]).filter((q) => q.k === 'p').flatMap(points);
+    const has = (u: number, v: number) => pts.some(([a, b]) => Math.abs(a - u) < 0.01 && Math.abs(b - v) < 0.01);
+    expect(has(18.5, 24) && has(41.5, 24)).toBe(true);
+    expect(has(30, 56)).toBe(true);
+    expect(Math.min(...pts.map(([, v]) => v))).toBe(24);
+    expect(Math.max(...pts.map(([, v]) => v))).toBe(56);
+    expect(SYMBOLS.rmu.prims.filter((q) => q.k === 'p' && q.c === 'thick')).toHaveLength(1); // the busbar
+    expect(renderToStaticMarkup(<svg><Sym id="rmu" x={0} y={0} labels /></svg>)).toContain('>RMU<');
+    expect(symSvg('rmu', 0, 0)).toContain('data-sym="rmu"');
+  });
+
   it('keeps side labels off the drawing unless asked', () => {
     const plain = renderToStaticMarkup(<svg><Sym id="acb" x={0} y={0} /></svg>);
     expect(plain).not.toContain('>ACB<');

@@ -12,10 +12,11 @@ type Pt = [number, number];
  * what links to it (schedules, fittings, circuits by feeder) stays. Several objects take the same value each. */
 
 /** The kind a value belongs to: the Geometry section shows when all the objects are of one of these. */
-export type GeomKind = 'line' | 'pline' | 'circle' | 'arc' | 'ellipse' | 'cloud' | 'tray' | 'cable' | 'text' | 'mtext' | 'dim' | 'dimang' | 'point' | 'insert' | 'attdef';
-export const geomKind = (it: SketchItem): GeomKind => (it.tray ? 'tray' : it.cable ? 'cable' : it.cloud ? 'cloud' : it.dimKind === 'angular' ? 'dimang' : it.kind);
+export type GeomKind = 'line' | 'xline' | 'ray' | 'pline' | 'circle' | 'arc' | 'ellipse' | 'cloud' | 'tray' | 'cable' | 'text' | 'mtext' | 'dim' | 'dimang' | 'point' | 'insert' | 'attdef';
+export const geomKind = (it: SketchItem): GeomKind => (it.tray ? 'tray' : it.cable ? 'cable' : it.cloud ? 'cloud' : it.infinite ?? (it.dimKind === 'angular' ? 'dimang' : it.kind));
 /** What an object is, as the palette and the toolbar beside it name it. */
 export const kindLabel = (it: SketchItem) => (it.hatch ? 'Hatch' : it.tray ? 'Cable tray' : it.cable ? 'Cable route' : it.cloud ? 'Revision cloud'
+  : it.infinite === 'xline' ? 'Construction line' : it.infinite === 'ray' ? 'Ray'
   : it.kind === 'dim' ? (it.dimKind ? { radius: 'Radius dimension', diameter: 'Diameter dimension', angular: 'Angular dimension' }[it.dimKind] : 'Dimension')
   : { line: 'Line', pline: it.closed ? 'Closed polyline' : 'Polyline', circle: 'Circle', arc: 'Arc', ellipse: 'Ellipse', text: 'Text', mtext: 'Note', point: 'Point', insert: 'Block', attdef: 'Attribute' }[it.kind]); 
 
@@ -34,6 +35,7 @@ export function geometryRows(kind: GeomKind, items: SketchItem[]): PropDef[] {
   const straight = items.every((it) => it.pts.length === 2);
   switch (kind) {
     case 'line': return [L('sx', 'Start X'), L('sy', 'Start Y'), L('ex', 'End X'), L('ey', 'End Y'), L('len', 'Length', { ro: !straight }), A('ang', 'Angle', { ro: !straight })];
+    case 'xline': case 'ray': return [L('sx', 'Base X'), L('sy', 'Base Y'), L('ex', 'Through X'), L('ey', 'Through Y'), A('ang', 'Angle')];
     case 'circle': return [L('cx', 'Centre X'), L('cy', 'Centre Y'), L('r', 'Radius')];
     case 'arc': return [L('cx', 'Centre X'), L('cy', 'Centre Y'), L('r', 'Radius'), A('a0', 'Start angle'), A('a1', 'End angle')];
     case 'ellipse': return [L('cx', 'Centre X'), L('cy', 'Centre Y'), L('rx', 'Major radius'), L('ry', 'Minor radius'), A('ang', 'Rotation')];
@@ -137,7 +139,7 @@ export function withProp(it: SketchItem, key: PropKey, value: number | string, k
         const r = Math.hypot(it.ax[0], it.ax[1]);
         return { ...it, ax: [r * Math.cos(rad(n)), r * Math.sin(rad(n))] };
       }
-      if (!num || it.kind !== 'line' || p.length !== 2) return undefined;
+      if (!num || it.kind !== 'line' || p.length !== 2 || (key === 'len' && !!it.infinite)) return undefined;
       const a = key === 'ang' ? rad(n) : Math.atan2(p[1][1] - p[0][1], p[1][0] - p[0][0]);
       const l = key === 'len' ? u : Math.hypot(p[1][0] - p[0][0], p[1][1] - p[0][1]);
       if (!(l > 0)) return undefined;
@@ -208,7 +210,7 @@ export function sharedValue(items: SketchItem[], key: PropKey, k: number, v = 0)
 
 /** The value as shown: metres to 2 decimals, degrees to 1. */
 export const shownValue = (def: PropDef, v: number | string | undefined) =>
-  v === undefined ? '' : typeof v === 'string' ? v : def.unit === 'deg' ? `${v.toFixed(1)}°` : def.key === 'len' || def.key === 'measured' ? `${v.toFixed(2)} m` : v.toFixed(2);
+  v === undefined ? '' : typeof v === 'string' ? v : def.unit === 'deg' ? `${v.toFixed(1)}°` : def.key === 'len' || def.key === 'measured' || def.key === 'arc' ? `${v.toFixed(2)} m` : v.toFixed(2);
 
 /** A typed value for a row: a number for metres and degrees (a comma as the decimal mark, the unit left off), else the
  * text; undefined when it is not a number. */

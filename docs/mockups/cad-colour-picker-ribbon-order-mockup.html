@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design CAD colour picker and ribbon order — proposal</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #10141a;
+    --panel: #24282f;
+    --panel-2: #2c3139;
+    --panel-3: #343a44;
+    --line: #454c57;
+    --line-strong: #687180;
+    --text: #eef1f5;
+    --muted: #aeb6c2;
+    --accent: #64a0ff;
+    --accent-soft: #1c355b;
+    --field: #171b21;
+    --shadow: 0 22px 70px rgb(0 0 0 / .52);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-width: 1080px;
+    background: radial-gradient(circle at 50% 0, #273043 0, #151921 42%, #0c0f14 100%);
+    color: var(--text);
+    font: 13px/1.35 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  button, input { font: inherit; }
+  button { color: inherit; }
+  .page { width: min(1500px, calc(100vw - 48px)); margin: 24px auto; }
+  .proposal {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    color: var(--muted);
+  }
+  .proposal strong { color: var(--text); font-size: 15px; }
+  .badge {
+    padding: 4px 8px;
+    border: 1px solid #8c6827;
+    border-radius: 999px;
+    background: #3b2d14;
+    color: #ffd47d;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .app {
+    position: relative;
+    min-height: 820px;
+    overflow: hidden;
+    border: 1px solid #4a5260;
+    border-radius: 9px;
+    background: #151a21;
+    box-shadow: 0 28px 90px rgb(0 0 0 / .42);
+  }
+  .titlebar {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    padding: 0 12px;
+    border-bottom: 1px solid #3d444f;
+    background: #20242b;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .traffic { display: flex; gap: 7px; margin-right: 12px; }
+  .traffic i { width: 11px; height: 11px; border-radius: 50%; background: #667080; }
+  .titlebar b { color: var(--text); font-weight: 600; }
+  .titlebar .spacer { flex: 1; }
+  .tabs, .subtabs {
+    display: flex;
+    align-items: end;
+    gap: 2px;
+    min-height: 35px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--line);
+    background: #252930;
+  }
+  .tabs button, .subtabs button {
+    height: 34px;
+    padding: 0 13px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    cursor: default;
+  }
+  .tabs button.active, .subtabs button.active { border-bottom-color: var(--accent); color: var(--text); }
+  .subtabs { min-height: 29px; align-items: center; background: #292e36; }
+  .subtabs button { height: 28px; padding: 0 11px; font-size: 12px; }
+  .subtabs .spacer { flex: 1; }
+  .subtabs label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  .ribbon {
+    position: relative;
+    height: 116px;
+    padding: 6px 12px 5px;
+    border-bottom: 1px solid var(--line);
+    background: #2a2f37;
+  }
+  .custom-note {
+    position: absolute;
+    top: 7px;
+    right: 12px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #c7d9f6;
+    font-size: 11px;
+  }
+  .custom-note button {
+    height: 24px;
+    padding: 0 9px;
+    border: 1px solid #5774a1;
+    border-radius: 4px;
+    background: #22344f;
+    color: #d9e8ff;
+  }
+  .panels { display: flex; align-items: stretch; height: 101px; padding-top: 1px; }
+  .panel {
+    position: relative;
+    display: flex;
+    min-width: 126px;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-right: 2px;
+    padding: 6px 9px 4px;
+    border-right: 1px solid var(--line);
+    border-radius: 4px;
+    background: transparent;
+  }
+  .panel.dragging { opacity: .35; }
+  .panel.drop-before { box-shadow: -3px 0 0 var(--accent); }
+  .panel.layers {
+    min-width: 196px;
+    border: 1px solid #5487d5;
+    background: linear-gradient(180deg, #27364c, #2a3039);
+    box-shadow: inset 0 0 0 1px rgb(100 160 255 / .12);
+  }
+  .panel.modify { min-width: 200px; }
+  .panel .tools { display: flex; align-items: flex-start; gap: 7px; padding-top: 5px; }
+  .tool {
+    display: flex;
+    min-width: 49px;
+    height: 58px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 11px;
+  }
+  .tool i { display: block; width: 22px; height: 22px; border: 2px solid #cfd7e2; border-radius: 4px; }
+  .tool.small { height: 23px; min-width: 44px; flex-direction: row; gap: 4px; justify-content: flex-start; }
+  .tool.small i { width: 12px; height: 12px; border-width: 1px; }
+  .stack { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 5px; }
+  .layer-field {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 176px;
+    height: 26px;
+    padding: 0 7px;
+    border: 1px solid #5a6472;
+    border-radius: 4px;
+    background: #1b2027;
+  }
+  .layer-field i { width: 12px; height: 12px; border: 1px solid #7b8491; border-radius: 2px; background: #1f252d; }
+  .caption {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 20px;
+    color: var(--muted);
+    font-size: 11px;
+    cursor: grab;
+    user-select: none;
+  }
+  .caption .grip { color: #8ca0bd; letter-spacing: -2px; }
+  .moves { display: inline-flex; gap: 1px; margin-left: 3px; }
+  .moves button {
+    width: 18px;
+    height: 17px;
+    padding: 0;
+    border: 1px solid #515b69;
+    border-radius: 3px;
+    background: #20252c;
+    color: #c7d0dc;
+    line-height: 14px;
+    cursor: pointer;
+  }
+  .drawing {
+    position: absolute;
+    inset: 215px 0 0;
+    overflow: hidden;
+    background-color: #11161c;
+    background-image: linear-gradient(#1c222b 1px, transparent 1px), linear-gradient(90deg, #1c222b 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .drawing::before, .drawing::after { content: ""; position: absolute; border: 1px solid #53606f; }
+  .drawing::before { left: 64px; top: 78px; width: 470px; height: 310px; transform: skew(-4deg); }
+  .drawing::after { right: 78px; bottom: 70px; width: 360px; height: 218px; }
+  .plan-lines { position: absolute; inset: 0; opacity: .75; pointer-events: none; }
+  .plan-lines i { position: absolute; display: block; height: 1px; background: #607082; transform-origin: left; }
+  .plan-lines i:nth-child(1) { left: 110px; top: 180px; width: 500px; transform: rotate(17deg); }
+  .plan-lines i:nth-child(2) { left: 790px; top: 130px; width: 420px; transform: rotate(90deg); }
+  .plan-lines i:nth-child(3) { left: 720px; top: 470px; width: 510px; transform: rotate(-12deg); }
+  .hint {
+    position: absolute;
+    left: 24px;
+    bottom: 19px;
+    padding: 7px 10px;
+    border: 1px solid #43505f;
+    border-radius: 5px;
+    background: rgb(28 34 43 / .94);
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .dialog {
+    position: absolute;
+    z-index: 5;
+    top: 280px;
+    left: 50%;
+    width: 420px;
+    min-height: 354px;
+    transform: translateX(-50%);
+    overflow: hidden;
+    border: 1px solid #697384;
+    border-radius: 7px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+  }
+  .dialog-title {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    padding: 0 10px 0 13px;
+    border-bottom: 1px solid var(--line);
+    background: #303640;
+    font-weight: 650;
+  }
+  .dialog-title span { flex: 1; }
+  .dialog-title button { width: 26px; height: 24px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); }
+  .dialog-tabs { display: flex; padding: 0 12px; border-bottom: 1px solid var(--line); background: #282d35; }
+  .dialog-tabs button {
+    height: 34px;
+    padding: 0 14px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .dialog-tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+  .dialog-body { padding: 12px; }
+  .choice-row { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; }
+  .choice {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid #5b6573;
+    border-radius: 4px;
+    background: #292f38;
+    color: var(--text);
+  }
+  .named { display: flex; gap: 4px; }
+  .named button, .index-grid button {
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 1px solid #66717f;
+    border-radius: 2px;
+  }
+  .named button { width: 22px; height: 22px; }
+  .index-grid {
+    display: grid;
+    grid-template-columns: repeat(24, 14px);
+    gap: 2px;
+    width: max-content;
+    padding: 7px;
+    border: 1px solid #505966;
+    border-radius: 4px;
+    background: #191e24;
+  }
+  .index-grid button { width: 14px; height: 14px; cursor: pointer; }
+  .index-grid button.selected { outline: 2px solid white; outline-offset: 1px; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .fields label { display: grid; gap: 3px; color: var(--muted); font-size: 11px; }
+  .fields input {
+    width: 100%;
+    height: 28px;
+    padding: 0 7px;
+    border: 1px solid #5d6876;
+    border-radius: 4px;
+    outline: 0;
+    background: var(--field);
+    color: var(--text);
+  }
+  .fields input:focus { border-color: var(--accent); }
+  .preview-row { display: flex; align-items: center; gap: 11px; margin-top: 12px; }
+  .preview { display: grid; grid-template-columns: 34px 34px; overflow: hidden; border: 1px solid #5d6673; border-radius: 4px; }
+  .preview i { height: 28px; }
+  .preview i:first-child { background: #ef3d34; }
+  .preview i:last-child { background: #36c66b; }
+  .preview-copy { color: var(--muted); font-size: 11px; }
+  .preview-copy b { color: var(--text); font-weight: 600; }
+  .dialog-footer { display: flex; justify-content: flex-end; gap: 7px; padding: 9px 12px; border-top: 1px solid var(--line); background: #282d35; }
+  .dialog-footer button { min-width: 76px; height: 30px; border: 1px solid #606b79; border-radius: 4px; background: #303640; }
+  .dialog-footer button.primary { border-color: #70a7ff; background: #2d68bd; color: white; }
+  .true-panel { display: grid; grid-template-columns: 190px 1fr; gap: 14px; }
+  .colour-square {
+    position: relative;
+    height: 190px;
+    border: 1px solid #6b7582;
+    border-radius: 4px;
+    background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent), #3c73ff;
+  }
+  .colour-square::after { content: ""; position: absolute; left: 128px; top: 48px; width: 10px; height: 10px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 1px #111; }
+  .hue { height: 13px; margin-top: 7px; border: 1px solid #666; border-radius: 3px; background: linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00); }
+  .rgb { display: grid; align-content: start; gap: 7px; }
+  .rgb label { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; }
+  .rgb input { width: 100%; height: 27px; border: 1px solid #5d6876; border-radius: 4px; background: var(--field); color: var(--text); padding: 0 7px; }
+  .true-swatch { height: 42px; border: 1px solid #697381; border-radius: 4px; background: #3c73ff; }
+  .legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 18px;
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .legend b { color: var(--text); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="proposal"><span class="badge">Proposed mockup</span><strong>Compact colour picker + personal CAD ribbon order</strong><span>No application code is changed.</span></div>
+  <section class="app" aria-label="Design CAD mockup">
+    <header class="titlebar"><span class="traffic"><i></i><i></i><i></i></span><b>LV Design Studio</b><span>&nbsp;— Design CAD / Ground Floor Lighting</span><span class="spacer"></span><span>87%</span></header>
+    <nav class="tabs" aria-label="Application ribbon tabs"><button>Project</button><button>Load schedule</button><button>SLD</button><button class="active">Design CAD</button><button>Stages</button><button>Documents</button><button>BOQ / Cost</button></nav>
+    <nav class="subtabs" aria-label="Design CAD ribbon tabs"><button>File⌄</button><button class="active">LVCAD</button><button>Annotate</button><button>Electrical, ELV &amp; sheets</button><button>Output</button><span class="spacer"></span><label><input type="checkbox"> Show labels</label></nav>
+    <section class="ribbon" aria-label="Customisable Design CAD ribbon">
+      <div class="custom-note"><span>Drag panel captions or use ◀ ▶</span><button id="resetOrder" type="button">Reset order</button></div>
+      <div class="panels" id="panels">
+        <article class="panel layers" draggable="true" data-panel="layers">
+          <div class="tools"><div><div class="layer-field"><i></i><span>LV-SKETCH</span><span style="margin-left:auto">⌄</span></div><div class="stack" style="margin-top:4px"><span class="tool small"><i></i>Off</span><span class="tool small"><i></i>All on</span><span class="tool small"><i></i>Freeze</span><span class="tool small"><i></i>Thaw</span></div></div></div>
+          <div class="caption"><span class="grip">⠿</span>Layers<span class="moves"><button type="button" data-dir="-1" aria-label="Move Layers left">◀</button><button type="button" data-dir="1" aria-label="Move Layers right">▶</button></span></div>
+        </article>
+        <article class="panel" draggable="true" data-panel="draw"><div class="tools"><span class="tool"><i></i>Line</span><span class="tool"><i style="border-radius:50%"></i>Circle</span></div><div class="caption"><span class="grip">⠿</span>Draw<span class="moves"><button type="button" data-dir="-1">◀</button><button type="button" data-dir="1">▶</button></span></div></article>
+        <article class="panel modify" draggable="true" data-panel="modify"><div class="tools"><div class="stack"><span class="tool small"><i></i>Move</span><span class="tool small"><i></i>Rotate</span><span class="tool small"><i></i>Copy</span><span class="tool small"><i></i>Mirror</span><span class="tool small"><i></i>Trim</span><span class="tool small"><i></i>Offset</span></div></div><div class="caption"><span class="grip">⠿</span>Modify<span class="moves"><button type="button" data-dir="-1">◀</button><button type="button" data-dir="1">▶</button></span></div></article>
+        <article class="panel" draggable="true" data-panel="blocks"><div class="tools"><span class="tool"><i></i>Insert</span><span class="tool"><i></i>Block</span></div><div class="caption"><span class="grip">⠿</span>Blocks<span class="moves"><button type="button" data-dir="-1">◀</button><button type="button" data-dir="1">▶</button></span></div></article>
+        <article class="panel" draggable="true" data-panel="properties"><div class="tools"><span class="tool"><i style="background:#36c66b"></i>Colour</span><span class="tool"><i></i>Match</span></div><div class="caption"><span class="grip">⠿</span>Properties<span class="moves"><button type="button" data-dir="-1">◀</button><button type="button" data-dir="1">▶</button></span></div></article>
+        <article class="panel" draggable="true" data-panel="measure"><div class="tools"><span class="tool"><i></i>Distance</span><span class="tool"><i></i>Area</span></div><div class="caption"><span class="grip">⠿</span>Measure and view<span class="moves"><button type="button" data-dir="-1">◀</button><button type="button" data-dir="1">▶</button></span></div></article>
+      </div>
+    </section>
+    <section class="drawing" aria-hidden="true"><div class="plan-lines"><i></i><i></i><i></i></div><div class="hint">Example custom order: Layers moved to the first position. This order is saved on this computer.</div></section>
+
+    <section class="dialog" role="dialog" aria-label="Select colour mockup">
+      <header class="dialog-title"><span>Select colour</span><button type="button" aria-label="Close">×</button></header>
+      <nav class="dialog-tabs" role="tablist"><button id="indexTab" class="active" type="button" role="tab" aria-selected="true">Index colour</button><button id="trueTab" type="button" role="tab" aria-selected="false">True colour</button></nav>
+      <div id="indexPanel" class="dialog-body" role="tabpanel">
+        <div class="choice-row"><button class="choice" type="button">ByLayer</button><div class="named" id="named"></div></div>
+        <div class="index-grid" id="indexGrid" aria-label="Index colours 10 to 249"></div>
+        <div class="fields"><label>Index number<input value="42" inputmode="numeric"></label><label>Current colour<input value="Red · 1" readonly></label><label>Selected<input value="Green · 42" readonly></label></div>
+        <div class="preview-row"><span class="preview" aria-label="Current red, selected green"><i></i><i></i></span><span class="preview-copy"><b>Current → selected</b><br>Index values remain CAD index values.</span></div>
+      </div>
+      <div id="truePanel" class="dialog-body" role="tabpanel" hidden>
+        <div class="true-panel"><div><div class="colour-square"></div><div class="hue"></div></div><div class="rgb"><div class="true-swatch"></div><label>Hex<input value="#3C73FF"></label><label>Red<input value="60"></label><label>Green<input value="115"></label><label>Blue<input value="255"></label></div></div>
+        <div class="legend"><span><b>Current:</b> Index 1 · Red</span><span><b>Selected:</b> RGB 60, 115, 255</span></div>
+      </div>
+      <footer class="dialog-footer"><button type="button">Cancel</button><button class="primary" type="button">OK</button></footer>
+    </section>
+  </section>
+</main>
+<script>
+  const namedColours = ['#ff0000','#ffff00','#00ff00','#00ffff','#0000ff','#ff00ff','#ffffff','#808080','#c0c0c0'];
+  const named = document.getElementById('named');
+  namedColours.forEach((colour, i) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.style.background = colour;
+    button.title = `Index ${i + 1}`;
+    named.append(button);
+  });
+  const grid = document.getElementById('indexGrid');
+  for (let row = 0; row < 10; row += 1) {
+    for (let col = 0; col < 24; col += 1) {
+      const index = 10 + col * 10 + row;
+      const light = 57 - row * 4.7;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.title = `Index ${index}`;
+      button.style.background = `hsl(${col * 15} 94% ${Math.max(12, light)}%)`;
+      if (index === 42) button.className = 'selected';
+      grid.append(button);
+    }
+  }
+  const selectTab = (kind) => {
+    const index = kind === 'index';
+    document.getElementById('indexTab').classList.toggle('active', index);
+    document.getElementById('trueTab').classList.toggle('active', !index);
+    document.getElementById('indexTab').setAttribute('aria-selected', String(index));
+    document.getElementById('trueTab').setAttribute('aria-selected', String(!index));
+    document.getElementById('indexPanel').hidden = !index;
+    document.getElementById('truePanel').hidden = index;
+  };
+  document.getElementById('indexTab').addEventListener('click', () => selectTab('index'));
+  document.getElementById('trueTab').addEventListener('click', () => selectTab('true'));
+
+  const panels = document.getElementById('panels');
+  const defaultOrder = ['draw','modify','blocks','layers','properties','measure'];
+  let dragged;
+  panels.addEventListener('dragstart', (event) => {
+    dragged = event.target.closest('.panel');
+    dragged?.classList.add('dragging');
+  });
+  panels.addEventListener('dragend', () => {
+    dragged?.classList.remove('dragging');
+    panels.querySelectorAll('.drop-before').forEach((item) => item.classList.remove('drop-before'));
+    dragged = undefined;
+  });
+  panels.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    const target = event.target.closest('.panel');
+    panels.querySelectorAll('.drop-before').forEach((item) => item.classList.remove('drop-before'));
+    if (!dragged || !target || target === dragged) return;
+    target.classList.add('drop-before');
+    const box = target.getBoundingClientRect();
+    panels.insertBefore(dragged, event.clientX < box.left + box.width / 2 ? target : target.nextSibling);
+  });
+  panels.addEventListener('click', (event) => {
+    const move = event.target.closest('[data-dir]');
+    if (!move) return;
+    const panel = move.closest('.panel');
+    const dir = Number(move.dataset.dir);
+    if (dir < 0 && panel.previousElementSibling) panels.insertBefore(panel, panel.previousElementSibling);
+    if (dir > 0 && panel.nextElementSibling) panels.insertBefore(panel.nextElementSibling, panel);
+  });
+  document.getElementById('resetOrder').addEventListener('click', () => {
+    defaultOrder.forEach((id) => panels.append(panels.querySelector(`[data-panel="${id}"]`)));
+  });
+</script>
+</body>
+</html>

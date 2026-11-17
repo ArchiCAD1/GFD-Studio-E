@@ -1,4 +1,4 @@
-import { moved, rotated, scaleLook, segmentsOf } from './cadSketch';
+import { arcMid, bulgeArc, constructionSegment, hasArcs, moved, rotated, scaleLook, segmentsOf } from './cadSketch';
 import type { SketchItem } from '../types';
 import { explodeNote, noteBox, noteCorners, noteWithWidth } from './cadMtext';
 import { explodeInsert, type CadBlockDef } from './cadBlocks';
@@ -24,7 +24,7 @@ const EPS = 1e-9;
 
 /** Lines and polylines (trays and cable routes are polylines): the ones Trim, Extend, Break and Fillet work on. */
 /** A line or polyline the path tools work on (a revision cloud's sides are arcs: it is not one). */
-export const isPath = (it: Pick<SketchItem, 'kind' | 'cloud'>) => (it.kind === 'line' || it.kind === 'pline') && !it.cloud;
+export const isPath = (it: Pick<SketchItem, 'kind' | 'cloud' | 'infinite'>) => (it.kind === 'line' || it.kind === 'pline') && !it.cloud && !it.infinite;
 /** The points of a path, the first repeated at the end when closed. */
 const pathOf = (it: SketchItem): Pt[] => (it.closed && it.pts.length > 2 ? [...it.pts, it.pts[0]] : it.pts);
 const chain = (pts: Pt[]) => pts.reduce<number[]>((c, q, i) => [...c, i ? c[i - 1] + len(sub(q, pts[i - 1])) : 0], []);
@@ -64,16 +64,30 @@ function lineMeet(a: Pt, b: Pt, c: Pt, d: Pt): Pt | null {
   return add(a, mul(r, cross(sub(c, a), s) / den));
 }
 const withPts = (it: SketchItem, pts: Pt[], closed = false): Omit<SketchItem, 'id'> => {
-  const { id: _id, closed: _c, ...rest } = it;
+  const { id: _id, closed: _c, bulges: _b, ...rest } = it;
   return { ...rest, kind: it.kind === 'pline' || pts.length > 2 ? 'pline' : 'line', pts, ...(closed ? { closed: true } : {}) };
 };
 const box = (pts: Pt[]) => pts.reduce(([x0, y0, x1, y1], q) => [Math.min(x0, q[0]), Math.min(y0, q[1]), Math.max(x1, q[0]), Math.max(y1, q[1])], [Infinity, Infinity, -Infinity, -Infinity]);
 
 /** The other lines an item can be cut at or extended to: the drawn items' pieces and the architect's lines. */
-export const edgesFor = (items: SketchItem[], except: string, drawing: Seg[]): Seg[] => [...items.filter((x) => x.id !== except).flatMap((x) => segmentsOf(x)), ...drawing];
+export const edgesFor = (items: SketchItem[], except: string, drawing: Seg[]): Seg[] => {
+  const all = [...items.flatMap((x) => x.pts), ...drawing.flat()];
+  const [x0, y0, x1, y1] = all.reduce((b, p) => [Math.min(b[0], p[0]), Math.min(b[1], p[1]), Math.max(b[2], p[0]), Math.max(b[3], p[1])], [0, 0, 1, 1]);
+  const span = Math.max(x1 - x0, y1 - y0, 1);
+  const box: [number, number, number, number] = [x0 - span, y0 - span, x1 + span, y1 + span];
+  const drawn = items.filter((x) => x.id !== except).flatMap((x): Seg[] => {
+    const s = x.infinite ? constructionSegment(x, box) : undefined;
+    return x.infinite ? (s ? [s] : []) : segmentsOf(x);
+  });
+  return [...drawn, ...drawing];
+};
 
 /** Trim: the part of the path clicked, between the nearest crossings on either side of the click, is cut away. */
+/** Polylines with arc segments (their bulges) are straight-segment geometry to these tools: they ask for Explode first. */
+const ARCS = 'This polyline has arc segments: explode it first (X).';
+
 export function trim(it: SketchItem, click: Pt, edges: Seg[]): Edit & { cut?: number } {
+  if (hasArcs(it)) return { error: ARCS };
   if (!isPath(it)) return { error: 'Trim works on lines, polylines, trays and cable routes.' };
   const pts = pathOf(it), c = chain(pts), L = c[c.length - 1];
   const [x0, y0, x1, y1] = box(pts);
@@ -105,6 +119,7 @@ export function trim(it: SketchItem, click: Pt, edges: Seg[]): Edit & { cut?: nu
 
 /** Extend: the end nearer the click runs on to the first line ahead of it. */
 export function extend(it: SketchItem, click: Pt, edges: Seg[]): Edit & { gain?: number } {
+  if (hasArcs(it)) return { error: ARCS };
   if (!isPath(it) || it.closed) return { error: 'Extend works on open lines, polylines, trays and cable routes.' };
   const pts = it.pts.map((q) => [...q] as Pt), c = chain(pts), L = c[c.length - 1];
   const atEnd = along(pts, c, click).s > L / 2;
@@ -126,6 +141,7 @@ export function offset(it: SketchItem, d: number, side: Pt): Edit {
     const r = (it.r ?? 0) + (len(sub(side, it.pts[0])) < (it.r ?? 0) ? -d : d);
     return r > EPS ? { items: [{ ...rest, r }] } : { error: 'Too far inside: the radius would be nothing.' };
   }
+  if (hasArcs(it)) return { error: ARCS };
   if (!isPath(it)) return { error: 'Offset works on lines, polylines, circles, arcs, trays and cable routes.' };
   const pts = pathOf(it), c = chain(pts), n = pts.length - 1;
   const seg = along(pts, c, side).seg;
@@ -190,6 +206,7 @@ export function chamfer(a: SketchItem, clickA: Pt, b: SketchItem, clickB: Pt, d1
 
 function corner(a: SketchItem, clickA: Pt, b: SketchItem, clickB: Pt,
   make: (X: Pt, da: Pt, db: Pt, ang: number) => { ta: Pt; tb: Pt; extra: Omit<SketchItem, 'id'>[]; need?: number }, note?: string): Edit {
+  if (hasArcs(a) || hasArcs(b)) return { error: ARCS };
   if (!isPath(a) || !isPath(b) || a.closed || b.closed) return { error: 'Pick two open lines, polylines, trays or cable routes.' };
   const sa = a.pts, sb = b.pts;
   const ia = along(sa, chain(sa), clickA).seg, ib = along(sb, chain(sb), clickB).seg;
@@ -209,6 +226,7 @@ function corner(a: SketchItem, clickA: Pt, b: SketchItem, clickB: Pt,
 
 /** Break: split a path at a point (both parts kept), or take out the part between two points. A closed shape opens. */
 export function breakAt(it: SketchItem, p1: Pt, p2?: Pt): Edit {
+  if (hasArcs(it)) return { error: ARCS };
   if (!isPath(it)) return { error: 'Break works on lines, polylines, trays and cable routes.' };
   const pts = pathOf(it), c = chain(pts), L = c[c.length - 1];
   const s1 = along(pts, c, p1).s, s2 = p2 ? along(pts, c, p2).s : s1;
@@ -226,6 +244,7 @@ export function breakAt(it: SketchItem, p1: Pt, p2?: Pt): Edit {
 /** Join: open lines and polylines meeting end to end (within `tol`) become one, with the first one's layer, tray or
  * cable; it closes when its ends meet. */
 export function join(items: SketchItem[], tol: number): Edit & { joined?: string[] } {
+  if (items.some(hasArcs)) return { error: ARCS };
   const paths = items.filter((it) => isPath(it) && !it.closed);
   if (paths.length < 2) return { error: 'Pick two or more open lines or polylines that meet end to end.' };
   const first = paths[0];
@@ -262,6 +281,13 @@ export function explode(it: SketchItem, defs: CadBlockDef[] = []): Edit {
   if (it.kind !== 'pline' && !(it.kind === 'line' && it.pts.length > 2)) return { error: 'Explode works on polylines and rectangles.' };
   if (it.cable) return { error: 'A cable route stays one line: Break it instead.' };
   const pts = pathOf(it);
+  // Arc segments become arcs (centre, radius, angles anticlockwise), the straight ones lines.
+  if (hasArcs(it)) return { items: pts.slice(1).map((q, i): Omit<SketchItem, 'id'> => {
+    const k = it.bulges?.[i] ?? 0, { pts: _p, ...rest } = withPts(it, [pts[i], q]);
+    if (Math.abs(k) <= 1e-12) return { ...rest, pts: [pts[i], q], kind: it.tray ? 'pline' : 'line' };
+    const a = bulgeArc(pts[i], q, k);
+    return { ...rest, kind: 'arc', pts: [a.c], r: a.r, a0: a.a0, a1: a.a1 };
+  }) };
   return { items: pts.slice(1).map((q, i) => ({ ...withPts(it, [pts[i], q]), kind: it.tray ? 'pline' as const : 'line' as const })) };
 }
 
@@ -270,6 +296,8 @@ const reflect = (p: Pt, a: Pt, b: Pt): Pt => { const u = unit(sub(b, a)), v = su
 export function mirrored(it: SketchItem, a: Pt, b: Pt): Omit<SketchItem, 'id'> {
   const { id: _id, ...rest } = it;
   const pts = it.pts.map((q) => reflect(q, a, b));
+  // A polyline's arcs bulge to the other side once mirrored.
+  if (it.bulges) rest.bulges = it.bulges.map((k) => -k || 0);
   // A hatch: its islands and the pattern's origin are mirrored; the pattern's angle stays.
   if (it.hatch) return { ...rest, pts, ...(it.holes ? { holes: it.holes.map((h) => h.map((q) => reflect(q, a, b))) } : {}), hatch: { ...it.hatch, origin: reflect(it.hatch.origin ?? [0, 0], a, b) } };
   if (it.kind === 'arc') { const th = Math.atan2(b[1] - a[1], b[0] - a[0]); return { ...rest, pts, a0: 2 * th - (it.a1 ?? 0), a1: 2 * th - (it.a0 ?? 0) }; }
@@ -337,9 +365,10 @@ export type Grip = { at: Pt; kind: 'point' | 'mid' | 'radius' | 'width' | 'end';
 /** Grips of a drawn item: its points (ends and corners, a centre, a text's place) and each segment's middle (with the
  * direction of its side in `along`); a circle's centre and four quadrants; an arc's centre, ends and middle. */
 export function gripsOf(it: SketchItem): Grip[] {
+  if (it.infinite) return it.pts.slice(0, 2).map((at) => ({ at, kind: 'point' as const }));
   if (isPath(it)) {
     const pts = pathOf(it);
-    return [...it.pts.map((at) => ({ at, kind: 'point' as const })), ...pts.slice(1).map((q, i) => ({ at: mul(add(pts[i], q), 0.5), kind: 'mid' as const, along: unit(sub(q, pts[i])) }))];
+    return [...it.pts.map((at) => ({ at, kind: 'point' as const })), ...pts.slice(1).map((q, i) => ({ at: it.bulges?.[i] ? arcMid(pts[i], q, it.bulges[i]) : mul(add(pts[i], q), 0.5), kind: 'mid' as const, along: unit(sub(q, pts[i])) }))];
   }
   if (it.kind === 'circle') { const c = it.pts[0], r = it.r ?? 0; return [{ at: c, kind: 'point' }, ...([[1, 0], [0, 1], [-1, 0], [0, -1]] as Pt[]).map((u) => ({ at: add(c, mul(u, r)), kind: 'radius' as const }))]; }
   if (it.kind === 'arc') {
@@ -362,6 +391,7 @@ export function gripMoved(it: SketchItem, i: number, to: Pt): SketchItem {
   const g = gripsOf(it)[i];
   if (!g) return it;
   const d = sub(to, g.at);
+  if (it.infinite) return { ...it, pts: it.pts.map((q, k) => (k === i ? to : q)) };
   if (it.kind === 'ellipse' && it.ax && g.kind === 'radius') {
     // The major axis's grip turns and sizes it (the minor keeps its length); the minor's sizes the minor.
     const a = len(it.ax), b = a * (it.ratio ?? 1), v = i === 3 ? sub(it.pts[0], to) : sub(to, it.pts[0]);
@@ -388,6 +418,7 @@ export function sketchInWindow(items: SketchItem[], a: Pt, b: Pt, crossing: bool
   const inBox = (q: Pt) => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1;
   const sides: Seg[] = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]];
   return items.filter((it) => {
+    if (it.infinite) return crossing && !!constructionSegment(it, [x0, y0, x1, y1]);
     const segs = segmentsOf(it, 0.001, defs), pts = segs.length ? segs.flat() : it.kind === 'mtext' ? noteCorners(it) : it.pts;
     if (pts.every(inBox)) return true;
     if (!crossing) return false;

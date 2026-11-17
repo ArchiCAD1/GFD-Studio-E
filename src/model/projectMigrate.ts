@@ -2,6 +2,7 @@ import type { Feeder, Project } from '../types';
 import { pointsWithItems } from '../calc/loadSchedule';
 import { withUids } from './stableIds';
 import { readProjectFolder } from './folderTemplates';
+import { unpackRevisions } from './revisionStore';
 
 /** Project identity, file-format version and copying.
  *
@@ -17,8 +18,12 @@ import { readProjectFolder } from './folderTemplates';
  * an older app keeps fields it does not know and saves them back unchanged.
  *
  * Version 3: Design CAD blocks — block definitions (`cadBlockDefs`) and inserts (drawn objects of kind `insert`). An
- * older app would show such a drawing without its blocks, so it opens a version 3 file read-only. */
-export const CURRENT_SCHEMA = 3;
+ * older app would show such a drawing without its blocks, so it opens a version 3 file read-only.
+ *
+ * Version 4: in the file, issued revisions keep each distinct panel, circuit and section once (model/revisionStore)
+ * and no longer a whole copy of the project each. An older app cannot read those revisions, so it opens a version 4
+ * file read-only. This app still opens every older file; it is written as version 4 at the next save. */
+export const CURRENT_SCHEMA = 4;
 
 const fnv = (s: string): string => {
   let h = 2166136261;
@@ -41,7 +46,8 @@ export const isFutureSchema = (p: Project): boolean => (p.schemaVersion ?? 0) > 
 /** The project with an id, version and creation date (the same object when it already has them). */
 export function migrateProject(p0: Project, file?: string): Project {
   if (isFutureSchema(p0)) return p0; // never rewrite what this version does not understand
-  const p = withFolder(withItemCounts(p0));
+  // Revisions as the app uses them, first: a packed revision refers to the design exactly as it is in the file.
+  const p = withFolder(withItemCounts(unpackRevisions(p0)));
   if (p.id && p.schemaVersion === CURRENT_SCHEMA && p.createdAt) return withUids(p);
   const firstRevision = p.revisions?.[0]?.date;
   const created = p.createdAt ?? (firstRevision && !Number.isNaN(Date.parse(firstRevision)) ? new Date(firstRevision).toISOString() : p.updatedAt);

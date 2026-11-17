@@ -55,8 +55,8 @@ describe('library symbols as CAD blocks', () => {
     expect(names.every((n) => n.startsWith('LV-'))).toBe(true);
   });
 
-  // Expanded blocks equal the exploded symbol: breaker, RCD (ellipse), a dashed part, a flipped one; moved and turned.
-  const cases: [SymbolId, boolean][] = [['cb', false], ['rcd', false], ['shunt', false], ['cb', true], ['rcbo', true]];
+  // Expanded blocks equal the exploded symbol: breaker, RCD (ellipse), a dashed part, a flipped one, the RMU; moved and turned.
+  const cases: [SymbolId, boolean][] = [['cb', false], ['rcd', false], ['shunt', false], ['cb', true], ['rcbo', true], ['rmu', false]];
   it.each(cases)('expands %s (flipped: %s) to the exploded geometry', (id, flipped) => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg"><g transform="translate(40 25) rotate(30)">${symSvg(id, 12, 7, 1, flipped)}</g></svg>`;
     const got = svgToDxf(svg, 200);

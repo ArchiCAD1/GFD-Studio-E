@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { z } from 'zod';
-import { allTools, callTool, toolByName, type Tool, type ToolContext } from './tools';
+import { TOOL_GROUPS, allTools, callTool, parseGroups, toolByName, type Tool, type ToolContext } from './tools';
 import { projectsFolder } from './project';
 import { mcpConfig, startMcp, type Runtime } from './mcp';
 import { startApi } from './api';
@@ -23,9 +23,9 @@ const ALIASES: Record<string, string> = {
 };
 
 /** Flags that never take a value. */
-const SWITCHES = new Set(['json', 'apply', 'propose', 'export', 'write']);
+const SWITCHES = new Set(['json', 'apply', 'propose', 'export', 'write', 'show-names']);
 
-interface Parsed { command?: string; positional: string[]; flags: Record<string, unknown>; json: boolean; folder?: string; port?: number; write: boolean; commit: boolean }
+interface Parsed { command?: string; positional: string[]; flags: Record<string, unknown>; json: boolean; folder?: string; port?: number; write: boolean; commit: boolean; showNames: boolean }
 
 /** A flag value: a number, true / false, JSON for a list or object (e.g. --changes '[{"target":"feeder",…}]'), else text. */
 function flagValue(value: string): unknown {
@@ -37,7 +37,7 @@ function flagValue(value: string): unknown {
 }
 
 export function parseArgs(argv: string[]): Parsed {
-  const out: Parsed = { positional: [], flags: {}, json: false, write: false, commit: false };
+  const out: Parsed = { positional: [], flags: {}, json: false, write: false, commit: false, showNames: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a.startsWith('--')) {
@@ -46,6 +46,7 @@ export function parseArgs(argv: string[]): Parsed {
       if (SWITCHES.has(key) && eq < 0) {
         if (key === 'json') out.json = true;
         else if (key === 'write') out.write = true;
+        else if (key === 'show-names') out.showNames = true;
         else out.commit = true; // --apply / --propose / --export
         continue;
       }
@@ -121,6 +122,8 @@ function help(version: string): string {
     '  lvds mcp-config [--write]          Print the settings that AI program needs to start this MCP server',
     '  lvds serve [--port 8765] [--write] Run the local API on http://127.0.0.1 (needs its token: lvds help serve)',
     '  (--write also offers the tools that change a project; without it both are read only)',
+    `  (--tools <groups> offers the core tools and only these groups: ${TOOL_GROUPS.join(', ')}; e.g. --tools cad,export, or --tools core)`,
+    '  (lvds mcp hides project names, file names, parties and addresses from the AI program; --show-names sends them, e.g. for a local model)',
     '  lvds help <command>      Inputs of one command',
     '',
     'Options: --json (JSON output), --folder <path> (projects folder; default: the app\'s, or LVDS_PROJECTS)',
@@ -166,15 +169,21 @@ export async function main(argv: string[], version: string, io: { out: (s: strin
     return 0;
   }
   if (cmd === 'version' || cmd === '--version' || cmd === '-v') { io.out(version); return 0; }
-  if (cmd === 'mcp') { await startMcp({ ...ctx, anywhere: false, write: a.write }, version); return -1; }
+  // The servers may offer fewer tools (--tools cad,export): fewer words for an AI client to read in every conversation.
+  let groups: ToolContext['groups'];
+  if (cmd === 'mcp' || cmd === 'mcp-config' || cmd === 'serve') {
+    try { groups = parseGroups(a.flags.tools); } catch (e) { io.err(`Error: ${(e as Error).message}`); return 2; }
+  }
+  // The AI program may be a cloud service: project names and client details are not sent unless --show-names.
+  if (cmd === 'mcp') { await startMcp({ ...ctx, anywhere: false, write: a.write, groups, hideNames: !a.showNames }, version); return -1; }
   if (cmd === 'mcp-config') {
-    io.out(JSON.stringify(mcpConfig(runtime, a.write), null, 2));
-    io.err(`Paste this into the MCP settings of your AI program. It starts LV Design Studio's MCP server on this computer (${a.write ? 'read and change: change tools preview first' : 'read only; add --write to also offer the tools that change a project'}).`);
+    io.out(JSON.stringify(mcpConfig(runtime, a.write, groups, a.showNames), null, 2));
+    io.err(`Paste this into the MCP settings of your AI program. It starts LV Design Studio's MCP server on this computer (${a.write ? 'read and change: change tools preview first' : 'read only; add --write to also offer the tools that change a project'}). ${a.showNames ? 'Project names and client details are sent to the AI program.' : 'Project names, parties and addresses are hidden from the AI program; add --show-names to send them (e.g. for a local model).'}`);
     return 0;
   }
   if (cmd === 'serve') {
     const port = a.port ?? 8765;
-    const { server, tokenFile } = await startApi({ ...ctx, anywhere: false, write: a.write }, version, port);
+    const { server, tokenFile } = await startApi({ ...ctx, anywhere: false, write: a.write, groups }, version, port);
     const stop = () => server.close(() => process.exit(0));
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);

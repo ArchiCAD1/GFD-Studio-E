@@ -1,5 +1,6 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { circuitLabel, type PlacedItem } from '../../model/cadDevices';
+import { useListPlace, useMenuPlace } from './cadMenuPlace';
 import { circuitAfter, replacements, typeOf, type DeviceEdit } from '../../model/deviceEdit';
 import type { Feeder, Project } from '../../types';
 
@@ -29,6 +30,8 @@ export default function DeviceToolbar({ project, items, edits, circuits, left, t
   onEdit: (e: DeviceEdit, arg?: string) => void;
 }) {
   const [open, setOpen] = useState<DeviceEdit | null>(null);
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null), listRef = useRef<HTMLDivElement>(null);
   const one = items.length === 1 ? items[0] : undefined;
   const list = (): { id: string; label: string; note: string; now?: boolean }[] => {
     if (open === 'replace') {
@@ -51,19 +54,23 @@ export default function DeviceToolbar({ project, items, edits, circuits, left, t
     }
     return [];
   };
+  // As a menu at the cursor: kept inside the drawing, its list beside the row that opened it (cadMenuPlace.ts).
+  const asMenu = place === 'menu';
+  const fit = useMenuPlace(menuRef, left, top, edits.join(), asMenu);
+  const listFit = useListPlace(menuRef, asMenu && open ? opener : null, listRef, open);
   return (
-    <div className={`cad-ctx${place === 'above' ? ' above' : ''}${place === 'menu' ? ' vert' : ''}`} role={place === 'menu' ? 'menu' : 'toolbar'} aria-label="Edit devices" style={{ left, top }}
+    <div ref={menuRef} className={`cad-ctx${place === 'above' ? ' above' : ''}${asMenu ? ' vert' : ''}`} role={asMenu ? 'menu' : 'toolbar'} aria-label="Edit devices" style={asMenu ? fit : { left, top }}
       onMouseDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
       <span className="cad-ctx-what">{one ? `${one.label}${one.detail ? ` · ${one.detail.split(' · ')[0]}` : ''}` : `${items.length} selected`}</span>
       <span className="cad-ctx-bar" />
       {edits.map((e) => (
         <Fragment key={e}>
           {e === 'move' && <span className="cad-ctx-bar" />}
-          <button title={TITLE[e]} aria-expanded={LISTS.includes(e) ? open === e : undefined} onClick={() => (LISTS.includes(e) ? setOpen(open === e ? null : e) : onEdit(e))}>{LABEL[e]}</button>
+          <button title={TITLE[e]} aria-expanded={LISTS.includes(e) ? open === e : undefined} onClick={(ev) => { if (LISTS.includes(e)) { setOpen(open === e ? null : e); setOpener(ev.currentTarget); } else onEdit(e); }}>{LABEL[e]}</button>
         </Fragment>
       ))}
       {open && (
-        <div className="cad-ctx-list" role="listbox" aria-label={LABEL[open].replace(' ▾', '')}>
+        <div ref={listRef} style={asMenu ? listFit : undefined} className="cad-ctx-list" role="listbox" aria-label={LABEL[open].replace(' ▾', '')}>
           {list().map((x) => (
             <button key={x.id} role="option" aria-selected={!!x.now} disabled={x.now} onClick={() => { setOpen(null); onEdit(open, x.id); }}>
               <span>{x.label}</span><small>{x.note}</small>
