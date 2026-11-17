@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 import {
   AlignLeft, ArrowDown, ArrowUp, Baseline, Bold, Braces, ClipboardPaste, Copy, FilePlus2, FileText, FileType, FolderOpen, Heading1, Heading2, Italic, List, ListOrdered, PaintBucket, Paintbrush,
-  ImageMinus, ImagePlus, ListPlus, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
+  BookOpen, ImageMinus, ImagePlus, ListPlus, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
 } from 'lucide-react';
 import type { Project } from '../../types';
 import {
-  addClause, addDetail, addSection, fieldUses, moveClause, moveSection, removeClause, removeDetail, removeSection, slotText, specFields, specSetup, specView, starterSpec, withClause, withDetail,
+  addClause, addDetail, addSection, fieldUses, moveClause, moveSection, removeClause, removeDetail, removeSection, slotText, specFields, specRevisionRows, specSetup, specView, starterSpec, withClause, withContents, withCover, withDetail,
   withInfo, withSectionIncluded, withSectionTitle, withSetup, withTitle, fieldKeys, SPEC_PARTIES, SPEC_SETUP, type SpecDoc, type SpecKind, type SpecLogoPlace, type SpecMargins, type SpecPaper, type SpecSlots
 } from '../../model/specDoc';
 import { Big, Group, Icons, IconTool, PageRibbon, RIBBON_CSS, Rows, Small } from '../pageRibbon';
@@ -57,6 +57,9 @@ const CSS = `${RIBBON_CSS}
 .spx-det { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 36px; gap: 8px; align-items: center; }
 .spx-det button { width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--line); background: var(--p2); color: var(--tx); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .spx-key { grid-column: 1 / -1; font-size: 11px; color: var(--mut); margin-top: -4px; }
+.spx-tick { display: flex; align-items: center; gap: 10px; min-height: 30px; font-size: 12.5px; }
+.spx-tick input { width: 16px; height: 16px; accent-color: var(--acc); flex: none; }
+.spx-sub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; padding-left: 26px; }
 .spx-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .spx-four { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .spx-logo { max-height: 40px; max-width: 160px; background: #fff; padding: 4px; border-radius: 4px; }
@@ -196,6 +199,12 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
               <Big icon={ImagePlus} label="Choose logo" onClick={() => logoFile.current?.click()} />
               <Big icon={ImageMinus} label="Use project logo" onClick={() => save(withSetup(doc, { logo: undefined }))} disabled={!doc.setup?.logo} />
             </Group>
+            <Group name="Pages">
+              <Rows>
+                <Small icon={BookOpen} label="Cover page" onClick={() => save(withCover(doc, { on: !setup.cover.on }))} pressed={setup.cover.on} />
+                <Small icon={TableOfContents} label="Contents page" onClick={() => save(withContents(doc, { on: !setup.contents.on }))} pressed={setup.contents.on} />
+              </Rows>
+            </Group>
             <Group name="Page">
               <Big icon={RotateCcw} label="Default page setup" onClick={() => save({ ...doc, setup: doc.setup?.logo ? { logo: doc.setup.logo } : undefined })} disabled={!doc.setup} />
             </Group>
@@ -264,6 +273,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
 
       <div className="spx-strip">
         <span>Document: <b>{doc.title}</b>{info.number?.trim() ? <> · {info.number.trim()}</> : null}{info.status?.trim() ? <> · {info.status.trim()}</> : null}</span>
+        <span>{setup.cover.on ? 'Cover page' : 'No cover page'} · {setup.contents.on ? 'contents page' : 'no contents page'}</span>
         <span>{setup.paper} {setup.landscape ? 'landscape' : 'portrait'}{setup.watermark ? <> · watermark <b>{setup.watermark}</b></> : null}</span>
         <span>{included} of {doc.sections.length} sections included</span>
         <span>{view.blocks.reduce((n, b) => n + b.lines.reduce((m, l) => m + l.runs.filter((r) => 'field' in r).length, 0), 0)} project values</span>
@@ -296,6 +306,23 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
               </div>
             ))}
             <p className="spx-note">Details with a value print under the title on the first page, after the parties.</p>
+          </section>
+
+          <section className="spx-card" aria-label="Cover page and contents page">
+            <h4>Cover page and contents page</h4>
+            <label className="spx-tick"><input type="checkbox" checked={setup.cover.on} onChange={(e) => save(withCover(doc, { on: e.target.checked }))} /> Cover page</label>
+            <div className="spx-sub">
+              {([['logo', 'Logo'], ['parties', 'Parties'], ['details', 'Additional details'], ['revisions', 'Revision table']] as const).map(([k, l]) => (
+                <label key={k} className="spx-tick"><input type="checkbox" disabled={!setup.cover.on} checked={setup.cover[k]} aria-label={`Cover: ${l}`} onChange={(e) => save(withCover(doc, { [k]: e.target.checked }))} /> {l}</label>
+              ))}
+            </div>
+            <div className="spx-form"><label>Note on the cover</label><Entry label="Note on the cover" value={doc.setup?.cover?.note ?? ''} placeholder="Blank for none" onSave={(v) => save(withCover(doc, { note: v.trim() || undefined }))} /></div>
+            <label className="spx-tick"><input type="checkbox" checked={setup.contents.on} onChange={(e) => save(withContents(doc, { on: e.target.checked }))} /> Contents page</label>
+            <div className="spx-sub">
+              <label className="spx-tick"><input type="checkbox" disabled={!setup.contents.on} checked={setup.contents.headings} onChange={(e) => save(withContents(doc, { headings: e.target.checked }))} /> List the clause headings</label>
+              <label className="spx-tick"><input type="checkbox" disabled={!setup.contents.on} checked={setup.contents.pageNumbers} onChange={(e) => save(withContents(doc, { pageNumbers: e.target.checked }))} /> Page numbers</label>
+            </div>
+            <p className="spx-note">The cover shows the title, the project, the document number, status and revision, with no header or footer. The revision table lists the project’s issued revisions ({specRevisionRows(project).length || 'none yet'}) until the specification has revisions of its own. In the Word file the contents page numbers are Word fields: Word fills them in when the file is opened.</p>
           </section>
 
           <section className="spx-card" aria-label="Page setup">
