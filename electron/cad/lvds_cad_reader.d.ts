@@ -80,8 +80,9 @@ export class CadDoc {
 /**
  * The exact pieces of model-space objects (CROP), by handle, as JSON {pieces: {handle: [piece]}, truncated} — see
  * doc/explode.rs. Read from the drawing's bytes, like saving, so the open view keeps no second copy of the drawing.
+ * `exact` (the take-over of objects): ellipses, paragraph texts, text alignment, hatch patterns and dimensions are kept whole.
  */
-export function explodeObjects(bytes: Uint8Array, handles_json: string): string;
+export function explodeObjects(bytes: Uint8Array, handles_json: string, exact: boolean): string;
 
 export function exportDwg(bytes: Uint8Array, devices_json: string, shapes_json: string, erased_json: string, version: string): Uint8Array;
 
@@ -115,7 +116,7 @@ export interface InitOutput {
     readonly caddoc_set_erased: (a: number, b: number, c: number, d: number) => void;
     readonly caddoc_snap: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
     readonly caddoc_take_layout: (a: number, b: number) => number;
-    readonly explodeObjects: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly explodeObjects: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly exportDwg: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly exportDxf: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => void;
     readonly readDrawing: (a: number, b: number, c: number) => void;

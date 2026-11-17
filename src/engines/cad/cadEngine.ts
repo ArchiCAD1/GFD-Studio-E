@@ -351,11 +351,12 @@ export async function drawingWithDevices(view: Pick<CadView, 'bytes'>, devices: 
 }
 
 /** The exact pieces of objects of a drawing, by handle (CROP): a block insert gives what it draws, nested blocks and
- * arrays expanded (engines/cad-reader/src/doc/explode.rs). Read from the drawing's bytes by the saving engine. */
-export async function explodeObjects(view: Pick<CadView, 'bytes'>, handles: string[]): Promise<{ pieces: Record<string, CadPiece[]>; truncated: boolean }> {
+ * arrays expanded (engines/cad-reader/src/doc/explode.rs). Read from the drawing's bytes by the saving engine.
+ * `exact` (the take-over of objects): ellipses, paragraph texts, text alignment, hatch patterns and dimensions come whole. */
+export async function explodeObjects(view: Pick<CadView, 'bytes'>, handles: string[], opts: { exact?: boolean } = {}): Promise<{ pieces: Record<string, CadPiece[]>; truncated: boolean }> {
   return withSavingEngine(async (engine) => {
     try {
-      return JSON.parse(await engine.call('explode', view.bytes, JSON.stringify(handles))) as { pieces: Record<string, CadPiece[]>; truncated: boolean };
+      return JSON.parse(await engine.call('explode', view.bytes, JSON.stringify(handles), !!opts.exact)) as { pieces: Record<string, CadPiece[]>; truncated: boolean };
     } catch (e) {
       throw new Error(`The block could not be read (${message(e)}).`);
     }

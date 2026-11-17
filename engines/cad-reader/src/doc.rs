@@ -89,8 +89,8 @@ struct SnapPoint { x: f64, y: f64, kind: u32, layer: u16, o: u32 }
 /// absolute). Its loops are ranges of drawn segments (`seg_start..seg_end`), each one closed boundary.
 #[derive(Serialize)]
 struct Fill { layer: u16, rgb: u32, solid: bool, loops: Vec<[u32; 2]>, lines: Vec<PatLine> }
-#[derive(Serialize)]
-struct PatLine { angle: f64, base: [f64; 2], offset: [f64; 2], dashes: Vec<f64> }
+#[derive(Serialize, Clone, Debug)]
+pub(crate) struct PatLine { angle: f64, base: [f64; 2], offset: [f64; 2], dashes: Vec<f64> }
 
 /// An external reference inside the drawing: its block name, the path saved with it, overlay or attach, unloaded in
 /// the drawing, and where model space inserts it (point, scale, rotation in radians).
@@ -1405,11 +1405,12 @@ pub fn export_dwg(bytes: Vec<u8>, devices_json: &str, shapes_json: &str, erased_
 
 /// The exact pieces of model-space objects (CROP), by handle, as JSON {pieces: {handle: [piece]}, truncated} — see
 /// doc/explode.rs. Read from the drawing's bytes, like saving, so the open view keeps no second copy of the drawing.
+/// `exact` (the take-over of objects): ellipses, paragraph texts, text alignment, hatch patterns and dimensions are kept whole.
 #[wasm_bindgen(js_name = explodeObjects)]
-pub fn explode_objects(bytes: Vec<u8>, handles_json: &str) -> Result<String, JsError> {
+pub fn explode_objects(bytes: Vec<u8>, handles_json: &str, exact: bool) -> Result<String, JsError> {
     let (doc, _) = read(bytes).map_err(|e| JsError::new(&e))?;
     let handles: Vec<String> = serde_json::from_str(handles_json).map_err(|e| JsError::new(&e.to_string()))?;
-    let (pieces, truncated) = explode::explode(&doc, &handles);
+    let (pieces, truncated) = explode::explode(&doc, &handles, exact);
     Ok(serde_json::json!({ "pieces": pieces, "truncated": truncated }).to_string())
 }
 
