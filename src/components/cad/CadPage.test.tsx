@@ -11,8 +11,9 @@ import { cadFileMenu } from './cadFileMenu';
 import { buildingInfoOf, DEFAULT_ROOM_TYPES } from '../../calc/building';
 import type { CadShow } from './cadObjectMenus';
 import { sizeRoute, trayPlanOf } from '../../calc/cableTray';
-import { openDrawing } from '../../engines/cad/cadEngine';
+import { explodeObjects, openDrawing } from '../../engines/cad/cadEngine';
 import { dropRefGeometry, keepRefGeometry } from '../../model/cadRefs';
+vi.mock('../../engines/cad/cadEngine', async (orig) => { const m = await orig<typeof import('../../engines/cad/cadEngine')>(); return { ...m, explodeObjects: vi.fn(m.explodeObjects) }; });
 import '../../engines/cad/cadOps'; // loaded ahead: the engine loads it on demand, which a busy test run can make slow
 import { sampleProject } from '../../data/sampleProject';
 import { placeBoard, placeLvPoint } from '../../model/cadDevices';
@@ -32,6 +33,14 @@ import { DRAFT_DEFAULTS, type DraftSettings } from '../../model/cadDraft';
 import { clearClip } from './cadClipboardStore';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+/** The words of a right-click menu row (its label, not the icon or the key). */
+const rowLabel = (b: Element) => b.querySelector('.lb')?.textContent ?? b.firstElementChild?.textContent ?? b.textContent;
+/** A right-click menu row, in the menu or in a list open beside it, by its label. */
+const menuRow = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => rowLabel(b) === label)!;
+/** Clicks the rows in turn: a row that opens a list, then its entry. */
+const chooseMenu = async (...path: string[]) => { for (const l of path) { const b = menuRow(l); expect(b, l).toBeTruthy(); await act(async () => { b.click(); }); } };
+/** The labels of the rows of the menu, or of its list. */
+const menuRows = (menu = '[role="menu"]') => [...document.querySelectorAll<HTMLButtonElement>(`${menu} > button`)].map((b) => rowLabel(b));
 // jsdom has no canvas drawing or resize observer: drawing is skipped, the page still works (the view is 800 × 500).
 class Stub { moveTo() {} lineTo() {} closePath() {} observe() {} disconnect() {} }
 Object.assign(globalThis, { Path2D: Stub, ResizeObserver: Stub });
@@ -44,12 +53,13 @@ const villa: Project = {
   building: { buildings: [{ id: 'V', name: 'Villa', levels: [{ id: 'GF', name: 'Ground', kind: 'ground', heightM: 4 }] }], rooms: [] }
 };
 let root: Root, host: HTMLDivElement, state: CadState, project: Project;
-const onChange = vi.fn((p: Project, _message: string) => { project = p; });
+const onChange = vi.fn((p: Project, _message: string, _join?: boolean) => { project = p; });
+const onUndo = vi.fn();
 const onPrefs = vi.fn((_p: { draft: DraftSettings; autosaveMin: number }) => {});
 /** Whether the architect's layer i shows: its On, kept in the project (Layer palette or the Layers list). */
 const shown = (i: number) => archOnOf(project, state.view!.file, state.view!.info.layers)[i];
 beforeEach(() => {
-  host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); project = villa; onChange.mockClear();
+  host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); project = villa; onChange.mockClear(); onUndo.mockClear();
   (window as { lvds?: unknown }).lvds = { cadFile: {
     engine: async () => bytes('electron/cad/lvds_cad_reader_bg.wasm'),
     sampleBytes: vi.fn(async (name: string) => ({ file: name, bytes: bytes(`electron/samples/${name}`) })),
@@ -58,14 +68,14 @@ beforeEach(() => {
 });
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; delete (window as { lvds?: unknown }).lvds; });
 
-function Host({ start = villa, show, gripMax }: { start?: Project; show?: (s: CadShow) => void; gripMax?: number }) {
+function Host({ start = villa, show, gripMax, undoLabel }: { start?: Project; show?: (s: CadShow) => void; gripMax?: number; undoLabel?: string }) {
   const cad = useCad('p1');
   const [p, setP] = useState(start);
   const sheetUi = useSheetUi();
   const [draft, setDraft] = useState(gripMax ? { ...DRAFT_DEFAULTS, gripMax } : DRAFT_DEFAULTS);
   state = cad;
-  return <CadPage cad={cad} project={p} onChange={(next, msg) => { setP(next); onChange(next, msg); }} onStatus={() => {}} sheetUi={sheetUi}
-    draft={draft} onPrefs={(x) => { setDraft(x.draft); onPrefs(x); }} onShow={show} />;
+  return <CadPage cad={cad} project={p} onChange={(next, msg, join) => { setP(next); onChange(next, msg, join); }} onUndo={onUndo} onStatus={() => {}} sheetUi={sheetUi}
+    draft={draft} onPrefs={(x) => { setDraft(x.draft); onPrefs(x); }} onShow={show} canUndo={!!undoLabel} undoLabel={undoLabel} />;
 }
 /** Waits for something on screen (a slower machine takes longer), up to 10 s. */
 const until = async (ok: () => boolean) => { for (let i = 0; i < 200 && !ok(); i += 1) await act(async () => { await new Promise((r) => setTimeout(r, 50)); }); expect(ok()).toBe(true); };
@@ -949,6 +959,8 @@ describe('CAD view', () => {
     act(() => root.render(<Host start={start} />));
     await flush();
     act(() => state.toggle('osnap'));
+    // The drawing's own layers off: windows pick devices only (a window picks the drawing's objects too).
+    for (const l of state.view!.info.layers) { const b = button(`${l.name}on`); if (b) act(() => b.click()); }
     const bar = () => document.querySelector('[aria-label="Edit devices"]') as HTMLElement | null;
     const barButton = (t: string) => [...bar()!.querySelectorAll('button')].find((b) => b.textContent === t)!;
     await dragWindow([2000, 10000], [10000, 8000]); // left to right: the three lights, not the socket
@@ -991,8 +1003,8 @@ describe('CAD view', () => {
     const [sx, sy] = screenOf(6000, 4000);
     await act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); });
     const menu = document.querySelector('[role="menu"][aria-label="Command menu"]') as HTMLElement;
-    const top = [...menu.children].filter((x) => x.tagName === 'BUTTON').map((x) => x.querySelector('span')!.textContent);
-    expect(top).toEqual(['Circuit', 'Swap device type', 'Select same circuit', 'Select same type', 'Match to this', 'Move', 'Copy', 'Erase', 'Isolate', 'Count', 'Deselect all', 'Properties']);
+    const top = [...menu.children].filter((x) => x.tagName === 'BUTTON').map((x) => rowLabel(x));
+    expect(top).toEqual(['Circuit', 'Swap device type', 'Arrange', 'Undo', 'Redo', 'Erase', 'Move', 'Copy selection', 'Isolate', 'Pan', 'Zoom', 'Select same circuit', 'Select same type', 'Invert selection', 'Deselect all', 'Count', 'Properties', 'Options…']);
     await act(async () => { [...menu.querySelectorAll('button')].find((b) => b.textContent!.startsWith('Swap device type'))!.click(); });
     await act(async () => { ([...document.querySelectorAll('[role="menuitem"]')].find((o) => o.textContent!.startsWith('Twin socket')) as HTMLButtonElement).click(); });
     expect(project.lvPoints!.find((d) => d.x === 6)!.type).toBe('s13t');
@@ -2206,8 +2218,8 @@ describe('file tabs', () => {
     const px = (mx: number, my: number) => ({ clientX: left + mx * k, clientY: bottom - my * k });
     const press = (mx: number, my: number) => act(() => { document.querySelector('.cad-vps')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, ...px(mx, my) })); });
     const rightAt = (mx: number, my: number) => act(async () => { document.querySelector('.cad-filepaper')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...px(mx, my) })); });
-    const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
-    const labels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => b.firstElementChild?.textContent ?? b.textContent);
+    const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (rowLabel(b)) === label)!;
+    const labels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => rowLabel(b));
     // MV: Esc stops it; typed again, two presses make Viewport 2 and pick it.
     await command('MV');
     expect(hist()).toBe('MVIEW  Click two corners of the new viewport on the paper:');
@@ -2325,8 +2337,8 @@ describe('file tabs', () => {
     const px = (mx: number, my: number) => ({ clientX: left + mx * k, clientY: top + my * k });
     const press = (mx: number, my: number) => act(() => { document.querySelector('.cad-vps')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, ...px(mx, my) })); });
     const rightAt = (mx: number, my: number) => act(async () => { document.querySelector('.cad-vps')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...px(mx, my) })); });
-    const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
-    const labels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => b.firstElementChild?.textContent ?? b.textContent);
+    const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (rowLabel(b)) === label)!;
+    const labels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => rowLabel(b));
     const band = () => document.querySelector('svg[aria-label="Outline being picked"]');
     act(() => state.setVpSel(null));
     await command('VPCLIP');
@@ -2397,8 +2409,8 @@ describe('file tabs', () => {
     const px = (mx: number, my: number) => ({ clientX: left + mx * k, clientY: bottom - my * k });
     const press = (mx: number, my: number) => act(() => { document.querySelector('.cad-vps')!.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, ...px(mx, my) })); });
     const rightAt = (mx: number, my: number) => act(async () => { document.querySelector('.cad-filepaper')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...px(mx, my) })); });
-    const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
-    const labels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => b.firstElementChild?.textContent ?? b.textContent);
+    const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (rowLabel(b)) === label)!;
+    const labels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => rowLabel(b));
     const band = () => document.querySelector('svg[aria-label="Outline being picked"]');
     const esc = () => act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
     const START = 'VPCLIP  Click the corners of the outline on the paper. Enter closes it (three corners or more), U takes the last corner back, Esc cancels.';
@@ -2794,22 +2806,22 @@ describe('CAD command line', () => {
     await start();
     const right = (x: number, y: number, shiftKey = false) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, shiftKey, bubbles: true, cancelable: true })); }); };
     const menu = () => [...document.querySelectorAll('[aria-label="Command menu"] > button')] as HTMLButtonElement[];
-    const labels = () => menu().map((b) => b.firstElementChild!.textContent);
-    const entry = (label: string) => menu().find((b) => b.firstElementChild!.textContent === label)!;
+    const labels = () => menu().map((b) => rowLabel(b));
+    const entry = (label: string) => menu().find((b) => rowLabel(b) === label)!;
     await command('GRID');
     await command('F');
     await right(X + 20000, 20000);
-    expect(labels()).toEqual(['Enter', 'Cancel', 'Radius', 'Trim', 'Snap overrides', 'Object snap', 'Ortho', 'Polar tracking', 'Zoom previous', 'Zoom extents']);
+    expect(labels()).toEqual(['Enter', 'Cancel', 'Radius', 'Trim', 'Snap overrides', 'Object snap', 'Ortho', 'Polar tracking', 'Zoom']);
     await act(async () => { entry('Trim').click(); });
     expect(hist()).toBe('FILLET  Select first object or [Radius/Trim] <R 0.00, No trim>:');
     await command('');
     expect(state.tool).toBe('none');
     await right(X + 20000, 20000);
-    expect(labels()).toEqual(['Repeat FILLET', 'Recent commands', 'Paste', 'Paste to original coordinates', 'Undo', 'Redo', 'Isolate', 'Pan', 'Zoom window', 'Zoom previous', 'Zoom extents',
+    expect(labels()).toEqual(['Repeat FILLET', 'Recent commands', 'Paste', 'Paste to original coordinates', 'Undo', 'Redo', 'Isolate', 'Pan', 'Zoom',
       'Select all', 'Quick select…', 'Count', 'Place device', 'Cable route', 'Cable tray', 'Properties', 'Options…']);
     expect([entry('Paste').disabled, entry('Undo').disabled]).toEqual([true, true]); // nothing on the clipboard; no undo given
     await act(async () => { entry('Recent commands').click(); });
-    expect([...document.querySelectorAll('[aria-label="Recent commands"] button')].map((b) => b.firstElementChild!.textContent)).toEqual(['GRID']);
+    expect([...document.querySelectorAll('[aria-label="Recent commands"] button')].map((b) => rowLabel(b))).toEqual(['GRID']);
     await act(async () => { entry('Repeat FILLET').click(); });
     expect(state.tool).toBe('fillet');
     // A prompt without options: right-click is Enter, Shift+right-click the command menu.
@@ -3014,6 +3026,40 @@ describe('CAD command line', () => {
     await command('SC');
     const d = document.querySelector('[role="dialog"][aria-label="Scale"]') as HTMLElement;
     expect([d.style.left, d.style.top]).toEqual([`${window.innerWidth - 240}px`, '0px']);
+  });
+
+  it('Space twice: the first press ends a command that keeps going, the next starts it again; the command line says which (2026-11-17)', async () => {
+    await start();
+    const space = () => { act(() => { (document.querySelector('input[aria-label="Command"]') as HTMLInputElement).blur(); }); tap(' '); };
+    const again = (tool: string, label: string) => {
+      space();
+      expect([tool, state.tool]).toEqual([tool, 'none']);
+      expect(hist()).toBe(`Command: Click an object to see what it is · Space repeats ${label}`);
+      space();
+      expect(state.tool).toBe(tool);
+    };
+    // At the prompt each comes back to after every use (Offset's, after its distance).
+    for (const [typed, tool, label] of [['TR', 'trim', 'TRIM'], ['EX', 'extend', 'EXTEND'], ['F', 'fillet', 'FILLET'], ['CHA', 'chamfer', 'CHAMFER'], ['BR', 'break', 'BREAK'], ['X', 'explode', 'EXPLODE'], ['O', 'offset', 'OFFSET']] as const) {
+      await command(typed);
+      if (tool === 'offset') await command('');
+      again(tool, label);
+      key('Escape');
+    }
+    // Those that end after one use, still waiting for their objects: the first press ends them too.
+    for (const [typed, tool, label] of [['M', 'move', 'MOVE'], ['CO', 'copy', 'COPY'], ['RO', 'rotate', 'ROTATE'], ['MI', 'mirror', 'MIRROR'], ['SC', 'scale', 'SCALE'], ['S', 'stretch', 'STRETCH'], ['AL', 'align', 'ALIGN'], ['AR', 'array', 'ARRAY'], ['J', 'join', 'JOIN']] as const) {
+      await command(typed);
+      again(tool, label);
+      key('Escape');
+    }
+    // A move done ends it, and says so; one press starts it again.
+    await command('M');
+    await clickAt(X + 2000, 0);
+    await clickAt(X, 0);
+    await command('@0,500');
+    expect(items()[0].pts[0][1]).toBeCloseTo(500, 0);
+    expect(hist()).toBe('Command: Click an object to see what it is · Space repeats MOVE');
+    space();
+    expect(state.tool).toBe('move');
   });
 
   it('Space held to pan does not end the step; tapped it does; held long with no tool it does not repeat', async () => {
@@ -3317,7 +3363,7 @@ describe('Design CAD properties dock', () => {
     await clickAt(6687.5 + 190, 7375); // the architect's light block
     expect(head()).toContain('Block · L1');
     expect(dock().textContent).toMatch(/LayerE-LIGHT/);
-    expect(dock().querySelector('[aria-label="Properties palette"]')).toBeNull(); // nothing of it to edit
+    await until(() => dock().querySelector('[aria-label="Properties palette"]') !== null); // it stands in as a drawn object: editable (the first edit takes it over)
     act(() => state.toggle('osnap'));
     act(() => { state.setDevice('camera'); state.setTool('dev'); });
     await clickAt(5000, 5000);
@@ -3744,18 +3790,24 @@ describe('CAD 2D gap plan: TEXTEDIT, a double-click on a text or dimension to ty
     await flush();
     act(() => state.toggle('osnap'));
     await rightClickAt(X + 300, 100);
-    const menu = () => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"][aria-label="Edit drawn objects"] button')];
-    expect(menu().map((b) => b.textContent)).toEqual(['Edit text', 'Find and replace…', 'Justify ▸', 'Text height ▸', 'Case ▸', 'Frame ▸', 'Background mask', 'Move', 'Copy', 'Rotate', 'Erase', 'Draw order ▸', 'Make block…', 'Select similar', 'Quick select…', 'Clipboard ▸', 'Isolate ▸', 'Add selected', 'Quick measure', 'Count', 'Deselect all', 'Properties']);
+    const menu = () => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"][aria-label="Edit drawn objects"] > button')];
+    expect(menu().map((b) => rowLabel(b))).toEqual(['Text tools', 'Clipboard', 'Undo', 'Redo', 'Erase', 'Move', 'Copy selection', 'Rotate', 'Draw order', 'Isolate', 'Pan', 'Zoom', 'Select similar', 'Invert selection', 'Deselect all', 'Quick select…', 'Count', 'Properties', 'Options…']);
     await act(async () => { menu()[0].click(); });
+    const tools = () => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"][aria-label="Text tools"] button')];
+    expect(tools().map((b) => rowLabel(b))).toEqual(['Edit text', 'Find and replace…', 'Justify', 'Text height', 'Case', 'Frame', 'Background mask', 'Add selected', 'Make block…']);
+    await act(async () => { tools()[0].click(); });
     expect(box()!.value).toBe('DB ROOM');
     await keyBox('Escape');
     // A line's menu has none.
     await command('l');
-    await command(`${X},6000`);
-    await command(`${X + 2000},6000`);
+    await clickAt(X, 6000);
+    await clickAt(X + 2000, 6000);
     await command('');
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); }); // the line tool ends
     await rightClickAt(X + 1000, 6000);
-    expect(menu().map((b) => b.textContent)).not.toContain('Edit text');
+    expect(menu().map((b) => rowLabel(b))).not.toContain('Text tools');
+    await act(async () => { menu()[0].click(); });
+    expect([...document.querySelectorAll<HTMLButtonElement>('[role="menu"][aria-label="Line tools"] button')].map((b) => rowLabel(b))).not.toContain('Edit text');
   });
 });
 
@@ -3791,7 +3843,6 @@ describe('CAD 2D gap plan: MTEXT, notes in a box with their lines wrapped to its
     if (el instanceof HTMLSelectElement) { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); }
     else { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, value); el.dispatchEvent(new Event('input', { bubbles: true })); }
   });
-  const menuLabels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => b.textContent);
   const N1: SketchItem = { id: 'N1', kind: 'mtext', layer: 'LV-ANNO', pts: [[X, 6000]], h: 250, w: 3000, note: [{ runs: [{ s: 'GENERAL NOTES', b: true }] }, { runs: [{ s: 'LSZH cables' }] }] };
   // A note of two lines in a 3 m box at (X, 6000), and one on a locked layer below it.
   const start: Project = { ...villa, cadSketch: [{ file: F, items: [N1, { ...N1, id: 'N2', layer: 'LV-LOCKED', pts: [[X, 3000]] }] }], cadLayerStyle: { [F]: { 'LV-LOCKED': { lock: true } } } };
@@ -3896,23 +3947,22 @@ describe('CAD 2D gap plan: MTEXT, notes in a box with their lines wrapped to its
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
     expect(state.tool).toBe('none');
     await rightClickAt(X + 500, 5900);
-    expect(menuLabels()).toEqual(['Repeat TEXTEDIT', 'Edit text', 'Width…', 'Justify ▸', 'Find and replace…', 'Move', 'Copy', 'Rotate', 'Erase', 'Draw order ▸', 'Make block…', 'Select similar', 'Quick select…', 'Clipboard ▸', 'Isolate ▸', 'Add selected', 'Quick measure', 'Count', 'Deselect all', 'Properties']);
-    await act(async () => { button('Width…').click(); });
+    expect(menuRows('[aria-label="Edit drawn objects"]')).toEqual(['Repeat TEXTEDIT', 'Note tools', 'Clipboard', 'Undo', 'Redo', 'Erase', 'Move', 'Copy selection', 'Rotate', 'Draw order', 'Isolate', 'Pan', 'Zoom', 'Select similar', 'Invert selection', 'Deselect all', 'Quick select…', 'Count', 'Properties', 'Options…']);
+    expect(menuRows('[aria-label="Note tools"]')).toEqual([]);
+    await chooseMenu('Note tools', 'Width…');
     expect(last()).toBe('MTEXT  Width (m) <3.00>:');
     await command('4');
     expect(items()[0].w).toBe(4000);
     expect(items()[0].pts).toEqual([[X, 6000]]);
     expect(onChange.mock.calls[0][1]).toMatch(/^MTEXT {2}Note 4\.00 m wide/);
     await rightClickAt(X + 500, 5900);
-    await act(async () => { button('Justify ▸').click(); });
-    const opt = [...document.querySelectorAll('[role="listbox"][aria-label="Justify"] [role="option"]')].find((b) => b.textContent?.startsWith('Bottom right')) as HTMLButtonElement;
-    await act(async () => { opt.click(); });
+    await chooseMenu('Note tools', 'Justify', 'Bottom right');
     expect(items()[0].just).toBe('BR');
     expect(noteBox(items()[0]).tl[0]).toBeCloseTo(X); expect(noteBox(items()[0]).tl[1]).toBeCloseTo(6000);
     expect(onChange).toHaveBeenCalledTimes(2);
     // Edit text opens the editor too.
     await rightClickAt(X + 500, 5900);
-    await act(async () => { button('Edit text').click(); });
+    await chooseMenu('Note tools', 'Edit text');
     expect(editor()).not.toBeNull();
     await keyWords('Escape');
     expect(editor()).toBeNull();
@@ -3928,8 +3978,7 @@ describe('CAD 2D gap plan: DRAWORDER and TEXTTOFRONT, the order the drawn object
     const [sx, sy] = screenOf(x, y);
     await act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); });
   };
-  const menuLabels = () => [...document.querySelectorAll('[role="menu"] button')].map((b) => b.textContent);
-  const options = () => [...document.querySelectorAll('[role="listbox"][aria-label="Draw order"] [role="option"]')] as HTMLButtonElement[];
+  const options = () => [...document.querySelectorAll('[role="menu"][aria-label="Draw order"] button')] as HTMLButtonElement[];
   // A solid hatch, a line beside it and a text over the hatch, drawn in that order (the text on top).
   const start: Project = { ...villa, cadSketch: [{ file: F, items: [
     { id: 'H', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: [[X, 0], [X + 4000, 0], [X + 4000, 3000], [X, 3000]], hatch: { pattern: 'solid', scale: 3, angle: 0 } },
@@ -3994,20 +4043,20 @@ describe('CAD 2D gap plan: DRAWORDER and TEXTTOFRONT, the order the drawn object
     expect(onChange.mock.calls[1][1]).toBe('TEXTTOFRONT  The texts brought to the front · ⌘Z to undo');
   });
 
-  it('the right-click menu of drawn objects has Draw order ▸ with the four orders; Above and Under then ask for the reference', async () => {
+  it('the right-click menu of drawn objects has Draw order with the four orders; Above and Under then ask for the reference', async () => {
     act(() => root.render(<Host start={start} />));
     await flush();
     project = start;
     act(() => state.toggle('osnap'));
     await rightClickAt(X + 6000, 0);
-    expect(menuLabels()).toEqual(['Join…', 'Chamfer', 'Reverse direction', 'Convert to cable route', 'Trim', 'Extend', 'Offset', 'Break', 'Fillet', 'Mirror', 'Move', 'Copy', 'Rotate', 'Erase', 'Draw order ▸', 'Make block…', 'Select similar', 'Quick select…', 'Clipboard ▸', 'Isolate ▸', 'Add selected', 'Quick measure', 'Count', 'Deselect all', 'Properties']);
-    await act(async () => { button('Draw order ▸').click(); });
+    expect(menuRows('[aria-label="Edit drawn objects"]')).toEqual(['Line tools', 'Clipboard', 'Undo', 'Redo', 'Erase', 'Move', 'Copy selection', 'Scale', 'Rotate', 'Mirror', 'Draw order', 'Isolate', 'Pan', 'Zoom', 'Select similar', 'Invert selection', 'Deselect all', 'Quick select…', 'Count', 'Properties', 'Options…']);
+    await chooseMenu('Draw order');
     expect(options().map((b) => b.textContent)).toEqual(['Bring to front', 'Send to back', 'Above object', 'Under object']);
     await act(async () => { options()[1].click(); });
     expect(order()).toBe('LHT');
     expect(onChange.mock.calls[0][1]).toBe('DRAWORDER  1 object sent to the back · ⌘Z to undo');
     await rightClickAt(X + 6000, 0);
-    await act(async () => { button('Draw order ▸').click(); });
+    await chooseMenu('Draw order');
     await act(async () => { options()[2].click(); });
     expect(last()).toBe('Command: DRAWORDER  Select reference objects:');
     await clickAt(X + 1100, 1100);
@@ -4210,9 +4259,10 @@ describe('CAD 2D gap plan: BLOCK, a block from drawn objects', () => {
     project = start;
     act(() => state.toggle('osnap'));
     await rightClickAt(X + 2500, 0);
-    const labels = [...document.querySelectorAll('[role="menu"] button')].map((b) => b.textContent);
-    expect(labels.slice(labels.indexOf('Erase'))).toEqual(['Erase', 'Draw order ▸', 'Make block…', 'Select similar', 'Quick select…', 'Clipboard ▸', 'Isolate ▸', 'Add selected', 'Quick measure', 'Count', 'Deselect all', 'Properties']);
-    await act(async () => { button('Make block…').click(); });
+    expect(menuRows('[aria-label="Edit drawn objects"]').slice(0, 3)).toEqual(['Line tools', 'Clipboard', 'Undo']);
+    await chooseMenu('Line tools');
+    expect(menuRows('[aria-label="Line tools"]').slice(-3)).toEqual(['Quick measure', 'Add selected', 'Make block…']);
+    await chooseMenu('Make block…');
     expect(dlg()).not.toBeNull();
     expect(document.querySelector('[aria-label="Objects selected"]')!.textContent).toBe('1 selected');
     expect(field('Base X').value).toBe('202.000');
@@ -4319,11 +4369,12 @@ describe('CAD 2D gap plan: INSERT and the Blocks palette', () => {
     expect(inserts()).toHaveLength(6);
     expect(inserts().slice(2).map((it) => [it.pts[0][0] - X, it.block, it.rot])).toEqual([[2000, 'DB-A', undefined], [4000, 'DB-A', undefined], [6000, 'DB-A', undefined], [8000, 'DB-A', undefined]]);
     expect(onChange.mock.calls[2][1]).toBe('DIVIDE  4 "DB-A" blocks on the line · ⌘Z to undo');
-    // The right-click menu of a block starts with Select all of this block.
+    // The right-click menu of a block has its own list, Block tools, with Select all of this block.
     await rightClickAt(X + 1000, 1150);
-    const labels = [...document.querySelectorAll('[role="menu"] button')].map((b) => b.textContent);
-    expect(labels.slice(0, 4)).toEqual(['Repeat DIVIDE', 'Open block editor', 'Edit block in place', 'Select all of this block']);
-    await act(async () => { button('Select all of this block').click(); });
+    expect(menuRows('[aria-label="Edit drawn objects"]').slice(0, 2)).toEqual(['Repeat DIVIDE', 'Block tools']);
+    await chooseMenu('Block tools');
+    expect(menuRows('[aria-label="Block tools"]').slice(0, 3)).toEqual(['Open block editor', 'Edit block in place', 'Select all of this block']);
+    await chooseMenu('Select all of this block');
     expect(last()).toBe('SELECT  Every "DB-A" block picked');
   });
 });
@@ -4440,7 +4491,7 @@ describe('right-click menus, phase 1: the tools behind them', () => {
   const hist = () => document.querySelector('.cad-hist')!.textContent;
   const start = async (p: Project = two) => { project = p; act(() => root.render(<Host start={p} />)); await flush(); act(() => state.toggle('osnap')); };
   const right = (x: number, y: number, shiftKey = false) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, shiftKey, bubbles: true, cancelable: true })); }); };
-  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
+  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (rowLabel(b)) === label)!;
   const lines = () => sketchOf(project, 'sample-villa-gf.dxf').filter((it) => it.kind === 'line');
 
   it('COUNT, SELECTALL (and Ctrl+A), ISOLATEOBJECTS, HIDEOBJECTS and UNISOLATEOBJECTS', async () => {
@@ -4518,15 +4569,14 @@ describe('right-click menus, phase 1: the tools behind them', () => {
     expect(entry('@0,2000')).toBeTruthy();
   });
 
-  it('the menu of drawn objects picked: Isolate ▸, Add selected, Quick measure, Count and Deselect all run their tools', async () => {
+  it('the menu of drawn objects picked: Isolate, Add selected, Quick measure, Count and Deselect all run their tools', async () => {
     await start();
     await clickAt(X + 2000, 0);
     await right(X + 2000, 0);
-    await act(async () => { entry('Quick measure').click(); });
+    await chooseMenu('Line tools', 'Quick measure');
     expect(hist()).toMatch(/^QUICKMEASURE {2}1 object/);
     await right(X + 2000, 0);
-    await act(async () => { entry('Isolate ▸').click(); });
-    await act(async () => { [...document.querySelectorAll<HTMLButtonElement>('[aria-label="Isolate"] button')].find((b) => b.textContent?.startsWith('Hide objects'))!.click(); });
+    await chooseMenu('Isolate', 'Hide objects');
     expect(hist()).toBe('HIDEOBJECTS  1 object hidden · UNISOLATEOBJECTS shows all again');
     await clickAt(X + 6000, 3000);
     await right(X + 6000, 3000);
@@ -4536,10 +4586,133 @@ describe('right-click menus, phase 1: the tools behind them', () => {
   });
 });
 
+describe('right-click menus, stage 2: one order, new look, new tools', () => {
+  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+  const X = 200000;
+  const two: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', [X, 0], [X + 4000, 0]), line('S2', [X + 6000, 1000], [X + 6000, 5000])] }] };
+  const hist = () => document.querySelector('.cad-hist')!.textContent;
+  const start = async (p: Project = two, undoLabel?: string) => { project = p; act(() => root.render(<Host start={p} undoLabel={undoLabel} />)); await flush(); act(() => state.toggle('osnap')); };
+  const right = (x: number, y: number) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); }); };
+  const key = (init: KeyboardEventInit) => act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })); });
+  const objectMenu = () => document.querySelector('[role="menu"][aria-label="Edit drawn objects"]') as HTMLElement | null;
+
+  it('a right-click on a picked line: the header names it, Line tools has Trim, Undo says what it takes back', async () => {
+    await start(two, 'Offset');
+    await clickAt(X + 2000, 0);
+    await right(X + 2000, 0);
+    expect(objectMenu()!.querySelector('.cad-menu-hd')!.textContent).toBe('Line · 4.00 m · LV-SKETCH');
+    expect(menuRows('[aria-label="Edit drawn objects"]')).toEqual(expect.arrayContaining(['Line tools', 'Clipboard', 'Undo Offset', 'Redo', 'Erase', 'Move', 'Copy selection', 'Scale', 'Properties', 'Options…']));
+    expect(menuRow('Undo Offset').disabled).toBe(false);
+    expect(menuRow('Redo').disabled).toBe(true);
+    await chooseMenu('Line tools');
+    expect(menuRows('[aria-label="Line tools"]')).toContain('Trim');
+    await chooseMenu('Trim');
+    expect(state.tool).toBe('trim');
+  });
+
+  it('SELECTINVERT picks what was not picked and drops what was; Invert selection on the menu does the same', async () => {
+    await start();
+    await clickAt(X + 2000, 0); // S1
+    expect(state.selected).toBe('sk:S1');
+    await command('SELECTINVERT');
+    expect(hist()).toBe('SELECTINVERT  1 object selected');
+    expect(state.selected).toBe('sk:S2');
+    await right(X + 6000, 3000);
+    await chooseMenu('Invert selection');
+    expect(state.selected).toBe('sk:S1');
+    // Nothing picked: everything is.
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    await command('SELECTINVERT');
+    expect(hist()).toBe('SELECTINVERT  2 objects selected');
+  });
+
+  it('Z O zooms to the objects picked (and says so when none are); Zoom to selection on the menu is the same', async () => {
+    const chip = () => document.querySelector('.zoom-chip')!.textContent;
+    await start();
+    await command('Z O');
+    expect(hist()).toBe('ZOOM  Pick the objects first.');
+    expect(chip()).toBe('100 %');
+    await clickAt(X + 2000, 0);
+    await command('Z O');
+    expect(hist()).toBe('ZOOM  1 object selected filled the view');
+    await until(() => chip() !== '100 %');
+    expect(parseInt(chip()!, 10)).toBeGreaterThan(100);
+    await right(X + 2000, 0);
+    expect(menuRows('[aria-label="Zoom"]')).toEqual([]);
+    await chooseMenu('Zoom');
+    expect(menuRows('[aria-label="Zoom"]')).toEqual(['Zoom window', 'Zoom to selection', 'Zoom previous', 'Zoom extents']);
+  });
+
+  it('Shift+F10 and the menu key open the menu at the objects picked; with nothing picked and no cursor yet, they say so', async () => {
+    await start();
+    await key({ key: 'F10', shiftKey: true });
+    expect(objectMenu()).toBeNull();
+    expect(hist()).toBe('Move the cursor over the drawing first.');
+    expect(state.toggles.polar).toBe(false); // F10 alone is Polar; with Shift it is the menu
+    await clickAt(X + 2000, 0);
+    await key({ key: 'F10', shiftKey: true });
+    expect(objectMenu()).not.toBeNull();
+    expect(objectMenu()!.querySelector('.cad-menu-hd')!.textContent).toBe('Line · 4.00 m · LV-SKETCH');
+    expect(state.selected).toBe('sk:S1'); // the pick stays
+    await key({ key: 'Escape' });
+    expect(objectMenu()).toBeNull();
+    await key({ key: 'ContextMenu' });
+    expect(objectMenu()).not.toBeNull();
+    await key({ key: 'F10' });
+    expect(state.toggles.polar).toBe(true);
+  });
+
+  it('Properties on the menu is checked while the palette shows, and a click folds it away', async () => {
+    await start();
+    act(() => state.setShowProps(true));
+    await clickAt(X + 2000, 0);
+    await right(X + 2000, 0);
+    expect(menuRow('Properties').getAttribute('aria-checked')).toBe('true');
+    await chooseMenu('Properties');
+    expect(state.showProps).toBe(false);
+    await right(X + 2000, 0);
+    expect(menuRow('Properties').getAttribute('aria-checked')).toBe('false');
+    await chooseMenu('Properties');
+    expect(state.showProps).toBe(true);
+  });
+
+  it('Pan from the menu of a picked object keeps the pick', async () => {
+    await start();
+    await clickAt(X + 2000, 0);
+    await right(X + 2000, 0);
+    await chooseMenu('Pan');
+    expect(state.tool).toBe('pan');
+    expect(state.selected).toBe('sk:S1');
+    await command('');
+    expect(state.tool).toBe('none');
+    expect(state.selected).toBe('sk:S1');
+  });
+
+  it('the menu has the keyboard: Down moves to a row, Right opens its list, Esc closes the list and then the menu', async () => {
+    await start();
+    await clickAt(X + 2000, 0);
+    await right(X + 2000, 0);
+    const menu = objectMenu()!;
+    expect(document.activeElement).toBe(menu);
+    const press = (k: string) => act(async () => { document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true })); });
+    await press('ArrowDown');
+    expect(rowLabel(document.activeElement!)).toBe('Line tools');
+    await press('ArrowRight');
+    expect(document.querySelector('[role="menu"][aria-label="Line tools"]')).not.toBeNull();
+    expect(rowLabel(document.activeElement!)).toBe('Trim');
+    await press('Escape');
+    expect(document.querySelector('[aria-label="Line tools"]')).toBeNull();
+    expect(objectMenu()).not.toBeNull();
+    await press('Escape');
+    expect(objectMenu()).toBeNull();
+    expect(state.selected).toBe('sk:S1'); // Esc closed only the menu
+  });
+});
+
 describe('right-click menus, phase 2: LV and ELV objects and the tools behind them', () => {
   const hist = () => document.querySelector('.cad-hist')!.textContent;
   const right = (x: number, y: number) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); }); };
-  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
+  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (rowLabel(b)) === label)!;
   const pickEntry = async (...path: string[]) => { for (const l of path) { const b = entry(l); expect(b, l).toBeTruthy(); await act(async () => { b.click(); }); } };
   const esc = () => act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
   const lit: Project = {
@@ -4570,14 +4743,14 @@ describe('right-click menus, phase 2: LV and ELV objects and the tools behind th
     expect(show).toHaveBeenLastCalledWith({ to: 'load-schedule', board: 'DB-GF1' });
     await esc();
     await right(1000, 1000);
-    await pickEntry('Draw home-runs');
+    await pickEntry('Board tools', 'Draw home-runs');
     expect(project.cadWiring!.map((w) => w.feederId).sort()).toEqual(['DB-GF1-B6', 'DB-GF1-Y1']);
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toMatch(/^1 circuit of DB-GF1 wired on /);
     await right(1000, 1000);
     await pickEntry('Show in riser');
     expect(show).toHaveBeenLastCalledWith({ to: 'riser', board: 'DB-GF1' });
     await right(1000, 1000);
-    await pickEntry('Select all fed devices');
+    await pickEntry('Board tools', 'Select all fed devices');
     expect(hist()).toMatch(/^SEL {2}3 devices on DB-GF1's circuits/);
   });
 
@@ -4649,7 +4822,7 @@ describe('right-click menus, phase 3: blocks, references and layouts', () => {
   const X = 200000, F = 'sample-villa-gf.dxf';
   const hist = () => document.querySelector('.cad-hist')!.textContent;
   const right = (x: number, y: number) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); }); };
-  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
+  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (rowLabel(b)) === label)!;
   const pickEntry = async (...path: string[]) => { for (const l of path) { const b = entry(l); expect(b, l).toBeTruthy(); await act(async () => { b.click(); }); } };
   const esc = () => act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
   const start = async (p: Project) => { project = p; act(() => root.render(<Host start={p} />)); await flush(); act(() => state.toggle('osnap')); };
@@ -4659,23 +4832,23 @@ describe('right-click menus, phase 3: blocks, references and layouts', () => {
   const ins = (id: string, y: number, block: string, attrs?: Record<string, string>): SketchItem => ({ id, kind: 'insert', layer: '0', pts: [[X, y]], block, ...(attrs ? { attrs } : {}) });
   afterEach(() => dropRefGeometry('REF.dxf'));
 
-  it('a block drawn here: Count instances, Replace with another block ▸, Reset attributes, Explode', async () => {
+  it('a block drawn here: Count instances, Replace with another block, Reset attributes, Explode', async () => {
     await start({ ...villa, cadBlockDefs: [{ file: F, defs: [B1, B2] }], cadSketch: [{ file: F, items: [ins('I1', 0, 'B1'), ins('I2', 5000, 'B1'), ins('I3', 10000, 'B2', { TAG: 'L1' })] }] });
     const item = (id: string) => sketchOf(project, F).find((x) => x.id === id);
     await clickAt(X + 1000, 0);
     await right(X + 1000, 0);
-    await pickEntry('Count instances');
+    await pickEntry('Block tools', 'Count instances');
     expect(hist()).toBe('COUNT  "B1": 2 in this drawing');
     await right(X + 1000, 0);
-    await pickEntry('Replace with another block ▸', 'B2');
+    await pickEntry('Block tools', 'Replace with another block', 'B2');
     expect(item('I1')!.block).toBe('B2');
     await esc();
     await clickAt(X + 1000, 10000);
     await right(X + 1000, 10000);
-    await pickEntry('Reset attributes');
+    await pickEntry('Block tools', 'Reset attributes');
     expect(item('I3')!.attrs).toBeUndefined();
     await right(X + 1000, 10000);
-    await pickEntry('Explode');
+    await pickEntry('Block tools', 'Explode');
     expect(sketchOf(project, F).filter((x) => x.kind === 'insert').map((x) => x.id)).toEqual(['I1', 'I2']); // I3's first piece keeps its id
     expect(hist()).toMatch(/^EXPLODE {2}"B2": 2 objects/);
   });
@@ -4736,7 +4909,7 @@ describe('right-click menus, phase 4: texts, dimensions, hatches, polylines, hot
   const X = 200000, F = 'sample-villa-gf.dxf';
   const hist = () => document.querySelector('.cad-hist')!.textContent;
   const right = (x: number, y: number) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); }); };
-  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
+  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (rowLabel(b)) === label)!;
   const pickEntry = async (...path: string[]) => { for (const l of path) { const b = entry(l); expect(b, l).toBeTruthy(); await act(async () => { b.click(); }); } };
   const esc = () => act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
   /** A press and let go in place: on a grip of the object picked, it turns hot. */
@@ -4747,23 +4920,23 @@ describe('right-click menus, phase 4: texts, dimensions, hatches, polylines, hot
   const start = async (items: SketchItem[]) => { const p = { ...villa, cadSketch: [{ file: F, items }] }; project = p; act(() => root.render(<Host start={p} />)); await flush(); act(() => state.toggle('osnap')); };
   const item = (id: string) => sketchOf(project, F).find((x) => x.id === id)!;
 
-  it('a text: Justify ▸, Text height ▸, Case ▸, Frame ▸ and Background mask; FIND replaces words in every text', async () => {
+  it('a text: Justify, Text height, Case, Frame and Background mask; FIND replaces words in every text', async () => {
     await start([{ id: 'T1', kind: 'text', layer: '0', pts: [[X, 0]], text: 'Panel a', h: 250 }, { id: 'T2', kind: 'text', layer: '0', pts: [[X, 5000]], text: 'panel b', h: 250 }]);
     await clickAt(X + 300, 100);
     await right(X + 300, 100);
-    await pickEntry('Case ▸', 'UPPER CASE');
+    await pickEntry('Text tools', 'Case', 'UPPER CASE');
     expect(item('T1').text).toBe('PANEL A');
     await right(X + 300, 100);
-    await pickEntry('Text height ▸', '5 mm on paper');
+    await pickEntry('Text tools', 'Text height', '5 mm on paper');
     expect(item('T1').h).toBeCloseTo(5 * unitsPerPaperMm(annoOf(project), 0.001), 6);
     await right(X + 300, 100);
-    await pickEntry('Justify ▸', 'Middle centre');
+    await pickEntry('Text tools', 'Justify', 'Middle centre');
     expect(item('T1').just).toBe('MC');
     await right(X + 300, 100);
-    await pickEntry('Frame ▸', 'Box');
+    await pickEntry('Text tools', 'Frame', 'Box');
     expect(item('T1').frame).toBe('box');
     await right(X + 300, 100);
-    await pickEntry('Background mask');
+    await pickEntry('Text tools', 'Background mask');
     expect(item('T1').mask).toBe(true);
     await esc();
     await command('FIND');
@@ -4774,31 +4947,31 @@ describe('right-click menus, phase 4: texts, dimensions, hatches, polylines, hot
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toBe('FIND  2 replaced: "panel" → "Board" in 2 objects · ⌘Z to undo');
   });
 
-  it('a dimension: Precision ▸, Text position ▸, Remove text override; a hatch: Hatch angle ▸, Hatch scale ▸, Recreate boundary', async () => {
+  it('a dimension: Precision, Text position, Remove text override; a hatch: Hatch angle, Hatch scale, Recreate boundary', async () => {
     await start([
       { id: 'D1', kind: 'dim', layer: '0', pts: [[X, 20000], [X + 4000, 20000], [X + 2000, 21000]], text: 'TYP.', h: 250 },
       { id: 'H1', kind: 'pline', layer: '0', closed: true, pts: [[X, 40000], [X + 4000, 40000], [X + 4000, 44000], [X, 44000]], hatch: { pattern: 'ansi31', scale: 1, angle: 0 } }
     ]);
     await clickAt(X + 1000, 21000);
     await right(X + 1000, 21000);
-    await pickEntry('Precision ▸', '0.0');
+    await pickEntry('Dimension tools', 'Precision', '0.0');
     expect(item('D1').look!.decimals).toBe(1);
     await right(X + 1000, 21000);
-    await pickEntry('Text position ▸', 'Above');
+    await pickEntry('Dimension tools', 'Text position', 'Above');
     expect(item('D1').look!.textPos).toBe('above');
     await right(X + 1000, 21000);
-    await pickEntry('Remove text override');
+    await pickEntry('Dimension tools', 'Remove text override');
     expect(item('D1').text).toBeUndefined();
     await esc();
     await clickAt(X + 1000, 40000);
     await right(X + 1000, 40000);
-    await pickEntry('Hatch angle ▸', '45°');
+    await pickEntry('Hatch tools', 'Hatch angle', '45°');
     expect(item('H1').hatch!.angle).toBe(45);
     await right(X + 1000, 40000);
-    await pickEntry('Hatch scale ▸', '× 2 (wider apart)');
+    await pickEntry('Hatch tools', 'Hatch scale', '× 2 (wider apart)');
     expect(item('H1').hatch!.scale).toBe(2);
     await right(X + 1000, 40000);
-    await pickEntry('Recreate boundary');
+    await pickEntry('Hatch tools', 'Recreate boundary');
     const plain = sketchOf(project, F).filter((x) => x.kind === 'pline' && !x.hatch);
     expect(plain.map((x) => x.pts)).toEqual([item('H1').pts]);
     // The hatch follows the new outline from now on.
@@ -4811,12 +4984,14 @@ describe('right-click menus, phase 4: texts, dimensions, hatches, polylines, hot
     await start([{ id: 'H1', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: [[X, 40000], [X + 4000, 40000], [X + 4000, 44000], [X, 44000]], hatch: { pattern: 'ansi31', scale: 1, angle: 0 }, holes: [hole] }]);
     await clickAt(X + 4000, 42000);
     await right(X + 4000, 42000);
-    const labels = () => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].map((b) => b.firstElementChild?.textContent ?? b.textContent ?? '');
-    expect(labels().filter((t) => /hatch|origin|islands|boundary/i.test(t))).toEqual(['Edit hatch…', 'Hatch scale ▸', 'Hatch angle ▸', 'Set origin', 'Remove islands', 'Recreate boundary']);
+    const labels = () => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].map((b) => rowLabel(b) ?? '');
+    await pickEntry('Hatch tools');
+    expect(labels().filter((t) => /hatch|origin|islands|boundary/i.test(t))).toEqual(['Hatch tools', 'Edit hatch…', 'Hatch scale', 'Hatch angle', 'Set origin', 'Remove islands', 'Recreate boundary']);
     await pickEntry('Remove islands');
     expect(item('H1').holes).toBeUndefined();
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toBe('HATCH  Islands removed · ⌘Z to undo');
     await right(X + 4000, 42000);
+    await pickEntry('Hatch tools');
     expect(labels()).not.toContain('Remove islands');
     await pickEntry('Set origin');
     expect(hist()).toBe('HATCHEDIT  Click the pattern\'s origin:');
@@ -4824,7 +4999,7 @@ describe('right-click menus, phase 4: texts, dimensions, hatches, polylines, hot
     expect(item('H1').hatch!.origin).toEqual([X + 1500, 41500]);
     await esc();
     await right(X + 4000, 42000);
-    await pickEntry('Edit hatch…');
+    await pickEntry('Hatch tools', 'Edit hatch…');
     await until(() => document.body.textContent!.includes('Edit hatch'));
   });
 
@@ -4832,16 +5007,16 @@ describe('right-click menus, phase 4: texts, dimensions, hatches, polylines, hot
     await start([{ id: 'P1', kind: 'pline', layer: '0', pts: [[X, 60000], [X + 4000, 60000], [X + 4000, 63000]] }]);
     await clickAt(X + 1000, 60000);
     await right(X + 1000, 60000);
-    await pickEntry('Close');
+    await pickEntry('Polyline tools', 'Close');
     expect(item('P1').closed).toBe(true);
     await right(X + 1000, 60000);
-    await pickEntry('Reverse direction');
+    await pickEntry('Polyline tools', 'Reverse direction');
     expect(item('P1').pts).toEqual([[X + 4000, 63000], [X + 4000, 60000], [X, 60000]]);
     await right(X + 1000, 60000);
-    await pickEntry('Use as room boundary');
+    await pickEntry('Polyline tools', 'Use as room boundary');
     expect(hist()).toMatch(/^Room area = 6(\.0+)? m² — add it as a room in the panel on the right$/);
     await right(X + 1000, 60000);
-    await pickEntry('Explode');
+    await pickEntry('Polyline tools', 'Explode');
     expect(sketchOf(project, F).filter((x) => x.kind === 'line')).toHaveLength(3);
   });
 
@@ -4849,7 +5024,7 @@ describe('right-click menus, phase 4: texts, dimensions, hatches, polylines, hot
     await start([{ id: 'G1', kind: 'pline', layer: '0', pts: [[X, 80000], [X + 4000, 80000], [X + 4000, 83000]] }]);
     await clickAt(X + 1000, 80000);
     await right(X + 1000, 80000);
-    expect(entry('Close')).toBeTruthy(); // not on a grip: the polyline's menu
+    expect(entry('Polyline tools')).toBeTruthy(); // not on a grip: the polyline's menu
     await esc();
     await clickAt(X + 1000, 80000);
     await press(X + 2000, 80000); // the first side's grip
@@ -4874,36 +5049,36 @@ describe('right-click menus: fixes from the audit of 2026-11-11', () => {
   const X = 200000, F = 'sample-villa-gf.dxf';
   const hist = () => document.querySelector('.cad-hist')!.textContent;
   const right = (x: number, y: number) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); }); };
-  const labels = () => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] > button')].map((b) => b.firstElementChild?.textContent ?? b.textContent);
-  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
+  const labels = () => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] > button')].map((b) => rowLabel(b));
+  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (rowLabel(b)) === label)!;
   const pickEntry = async (...path: string[]) => { for (const l of path) { const b = entry(l); expect(b, l).toBeTruthy(); await act(async () => { b.click(); }); } };
   const esc = () => act(async () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
   const start = async (p: Project) => { project = p; act(() => root.render(<Host start={p} />)); await flush(); act(() => state.toggle('osnap')); };
   const item = (id: string) => sketchOf(project, F).find((x) => x.id === id);
   const line: SketchItem = { id: 'L1', kind: 'line', layer: '0', pts: [[X, 0], [X + 4000, 0]] };
 
-  it('a dimension: Dimension style ▸ lists the project\'s styles and applies one', async () => {
+  it('a dimension: Dimension style lists the project\'s styles and applies one', async () => {
     const dim: SketchItem = { id: 'D1', kind: 'dim', layer: '0', pts: [[X, 20000], [X + 4000, 20000], [X + 2000, 21000]], h: 250 };
     await start({ ...villa, cadDimStyles: { styles: [{ name: 'Arch', textMm: 3.5 } as CadDimStyle], current: 'Standard' }, cadSketch: [{ file: F, items: [dim] }] });
     await clickAt(X + 1000, 21000);
     await right(X + 1000, 21000);
-    await pickEntry('Dimension style ▸', 'Arch');
+    await pickEntry('Dimension tools', 'Dimension style', 'Arch');
     expect(item('D1')!.h).toBeCloseTo(3.5 * unitsPerPaperMm(annoOf(project), 0.001), 6);
     expect(item('D1')!.look).toBeDefined();
   });
 
-  it('drawn objects: Repeat the last command first, Properties last; Cut (Ctrl+X) copies and erases, Paste brings it back', async () => {
+  it('drawn objects: Repeat the last command first, Properties and Options last; Cut (Ctrl+X) copies and erases, Paste brings it back', async () => {
     await start({ ...villa, cadSketch: [{ file: F, items: [line] }] });
     await command('COUNT');
     act(() => state.setShowProps(false));
     await clickAt(X + 1000, 0);
     await right(X + 1000, 0);
     expect(labels()[0]).toBe('Repeat COUNT');
-    expect(labels().slice(-1)).toEqual(['Properties']);
+    expect(labels().slice(-2)).toEqual(['Properties', 'Options…']);
     await pickEntry('Properties');
     expect(state.showProps).toBe(true);
     await right(X + 1000, 0);
-    await pickEntry('Clipboard ▸', 'Cut');
+    await pickEntry('Clipboard', 'Cut');
     expect(item('L1')).toBeUndefined();
     expect(hist()).toBe('CUTCLIP  1 object cut to the clipboard · ⌘Z to undo');
     await command('PASTEORIG');
@@ -4945,7 +5120,6 @@ describe('block editor (BEDIT, BSAVE, BCLOSE)', () => {
   const X = 200000, F = 'sample-villa-gf.dxf', ED = 'Block B1 = sample-villa-gf.dxf.dxf';
   const hist = () => document.querySelector('.cad-hist')!.textContent;
   const right = (x: number, y: number) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); }); };
-  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
   const B1: CadBlockDef = { name: 'B1', items: [{ id: 'b1', kind: 'line', layer: '0', pts: [[0, 0], [2000, 0]] }] };
   const ins = (id: string, y: number): SketchItem => ({ id, kind: 'insert', layer: '0', pts: [[X, y]], block: 'B1' });
   const def = () => blockDefOf(blockDefsOf(project, F), 'B1')!;
@@ -4955,7 +5129,7 @@ describe('block editor (BEDIT, BSAVE, BCLOSE)', () => {
     project = p; act(() => root.render(<Host start={p} />)); await flush(); act(() => state.toggle('osnap'));
     await clickAt(X + 1000, 0);
     await right(X + 1000, 0);
-    await act(async () => { entry('Open block editor').click(); });
+    await chooseMenu('Block tools', 'Open block editor');
     await until(() => state.view?.file === ED);
     expect(document.querySelector('.cad-tabs [role="tab"][aria-selected="true"]')!.textContent).toBe('Block editor · B1 (in sample-villa-gf.dxf)');
     expect(sketchOf(project, ED).map((it) => it.kind)).toEqual(['line']);
@@ -4994,7 +5168,7 @@ describe('edit block in place (REFEDIT, REFCLOSE)', () => {
   const X = 200000, F = 'sample-villa-gf.dxf';
   const hist = () => document.querySelector('.cad-hist')!.textContent;
   const right = (x: number, y: number) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); }); };
-  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (b.firstElementChild?.textContent ?? b.textContent) === label)!;
+  const entry = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].find((b) => (rowLabel(b)) === label)!;
   const B1: CadBlockDef = { name: 'B1', items: [{ id: 'b1', kind: 'line', layer: '0', pts: [[0, 0], [2000, 0]] }] };
   const ins = (id: string, y: number): SketchItem => ({ id, kind: 'insert', layer: '0', pts: [[X, y]], block: 'B1' });
   const def = () => blockDefOf(blockDefsOf(project, F), 'B1')!;
@@ -5009,7 +5183,7 @@ describe('edit block in place (REFEDIT, REFCLOSE)', () => {
     await start();
     await clickAt(X + 1000, 0);
     await right(X + 1000, 0);
-    await act(async () => { entry('Edit block in place').click(); });
+    await chooseMenu('Block tools', 'Edit block in place');
     expect(hist()).toMatch(/^REFEDIT {2}Editing "B1" in place: its 1 object picked out, the rest faded and locked/);
     expect(items().map((it) => it.kind)).toEqual(['insert', 'line']); // I2 stays; I1 is its line now
     expect(project.cadRefEdit).toMatchObject({ file: F, index: 0, others: ['I2'] });
@@ -5170,5 +5344,152 @@ describe('Design CAD hatch package: islands, associative hatches, HATCHEDIT and 
     expect(state.tool).toBe('boundary');
     await command('');
     expect(state.tool).toBe('none');
+  });
+});
+
+describe('Objects of an opened drawing edit like drawn ones (taken over on the first edit)', () => {
+  const F = 'sample-villa-gf.dxf', WALL: [number, number] = [15900, 6000]; // a wall line (A-WALL)
+  const last = () => state.history[state.history.length - 1];
+  const items = () => project.cadSketch?.find((s) => s.file === F)?.items ?? [];
+  const begin = async () => { act(() => root.render(<Host />)); await flush(); act(() => state.toggle('osnap')); };
+
+  it('Move takes the picked object over as a drawn one (its layer, the handle erased) and the move joins that undo step', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => onChange.mock.calls.length > 0);
+    expect(onChange.mock.calls[0][1]).toBe(`MOVE  1 object of ${F} taken over as drawn objects`);
+    expect(onChange.mock.calls[0][2]).toBeUndefined(); // the take-over is a step of its own
+    expect(project.cadErased?.[F]).toHaveLength(1);
+    expect(items().map((x) => [x.kind, x.layer])).toEqual([['line', 'A-WALL']]);
+    const was = items()[0].pts[0];
+    await until(() => state.tool === 'move' && !!state.selected);
+    await clickAt(...WALL); await clickAt(WALL[0] + 500, WALL[1]);
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange.mock.calls[1][1]).toMatch(/^Moved/);
+    expect(onChange.mock.calls[1][2]).toBe(true); // joins the take-over: one ⌘Z for both
+    expect(items()[0].pts[0][0]).toBeCloseTo(was[0] + 500, 3);
+    expect(onUndo).not.toHaveBeenCalled();
+  });
+
+  /** The next explode answers with these pieces for the object asked about (the take-over asks for the exact ones). */
+  const asPieces = (pieces: unknown[]) => vi.mocked(explodeObjects).mockImplementationOnce(async (_v, handles) => ({ pieces: { [handles[0]]: pieces as never }, truncated: false }));
+  const L = { layer: 'A-WALL' }, sq = [[0, 0, 0], [3000, 0, 0], [3000, 3000, 0], [0, 3000, 0]];
+
+  it('a paragraph text of the drawing is taken over as a note; the engine is asked for exact pieces', async () => {
+    await begin();
+    asPieces([{ ...L, kind: 'mtext', at: [100, 200], h: 250, rot: 0, w: 3000, attach: 5, lsp: 1, text: '{\\fArial|b1;Notes}\\PSecond' }]);
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => onChange.mock.calls.length > 0);
+    const asked = vi.mocked(explodeObjects).mock.calls; expect(asked[asked.length - 1][2]).toEqual({ exact: true });
+    expect(items().map((x) => [x.kind, x.layer, x.just, x.w, x.h])).toEqual([['mtext', 'A-WALL', 'MC', 3000, 250]]);
+    expect(items()[0].note?.map((q) => q.runs.map((r) => r.s).join(''))).toEqual(['Notes', 'Second']);
+    expect(items()[0].note?.[0].runs[0].b).toBe(true);
+  });
+
+  it('a patterned hatch keeps its pattern; splines taken over as polylines are counted in the message', async () => {
+    await begin();
+    asPieces([{ ...L, kind: 'hatch', loops: [sq], solid: false, pattern: 'ANSI31', scale: 1, angle: 0, origin: [0, 0], lines: [{ angle: Math.PI / 4, base: [0, 0], offset: [-300 / Math.SQRT2, 300 / Math.SQRT2], dashes: [] }] }, // 3 paper mm at 100 units per mm
+      { ...L, kind: 'pline', pts: [[0, 0, 0], [10, 10, 0], [20, 0, 0]], closed: false, sampled: 'spline' }, { ...L, kind: 'pline', pts: [[0, 0, 0], [5, 5, 0]], closed: false, sampled: 'spline' }]);
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => onChange.mock.calls.length > 0);
+    expect(onChange.mock.calls[0][1]).toBe(`MOVE  1 object of ${F} taken over as drawn objects · 2 splines as polylines`);
+    expect(items().map((x) => [x.kind, x.hatch?.pattern, x.hatch?.custom])).toEqual([['pline', 'ansi31', undefined], ['pline', undefined, undefined], ['pline', undefined, undefined]]);
+    expect(items()[0].hatch?.angle).toBeCloseTo(0, 6);
+    expect(items()[0].hatch?.scale).toBeCloseTo(3, 6);
+  });
+
+  it('an aligned dimension of the drawing is taken over as one drawn dimension in the current style', async () => {
+    await begin();
+    asPieces([{ ...L, kind: 'group', items: [{ ...L, kind: 'line', a: [0, 0], b: [1, 0] }], dim: { kind: 'aligned', pts: [[0, 0], [5000, 0], [5000, 800]], text: '<> mm', height: 150, arrow: 120, decimals: 0 } }]);
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => onChange.mock.calls.length > 0);
+    expect(items().map((x) => [x.kind, x.layer, x.pts, x.text, x.h, x.look?.size, x.look?.decimals])).toEqual([['dim', 'A-WALL', [[0, 0], [5000, 0], [5000, 800]], '<> mm', 150, 120, 0]]);
+  });
+
+  it('a tool given up after the take-over undoes it', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await command('M');
+    await until(() => !!project.cadErased?.[F]?.length && state.tool === 'move' && !!state.selected);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    await until(() => onUndo.mock.calls.length === 1);
+    await until(() => last() === "MOVE  Cancelled: the drawing's objects are as they were.");
+  });
+
+  it('Copy keeps the original: the copy is a drawn object, nothing is erased', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await command('CO');
+    await until(() => state.tool === 'copy');
+    await flush();
+    await clickAt(...WALL); await clickAt(WALL[0] + 500, WALL[1]);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][1]).toMatch(/^COPY {2}1 object copied as drawn objects/);
+    expect(onChange.mock.calls[0][2]).toBeUndefined();
+    expect(project.cadErased?.[F] ?? []).toEqual([]);
+    expect(items().map((x) => [x.kind, x.layer])).toEqual([['line', 'A-WALL']]);
+  });
+
+  it('refuses on a locked layer, with nothing changed', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await command('LAYLCK');
+    expect(last()).toMatch(/^LAYLCK {2}Layer A-WALL locked/);
+    await command('M');
+    await until(() => /on locked layer A-WALL: unlock it first \(LAYULK\)\.$/.test(last()));
+    expect(last()).toBe('MOVE  1 object on locked layer A-WALL: unlock it first (LAYULK).');
+    expect(onChange).toHaveBeenCalledTimes(1); // the lock only
+    expect(project.cadErased?.[F] ?? []).toEqual([]);
+    await until(() => state.tool === 'none');
+  });
+
+  it('a window pick finds the drawing\'s objects, and Select similar asks the engine for the like ones', async () => {
+    await begin();
+    await dragWindow([16500, 12500], [-500, -500]); // right to left: crossing, so the walls and blocks all show
+    expect(last()).toMatch(/^SEL {2}\d+ objects? selected/);
+    const n = Number(/(\d+) object/.exec(last())![1]);
+    expect(n).toBeGreaterThan(5);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    await clickAt(...WALL);
+    const like = vi.spyOn(state.view!, 'pickLike');
+    await command('SELECTSIMILAR');
+    await until(() => like.mock.calls.length > 0);
+    expect(like.mock.calls[0].slice(0, 3)).toEqual(['Line', expect.any(Number), '']);
+    await until(() => /^SELECTSIMILAR {2}\d+ objects? selected/.test(last()));
+  });
+
+  it('a grip dragged on an object of the drawing is one change: the handle erased, its stand-in moved', async () => {
+    await begin();
+    await clickAt(...WALL);
+    await until(() => !!document.querySelector('[aria-label="Edit drawn objects"]')); // the toolbar shows for it, from its stand-in
+    expect(onChange).not.toHaveBeenCalled();
+    const [gx, gy] = screenOf(15900, 12000), [tx, ty] = screenOf(15900, 11000), c = document.querySelector('canvas.cad-over')!;
+    await act(async () => {
+      c.dispatchEvent(new MouseEvent('mousedown', { clientX: gx, clientY: gy, button: 0, bubbles: true }));
+      c.dispatchEvent(new MouseEvent('mousemove', { clientX: tx, clientY: ty, bubbles: true }));
+      c.dispatchEvent(new MouseEvent('mouseup', { clientX: tx, clientY: ty, button: 0, bubbles: true }));
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][1]).toMatch(/^GRIP {2}Line changed/);
+    expect(onChange.mock.calls[0][2]).toBeUndefined();
+    expect(project.cadErased?.[F]).toHaveLength(1);
+    expect(items().map((x) => [x.kind, x.layer, x.pts.map((q) => q.map((v) => Math.round(v)))])).toEqual([['line', 'A-WALL', [[15900, 0], [15900, 11000]]]]);
+  });
+
+  it('a change in the Properties palette is one change: the object taken over with the new layer', async () => {
+    await begin();
+    await clickAt(...WALL);
+    const layer = () => document.querySelector('[aria-label="Properties palette"] select[aria-label="Object layer"]') as HTMLSelectElement | null;
+    await until(() => !!layer());
+    expect(layer()!.value).toBe('A-WALL');
+    const to = [...layer()!.options].map((o) => o.value).find((v) => v && v !== 'A-WALL')!;
+    await act(async () => { layer()!.value = to; layer()!.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(project.cadErased?.[F]).toHaveLength(1);
+    expect(items().map((x) => [x.kind, x.layer])).toEqual([['line', to]]);
   });
 });

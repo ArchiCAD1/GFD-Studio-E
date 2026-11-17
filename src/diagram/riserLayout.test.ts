@@ -25,6 +25,16 @@ const project = {
 
 describe('riser diagram', () => {
   const L = riserLayout(project, 'A');
+  it('draws a UPS board and a meter cabinet as their own symbols, every board with one', () => {
+    const more = { ...project, boards: [...boards, { id: 'UPS-1', name: 'UPS', kind: 'UPS', upstreamId: 'MDB', level: at('g') }, { id: 'MC-1', name: 'Meters', kind: 'MC', upstreamId: 'MDB', level: at('g') }],
+      feeders: [...project.feeders, fd('F7', 'MDB', 'UPS-1'), fd('F8', 'MDB', 'MC-1')] } as unknown as Project;
+    const R = riserLayout(more, 'A');
+    const sym = (id: string) => R.nodes.find((n) => n.board.id === id)!.panel;
+    expect(sym('UPS-1')).toBe('p-ups');
+    expect(sym('MC-1')).toBe('p-mc');
+    expect(R.nodes.every((n) => !!n.panel)).toBe(true);
+    expect(R.used.has('p-ups') && R.used.has('p-mc')).toBe(true);
+  });
   it('one row per level, bottom to top', () => {
     expect(L.rows.map((r) => r.label)).toEqual(['B1', 'GF', 'L01', 'L02', 'L03', 'L04', 'L05', 'Roof']);
     expect(L.rows[0].y).toBeGreaterThan(L.rows[7].y);

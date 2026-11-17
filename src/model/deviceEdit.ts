@@ -1,5 +1,5 @@
 import { rule } from '../database/catalog';
-import { copyElv, elvAlike, isElvType, moveElv, placeElvAt, removeElvs, replaceElv } from '../components/elv/elvCadDevices';
+import { copyElv, elvAlike, isElvType, moveElv, placeElvAt, removeElvs, replaceElv, turnElv } from '../components/elv/elvCadDevices';
 import { LV_PALETTE, lvItemOf, moveItem, placeAccessory, placeLvPoint, removeItem, type PlacedItem } from './cadDevices';
 import { updateCircuit } from './schedule';
 import type { LevelRef } from './levels';
@@ -80,6 +80,14 @@ export function moveDevices(p: Project, items: PlacedItem[], to: Map<string, Pt>
     next = it.what === 'elv' ? moveElv(next, it.id, at[0], at[1]) : moveItem(next, it, at[0], at[1], level);
   }
   return next;
+}
+
+/** Rotate with other objects: the devices move round the base point (metres) by the angle (radians, anticlockwise);
+ * cameras and speakers also turn by it, the other devices keep their way. */
+export function rotateDevices(p: Project, items: PlacedItem[], base: Pt, angle: number, level: LevelRef): Project {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  const to = new Map(items.map((d): [string, Pt] => { const x = d.x - base[0], y = d.y - base[1]; return [d.key, [base[0] + x * c - y * s, base[1] + x * s + y * c]]; }));
+  return items.reduce((q, d) => (d.what === 'elv' ? turnElv(q, d.id, (angle * 180) / Math.PI) : q), moveDevices(p, items, to, level));
 }
 
 /** Copies devices by (dx, dy) metres: LV points on their circuits, ELV devices of their type (a board is one item). */

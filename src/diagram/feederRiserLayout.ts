@@ -1,11 +1,11 @@
-import type { Board, BoardKind, Feeder, Project } from '../types';
+import type { Board, Feeder, Project } from '../types';
 import { boardsInSupplyOrder, boardTotals } from '../calc/summary';
 import { floorList, levelKey } from '../model/levels';
 import { cableTypeOf } from '../model/cableTypes';
 import { runsOf } from '../calc/electrical';
 import { deviceKind, devicePoles } from './deviceText';
 import { sizeRiser, type BusRiser } from '../calc/busbar';
-import { panelSymbolOf } from './panelBox';
+import { boardSymbolOf } from './panelBox';
 import type { SymbolId } from './symbolLibrary';
 import { U } from './riserLayout';
 import { fmtFixed } from '../util/format';
@@ -32,14 +32,11 @@ const LEAF_BAND = 4 * U; // tags and symbols of a level
 const SOURCE_BAND = 4.2 * U; // transformers / generators under the lowest level
 const BUS_FROM_TOP = 2.8 * U; // busbar position in the enclosure: outgoing breakers above, incomer below
 
-export type LeafSymbol = 'db' | 'smdb' | 'mcc' | 'ups';
-export const leafSymbol = (k: BoardKind | undefined): LeafSymbol =>
-  k === 'MCC' || k === 'EMCC' || k === 'FP' ? 'mcc' : k === 'UPS' ? 'ups' : k === 'DB' || k === 'EDB' || !k ? 'db' : 'smdb';
 
 export interface FRRow { label: string; sub: string; yTop: number; yLine: number }
 export interface FRPanel { board: Board; x1: number; x2: number; y1: number; y2: number; busY: number; incomerX: number; titleTop: boolean; lines: string[] }
-/** panel: the board's IEC panel symbol, drawn instead of `symbol` (none for UPS boards). */
-export interface FRLeaf { board: Board; x: number; y: number; tagY: number; symbol: LeafSymbol; panel?: SymbolId; lines: string[] }
+/** panel: the board's symbol. */
+export interface FRLeaf { board: Board; x: number; y: number; tagY: number; panel: SymbolId; lines: string[] }
 /** A vertical run with a breaker on it: bus → breaker → yTo. */
 /** cableAt: where the cable text goes — along the run when it is long enough (vertical), else beside it (horizontal). */
 export interface FRFeeder { x: number; yBus: number; brk: [number, number]; yTo: number; device: string[]; cable: string; cableAt?: [number, number]; cableVertical?: boolean; fireRated?: boolean; incomer?: boolean }
@@ -153,9 +150,9 @@ export function feederRiserLayout(project: Project, buildingId: string): FeederR
     const r = rowOf(b), top = rows[r].yTop;
     const parent = b.upstreamId ? panels.get(b.upstreamId) : undefined;
     const fromAbove = !onBus.has(b.id) && !!parent && parent.busY < top;
-    const symbol = leafSymbol(b.kind), panel = panelSymbolOf(project, b);
-    used.add(panel ?? symbol);
-    leaves.set(b.id, { board: b, x: xOf(b), y: top + (fromAbove ? 0.9 : 2.95) * U, tagY: top + (fromAbove ? 1.6 : 0.3) * U, symbol, panel,
+    const panel = boardSymbolOf(project, b);
+    used.add(panel);
+    leaves.set(b.id, { board: b, x: xOf(b), y: top + (fromAbove ? 0.9 : 2.95) * U, tagY: top + (fromAbove ? 1.6 : 0.3) * U, panel,
       lines: [`REF: ${b.id}`, `TCL: ${kw(boardTotals(project, b.id).connectedKw)}`] });
   }
 

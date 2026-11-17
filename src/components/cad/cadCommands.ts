@@ -10,7 +10,7 @@ export type CadAction = 'new' | 'open' | 'close' | 'fit' | 'addRooms' | 'schedul
   | 'alignDevices' | 'plot' | 'properties' | 'options' | 'unitsTab' | 'regen' | 'wireAll' | 'wireTags' | 'coverage' | 'erase' | 'restoreDwg' | 'save' | 'saveDwg' | 'layers' | 'osnap' | 'grid' | 'ortho' | 'snap' | 'help'
   | 'textStyle' | 'dimStyle' | 'pointStyle' | 'blockDialog' | 'blocksPalette' | 'attDef' | 'attExport' | 'saveAs' | 'closeOthers' | 'export' | 'exportPdf' | 'pngOut' | 'wblock' | 'publish' | 'dsettings' | 'osnapSettings' | 'polar' | 'otrack' | 'lwt'
   | 'copyClip' | 'cutClip' | 'copyBase' | 'pasteClip' | 'pasteOrig' | 'tbSave' | 'zoomPrev' | 'qselect'
-  | 'undo' | 'redo' | 'selectAll' | 'count' | 'isolateObjects' | 'hideObjects' | 'unisolateObjects' | 'addSelected' | 'quickMeasure' | 'find' | 'bedit' | 'bsave' | 'bclose' | 'refedit' | 'refclose';
+  | 'undo' | 'redo' | 'selectAll' | 'selectInvert' | 'zoomSel' | 'count' | 'isolateObjects' | 'hideObjects' | 'unisolateObjects' | 'addSelected' | 'quickMeasure' | 'find' | 'bedit' | 'bsave' | 'bclose' | 'refedit' | 'refclose';
 
 export type CadCommand = { aliases: readonly string[]; desc: string } & ({ tool: CadTool } | { action: CadAction });
 
@@ -61,6 +61,8 @@ export const CAD_COMMANDS: readonly CadCommand[] = [
   { aliases: ['EM', 'EMERGENCY'], desc: 'Emergency lighting', tool: 'em' },
   { aliases: ['SEL', 'SELECT'], desc: 'Select devices', action: 'select' },
   { aliases: ['QSELECT', 'QS'], desc: 'Quick select: drawn objects by kind, layer and property', action: 'qselect' },
+  { aliases: ['SELECTINVERT', 'INVERTSELECTION'], desc: 'Invert the pick: every drawn object and device that shows and is not locked and not picked now is picked; what was picked is dropped', action: 'selectInvert' },
+  { aliases: ['Z O', 'ZOOM O', 'ZOOM OBJECT'], desc: 'Zoom to the objects picked', action: 'zoomSel' },
   { aliases: ['SELECTALL'], desc: 'Select every drawn object and device that shows and is not locked (Ctrl+A)', action: 'selectAll' },
   { aliases: ['COUNT'], desc: 'Count the objects picked (or all that show) by kind and block name', action: 'count' },
   { aliases: ['ADDSELECTED'], desc: 'Draw a new object like the one picked: its tool, on its layer', action: 'addSelected' },
@@ -194,4 +196,6 @@ const BY_ALIAS = new Map(CAD_COMMANDS.flatMap((x) => x.aliases.map((a) => [a, x]
 export const cadCommand = (c: string): CadCommand | undefined => BY_ALIAS.get(c);
 
 /** The alias shown for a tool, e.g. EX for Extend. */
+/** The command's full name for a tool (the longest of its aliases), for the command menu's header. */
+export const toolName = (tool: CadTool): string | undefined => CAD_COMMANDS.find((x) => 'tool' in x && x.tool === tool)?.aliases.reduce((a, b) => (b.length > a.length ? b : a));
 export const toolAlias = (tool: CadTool): string | undefined => CAD_COMMANDS.find((x) => 'tool' in x && x.tool === tool)?.aliases[0];

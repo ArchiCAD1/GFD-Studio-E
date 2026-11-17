@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Board, BuildingInfo, Feeder, Project } from '../types';
 import { sampleProject } from '../data/sampleProject';
-import { feederRiserLayout, leafSymbol } from './feederRiserLayout';
+import { feederRiserLayout } from './feederRiserLayout';
 import { U } from './riserLayout';
 import { addRiserSheet } from '../model/drawingSet';
 import { sheetsByCount } from '../model/drawingSet';
@@ -35,10 +35,8 @@ describe('riser schematic with individual feeders', () => {
 
   it('boards that feed others are panels with a busbar; the rest are symbols by kind', () => {
     expect(L.panels.map((p) => p.board.id).sort()).toEqual(['EMDB', 'MDB', 'SMDB-1']);
-    expect(L.leaves.map((n) => [n.board.id, n.symbol])).toEqual(expect.arrayContaining([['DB-1A', 'db'], ['DB-2A', 'db'], ['MCC-1', 'mcc'], ['EDB-2', 'db'], ['EMCC-1', 'mcc']]));
+    expect(L.leaves.map((n) => [n.board.id, n.panel])).toEqual(expect.arrayContaining([['DB-1A', 'p-db'], ['DB-2A', 'p-db'], ['MCC-1', 'p-mcc'], ['EDB-2', 'p-edb'], ['EMCC-1', 'p-emcc']]));
     expect(leaf('DB-1A').lines[0]).toBe('REF: DB-1A');
-    expect(leafSymbol('SMDB')).toBe('smdb');
-    expect(leafSymbol('UPS')).toBe('ups');
   });
 
   it('each board fed has its own breaker on its own column, from its panel busbar', () => {
@@ -63,10 +61,22 @@ describe('riser schematic with individual feeders', () => {
     expect(L.sources.map((s) => s.kind).sort()).toEqual(['gen', 'tx']);
     expect(L.ats).toHaveLength(1);
     expect(L.height).toBeGreaterThan(L.rows[0].yLine + 3 * U);
-    expect([...L.used].sort()).toEqual(['ats', 'breaker', 'cable', 'fr', 'gen', 'p-db', 'p-edb', 'p-mcc', 'panel', 'standby', 'tx']);
+    expect([...L.used].sort()).toEqual(['ats', 'breaker', 'cable', 'fr', 'gen', 'p-db', 'p-edb', 'p-emcc', 'p-mcc', 'panel', 'standby', 'tx']);
     // End boards as their IEC panel symbol; panels feeding ways keep their enclosure with a busbar.
     expect(leaf('DB-1A').panel).toBe('p-db');
     expect(leaf('MCC-1').panel).toBe('p-mcc');
+    expect(leaf('EMCC-1').panel).toBe('p-emcc');
+  });
+
+  it('gives a UPS board and a meter cabinet their own symbols, and every board a symbol', () => {
+    const more = { ...project, boards: [...boards, { id: 'UPS-1', name: 'UPS', kind: 'UPS', upstreamId: 'MDB', level: at('g') }, { id: 'MC-1', name: 'Meters', kind: 'MC', upstreamId: 'MDB', level: at('g') }],
+      feeders: [...project.feeders, fd('F7', 'MDB', 'UPS-1', 63), fd('F8', 'MDB', 'MC-1', 63)] } as unknown as Project;
+    const R = feederRiserLayout(more, 'A');
+    const sym = (id: string) => R.leaves.find((n) => n.board.id === id)!.panel;
+    expect(sym('UPS-1')).toBe('p-ups');
+    expect(sym('MC-1')).toBe('p-mc');
+    expect(R.leaves.every((n) => !!n.panel)).toBe(true);
+    expect(R.used.has('p-ups') && R.used.has('p-mc')).toBe(true);
   });
 
   it('riser sheets can use individual feeders', () => {

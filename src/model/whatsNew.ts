@@ -15,10 +15,84 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.164', date: '2026-11-17',
+    version: '2.179', date: '2026-11-17',
     items: [
       { title: 'Design CAD: compact colour dialog', text: 'A layer or object colour now opens in a compact dialog that stays inside the window. Index colour has every number from 1 to 255 and a number field; True colour has a colour well, Hex and RGB fields. OK applies it, Cancel or Esc leaves it alone.', action: 'cad', actionLabel: 'Open Design CAD' },
       { title: 'Design CAD: ribbon panels in your order', text: 'Drag a panel by its caption, or use its left and right arrows, to put Layers, Properties and the other panels where you prefer. The order is kept on this computer and works with Show labels; Reset order puts every panel back.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.178', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: typed points in Mirror, Scale and Stretch', text: 'Mirror\'s two points, Scale\'s base point and Stretch\'s base and second points can now be typed as coordinates (x,y), relative (@x,y), polar (@distance<angle) or a distance along the cursor, as in Move and Rotate. They used to give "Unknown command".', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.177', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: Space twice repeats the last command', text: 'When a command ends, the command line now says which one Space starts again, for example "Space repeats TRIM". In a command that keeps going, such as Trim or Offset, the first Space or Enter ends it and the second starts it again. Enter with nothing picked now also ends Mirror, Scale, Align, Array, Join, Draw order, Move, Rotate and the text tools, as it ends the other commands.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.176', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: Move, Copy, Rotate, Mirror, Scale and Stretch show the result before the click', text: 'After the base point, every object picked follows the cursor dashed, and each device as its own symbol, faded, so you see where they go before you click. Mirror shows the mirrored copies along the mirror line, and Scale shows the objects at the factor while you type it. After the Stretch window, the drawn objects it caught look picked, with a square on each point that will move. Up to 2,000 objects show; above that, only the rubber line.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: rotate several objects at once', text: 'Rotate now works on several objects picked together. Drawn objects turn about the base point, devices move round it, and cameras and speakers also turn by the angle. Click the angle or type it in degrees.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.175', date: '2026-11-17',
+    items: [
+      { title: 'SLD: end boards side by side keep their frames apart', text: 'In DEWA style, two boards with no outgoing ways on neighbouring ways (a UPS board and a fire pump panel, say) no longer draw their dashed frames and text over each other: the second one moves right until its frame is clear, and so does a panel beside one. Drawings whose frames were already clear keep their places.' }
+    ]
+  },
+  {
+    version: '2.174', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: Trim and Extend show the result before the click', text: 'In Trim, the part a click would cut away fades and turns dashed as the cursor passes over a line, so you see what goes before you click. In Extend, the new length shows dashed up to the line it will reach, with a small cross where it meets it. Hold Shift to see the other one, as a Shift-click does. Both commands keep the pick box between clicks and mark only drawn lines, and are quicker on large drawings.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.173', date: '2026-11-17',
+    items: [
+      { title: 'SLD: Colour by → Supply', text: 'A new Supply choice under Colour by shows on screen which boards and cables are on emergency supply (red: on or below an emergency board or a board with a standby generator), on a UPS (blue) or existing (grey). Printed sheets, PDF and DXF stay black and white.' }
+    ]
+  },
+  {
+    version: '2.172', date: '2026-11-17',
+    items: [
+      { title: 'SLD: board symbols that show the kind of board', text: 'A board at the end of a feeder is now drawn as a 2:1 symbol whose pattern tells its kind: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, the top half filled for an MCC and a second frame for a main board. The risers, the Board tab, the legend and the equipment strip use the same symbols, existing boards are drawn dashed, and printed sheets no longer show the green check dot.' }
+    ]
+  },
+  {
+    version: '2.170', date: '2026-11-17',
+    items: [
+      { title: 'SLD: earth leakage drawn as on submission drawings', text: 'An ELCB is now drawn as its core-balance CT on the cable, wired to an ELCB box with the sensitivity above it, on its own row under the breaker. RCCB and ELR written in the remarks use the same box with their own word. Only an RCBO stays in the breaker symbol, with its toroid inside it. The breaker text names the device that is drawn (RCBO, ISOLATOR) and no longer repeats the mA.' },
+      { title: 'SLD: larger breakers', text: 'Breakers and switches on the System diagram are drawn 1.5 times larger, so the × and the contacts read clearly; the text stays where it was.' }
+    ]
+  },
+  {
+    version: '2.166', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: taken-over notes, ellipses, hatches and dimensions stay themselves', text: 'When an object of an opened drawing is taken over for editing, its paragraph text becomes a note, an ellipse an ellipse, a patterned hatch keeps its pattern, and a dimension becomes a drawn dimension. Splines become polylines, and the command line says so.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.165', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: edit the objects of an opened drawing', text: 'The first edit of an object of the drawing you opened (Move, Rotate, Scale, Offset, Trim, a grip drag, a property…) takes it over as a drawn object with the same layer, colour, linetype, lineweight and arcs; one ⌘Z undoes both the take-over and the edit. Copy keeps the original and adds a drawn copy. An object on a locked layer is refused. The drawing file itself changes only when you save.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: window and crossing picks find the drawing\'s objects', text: 'A window or crossing now picks the objects of the opened drawing as well as the ones drawn here, and Select similar finds the drawing\'s objects of the same kind and layer. Their right-click menu, floating toolbar, grips and Properties work as for drawn objects.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: polylines with arcs', text: 'Polylines with arc segments are drawn, snapped, measured, mirrored and saved with their arcs; Explode gives lines and arcs. Offset, Trim, Extend, Break, Fillet, Chamfer and Join ask you to explode them first.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: saved objects keep their own colour, linetype and lineweight', text: 'Save DXF and Save DWG write each drawn object\'s own colour, linetype and lineweight, not only its layer\'s.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
+    version: '2.164', date: '2026-11-16',
+    items: [
+      { title: 'Design CAD: right-click menus with icons and one order', text: 'Every right-click menu now shows the ribbon\'s icon for each tool, its shortcut or typed command on the right, and a header naming what is picked. Picked objects get one order everywhere: the object\'s own tools, clipboard and undo, modify, view, select, then Properties and Options. A line\'s own tools are under Line tools, electrical tools show in amber, and Copy (CO) is now Copy selection.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: Invert selection and Zoom to selection', text: 'SELECTINVERT picks everything that was not picked and drops what was. Z O zooms to the objects picked. Both are also on the right-click menu.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: Undo says what it undoes', text: 'The right-click menu names the step, for example Undo Offset or Redo Move.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: right-click menus from the keyboard', text: 'Up and Down move over the rows, Right opens a list, Left closes it, Enter runs the row, Esc closes the list and then the menu, and a letter jumps to the next row that starts with it. Shift+F10 or the menu key opens the menu at the objects picked.', action: 'cad', actionLabel: 'Open Design CAD' }
     ]
   },
   {

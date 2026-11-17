@@ -15,7 +15,7 @@ import { splitSld } from '../model/sldScope';
 import { deviceKind, devicePoles } from './deviceText';
 import { escapeHtmlAttr } from '../util/escape';
 import { fmtFixed } from '../util/format';
-import { panelSymbolOf } from './panelBox';
+import { boardSymbolOf } from './panelBox';
 import { symSvg, SYM_SCALE } from './symbolLibrary';
 
 /** One board's single line diagram as a printable drawing (black on white,
@@ -100,17 +100,16 @@ export function boardSheetSvg(project: Project, board: Board, results: FeederRes
     out.push(tx(cx + 22, 30, `TRANSFORMER ${board.sourceKva ?? '—'} kVA`, { bold: true }), tx(cx + 22, 44, `11/${(project.voltageV / 1000).toFixed(3)} kV · Z ${board.sourceImpedancePct ?? '—'} %`));
     out.push(ln(cx, 56, cx, 90));
   } else {
-    // The board above as its panel symbol (none for a meter cabinet or UPS board: just the line).
+    // The board above as its symbol (the line alone when it is not in the project).
     const up = project.boards.find((b) => b.id === board.upstreamId);
-    const upSym = up && panelSymbolOf(project, up);
-    out.push(upSym ? `${symSvg(upSym, cx, 14, SYM_SCALE.legend)}${ln(cx, 14 + 16 * SYM_SCALE.legend, cx, 90)}` : ln(cx, 0, cx, 90));
+    out.push(up ? `${symSvg(boardSymbolOf(project, up), cx, 14, SYM_SCALE.legend, false, !!up.existing)}${ln(cx, 14 + 12.5 * SYM_SCALE.legend, cx, 90)}` : ln(cx, 0, cx, 90));
     // A board on a busway riser is named by its tap-off, the riser's source board below it.
     const sheetNote = opts.fromSheet ? ` (SHEET ${opts.fromSheet})` : '';
     const lines = riser
       ? [`FROM ${riser.name} (TAP-OFF)`, `BUSWAY RISER FROM ${board.upstreamId}${sheetNote}`]
       : [`FROM ${board.upstreamId}${sheetNote}`];
     if (incomer) lines.push(`${cableText(project, incomer)} · ${incomer.lengthM} m`, `${deviceText(incomer)} at ${board.upstreamId}`);
-    lines.forEach((t, i) => out.push(tx(cx + 14, 14 + i * 15, t, { bold: !i })));
+    lines.forEach((t, i) => out.push(tx(cx + (up ? 20 : 14), 14 + i * 15, t, { bold: !i })));
   }
   if (dev) {
     out.push(switchSym(cx, 96, dev === 'ISOL' ? 'isolator' : dev === 'ACB' ? 'acb' : dev === 'MCCB-NA' ? 'nonauto' : 'breaker'));

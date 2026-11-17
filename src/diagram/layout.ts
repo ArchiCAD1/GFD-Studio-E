@@ -3,6 +3,7 @@ import { isDbBoard, spareWaysOf } from '../model/spareWays';
 import { isScheduleCircuit } from '../calc/loadSchedule';
 import { isInterlocked } from '../model/changeover';
 import { boxedBoardIds } from './panelBox';
+import { elcbUnitOf } from './IecSymbols';
 import { busbarReach, incomerReach, spareReach, wayReach } from './panelLabels';
 import { CO_GEN_REACH } from './ChangeoverSym';
 
@@ -13,6 +14,8 @@ export const ROOT_BUS_Y = 210;
 const MARGIN_X = 36;
 /** A load symbol's centre below its board's busbar (where an end board's panel box goes). */
 export const BOX_DY = 94;
+/** Extra height a panel takes under its busbar when one of its ways shows an ELCB unit (the standard style's text rows sit lower). */
+export const ELCB_ROW = { dewa: 30, standard: 34 } as const;
 
 export interface BoardNode {
   board: Board;
@@ -34,6 +37,8 @@ export interface BoardNode {
   genX?: number;
   busX1: number;
   busX2: number;
+  /** Height of the ELCB row under this board's busbar (IEC symbols, a way with an ELCB unit); what hangs below the breakers is that much lower. */
+  elcbRow?: number;
   /** DEWA style: the panel frame's left and right edges, wide enough for every label of its ways and incomer. */
   frame?: { x1: number; x2: number };
 }
@@ -91,6 +96,8 @@ export interface LayoutOptions {
   frames?: boolean;
   /** Cable reference numbers instead of the cable text (shorter labels). */
   cableRefs?: boolean;
+  /** IEC symbols: earth leakage on a drawn way is drawn as an ELCB unit, in a row of its own under the breaker's text. */
+  iec?: boolean;
   /** Extra room above the root bus only (levels keep their spacing), e.g. for the
    * standard-style LV earth-pit detail under a root's transformer. */
   rootExtraY?: number;
@@ -100,6 +107,9 @@ export interface LayoutOptions {
   /** How far right of a root board's incomer line (by id) its supply and earth-pit labels reach, so the next
    * root starts clear of them. A new panel with no ways has only one slot, narrower than those labels. */
   rootReachX?: Map<string, number>;
+  /** DEWA style: how far left and right of its incomer line the frame of a board with no outgoing ways (not a main
+   * board) reaches, by id. It is wider than the board's one slot, so the frames beside it on its level keep clear of it. */
+  endFrameX?: Map<string, { left: number; right: number }>;
 }
 
 export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions = {}): SystemLayout {
@@ -140,12 +150,19 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
   const feeders: FeederNode[] = [];
   const spares: SpareNode[] = [];
   const placed = new Set<string>();
+  // DEWA: where the last panel frame on each level (by depth) ends.
+  const frameEnd: number[] = [];
 
   /** Places a board and everything below it from `left`; returns the board and where the next one may start. */
   const place = (board: Board, left: number, depth: number): { node: BoardNode; right: number } => {
     placed.add(board.id);
+    // A frame keeps the usual gap (2 × FRAME_INSET) after the last frame on its level. An end board's frame is wider than
+    // its slot on both sides, so where it would close that gap, the board on its right (or the end board) moves right.
+    const end = opts.frames ? opts.endFrameX?.get(board.id) : undefined;
+    if (opts.frames) left = Math.max(left, (frameEnd[depth] ?? -Infinity) + FRAME_INSET + (end ? FRAME_INSET + end.left - LEAF_W / 2 : 0));
     const busY = rootY + depth * levelH;
     const co = isInterlocked(board), inst = instrumentSlot(board);
+    const row = opts.iec && children(board.id).some((f) => elcbUnitOf(f)) ? (opts.frames ? ELCB_ROW.dewa : ELCB_ROW.standard) : 0;
     let cursor = left + (co ? CHANGEOVER_LEFT * LEAF_W : 0) + (inst ? LEAF_W : 0);
     const xs: number[] = [];
     // Right-hand end of the labels on this panel's ways (DEWA frames only).
@@ -156,23 +173,23 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
         placed.add(child.id);
         const x = cursor + LEAF_W / 2;
         feeders.push({ feeder: f, x, busY, panelBoardId: child.id });
-        boards.push({ board: child, circuits: scheduled(child.id), terminal: true, boxed: true, depth: depth + 1, x, busY: busY + BOX_DY, headY: busY + BOX_DY, busX1: x, busX2: x });
+        boards.push({ board: child, circuits: scheduled(child.id), terminal: true, boxed: true, depth: depth + 1, x, busY: busY + BOX_DY + row, headY: busY + BOX_DY + row, busX1: x, busX2: x });
         xs.push(x);
-        if (opts.frames) reach = Math.max(reach, x + wayReach(project, f, true, opts.cableRefs));
+        if (opts.frames) reach = Math.max(reach, x + wayReach(project, f, true, opts.cableRefs, opts.iec));
         cursor += LEAF_W;
       } else if (child && !placed.has(child.id)) {
         const w = units(child.id, new Set());
         const { node, right } = place(child, cursor, depth + 1);
         feeders.push({ feeder: f, x: node.x, busY, childBoardId: child.id });
         xs.push(node.x);
-        if (opts.frames) reach = Math.max(reach, node.x + wayReach(project, f, false, opts.cableRefs));
+        if (opts.frames) reach = Math.max(reach, node.x + wayReach(project, f, false, opts.cableRefs, opts.iec));
         // A sub-board whose frame needed more room than its slots takes it.
         cursor = Math.max(cursor + w * LEAF_W, right);
       } else {
         const x = cursor + LEAF_W / 2;
         feeders.push({ feeder: f, x, busY });
         xs.push(x);
-        if (opts.frames) reach = Math.max(reach, x + wayReach(project, f, true, opts.cableRefs));
+        if (opts.frames) reach = Math.max(reach, x + wayReach(project, f, true, opts.cableRefs, opts.iec));
         cursor += LEAF_W;
       }
     }
@@ -195,6 +212,7 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
       x,
       busY,
       headY: busY,
+      elcbRow: row || undefined,
       genX,
       // A changeover's busbar runs under its mains instruments too, as on DEWA drawings.
       busX1: co || inst ? left + 12 : Math.min(x - half, xs.length ? Math.min(...xs) - half : x - half),
@@ -208,7 +226,8 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
       const x2 = Math.max(node.busX2 + FRAME_OUT, genX !== undefined ? genX + CO_GEN_REACH : -Infinity, reach + FRAME_PAD, x + incomerReach(project, board) + FRAME_PAD);
       node.frame = { x1: node.busX1 - FRAME_OUT, x2 };
       right = Math.max(right, x2 + FRAME_INSET);
-    }
+      frameEnd[depth] = x2;
+    } else if (end) frameEnd[depth] = x + end.right;
     return { node, right };
   };
 
@@ -233,13 +252,17 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
 
   const maxDepth = boards.reduce((m, b) => (b.boxed ? m : Math.max(m, b.depth)), 0);
   const level = (b: BoardNode) => (b.boxed ? b.depth - 1 : b.depth);
-  // A level with a changeover board is taller by CHANGEOVER_H; the levels below move down with it.
+  // A level with a changeover board is taller by CHANGEOVER_H; the levels below move down with it. A level with an
+  // ELCB row moves only the levels below it.
   const shift: number[] = [];
+  const rowAt = (d: number) => boards.reduce((m, b) => (!b.boxed && b.depth === d ? Math.max(m, b.elcbRow ?? 0) : m), 0);
+  let rows = 0;
   for (let d = 0, sum = 0; d <= maxDepth; d++) {
     sum += boards.some((b) => b.depth === d && isInterlocked(b.board)) ? CHANGEOVER_H : 0;
-    shift[d] = sum;
+    shift[d] = sum + rows;
+    rows += rowAt(d);
   }
-  if (shift[maxDepth]) {
+  if (shift.some((v) => v)) {
     const depthOf = new Map(boards.map((b) => [b.board.id, b.depth]));
     for (const b of boards) {
       b.busY += shift[level(b)];
@@ -256,7 +279,7 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
     roots,
     utilityX,
     width: Math.max(left + MARGIN_X, 480),
-    height: rootY + maxDepth * levelH + (shift[maxDepth] ?? 0) + 250, // room for load labels and result tags
+    height: rootY + maxDepth * levelH + (shift[maxDepth] ?? 0) + rowAt(maxDepth) + 250, // room for load labels and result tags
     levelH,
     rootY
   };

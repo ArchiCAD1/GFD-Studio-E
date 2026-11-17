@@ -62,6 +62,32 @@ describe('CAD engine (Rust, WebAssembly)', () => {
     expect(Array.from(await gf.snap(2450, 130, 60, SNAP.perpendicular, on))).toEqual([]); // no last point
   });
 
+  it('picks the objects in a window or a crossing, and those like one picked', async () => {
+    const on = new Uint8Array(gf.info.layers.length).fill(1);
+    // The front wall's inside face (y = 100, x 0–6200): a window round it holds it whole; a crossing over its middle also.
+    const win = await gf.pickWindow([-50, 50], [6250, 150], false, on);
+    const cross = await gf.pickWindow([2000, 50], [3000, 150], true, on);
+    expect(win.truncated).toBe(false);
+    expect(win.objects.length).toBeGreaterThan(0);
+    expect(win.objects.every((o) => o.seg_end > o.seg_start || o.text)).toBe(true);
+    expect(cross.objects.length).toBeGreaterThan(0);
+    expect((await gf.pickWindow([2000, 50], [3000, 150], false, on)).objects.length).toBeLessThan(cross.objects.length);
+    const wide = await gf.pickWindow([-100, -1800], [16100, 12100], true, on);
+    expect(wide.objects.length).toBeGreaterThan(cross.objects.length);
+    expect((await gf.pickWindow([6250, 150], [-50, 50], false, on)).objects.map((o) => o.id)).toEqual(win.objects.map((o) => o.id)); // corners reversed
+    expect((await gf.pickWindow([90000, 90000], [90100, 90100], true, on)).objects).toEqual([]);
+    const off = on.slice();
+    off.fill(0);
+    expect((await gf.pickWindow([-100, -1800], [16100, 12100], true, off)).objects).toEqual([]);
+    // Like the first block picked: the same block name on its layer, none for another name.
+    const blk = wide.objects.find((o) => o.kind === 'Block' && o.block)!;
+    const like = await gf.pickLike('Block', blk.layer, blk.block!, on);
+    expect(like.objects.map((o) => o.id)).toContain(blk.id);
+    expect(like.objects.every((o) => o.kind === 'Block' && o.block === blk.block && o.layer === blk.layer)).toBe(true);
+    expect((await gf.pickLike('Block', blk.layer, 'NO-SUCH-BLOCK', on)).objects).toEqual([]);
+    expect((await gf.pickLike('Block', blk.layer, blk.block!, off)).objects).toEqual([]);
+  });
+
   it('opens a DWG and refuses a broken file with a clear message', async () => {
     const dwg = await openDrawing('plan.dwg', bytes('tests/fixtures/cad/plan-2018.dwg'));
     expect(dwg.info.format).toBe('DWG');
@@ -195,6 +221,23 @@ describe('CAD engine (Rust, WebAssembly)', () => {
     for (const as of ['dxf', 'dwg'] as const) {
       const saved = await openDrawing(`atts.${as}`, await drawingWithDevices(gf, [], shapes, as));
       expect(saved.blocks().find((b) => b.block === 'LT')?.attributes, as).toEqual({ CIRCUIT: 'DB1/L3', WATTS: '36' });
+      saved.close();
+    }
+  });
+
+  it('saves a drawn line\'s own colour, linetype and lineweight, read back as the piece it explodes into', async () => {
+    const { drawnFromPieces } = await import('../../model/cadTakeOver');
+    const { explodeObjects } = await import('./cadEngine');
+    const shapes = shapesOut([{ id: 'r', kind: 'line', layer: 'LV-SKETCH', pts: [[90000, 90000], [91000, 90000]], color: '#ff0000', lt: 'dashed', lw: 0.35 }, { id: 'p', kind: 'line', layer: 'LV-SKETCH', pts: [[90000, 90500], [91000, 90500]] }], 0.001);
+    for (const as of ['dxf', 'dwg'] as const) {
+      const saved = await openDrawing(`style.${as}`, await drawingWithDevices(gf, [], shapes, as));
+      const on = new Uint8Array(saved.info.layers.length).fill(1);
+      const { objects } = await saved.pickWindow([89990, 89990], [91010, 90510], false, on);
+      expect(objects.length, as).toBe(2);
+      const { pieces } = await explodeObjects(saved, objects.map((o) => o.handle));
+      const [red, plain] = objects.map((o) => drawnFromPieces(pieces[o.handle] ?? [])[0]).sort((a, b) => a.pts[0][1] - b.pts[0][1]);
+      expect(red, as).toMatchObject({ color: '#ff0000', lt: 'dashed', ltName: 'DASHED', lw: 0.35 });
+      expect(plain.color, as).toBeUndefined(); expect(plain.lt, as).toBeUndefined(); expect(plain.lw, as).toBeUndefined();
       saved.close();
     }
   });
