@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { incomerDeviceOf, type Board, type Project } from '../types';
 import { loadSymbolOf, SwitchSym, switchKindOf, type SwitchKind } from '../diagram/IecSymbols';
-import { panelSymbolOf } from '../diagram/panelBox';
+import { boardSymbolOf } from '../diagram/panelBox';
 import { Sym, SYM_SCALE } from '../diagram/symbolLibrary';
 import { isMotor } from '../calc/motor';
 import { panelSummary } from '../docs/mdSheet';
@@ -242,14 +242,14 @@ export default function SingleLineDiagram({
             {...(onDropItem ? { 'data-drop': `fd:${f.id}`, className: hover === `fd:${f.id}` ? 'drop-ok' : undefined, ...dnd({ type: 'feeder', feederId: f.id }, `fd:${f.id}`) } : {})}>
             <line x1={x} y1="118" x2={x} y2="152" className="ln" />
             <SwitchSym x={x} y={152} kind={switchKindOf(f)} />
-            {/* The way ends in its symbol, below the cable text: the board's panel symbol for a way feeding a board, else its load. */}
+            {/* The way ends in its symbol, below the cable text: the board's symbol for a way feeding a board, else its load. */}
             {(() => {
-              const id = fed ? (project ? panelSymbolOf(project, fed) : undefined) : loadSymbolOf(loadTypeOf(f), isMotor(f), loadTypeOf(f) === 'fire-pump');
+              const id = fed ? (project ? boardSymbolOf(project, fed) : undefined) : loadSymbolOf(loadTypeOf(f), isMotor(f), loadTypeOf(f) === 'fire-pump');
               return id ? (
                 <>
                   <line x1={x} y1="168" x2={x} y2={SYM_Y - 14} className="ln" />
-                  <Sym id={id} x={x} y={SYM_Y} s={SYM_SCALE.load} />
-                  <line x1={x} y1={SYM_Y + 14} x2={x} y2={CARD_Y} className="ln" />
+                  <Sym id={id} x={x} y={SYM_Y} s={SYM_SCALE.load} existing={!!fed?.existing} />
+                  <line x1={x} y1={SYM_Y + (fed ? 12.5 : 16) * SYM_SCALE.load} x2={x} y2={CARD_Y} className="ln" />
                 </>
               ) : <line x1={x} y1="168" x2={x} y2={CARD_Y} className="ln" />;
             })()}

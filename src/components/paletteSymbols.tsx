@@ -2,28 +2,37 @@ import type { ReactNode } from 'react';
 
 /** Line symbols for the equipment palette, drawn like the SLD symbol each
  * item becomes. Keyed by itemKey; items without one use their icon. */
-const BOARD = <><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M4 10h16M9 10v10M15 10v10" /></>;
-const SMALL_BOARD = <><rect x="5" y="5" width="14" height="14" rx="1.5" /><path d="M5 11h14" /></>;
-const PANEL = <><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M4 10h16M8 14h8M8 17h8" /></>;
+// Boards: the library's 2:1 board symbols on a 20 × 10 rectangle; fills are solid, the pattern tells the kind.
+const BOARD_EDGE = <rect x="2" y="7" width="20" height="10" />;
+const FILL = { fill: 'currentColor', stroke: 'none' } as const;
+const MAIN_FRAME = <rect x="4" y="9" width="16" height="6" />;
+const CROSS = <path d="M2 7L22 17M2 17L22 7" />;
+const BOARD_CODE = (code: string) => <>{BOARD_EDGE}<text x="12" y="14.4" textAnchor="middle" fontSize="6.5" fontWeight="700" fill="currentColor" stroke="none" fontFamily="Arial, Helvetica, sans-serif">{code}</text></>;
+const SMDB_ICON = <>{BOARD_EDGE}<path d="M2 7L22 7L2 17Z" {...FILL} /><path d="M2 17L22 7" /></>;
+const MAIN_ICON = <>{BOARD_EDGE}<path d="M4 9L20 9L4 15Z" {...FILL} /><path d="M4 15L20 9" />{MAIN_FRAME}</>;
+const EMAIN_ICON = <>{BOARD_EDGE}<path d="M4 9L12 12L4 15Z" {...FILL} /><path d="M20 9L12 12L20 15Z" {...FILL} /><path d="M4 9L20 15M4 15L20 9" />{MAIN_FRAME}</>;
 const BREAKER = <><path d="M12 3v5M12 16v5M12 8l5 5" /><circle cx="12" cy="8" r="1.2" /></>;
 const MOTOR = <><circle cx="12" cy="12" r="8" /><path d="M8.5 15V9l3.5 4 3.5-4v6" /></>;
 const CABLE = 'M4 16c4-8 6 8 10 0 1.5-3 3-3 6 0';
 
 const SYMBOLS: Record<string, ReactNode> = {
   transformer: <><circle cx="12" cy="8.5" r="5" /><circle cx="12" cy="15.5" r="5" /></>,
-  'board:MC': <><rect x="4" y="5" width="16" height="14" rx="1.5" /><circle cx="12" cy="12" r="3.5" /><path d="M10.5 13.5 12 10l1.5 3.5" /></>,
   tie: <><path d="M3 12h6M15 12h6M9 12l5-4" /><circle cx="9" cy="12" r="1.2" /><circle cx="15" cy="12" r="1.2" /></>,
   generator: <><circle cx="12" cy="12" r="8" /><path d="M14.5 9.5A3.5 3.5 0 1 0 15 13h-3" /></>,
   'generator:ACB': <><circle cx="9" cy="12" r="5" /><path d="M17 7v10M17 12l3-3" /><circle cx="17" cy="7" r="1" /></>,
-  'board:MDB': BOARD,
-  'board:LV-MDB': BOARD,
-  'board:SMDB': <><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M4 10h16M12 10v10" /></>,
-  'board:DB': SMALL_BOARD,
-  'board:EDB': <><rect x="5" y="5" width="14" height="14" rx="1.5" /><path d="M5 11h14M9 15h6" /></>,
-  'board:EMDB': <><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M4 10h16M9 10v10M15 10v10M8 7h8" /></>,
-  'board:UPS': <><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M4 10h16M8 14v3M12 14v3M16 14v3" /></>,
-  'board:MCC': PANEL,
-  'board:EMCC': PANEL,
+  'board:MC': BOARD_CODE('MC'),
+  'board:MDB': MAIN_ICON,
+  'board:LV-MDB': MAIN_ICON,
+  'board:LV-ACB': MAIN_ICON,
+  'board:EMDB': EMAIN_ICON,
+  'board:LV-EMDB': EMAIN_ICON,
+  'board:SMDB': SMDB_ICON,
+  'board:DB': <>{BOARD_EDGE}<path d="M2 17L22 7" /></>,
+  'board:EDB': <>{BOARD_EDGE}{CROSS}</>,
+  'board:MCC': <>{BOARD_EDGE}<path d="M2 7H22V12H2Z" {...FILL} /><path d="M2 12H22" /></>,
+  'board:EMCC': <>{BOARD_EDGE}<path d="M2 7L22 7L12 12Z" {...FILL} /><path d="M2 17L22 17L12 12Z" {...FILL} />{CROSS}</>,
+  'board:FP': <>{BOARD_EDGE}<path d="M2 12H22" /></>,
+  'board:UPS': BOARD_CODE('UPS'),
   'device:ACB': <>{BREAKER}<path d="M9 16h6" /></>,
   'device:MCCB': BREAKER,
   'device:MCB': <><path d="M12 3v5M12 16v5M12 8l4 4" /><circle cx="12" cy="8" r="1" /></>,

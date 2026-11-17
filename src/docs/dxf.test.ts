@@ -91,6 +91,20 @@ describe('R12 DXF geometry and text widths', () => {
     expect(extents(dxf, '$EXTMAX')).toEqual([2, 10]);
   });
 
+  it('writes a filled area as a SOLID: four corners with the last two swapped, a triangle repeating its last corner', () => {
+    const dxf = toDxf([
+      { type: 'solid', layer: 'SYMBOL', points: [[0, 0], [4, 0], [4, 2], [0, 2]] },
+      { type: 'solid', layer: 'SYMBOL', points: [[0, 0], [4, 0], [0, 2]] },
+      { type: 'solid', layer: 'SYMBOL', points: [[0, 0], [4, 0]] }
+    ]);
+    const entities = records(dxf, 'ENTITIES');
+    expect(entities.map((record) => value(record, 0))).toEqual(['SOLID', 'SOLID']); // two corners: nothing to fill
+    expect(solidCorners(entities[0])).toEqual([[0, 0], [4, 0], [0, 2], [4, 2]]);
+    expect(solidCorners(entities[1])).toEqual([[0, 0], [4, 0], [0, 2], [0, 2]]);
+    expect(extents(dxf, '$EXTMIN')).toEqual([0, 0]);
+    expect(extents(dxf, '$EXTMAX')).toEqual([4, 2]);
+  });
+
   it('preserves uniform perpendicular width on a diagonal busbar', () => {
     const dxf = toDxf([{ type: 'line', layer: 'BUSBAR', x1: 0, y1: 0, x2: 10, y2: 10, width: 2 }]);
     const corners = solidCorners(records(dxf, 'ENTITIES')[0]);
