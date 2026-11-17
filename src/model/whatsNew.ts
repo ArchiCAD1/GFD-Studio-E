@@ -15,7 +15,7 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.175', date: '2026-11-17',
+    version: '2.176', date: '2026-11-17',
     items: [
       { title: 'Design CAD: Move, Copy, Rotate, Mirror, Scale and Stretch show the result before the click', text: 'After the base point, every object picked follows the cursor dashed, and each device as its own symbol, faded, so you see where they go before you click. Mirror shows the mirrored copies along the mirror line, and Scale shows the objects at the factor while you type it. After the Stretch window, the drawn objects it caught look picked, with a square on each point that will move. Up to 2,000 objects show; above that, only the rubber line.', action: 'cad', actionLabel: 'Open Design CAD' },
       { title: 'Design CAD: rotate several objects at once', text: 'Rotate now works on several objects picked together. Drawn objects turn about the base point, devices move round it, and cameras and speakers also turn by the angle. Click the angle or type it in degrees.', action: 'cad', actionLabel: 'Open Design CAD' }
