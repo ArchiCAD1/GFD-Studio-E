@@ -1,11 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 import {
   AlignLeft, ArrowDown, ArrowUp, Baseline, Bold, Braces, ClipboardPaste, Copy, FilePlus2, FileText, FileType, FolderOpen, Heading1, Heading2, Italic, List, ListOrdered, PaintBucket, Paintbrush,
-  BookOpen, ImageMinus, ImagePlus, ListPlus, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
+  BookOpen, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
 } from 'lucide-react';
 import type { Project } from '../../types';
 import {
-  addClause, addDetail, addSection, fieldUses, moveClause, moveSection, removeClause, removeDetail, removeSection, slotText, specFields, specRevisionRows, specSetup, specView, starterSpec, withClause, withContents, withCover, withDetail,
+  addClause, addDetail, addSection, fieldUses, indentClause, maxLevel, withAppendix, moveClause, moveSection, removeClause, removeDetail, removeSection, slotText, specFields, specRevisionRows, specSetup, specView, starterSpec, withClause, withContents, withCover, withDetail,
   withInfo, withSectionIncluded, withSectionTitle, withSetup, withTitle, fieldKeys, SPEC_PARTIES, SPEC_SETUP, type SpecDoc, type SpecKind, type SpecLogoPlace, type SpecMargins, type SpecPaper, type SpecSlots
 } from '../../model/specDoc';
 import { Big, Group, Icons, IconTool, PageRibbon, RIBBON_CSS, Rows, Small } from '../pageRibbon';
@@ -40,6 +40,10 @@ const CSS = `${RIBBON_CSS}
 .spx-line { display: grid; grid-template-columns: 52px 1fr; gap: 6px; padding: 3px 4px; border-radius: 3px; cursor: text; border: 1px solid transparent; }
 .spx-line.h { font-weight: 700; font-size: 13.5px; margin-top: 6px; }
 .spx-line.n { font-style: italic; color: #444; }
+.spx-line.l1 { margin-left: 52px; grid-template-columns: 30px 1fr; } .spx-line.l2 { margin-left: 82px; grid-template-columns: 30px 1fr; }
+.spx-line.h.l1 { margin-left: 0; grid-template-columns: 52px 1fr; font-size: 13px; }
+.spx-line.brk { margin-top: 22px; position: relative; }
+.spx-line.brk::before { content: "Page break"; position: absolute; left: 0; right: 0; top: -18px; border-top: 1px dashed #999; font-size: 10px; font-weight: 400; font-style: normal; color: #666; text-align: center; }
 .spx-line.sel { border-color: #b8860b; background: #fffbea; }
 .spx-line textarea { box-sizing: border-box; width: 100%; min-height: 64px; border: 1px solid #999; padding: 4px 6px; font: inherit; font-weight: 400; font-style: normal; color: #1a1a1a; background: #fff; resize: vertical; }
 .spx-f { background: #fff2cc; border-bottom: 1px solid #b8860b; padding: 0 3px; }
@@ -183,6 +187,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
                 <Small icon={Trash2} label="Delete section" onClick={dropSection} disabled={doc.sections.length < 2} />
                 <Small icon={ArrowUp} label="Move section up" onClick={() => save(moveSection(doc, section.id, -1))} disabled={doc.sections[0].id === section.id} />
                 <Small icon={ArrowDown} label="Move section down" onClick={() => save(moveSection(doc, section.id, 1))} disabled={doc.sections[doc.sections.length - 1].id === section.id} />
+                <Small icon={Paperclip} label="Appendix" onClick={() => save(withAppendix(doc, section.id, !section.appendix))} pressed={!!section.appendix} />
               </Rows>
             </Group>
             <Group name="Output">
@@ -241,6 +246,9 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
                 <Small icon={ArrowUp} label="Move up" onClick={clause ? () => save(moveClause(doc, section.id, clause.id, -1)) : undefined} disabled={!clause || section.clauses[0].id === clause.id} />
                 <Small icon={ArrowDown} label="Move down" onClick={clause ? () => save(moveClause(doc, section.id, clause.id, 1)) : undefined} disabled={!clause || section.clauses[section.clauses.length - 1].id === clause.id} />
                 <Small icon={Trash2} label="Delete clause" onClick={clause ? () => { save(removeClause(doc, section.id, clause.id)); pick(null); } : undefined} disabled={!clause} />
+                <Small icon={IndentIncrease} label="Indent" onClick={clause ? () => save(indentClause(doc, section.id, clause.id, 1)) : undefined} disabled={!clause || (clause.level ?? 0) >= maxLevel(clause.kind)} />
+                <Small icon={IndentDecrease} label="Outdent" onClick={clause ? () => save(indentClause(doc, section.id, clause.id, -1)) : undefined} disabled={!clause || !(clause.level ?? 0)} />
+                <Small icon={SeparatorHorizontal} label="Page break" onClick={clause ? () => save(withClause(doc, section.id, clause.id, { breakBefore: !clause.breakBefore })) : undefined} disabled={!clause} pressed={!!clause?.breakBefore} />
                 <Small icon={List} label="Bullets" />
               </Rows>
             </Group>
@@ -374,19 +382,19 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
                 : <button type="button" aria-current={s.id === section.id} onClick={() => { setSectionId(s.id); pick(null); setRenaming(false); }}><span className="spx-sec-n">{numberOf(s.id)}</span><span className="spx-sec-t">{s.title}</span></button>}
             </div>
           ))}
-          <p className="spx-note">Tick a section to include it. Clauses renumber by themselves.</p>
+          <p className="spx-note">Tick a section to include it. Clauses renumber by themselves. An appendix is lettered and goes after the numbered sections.</p>
         </section>
 
         <div className="spx-paper" aria-label={`Section ${section.title}`}>
           <div className="spx-head">{setup.header.map((x, i) => <span key={i}>{setup.logo && setup.logoPlace === `header-${['left', 'center', 'right'][i]}` ? '[logo]' : slotText(x, doc, project)}</span>)}</div>
-          <h5>{block.no} {block.title}</h5>
+          <h5>{block.heading}</h5>
           {!section.included && <p className="spx-off">This section is not included in the specification. Tick it in the list to include it.</p>}
           {block.lines.length === 0 && <p className="spx-off">No clauses yet. Use Add clause.</p>}
           {block.lines.map((l) => {
             const c = section.clauses.find((x) => x.id === l.id)!;
             const sel = l.id === clauseId;
             return (
-              <div key={l.id} data-clause={l.id} className={`spx-line ${KIND_CLASS[l.kind]}${sel ? ' sel' : ''}`} onClick={() => { if (!sel) pick(l.id); }}>
+              <div key={l.id} data-clause={l.id} className={`spx-line ${KIND_CLASS[l.kind]}${sel ? ' sel' : ''}${l.level ? ` l${l.level}` : ''}${l.breakBefore ? ' brk' : ''}`} onClick={() => { if (!sel) pick(l.id); }}>
                 <span>{l.no}</span>
                 {sel
                   ? <textarea ref={editor} key={`${c.id}:${c.text}`} aria-label={`Edit clause ${l.no}`} defaultValue={c.text} autoFocus spellCheck

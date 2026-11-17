@@ -10,8 +10,14 @@ import { mainBoards } from './transformers';
  * The clause wording is the engineer's own: the starter set is plain wording to edit, not text of any standard. */
 
 export type SpecKind = 'heading' | 'clause' | 'note';
-export interface SpecClause { id: string; kind: SpecKind; text: string }
-export interface SpecSection { id: string; title: string; included: boolean; clauses: SpecClause[] }
+/** `level`: how far the line is indented under the one above. A heading at level 1 is a sub-heading (2.1.1); a
+ * clause at level 1 is a lettered item a), b) … under its clause, at level 2 a numbered item i), ii) …; a note only
+ * moves in. `breakBefore`: the line starts a new page. */
+export interface SpecClause { id: string; kind: SpecKind; text: string; level?: number; breakBefore?: boolean }
+/** `appendix`: the section is an appendix — lettered A, B … and placed after the numbered sections. */
+export interface SpecSection { id: string; title: string; included: boolean; clauses: SpecClause[]; appendix?: boolean }
+/** The deepest level a line of this kind takes. */
+export const maxLevel = (kind: SpecKind): number => (kind === 'heading' ? 1 : 2);
 /** A detail the engineer adds to the document's information (name and value), usable in a clause as a field. */
 export interface SpecDetail { id: string; name: string; value: string }
 /** The document's own information: its number and status, the parties, and any further details. A party left
@@ -87,8 +93,10 @@ export function specFields(p: Project, doc: SpecDoc | undefined = p.spec): SpecF
 // ---- showing the specification
 
 export type SpecRun = { text: string } | { field: string; label: string; value?: string };
-export interface SpecLine { id: string; kind: SpecKind; no: string; runs: SpecRun[] }
-export interface SpecBlock { id: string; no: string; title: string; lines: SpecLine[] }
+/** `no`: the number printed on the line; `ref`: how the line is named elsewhere (an item is "2.1.1 a)"). */
+export interface SpecLine { id: string; kind: SpecKind; no: string; ref: string; level: number; breakBefore: boolean; runs: SpecRun[] }
+/** `heading`: the block's title as printed ("2 Switchboards", "Appendix A — Schedules"). */
+export interface SpecBlock { id: string; no: string; title: string; heading: string; appendix: boolean; lines: SpecLine[] }
 export interface SpecMissing { sectionNo: string; clauseNo: string; key: string; label: string }
 export interface SpecView { blocks: SpecBlock[]; missing: SpecMissing[] }
 
@@ -110,24 +118,41 @@ function runsOf(text: string, fields: Map<string, SpecField>): SpecRun[] {
   return out;
 }
 
-/** The included sections, numbered — sections 1, 2 …, headings 2.1, 2.2 …, clauses 2.1.1 … (a clause before any
- * heading is 2.1, 2.2 …) — with every field filled from the project, and the list of fields that have no value. */
+const letters = (n: number): string => { let out = ''; for (; n > 0; n = Math.floor((n - 1) / 26)) out = String.fromCharCode(97 + ((n - 1) % 26)) + out; return out; };
+const roman = (n: number): string => [['m', 1000], ['cm', 900], ['d', 500], ['cd', 400], ['c', 100], ['xc', 90], ['l', 50], ['xl', 40], ['x', 10], ['ix', 9], ['v', 5], ['iv', 4], ['i', 1]].reduce((out, [r, v]) => { while (n >= (v as number)) { out += r; n -= v as number; } return out; }, '');
+/** A clause's level as used: within what its kind allows, and never deeper than one step under the line above. */
+const levelOf = (c: SpecClause): number => Math.min(maxLevel(c.kind), Math.max(0, Math.round(c.level ?? 0)));
+
+/** The included sections, numbered — sections 1, 2 …, headings 2.1, 2.2 …, clauses under the heading above them
+ * (2.1.1, or 2.1 before any heading), sub-headings in the same run as those clauses (2.1.3, its clauses 2.1.3.1),
+ * items a), b) … and i), ii) … — then the appendices A, B …
+ * numbered the same way (A.1, A.1.1); every field filled from the project, and the list of fields that have no value. */
 export function specView(doc: SpecDoc, p: Project): SpecView {
   const fields = new Map(specFields(p, doc).map((f) => [f.key, f]));
   const blocks: SpecBlock[] = [], missing: SpecMissing[] = [];
-  let s = 0;
-  for (const sec of doc.sections) {
-    if (!sec.included) continue;
-    const no = String(++s);
-    let h = 0, c = 0;
+  let s = 0, ap = 0;
+  const included = doc.sections.filter((x) => x.included);
+  for (const sec of [...included.filter((x) => !x.appendix), ...included.filter((x) => x.appendix)]) {
+    const no = sec.appendix ? letters(++ap).toUpperCase() : String(++s);
+    // h: the heading the line is under (0: none yet); h2: its sub-heading (0: none). A heading and a clause that
+    // stand side by side share one run of numbers (t under the section, k under a heading), so no number is used twice.
+    let h = 0, h2 = 0, t = 0, k = 0, c = 0, a = 0, r = 0, clauseNo = '';
     const lines: SpecLine[] = sec.clauses.map((cl) => {
-      let num = '';
-      if (cl.kind === 'heading') { num = `${no}.${++h}`; c = 0; } else if (cl.kind === 'clause') num = h ? `${no}.${h}.${++c}` : `${no}.${++c}`;
+      const level = levelOf(cl);
+      let num = '', ref = '';
+      if (cl.kind === 'heading') {
+        if (level === 1 && h) { h2 = ++k; num = `${no}.${h}.${h2}`; } else { h = ++t; h2 = 0; k = 0; num = `${no}.${h}`; }
+        c = 0; a = 0; r = 0; clauseNo = ''; ref = num;
+      } else if (cl.kind === 'clause') {
+        if (level === 0) { clauseNo = num = h2 ? `${no}.${h}.${h2}.${++c}` : h ? `${no}.${h}.${++k}` : `${no}.${++t}`; a = 0; r = 0; ref = num; }
+        else if (level === 1) { num = `${letters(++a)})`; r = 0; ref = `${clauseNo} ${num}`.trim(); }
+        else { num = `${roman(++r)})`; ref = `${clauseNo}${a ? ` ${letters(a)})` : ''} ${num}`.trim(); }
+      } else ref = clauseNo;
       const runs = runsOf(cl.text, fields);
-      for (const r of runs) if ('field' in r && r.value === undefined) missing.push({ sectionNo: no, clauseNo: num, key: r.field, label: r.label });
-      return { id: cl.id, kind: cl.kind, no: num, runs };
+      for (const x of runs) if ('field' in x && x.value === undefined) missing.push({ sectionNo: no, clauseNo: ref, key: x.field, label: x.label });
+      return { id: cl.id, kind: cl.kind, no: num, ref, level, breakBefore: !!cl.breakBefore, runs };
     });
-    blocks.push({ id: sec.id, no, title: sec.title, lines });
+    blocks.push({ id: sec.id, no, title: sec.title, heading: sec.appendix ? `Appendix ${no} — ${sec.title}` : `${no} ${sec.title}`, appendix: !!sec.appendix, lines });
   }
   return { blocks, missing };
 }
@@ -187,7 +212,7 @@ export interface SpecEntry { id: string; no: string; title: string; level: 1 | 2
 export const specAnchor = (id: string, clause?: string): string => `spec_${id}${clause ? `_${clause}` : ''}`;
 export function specContents(v: SpecView, headings: boolean): SpecEntry[] {
   return v.blocks.flatMap((b) => [
-    { id: specAnchor(b.id), no: b.no, title: b.title, level: 1 as const },
+    { id: specAnchor(b.id), no: b.no, title: b.appendix ? `Appendix — ${b.title}` : b.title, level: 1 as const },
     ...(headings ? b.lines.filter((l) => l.kind === 'heading').map((l) => ({ id: specAnchor(b.id, l.id), no: l.no, title: lineText(l), level: 2 as const })) : [])
   ]);
 }
@@ -239,12 +264,19 @@ export function addClause(doc: SpecDoc, sectionId: string, kind: SpecKind, text:
   return mapSection(doc, sectionId, (s) => {
     const i = after ? s.clauses.findIndex((c) => c.id === after) : -1;
     const clauses = [...s.clauses];
-    clauses.splice(i < 0 ? clauses.length : i + 1, 0, { id, kind, text });
+    // A line added under an indented line of its kind starts at that level (the next item of the list).
+    const level = i >= 0 && s.clauses[i].kind === kind && s.clauses[i].level ? { level: s.clauses[i].level } : {};
+    clauses.splice(i < 0 ? clauses.length : i + 1, 0, { id, kind, text, ...level });
     return { ...s, clauses };
   });
 }
-export const withClause = (doc: SpecDoc, sectionId: string, clauseId: string, change: Partial<Pick<SpecClause, 'text' | 'kind'>>): SpecDoc =>
+export const withClause = (doc: SpecDoc, sectionId: string, clauseId: string, change: Partial<Pick<SpecClause, 'text' | 'kind' | 'breakBefore'>>): SpecDoc =>
   mapSection(doc, sectionId, (s) => ({ ...s, clauses: s.clauses.map((c) => (c.id === clauseId ? { ...c, ...change } : c)) }));
+/** Moves a line in (+1) or out (−1) one level, within what its kind allows. */
+export const indentClause = (doc: SpecDoc, sectionId: string, clauseId: string, by: -1 | 1): SpecDoc =>
+  mapSection(doc, sectionId, (s) => ({ ...s, clauses: s.clauses.map((c) => (c.id === clauseId ? { ...c, level: Math.min(maxLevel(c.kind), Math.max(0, (c.level ?? 0) + by)) } : c)) }));
+/** Makes a section an appendix, or a numbered section again. */
+export const withAppendix = (doc: SpecDoc, id: string, appendix: boolean): SpecDoc => mapSection(doc, id, (s) => ({ ...s, appendix }));
 export const removeClause = (doc: SpecDoc, sectionId: string, clauseId: string): SpecDoc => mapSection(doc, sectionId, (s) => ({ ...s, clauses: s.clauses.filter((c) => c.id !== clauseId) }));
 export function moveClause(doc: SpecDoc, sectionId: string, clauseId: string, by: -1 | 1): SpecDoc {
   return mapSection(doc, sectionId, (s) => {

@@ -146,6 +146,35 @@ describe('specification — cover page and contents page', () => {
   });
 });
 
+describe('specification — indent levels, page breaks and appendices in the output', () => {
+  const d: SpecDoc = { title: 'Spec', setup: { cover: { on: false } }, sections: [
+    { id: 'S1', title: 'Cable schedule', included: true, appendix: true, clauses: [{ id: 'A1', kind: 'clause', text: 'See the schedule.' }] },
+    { id: 'S2', title: 'General', included: true, clauses: [
+      { id: 'C1', kind: 'heading', text: 'Scope' }, { id: 'C2', kind: 'clause', text: 'The works include:' }, { id: 'C3', kind: 'clause', text: 'boards;', level: 1 }, { id: 'C4', kind: 'clause', text: 'main board;', level: 2 },
+      { id: 'C5', kind: 'heading', text: 'Limits', level: 1 }, { id: 'C6', kind: 'clause', text: 'New page.', breakBefore: true }] }
+  ] };
+
+  it('PDF: items are indented with letters, a sub-heading is numbered under its heading, a page break is on its line, the appendix is last', () => {
+    const html = buildSpecHtml(sampleProject, d);
+    expect(html).toContain('<div class="cl  l1"><span>a)</span><span>boards;</span></div><div class="cl  l2"><span>i)</span><span>main board;</span></div>');
+    expect(html).toContain('<div class="cl h l1"><span>1.1.2</span><span>Limits</span></div><div class="cl  brk"><span>1.1.2.1</span><span>New page.</span></div>');
+    expect(html).toContain('<h2>Appendix A — Cable schedule</h2><div class="cl "><span>A.1</span>');
+    expect(html.indexOf('<h2>1 General</h2>')).toBeLessThan(html.indexOf('<h2>Appendix A'));
+    expect(html).toContain('<li><span>A</span><span>Appendix — Cable schedule<i class="dots"></i></span><span></span></li>');
+    expect(specPlainText(sampleProject, d).split('\n').slice(2, 5)).toEqual(['1.1.1\tThe works include:', '\ta)\tboards;', '\t\ti)\tmain board;']);
+  });
+
+  it('Word: the same, with a page break before the marked line and Heading 3 for a sub-heading', async () => {
+    const JSZip = (await import('jszip')).default;
+    const xml = await (await JSZip.loadAsync(await Packer.toBuffer(buildSpecDocx(sampleProject, d)))).file('word/document.xml')!.async('string');
+    expect(xml).toContain('<w:pStyle w:val="Heading3"/>');
+    expect(xml).toMatch(/<w:ind w:left="1330" w:hanging="480"\/>[\s\S]*?a\)/);
+    expect(xml).toMatch(/<w:ind w:left="1810" w:hanging="480"\/>[\s\S]*?i\)/);
+    expect(xml).toMatch(/<w:pageBreakBefore\/>(?:(?!<\/w:p>)[\s\S])*1\.1\.2\.1/);
+    expect(xml).toContain('Appendix A — Cable schedule');
+  });
+});
+
 describe('specification — Word file', () => {
   it('carries the page setup: paper and margins, the header and footer slots with page numbers, and the watermark', async () => {
     const JSZip = (await import('jszip')).default;

@@ -12,6 +12,7 @@ import { fmtDate } from '../util/format';
  * contents from it. A value the project does not have is written as DATA REQUIRED in bold. */
 
 const INDENT = 850; // twips: where clause text starts, the number hanging before it
+const STEP = 480; // twips: one level of indent (items a), b) … and i), ii) …)
 const runs = (l: SpecLine, more: { bold?: boolean; italics?: boolean } = {}) =>
   l.runs.map((r) => ('text' in r ? new TextRun({ text: r.text, ...more }) : r.value !== undefined ? new TextRun({ text: r.value, ...more }) : new TextRun({ text: `DATA REQUIRED: ${r.label}`, bold: true, underline: {} })));
 
@@ -93,11 +94,13 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
   }
   const marked = setup.contents.on && setup.contents.headings;
   for (const b of v.blocks) {
-    body.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new Bookmark({ id: specAnchor(b.id), children: [new TextRun(`${b.no} ${b.title}`)] })] }));
+    body.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new Bookmark({ id: specAnchor(b.id), children: [new TextRun(b.heading)] })] }));
     for (const l of b.lines) {
-      if (l.kind === 'heading') body.push(new Paragraph({ heading: HeadingLevel.HEADING_2, tabStops: [{ type: TabStopType.LEFT, position: INDENT }], children: marked ? [new Bookmark({ id: specAnchor(b.id, l.id), children: [new TextRun(`${l.no}\t`), ...runs(l)] })] : [new TextRun(`${l.no}\t`), ...runs(l)] }));
-      else if (l.kind === 'note') body.push(new Paragraph({ indent: { left: INDENT }, spacing: { after: 100 }, children: runs(l, { italics: true }) }));
-      else body.push(new Paragraph({ indent: { left: INDENT, hanging: INDENT }, tabStops: [{ type: TabStopType.LEFT, position: INDENT }], spacing: { after: 100 }, alignment: AlignmentType.LEFT, children: [new TextRun(`${l.no}\t`), ...runs(l)] }));
+      const brk = l.breakBefore ? { pageBreakBefore: true } : {};
+      const left = INDENT + (l.kind === 'heading' ? 0 : l.level * STEP), hang = l.level ? STEP : INDENT; // an item's letter hangs in a narrower column
+      if (l.kind === 'heading') body.push(new Paragraph({ ...brk, heading: l.level ? HeadingLevel.HEADING_3 : HeadingLevel.HEADING_2, tabStops: [{ type: TabStopType.LEFT, position: INDENT }], children: marked ? [new Bookmark({ id: specAnchor(b.id, l.id), children: [new TextRun(`${l.no}\t`), ...runs(l)] })] : [new TextRun(`${l.no}\t`), ...runs(l)] }));
+      else if (l.kind === 'note') body.push(new Paragraph({ ...brk, indent: { left }, spacing: { after: 100 }, children: runs(l, { italics: true }) }));
+      else body.push(new Paragraph({ ...brk, indent: { left, hanging: hang }, tabStops: [{ type: TabStopType.LEFT, position: left }], spacing: { after: 100 }, alignment: AlignmentType.LEFT, children: [new TextRun(`${l.no}\t`), ...runs(l)] }));
     }
   }
   const mark = (n: number) => (setup.watermark ? [watermark(setup.watermark, n)] : []); // one shape per header, as Word numbers its own
@@ -110,6 +113,7 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
       paragraphStyles: [
         { id: 'Title', name: 'Title', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 40, bold: true, color: '000000' }, paragraph: { spacing: { after: 80 } } },
         { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 28, bold: true, color: '000000' }, paragraph: { spacing: { after: 160 } } },
+        { id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 21, bold: true, color: '000000' }, paragraph: { spacing: { before: 140, after: 60 } } },
         { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true, run: { size: 22, bold: true, color: '000000' }, paragraph: { spacing: { before: 200, after: 80 } } }
       ]
     },

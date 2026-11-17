@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import type { Project } from '../types';
-import { addClause, addDetail, withContents, withCover, addSection, fieldKeys, fieldUses, removeDetail, slotRuns, slotText, specSetup, withDetail, withInfo, withSetup, withTitle, SPEC_SETUP, lineText, moveClause, moveSection, removeClause, removeSection, specFields, specView, starterSpec, withClause, withSectionIncluded, withSectionTitle, type SpecDoc } from './specDoc';
+import { addClause, addDetail, indentClause, specContents, withAppendix, withContents, withCover, addSection, fieldKeys, fieldUses, removeDetail, slotRuns, slotText, specSetup, withDetail, withInfo, withSetup, withTitle, SPEC_SETUP, lineText, moveClause, moveSection, removeClause, removeSection, specFields, specView, starterSpec, withClause, withSectionIncluded, withSectionTitle, type SpecDoc } from './specDoc';
 import { mainBoards } from './transformers';
 
 const field = (p: Project, key: string) => specFields(p).find((f) => f.key === key)!;
@@ -197,5 +197,58 @@ describe('specification — document information and page setup', () => {
   it('the title is not emptied', () => {
     expect(withTitle(doc, '  ').title).toBe(doc.title);
     expect(withTitle(doc, ' ELV specification ').title).toBe('ELV specification');
+  });
+});
+
+describe('specification — indent levels, page breaks and appendices', () => {
+  const c = (id: string, kind: 'heading' | 'clause' | 'note', level = 0, text = id) => ({ id, kind, text, ...(level ? { level } : {}) });
+  const d: SpecDoc = { title: 'Spec', sections: [
+    { id: 'S1', title: 'Schedules', included: true, appendix: true, clauses: [c('A1', 'heading'), c('A2', 'clause')] },
+    { id: 'S2', title: 'General', included: true, clauses: [
+      c('C1', 'clause', 1), c('C2', 'heading'), c('C3', 'clause'), c('C4', 'clause', 1), c('C5', 'clause', 1, 'Needs {{main.nothing}}'), c('C6', 'clause', 2), c('C7', 'clause', 2), c('C8', 'note', 2),
+      c('C9', 'clause'), c('C10', 'heading', 1), c('C11', 'clause'), c('C12', 'clause', 1), c('C13', 'heading'), c('C14', 'heading', 5), c('C15', 'clause', 9)] },
+    { id: 'S3', title: 'Drawings', included: true, appendix: true, clauses: [] },
+    { id: 'S4', title: 'Boards', included: true, clauses: [c('D1', 'heading', 1), c('D2', 'clause')] }
+  ] };
+  const v = specView(d, sampleProject);
+
+  it('numbers headings, sub-headings, clauses and lettered and numbered items; levels stay within what a kind allows', () => {
+    const g = v.blocks[0];
+    expect(g.lines.map((l) => l.no)).toEqual(['a)', '1.1', '1.1.1', 'a)', 'b)', 'i)', 'ii)', '', '1.1.2', '1.1.3', '1.1.3.1', 'a)', '1.2', '1.2.1', 'i)']);
+    expect(g.lines.map((l) => l.level)).toEqual([1, 0, 0, 1, 1, 2, 2, 2, 0, 1, 0, 1, 0, 1, 2]);
+    expect(g.lines[6].ref).toBe('1.1.1 b) ii)');
+    expect(g.lines[11].ref).toBe('1.1.3.1 a)');
+    expect(new Set(g.lines.map((l) => l.ref).filter((x) => /^\d[\d.]*$/.test(x))).size).toBe(7); // no number twice
+    expect(v.missing).toEqual([{ sectionNo: '1', clauseNo: '1.1.1 b)', key: 'main.nothing', label: 'main.nothing' }]);
+    // A sub-heading with no heading above it is an ordinary heading.
+    expect(v.blocks[1].lines.map((l) => l.no)).toEqual(['2.1', '2.1.1']);
+    // A clause before the first heading and that heading do not share a number.
+    const mixed: SpecDoc = { title: 'x', sections: [{ id: 'S1', title: 'G', included: true, clauses: [c('K1', 'clause'), c('K2', 'heading'), c('K3', 'clause')] }] };
+    expect(specView(mixed, sampleProject).blocks[0].lines.map((l) => l.no)).toEqual(['1.1', '1.2', '1.2.1']);
+  });
+
+  it('appendices are lettered and come after the numbered sections', () => {
+    expect(v.blocks.map((b) => b.heading)).toEqual(['1 General', '2 Boards', 'Appendix A — Schedules', 'Appendix B — Drawings']);
+    expect(v.blocks[2].lines.map((l) => l.no)).toEqual(['A.1', 'A.1.1']);
+    expect(specContents(v, false).map((e) => `${e.no} ${e.title}`)).toEqual(['1 General', '2 Boards', 'A Appendix — Schedules', 'B Appendix — Drawings']);
+    expect(specView(withAppendix(d, 'S1', false), sampleProject).blocks.map((b) => b.no)).toEqual(['1', '2', '3', 'A']);
+  });
+
+  it('indent and outdent move one level and stop at the ends; a line added under an item is the next item', () => {
+    const level = (x: SpecDoc, id: string) => x.sections[1].clauses.find((k) => k.id === id)!.level ?? 0;
+    expect(level(indentClause(d, 'S2', 'C3', 1), 'C3')).toBe(1);
+    expect(level(indentClause(d, 'S2', 'C6', 1), 'C6')).toBe(2);
+    expect(level(indentClause(d, 'S2', 'C10', 1), 'C10')).toBe(1);
+    expect(level(indentClause(d, 'S2', 'C3', -1), 'C3')).toBe(0);
+    expect(level(indentClause(d, 'S2', 'C6', -1), 'C6')).toBe(1);
+    const added = addClause(d, 'S2', 'clause', 'Next', 'C4').sections[1].clauses[4];
+    expect([added.text, added.level]).toEqual(['Next', 1]);
+    expect(addClause(d, 'S2', 'note', 'N', 'C4').sections[1].clauses[4].level).toBeUndefined();
+  });
+
+  it('a page break is kept on the line', () => {
+    const x = withClause(d, 'S2', 'C9', { breakBefore: true });
+    expect(specView(x, sampleProject).blocks[0].lines.map((l) => l.breakBefore).filter(Boolean).length).toBe(1);
+    expect(specView(withClause(x, 'S2', 'C9', { breakBefore: false }), sampleProject).blocks[0].lines.some((l) => l.breakBefore)).toBe(false);
   });
 });
