@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aligned, alignOf, arrayPolar, arrayRect, breakAt, chamfer, edgesFor, explode, extend, fillet, gripMoved, gripsOf, isPath, join, mirrored, offset, pathLength,
-  scaled, sketchInWindow, stretched, trim, trimPiece, extendPiece, crossingsOf, reachesOf, type Seg
+  scaled, sketchInWindow, stretched, stretchPoints, trim, trimPiece, extendPiece, crossingsOf, reachesOf, type Seg
 } from './cadEdit';
 import type { SketchItem } from '../types';
 
@@ -173,6 +173,18 @@ describe('Mirror, Scale, Stretch, Array, grips, window', () => {
     const tray = { ...line('T1', [0, 0], [10, 0]), kind: 'pline' as const, tray: { widthMm: 300 } };
     expect(stretched(tray, [9, -1], [11, 1], 2, 0)!.pts).toEqual([[0, 0], [12, 0]]);
     expect(stretched(tray, [20, 20], [21, 21], 2, 0)).toBeNull();
+  });
+
+  it('the points a Stretch window moves, for its squares: those inside it, or all of a circle or text with its point inside', () => {
+    const tray = { ...line('T1', [0, 0], [10, 0]), kind: 'pline' as const, tray: { widthMm: 300 } };
+    expect(stretchPoints(tray, [9, -1], [11, 1])).toEqual([[10, 0]]);
+    expect(stretchPoints(tray, [20, 20], [21, 21])).toEqual([]);
+    const text: SketchItem = { id: 'T', kind: 'text', layer: 'L', pts: [[10, 0]], text: 'DB-G1', h: 0.3 };
+    expect(stretchPoints(text, [9, -1], [11, 1])).toEqual([[10, 0]]);
+    // Every point the squares mark is a point the click moves, and no other.
+    const room: SketchItem = { id: 'R', kind: 'pline', layer: 'L', pts: [[0, 0], [4, 0], [4, 3], [0, 3]], closed: true };
+    const moved = stretched(room, [3, -1], [5, 4], 1, 0)!.pts.filter((q, i) => q[0] !== room.pts[i][0]);
+    expect(stretchPoints(room, [3, -1], [5, 4]).map((q) => [q[0] + 1, q[1]])).toEqual(moved);
   });
 
   it('arrays: rows × columns, and polar round a centre', () => {

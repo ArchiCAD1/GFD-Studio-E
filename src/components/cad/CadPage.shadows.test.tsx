@@ -15,12 +15,12 @@ import { DRAFT_DEFAULTS, type DraftSettings } from '../../model/cadDraft';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 // What the page last gave the canvas: the shadow before the click and the cursor's shape.
-type Seen = { cutAway?: SketchItem[]; meets?: [number, number][]; preview?: SketchItem[]; cursorMode?: string };
+type Seen = { cutAway?: SketchItem[]; meets?: [number, number][]; preview?: SketchItem[]; cursorMode?: string; shadowDevices?: { x: number; y: number }[]; movingPoints?: [number, number][]; selectedSketch?: string | string[] | null };
 const seen = vi.hoisted(() => ({ last: {} as Seen }));
 vi.mock('./CadCanvas', async (importOriginal) => {
   const real = await importOriginal<typeof import('./CadCanvas')>();
   const Canvas = real.default;
-  return { ...real, default: (p: Parameters<typeof Canvas>[0]) => { seen.last = { cutAway: p.cutAway, meets: p.meets, preview: p.preview, cursorMode: p.cursorMode }; return Canvas(p); } };
+  return { ...real, default: (p: Parameters<typeof Canvas>[0]) => { seen.last = { cutAway: p.cutAway, meets: p.meets, preview: p.preview, cursorMode: p.cursorMode, shadowDevices: p.shadowDevices, movingPoints: p.movingPoints, selectedSketch: p.selectedSketch }; return Canvas(p); } };
 });
 // jsdom has no canvas drawing or resize observer: drawing is skipped, the page still works (the view is 800 × 500).
 class Stub { moveTo() {} lineTo() {} closePath() {} observe() {} disconnect() {} }
@@ -72,6 +72,23 @@ const screenOf = (x: number, y: number) => {
   const scale = Math.min(800 / (x1 - x0), 500 / (y1 - y0)) * 0.92;
   return [(x - (x0 + x1) / 2) * scale + 400, 250 - (y - (y0 + y1) / 2) * scale];
 };
+/** A selection window dragged from one point to another (drawing units). */
+const dragWindow = async (a: [number, number], b: [number, number]) => {
+  const [[ax, ay], [bx, by]] = [screenOf(...a), screenOf(...b)];
+  const c = document.querySelector('canvas.cad-over')!;
+  await act(async () => {
+    c.dispatchEvent(new MouseEvent('mousedown', { clientX: ax, clientY: ay, button: 0, bubbles: true }));
+    c.dispatchEvent(new MouseEvent('mousemove', { clientX: (ax + bx) / 2, clientY: (ay + by) / 2, bubbles: true }));
+    c.dispatchEvent(new MouseEvent('mousemove', { clientX: bx, clientY: by, bubbles: true }));
+    c.dispatchEvent(new MouseEvent('mouseup', { clientX: bx, clientY: by, button: 0, bubbles: true }));
+  });
+};
+/** Text typed on the command line, not entered yet. */
+const typeOnly = (text: string) => act(async () => {
+  const input = document.querySelector('input[aria-label="Command"]') as HTMLInputElement;
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, text);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+});
 /** A click on the drawing at a point in drawing units, through the fitted 800 × 500 view. */
 const clickAt = async (x: number, y: number, shiftKey = false) => {
   const [sx, sy] = screenOf(x, y);
@@ -143,4 +160,168 @@ describe('Trim and Extend show the piece before the click (2026-11-17)', () => {
     await hover(X + 4000, 1800);
     await until(() => seen.last.meets === undefined && seen.last.preview?.length === 0);
   });
+});
+
+describe('Move, Copy, Rotate, Mirror, Scale and Stretch show the result before the click (2026-11-17)', () => {
+  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+  const X = 200000;
+  const three: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', [X, 0], [X + 8000, 0]), line('S2', [X + 4000, -2000], [X + 4000, 2000]), line('S3', [X + 10000, -2000], [X + 10000, 2000])] }] };
+  const hist = () => document.querySelector('.cad-hist')?.textContent ?? '';
+  const items = () => project.cadSketch![0].items;
+  const item = (id: string) => items().find((x) => x.id === id)!;
+  /** What the last change said (the command line has moved on to the next prompt by then). */
+  const said = () => (onChange.mock.calls[onChange.mock.calls.length - 1]?.[1] as string | undefined) ?? '';
+  const r0 = (q: [number, number][]) => q.map((p) => p.map(Math.round));
+  const near = (a: [number, number][], b: [number, number][], tol = 60) => a.length === b.length && a.every((p, i) => Math.hypot(p[0] - b[i][0], p[1] - b[i][1]) < tol);
+  const hover = (x: number, y: number) => { const [sx, sy] = screenOf(x, y); return act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('mousemove', { clientX: sx, clientY: sy, bubbles: true })); }); };
+  const start = async (p: Project = three) => { project = p; act(() => root.render(<Host start={p} />)); await flush(); act(() => state.toggle('osnap')); };
+  /** A light placed at a point (drawing units), on DB-GF1-Y1. */
+  const light = async (x: number, y: number) => {
+    act(() => { state.setFeederId('DB-GF1-Y1'); state.setDevice('ltg'); state.setTool('dev'); });
+    await clickAt(x, y);
+    await until(() => (project.lvPoints ?? []).length === 1);
+    act(() => state.setTool('none'));
+  };
+  // The sample plan is drawn in millimetres; devices are placed in metres.
+  const mm = (d: { x: number; y: number }): [number, number] => [d.x * 1000, d.y * 1000];
+
+  it('Move with several objects picked: each follows the cursor, a light as its own symbol faded; the click puts them there', async () => {
+    await start();
+    await light(X + 6000, 3000);
+    await dragWindow([X - 500, -2500], [X + 8500, 3500]); // S1, S2 and the light; S3 is outside
+    await command('MOVE');
+    await command(`${X},0`);
+    await hover(X + 1000, 500);
+    await until(() => seen.last.preview?.length === 2 && seen.last.shadowDevices?.length === 1);
+    const shown = seen.last.preview!.map((it) => r0(it.pts)), ghost = seen.last.shadowDevices![0];
+    await clickAt(X + 1000, 500);
+    await until(() => said().includes('3 objects moved'));
+    expect(shown).toEqual([r0(item('S1').pts), r0(item('S2').pts)]);
+    expect(near([[ghost.x, ghost.y]], [mm(project.lvPoints![0])], 1)).toBe(true);
+  });
+
+  it('Rotate takes several objects: they turn with the cursor (the light round the base point), and a typed angle turns them so', async () => {
+    await start();
+    await light(X + 6000, 3000);
+    await dragWindow([X - 500, -2500], [X + 8500, 3500]);
+    await command('ROTATE');
+    await command(`${X},0`);
+    await until(() => hist().includes('ROTATE  Specify rotation angle (degrees) or a point:'));
+    await hover(X, 5000); // 90° from the base point
+    await until(() => seen.last.preview?.length === 2);
+    expect(near(seen.last.preview![0].pts, [[X, 0], [X, 8000]])).toBe(true);
+    expect(near(seen.last.preview![1].pts, [[X + 2000, 4000], [X - 2000, 4000]])).toBe(true);
+    expect(near(seen.last.shadowDevices!.map((d) => [d.x, d.y]), [[X - 3000, 6000]])).toBe(true);
+    await command('90');
+    await until(() => said().includes('3 objects rotated 90.00°'));
+    expect(r0(item('S1').pts)).toEqual([[X, 0], [X, 8000]]);
+    expect(r0(item('S2').pts)).toEqual([[X + 2000, 4000], [X - 2000, 4000]]);
+    expect(near([mm(project.lvPoints![0])], [[X - 3000, 6000]], 1)).toBe(true);
+    expect(item('S3').pts).toEqual([[X + 10000, -2000], [X + 10000, 2000]]);
+  });
+
+  it('Mirror: the mirrored copy follows the mirror line, stays where the line was chosen, and Enter gives the same', async () => {
+    await start();
+    await dragWindow([X + 3500, -2500], [X + 4500, 2500]); // S2
+    await command('MIRROR');
+    await until(() => hist().includes('MIRROR  Specify first point of the mirror line:'));
+    await clickAt(X + 6000, -5000);
+    await hover(X + 6000, 5000);
+    await until(() => seen.last.preview?.length === 1);
+    expect(near(seen.last.preview![0].pts, [[X + 8000, -2000], [X + 8000, 2000]], 200)).toBe(true);
+    await clickAt(X + 6000, 5000);
+    await until(() => hist().includes('Erase source objects?'));
+    const chosen = r0(seen.last.preview![0].pts).join();
+    await hover(X, 0); // the line is chosen: the copy stays where it was
+    await until(() => !!seen.last.preview?.length && r0(seen.last.preview[0].pts).join() === chosen);
+    await command('');
+    await until(() => said().includes('mirrored'));
+    expect(items().some((x) => r0(x.pts).join() === chosen)).toBe(true);
+  });
+
+  it('Scale: the objects show at the factor in < >, then at the factor being typed, before Enter gives the same', async () => {
+    await start();
+    await dragWindow([X - 500, -500], [X + 8500, 500]); // S1 only (S2 crosses the window)
+    await command('SCALE');
+    await clickAt(X, 0);
+    await until(() => hist().includes('SCALE  Specify scale factor <2>:'));
+    await hover(X + 3000, 3000);
+    await until(() => seen.last.preview?.length === 1);
+    expect(near(seen.last.preview![0].pts, [[X, 0], [X + 16000, 0]], 100)).toBe(true);
+    await typeOnly('3');
+    await until(() => near(seen.last.preview?.[0]?.pts ?? [], [[X, 0], [X + 24000, 0]], 100));
+    const shown = r0(seen.last.preview![0].pts);
+    await command('3');
+    await until(() => said().includes('scaled × 3'));
+    expect(r0(item('S1').pts)).toEqual(shown);
+  });
+
+  it('Stretch: what the window caught looks picked, squares on the points to move; after the base point they follow the cursor', async () => {
+    await start();
+    await command('STRETCH');
+    await dragWindow([X + 8500, 500], [X + 7000, -500]); // round S1's right end
+    await until(() => hist().includes('STRETCH  Specify base point:'));
+    expect(seen.last.selectedSketch).toEqual(['S1']);
+    expect(seen.last.movingPoints).toEqual([[X + 8000, 0]]);
+    await clickAt(X + 8000, 0);
+    await until(() => hist().includes('STRETCH  Specify second point:'));
+    expect(seen.last.movingPoints).toBeUndefined();
+    expect(seen.last.selectedSketch).toEqual([]);
+    await hover(X + 9000, 0);
+    await until(() => seen.last.preview?.length === 1);
+    const shown = r0(seen.last.preview![0].pts);
+    expect(near(seen.last.preview![0].pts, [[X, 0], [X + 9000, 0]])).toBe(true);
+    await clickAt(X + 9000, 0);
+    await until(() => said().includes('STRETCH  1 drawn object'));
+    expect(r0(item('S1').pts)).toEqual(shown);
+  });
+
+  it("Copy and Mirror of the opened drawing's objects: the shadow is what the click then adds", async () => {
+    const WALL: [number, number] = [15900, 6000]; // a wall line of the sample plan (A-WALL)
+    const walls = () => items().filter((x) => x.layer === 'A-WALL').map((x) => r0(x.pts));
+    await start();
+    await clickAt(...WALL);
+    await command('CO');
+    await until(() => state.tool === 'copy');
+    await flush();
+    await clickAt(...WALL);
+    await hover(WALL[0] + 500, WALL[1]);
+    await until(() => (seen.last.preview?.length ?? 0) > 0);
+    const copied = seen.last.preview!.map((it) => r0(it.pts));
+    await clickAt(WALL[0] + 500, WALL[1]);
+    await until(() => said().startsWith('COPY  1 object copied as drawn objects'));
+    expect(walls()).toEqual(copied);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    // Mirror: the drawing's wall again, about a line 1 m to its right.
+    await clickAt(...WALL);
+    await command('MI');
+    await until(() => hist().includes('MIRROR  Specify first point of the mirror line:'));
+    await flush();
+    await clickAt(WALL[0] + 1000, WALL[1] - 3000);
+    await clickAt(WALL[0] + 1000, WALL[1] + 3000);
+    await until(() => hist().includes('Erase source objects?') && (seen.last.preview?.length ?? 0) > 0);
+    const mirroredWall = seen.last.preview!.map((it) => r0(it.pts));
+    await command('');
+    await until(() => said().includes('mirrored'));
+    expect(walls()).toEqual([...copied, ...mirroredWall]);
+  });
+
+  const many = (n: number): Project => ({ ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: Array.from({ length: n }, (_, i) => line(`L${i}`, [X + i * 5, 5000], [X + i * 5, 5500])) }] });
+  const moveAll = async (n: number) => {
+    await start(many(n));
+    await dragWindow([X - 500, 4500], [X + n * 5 + 500, 6000]);
+    await until(() => hist().includes(`${n} objects selected`));
+    await command('MOVE');
+    await command(`${X},5000`);
+    await hover(X + 1000, 6000);
+  };
+  it('2,000 objects picked: each shows its shadow', async () => {
+    await moveAll(2000);
+    await until(() => seen.last.preview?.length === 2000);
+  }, 30000);
+  it('2,001 objects picked: only the rubber line', async () => {
+    await moveAll(2001);
+    await until(() => seen.last.preview?.length === 1);
+    expect(seen.last.preview![0].pts).toHaveLength(2);
+  }, 30000);
 });

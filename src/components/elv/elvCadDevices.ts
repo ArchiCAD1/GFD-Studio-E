@@ -23,6 +23,13 @@ export function placeElv(p: Project, type: ElvDeviceType, level: Level, x: numbe
 export const elvSystemOf = (type: ElvDeviceType): ElvSystem => ELV_DEVICES[type].system;
 
 export const moveElv = (p: Project, id: string, x: number, y: number) => moveDevice(p, id, x, y);
+/** A camera or speaker turned by an angle (degrees, anticlockwise; kept in whole degrees, as ROTATE sets one), as Rotate
+ * turns it with other objects. Other devices keep their way. */
+export function turnElv(p: Project, id: string, byDeg: number): Project {
+  const d = (p.elvDevices ?? []).find((x) => x.id === id), shape = d ? ELV_DEVICES[d.type].symbol.shape : undefined;
+  if (!d || (shape !== 'camera' && shape !== 'speaker')) return p;
+  return moveDevice(p, id, d.x, d.y, ((Math.round((d.rotationDeg ?? 0) + byDeg) % 360) + 360) % 360);
+}
 export const removeElv = (p: Project, id: string) => removeDevices(p, [id]);
 
 export function elvPlacedOn(p: Project, level: Level): ElvPlaced[] {

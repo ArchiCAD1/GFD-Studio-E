@@ -192,6 +192,26 @@ describe('Trim and Extend: the shadow before the click', () => {
   });
 });
 
+describe('Move, Copy, Rotate and Stretch: devices and moving points before the click', () => {
+  beforeEach(() => { for (const [k, v] of [['--cad-dev', '#f5c04a'], ['--cad-sel', '#4aa8ff'], ['--cad-bg', '#15171a']]) document.documentElement.style.setProperty(k, v); });
+
+  it('a device on the move: its own symbol at 45 % on the cursor layer, in its colour', () => {
+    draw({ cursorMode: 'point', shadowDevices: [{ key: '_d1', x: 400, y: 250, r: 5, shape: 'circle', text: '', label: '', ghost: true }] });
+    cursorAt(300, 200);
+    const ring = strokes.find((s) => s.ops.some((o) => o[0] === 'A'));
+    expect(ring).toMatchObject({ c: '#f5c04a', alpha: 0.45 });
+  });
+
+  it("Stretch's moving points: squares in the grip look, not grips", () => {
+    draw({ cursorMode: 'point', movingPoints: [[100, 100], [200, 100]], draft: { ...DRAFT_DEFAULTS, gripPx: 8 } });
+    fills = []; frames = [];
+    cursorAt(300, 200);
+    const squares = fills.filter((f) => f.c === '#4aa8ff' && f.box[2] === 8 && f.box[3] === 8);
+    expect(squares).toHaveLength(2);
+    expect(frames.filter((f) => f.c === '#15171a' && f.box[2] === 8)).toHaveLength(2);
+  });
+});
+
 describe('window and crossing, Shift and the hand', () => {
   beforeEach(() => {
     for (const [k, v] of [['--res-cur', '#7fd1ff'], ['--ok', '#37d67a'], ['--cad-snap', '#37d67a'], ['--bad', '#ff5d6c']]) document.documentElement.style.setProperty(k, v);
