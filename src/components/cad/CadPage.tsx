@@ -3701,7 +3701,9 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     }
     // A number typed with Scale (before its base point) sets the factor.
     if (tool === 'scale' && isNumber(c) && !c.startsWith('-')) { const k = String(Number(c)); setEdSet({ ...edSet, factor: k }); cad.say(`SCALE  Factor ${k}`); return; }
-    if (DRAW_TOOLS.includes(tool) || tool === 'copybase' || tool === 'paste' || tool === 'dist' || tool === 'area' || tool === 'trace' || tool === 'zoomwin' || tool === 'dimrad' || tool === 'dimdia' || tool === 'dimang' || (tool === 'tcen' && edPhase === 'points') || (tool === 'talign' && tAsk?.step === 'ref') || (tool === 'align' && edPhase === 'points' && edAsk !== 'ascale')) {
+    if (DRAW_TOOLS.includes(tool) || tool === 'copybase' || tool === 'paste' || tool === 'dist' || tool === 'area' || tool === 'trace' || tool === 'zoomwin' || tool === 'dimrad' || tool === 'dimdia' || tool === 'dimang' || (tool === 'tcen' && edPhase === 'points') || (tool === 'talign' && tAsk?.step === 'ref') || (tool === 'align' && edPhase === 'points' && edAsk !== 'ascale')
+      // Mirror's line, Scale's base point and Stretch's two points (after the window), as typed coordinates too.
+      || (tool === 'mirror' && edPhase === 'points' && edAsk !== 'erase') || (tool === 'scale' && edPhase === 'points' && edAsk !== 'factor') || (tool === 'stretch' && !!stretchBox)) {
       const p = typedPoint(raw, points[points.length - 1], cursor.at);
       if (p) { cad.say(`  ${raw}`); click(p, 1e-9); return; }
     }

@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.170', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: typed points in Mirror, Scale and Stretch', text: 'Mirror\'s two points, Scale\'s base point and Stretch\'s base and second points can now be typed as coordinates (x,y), relative (@x,y), polar (@distance<angle) or a distance along the cursor, as in Move and Rotate. They used to give "Unknown command".', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.169', date: '2026-11-17',
     items: [
       { title: 'Design CAD: Space twice repeats the last command', text: 'When a command ends, the command line now says which one Space starts again, for example "Space repeats TRIM". In a command that keeps going, such as Trim or Offset, the first Space or Enter ends it and the second starts it again. Enter with nothing picked now also ends Mirror, Scale, Align, Array, Join, Draw order, Move, Rotate and the text tools, as it ends the other commands.', action: 'cad', actionLabel: 'Open Design CAD' }
