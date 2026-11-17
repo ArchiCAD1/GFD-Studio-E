@@ -84,10 +84,10 @@ export interface RiskResult {
   checks: { status: 'ok' | 'warn' | 'bad'; text: string }[];
 }
 
-/** The study's risk inputs: the rectangle shape takes the building size of the study. */
+/** The study's risk inputs: the rectangle shape takes the building size of the study, the roof outline its height. */
 export function studyRiskInputs(i: Pick<LpsInputs, 'lengthM' | 'widthM' | 'heightM' | 'risk'>): RiskInputs {
   const k: RiskInputs = i.risk ?? { shape: 'rectangle' };
-  return k.shape === 'rectangle' ? { ...k, lengthM: i.lengthM, widthM: i.widthM, heightM: i.heightM } : k;
+  return k.shape === 'rectangle' ? { ...k, lengthM: i.lengthM, widthM: i.widthM, heightM: i.heightM } : k.shape === 'outline' ? { ...k, heightM: i.heightM } : k;
 }
 /** Whether anything has been entered for the risk assessment (a study without one shows no risk checks). */
 export function riskStarted(k: RiskInputs | undefined): boolean {
@@ -200,6 +200,7 @@ function collection(i: RiskInputs, missing: string[], working: RiskResult['worki
   const d = 3 * i.heightM, area = offsetAreaM2(o, d);
   const formula = Math.abs(shoelace(o)) + perimeter(o) * d + Math.PI * d * d;
   working.push({ step: 'Collection area', formula: `roof outline pushed out by 3 × H = ${r2(d)} m (roof ${r2(Math.abs(shoelace(o)))} m², perimeter ${r2(perimeter(o))} m)`, result: `${r2(area)} m²` });
+  working.push({ step: 'Collection area — cross-check', formula: 'roof + 3 × H × perimeter + 9 × π × H² (the same when the outline has no inward corner, higher when it has)', result: `${r2(formula)} m²` });
   return { area, formula };
 }
 

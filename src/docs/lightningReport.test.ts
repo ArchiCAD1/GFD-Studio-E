@@ -166,3 +166,26 @@ describe('lightning risk assessment in the report', () => {
     expect(buf.subarray(0, 2).toString()).toBe('PK');
   });
 });
+
+describe('lightning risk assessment report — roof outline', () => {
+  const outline: [number, number][] = [[0, 0], [40, 0], [40, 15], [20, 15], [20, 30], [0, 30]];
+  const study: LpsInputs = { ...lightning, heightM: 8, risk: { shape: 'outline', outline, thunderDays: 40, strikeRatio: 1, locationFactor: 1 } };
+  const p: Project = { ...sampleProject, lightning: study };
+
+  it('the PDF draws the outline on its 3 × height band, black-and-white, and the working carries the cross-check', () => {
+    const html = buildLightningReportHtml(p, ['risk']);
+    expect(html.match(/<path /g)!.length).toBe(2);
+    expect(html).toContain('stroke-linejoin="round"');
+    expect(html).toContain('Roof outline 900 m²');
+    expect(html.match(/#[0-9a-f]{3,6}/gi)!.every((c) => /^#(000|fff|444|f2f2f2)$/i.test(c))).toBe(true);
+    const blocks = lightningReportBlocks(p, study, ['risk']);
+    expect(new Map(blocks[0].pairs).get('Collection area')).toBe('Roof outline pushed out by 3 × height');
+    expect(blocks[1].table!.rows.map((r) => r[0])).toContain('Collection area — cross-check');
+  });
+
+  it('workbook: the outline\'s collection area goes in as the entered area', () => {
+    const ws = buildLightningWorkbook(p).getWorksheet('Risk assessment')!;
+    expect(ws.getCell('B11').value as number).toBeGreaterThan(5000);
+    expect(ws.getCell('B8').value).toBeNull();
+  });
+});
