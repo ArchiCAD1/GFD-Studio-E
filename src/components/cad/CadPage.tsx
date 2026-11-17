@@ -34,9 +34,10 @@ import { askedAttdefs, attdefsOf, blockable, blockDefOf, blockDefsOf, blockNameE
 import { ATTRIBUTE_HEAD, attributeRows, attributesCsv, cleanTag } from '../../model/cadAttributes';
 import { blockNameFromFile, defFromGeometry, defFromPieces, loadRecentBlocks, pushRecentBlock } from '../../model/cadBlockLibrary';
 import BlocksPalette, { INSERT_DEFAULTS, type InsertSettings, type LibraryFile } from './BlocksPalette';
+import { alignedMleaders, collectedMleaders, mleaderNote, newMleader, nearestLeader, withLeaderAdded, withLeaderRemoved } from '../../model/cadMleader';
 import { attachLabel, attachOf, noteAttached, noteBox, noteWithWidth, parseAttach, plainText, type NoteAttach, type NotePara } from '../../model/cadMtext';
-import { ATT_DRAFT, AttDefDialog, AttEditDialog, AttPromptDialog, BlockDialog, DIALOG_TOOLS, DimStyleDialog, EditDialog, PointStyleDialog, TextStyleDialog, type AttDraft, type BlockDraft } from './CadDialogs';
-import { currentDimStyle, currentTextStyle, dimLookOf, dimStandardAsBefore, dimStylesOf, dimStylesToStore, fullDimStyle, lookOf, textStylesOf, textStylesToStore } from '../../model/cadStyles';
+import { ATT_DRAFT, AttDefDialog, AttEditDialog, AttPromptDialog, BlockDialog, DIALOG_TOOLS, DimStyleDialog, EditDialog, MleaderStyleDialog, PointStyleDialog, TextStyleDialog, type AttDraft, type BlockDraft } from './CadDialogs';
+import { currentDimStyle, currentMleaderStyle, currentTextStyle, dimLookOf, mleaderStylesOf, mleaderStylesToStore, dimStandardAsBefore, dimStylesOf, dimStylesToStore, fullDimStyle, lookOf, textStylesOf, textStylesToStore } from '../../model/cadStyles';
 import { chooseDrawing, drawingWithDevices, explodeObjects, openDrawing, readRefGeometry, reopenDrawing, sampleDrawing, type CadObject, type CadView, type DeviceOut } from '../../engines/cad/cadEngine';
 import { planSymbolShapes, symbolBox } from '../../model/planSymbols';
 import type { ShapeOut } from '../../model/cadSketch';
@@ -48,7 +49,7 @@ import { keepComputerPatterns, loadComputerPatterns } from '../../model/cadPatte
 import { erasedOf, restoredErased, shownView, withErased, type ErasedParts } from '../../model/cadErased';
 import { CIRCUIT_ATTRIBUTES } from '../../model/cadLoads';
 import PlanSymbolIcon from './PlanSymbolIcon';
-import { cableLabel, cablesOf, circuitLabel, finalCircuits, LV_PALETTE, PALETTE_GROUPS, moveItem, placedOn, placeItem, placeAccessory, placeLvPoint, removeItem, rotateAccessories, rotateLvPoints, type PaletteItem, type PlacedItem } from '../../model/cadDevices';
+import { cableLabel, cablesOf, circuitLabel, circuitTag, finalCircuits, LV_PALETTE, PALETTE_GROUPS, moveItem, placedOn, placeItem, placeAccessory, placeLvPoint, removeItem, rotateAccessories, rotateLvPoints, type PaletteItem, type PlacedItem } from '../../model/cadDevices';
 import { addSketch, withSketchItems, pointStyleOut, blockDefsOut, arcStartCentreEnd, arcThrough, circle2P, circleThrough, dimLabel, dimMeasure, dimOf, linearDir, nextDim, ellipseOf, polygonPts, itemAt, moved, rectangle, removeSketch, rotated, segmentsOf, shapesOut, sketchOf, snapPoints, trayLength, TRAY_LAYER, TRAY_SERVICES, TRAY_WIDTHS, typedPoint, updateSketch, withText } from '../../model/cadSketch';
 import { routeSettings, sizeRoute, trayPlanOf } from '../../calc/cableTray';
 import { fittingCounts, trayFittings, type TrayFitting } from '../../model/cadTrayFittings';
@@ -132,7 +133,7 @@ const hex = (rgb: number) => (rgb === 0xff000007 ? 'var(--cad-ink)' : `#${rgb.to
 const DOCK_W = 280, DOCK_MIN = 220, DOCK_MAX = 480, DOCK_KEY = 'lvds.cad.dock';
 /** Tools whose next point has a length and angle from the last one: the boxes of dynamic input. */
 const POINT_TOOLS: CadTool[] = ['line', 'xline', 'ray', 'pline', 'tray', 'cable', 'dim', 'dimlin', 'move', 'copy', 'dist', 'area', 'trace', 'leader'];
-const HELP = 'Commands: OPEN · CLOSE · CLOSEALL · SAVE (DXF) · SAVEDWG · ROOMS (add found rooms) · RA (click inside a room) · TRACE (trace a room) · PN (pick its name) · CT (cable tray run) · CR (cable route) · LR (link a line as a cable route) · SCHED (update schedules) · WC (wire circuits) · W1 (wire one) · TAGS · FILL (fill a room with an ELV device) · LUX (light a room by the lumen method) · EM (emergency lighting) · SEL (select devices: Shift-click, or a window) · QS (quick select) · SELECTSIMILAR · ARL (array on line) · MA (match) · ALIGNH / ALIGNV / SPACE (the devices selected) · AL (align objects by points) · TR (trim) · EX (extend) · O (offset) · F (fillet) · CHA (chamfer) · BR (break) · J (join) · X (explode) · B (block from drawn objects: the dialog; -BLOCK on the command line) · I (the Blocks palette: this drawing, Recent, Library; -INSERT by name) · ATT (attribute definition for a block) · ATE (edit a block\'s attributes; or double-click it) · ATTEXT (the attributes as a table) · PO (point) · DIV (points at the divisions of an object) · ME (points every length along it) · PTYPE (point style) · DR (draw order: Front, Back, Above or Under an object) · TEXTTOFRONT (texts, dimensions, leaders over the rest) · MI (mirror) · SC (scale) · S (stretch) · AR (array) · CROP (BCROP, cut a block along an outline) · MP (match properties) · H (hatch) · HE (edit a hatch: pattern, spacing, angle, origin, islands; or double-click it) · BO (boundary: a closed polyline round an area) · LE (leader) · RT (room tag) · NORTH · LA (layer palette) · CLAYER (current layer) · LAYISO / LAYUNISO · RESTOREDWG (erased drawing objects back) · COV (coverage) · L (line) · XL (XLINE, construction line) · RAY · PL (polyline, C closes) · REC · C (circle) · A (arc, 3 points) · T (text) · MT (notes in a box, lines wrapped to its width) · ED (edit a text or dimension in place, or double-click it) · TJ (justify texts) · TH (text height) · TA (align or space texts) · TC (text case) · TPREFIX / TSUFFIX · TOR (readable text) · TCEN (centre between two points) · TCOPY (words of another text) · TFRAME (circle, box or hexagon round texts) · TMASK (mask under texts) · TCOUNT (numbered texts) · KN (keynote with a legend) · RTALL (tag all rooms) · DIM · DRA (radius) · DDI (diameter) · DAN (angular) · ST (text style) · D (dimension style) · M (move) · CO (copy) · COPYCLIP (Ctrl+C) · COPYBASE (Ctrl+Shift+C) · PASTECLIP (Ctrl+V) · PASTEORIG · RO (rotate) · E (erase) · DI (distance) · AREA (O = object) · RA (room area) · DEV (add device) · M (move) · E (delete) · LI (inspect) · FIT (ZE) · Z (zoom: W window, P previous, S scale) · LAYERS (layers panel) · OSNAP (F3) · GRID (F7) · ORTHO (F8) · SNAP (F9) · POLAR (F10) · OTRACK (F11) · DYN (F12) · LWT · DS (drafting settings) · LEGEND (LG) / NOTES (a legend or notes table on a layout, moved by its frame) · SAVEAS · EXPORT · PUBLISH · F2 history · Esc cancels, Enter or Space ends a step or repeats the last command.';
+const HELP = 'Commands: OPEN · CLOSE · CLOSEALL · SAVE (DXF) · SAVEDWG · ROOMS (add found rooms) · RA (click inside a room) · TRACE (trace a room) · PN (pick its name) · CT (cable tray run) · CR (cable route) · LR (link a line as a cable route) · SCHED (update schedules) · WC (wire circuits) · W1 (wire one) · TAGS · FILL (fill a room with an ELV device) · LUX (light a room by the lumen method) · EM (emergency lighting) · SEL (select devices: Shift-click, or a window) · QS (quick select) · SELECTSIMILAR · ARL (array on line) · MA (match) · ALIGNH / ALIGNV / SPACE (the devices selected) · AL (align objects by points) · TR (trim) · EX (extend) · O (offset) · F (fillet) · CHA (chamfer) · BR (break) · J (join) · X (explode) · B (block from drawn objects: the dialog; -BLOCK on the command line) · I (the Blocks palette: this drawing, Recent, Library; -INSERT by name) · ATT (attribute definition for a block) · ATE (edit a block\'s attributes; or double-click it) · ATTEXT (the attributes as a table) · PO (point) · DIV (points at the divisions of an object) · ME (points every length along it) · PTYPE (point style) · DR (draw order: Front, Back, Above or Under an object) · TEXTTOFRONT (texts, dimensions, leaders over the rest) · MI (mirror) · SC (scale) · S (stretch) · AR (array) · CROP (BCROP, cut a block along an outline) · MP (match properties) · H (hatch) · HE (edit a hatch: pattern, spacing, angle, origin, islands; or double-click it) · BO (boundary: a closed polyline round an area) · LE (leader) · RT (room tag) · NORTH · LA (layer palette) · CLAYER (current layer) · LAYISO / LAYUNISO · RESTOREDWG (erased drawing objects back) · COV (coverage) · L (line) · XL (XLINE, construction line) · RAY · PL (polyline, C closes) · REC · C (circle) · A (arc, 3 points) · T (text) · MT (notes in a box, lines wrapped to its width) · MLD (multileader) · MLEADERADD / MLEADERREMOVE · MLA (align multileaders) · MLC (collect them) · MLS (multileader style) · ED (edit a text, dimension or multileader in place, or double-click it) · TJ (justify texts) · TH (text height) · TA (align or space texts) · TC (text case) · TPREFIX / TSUFFIX · TOR (readable text) · TCEN (centre between two points) · TCOPY (words of another text) · TFRAME (circle, box or hexagon round texts) · TMASK (mask under texts) · TCOUNT (numbered texts) · KN (keynote with a legend) · RTALL (tag all rooms) · DIM · DRA (radius) · DDI (diameter) · DAN (angular) · ST (text style) · D (dimension style) · M (move) · CO (copy) · COPYCLIP (Ctrl+C) · COPYBASE (Ctrl+Shift+C) · PASTECLIP (Ctrl+V) · PASTEORIG · RO (rotate) · E (erase) · DI (distance) · AREA (O = object) · RA (room area) · DEV (add device) · M (move) · E (delete) · LI (inspect) · FIT (ZE) · Z (zoom: W window, P previous, S scale) · LAYERS (layers panel) · OSNAP (F3) · GRID (F7) · ORTHO (F8) · SNAP (F9) · POLAR (F10) · OTRACK (F11) · DYN (F12) · LWT · DS (drafting settings) · LEGEND (LG) / NOTES (a legend or notes table on a layout, moved by its frame) · SAVEAS · EXPORT · PUBLISH · F2 history · Esc cancels, Enter or Space ends a step or repeats the last command.';
 /** Bind's count in the Save line: reference lines, texts and hatches. */
 const boundText = (shapes: { kind: string }[]) => {
   const n = (k: string) => shapes.filter((x) => x.kind === k).length, en = (v: number) => v.toLocaleString('en-GB');
@@ -160,6 +161,11 @@ const PROMPT: Record<CadTool, string> = {
   hatchedit: 'HATCHEDIT  Select a hatch:',
   boundary: 'BOUNDARY  Pick internal point or [Islands] <Islands on>:',
   leader: 'LEADER  Specify leader arrow point:',
+  mleader: 'MLEADER  Specify leader arrowhead location:',
+  mleaderadd: 'MLEADERADD  Select a multileader:',
+  mleaderremove: 'MLEADERREMOVE  Select a multileader:',
+  mleaderalign: 'MLEADERALIGN  Select multileaders:',
+  mleadercollect: 'MLEADERCOLLECT  Select multileaders:',
   rtag: 'ROOMTAG  Click inside a room:',
   tjust: 'TJUST  Select texts (click, Shift-click or a window), then Enter:',
   talign: 'TALIGN  Select texts (click, Shift-click or a window), then Enter:',
@@ -288,6 +294,12 @@ const TOOL_EDITS: SketchEdit[] = ['move', 'copy', 'rotate', 'mirror', 'scale', '
 const NO_TAKE_OVER: SketchEdit[] = ['erase', 'deselect', 'props', 'isolate', 'count', 'qmeasure', 'similar', 'filter', 'clipboard', 'addsel', 'repeat', 'find', 'qselect', 'selblock', 'blkcount'];
 /** Edits that open a box or a dialog of their own: the take-over stays as a step of its own. */
 const OWN_STEP: SketchEdit[] = ['mkblock', 'ntwidth', 'edatt', 'bedit', 'refedit', 'hedit', 'horigin'];
+/** The multileader tools (S12 of the 2D gap plan): MLEADER draws one; the others work on those picked or clicked. */
+const ML_TOOLS: CadTool[] = ['mleader', 'mleaderadd', 'mleaderremove', 'mleaderalign', 'mleadercollect'];
+/** What a multileader tool is waiting for: the multileaders to work on (pick), the one to align to (ref), the direction
+ * (dir), or where the collected one goes (where); `target` is the multileader Add and Remove work on. */
+type MlState = { step: 'pick' | 'ref' | 'dir' | 'where'; ref?: string; target?: string; mode: 'vertical' | 'horizontal' };
+const ML_WHERE = 'MLEADERCOLLECT  Specify collected multileader location or [Vertical/Horizontal] <Vertical>:';
 const MTEXT_CORNER = 'MTEXT  Opposite corner or [Height/Justify/Width]:';
 const MTEXT_JUST = (j?: NoteAttach) => `MTEXT  Justify [TL/TC/TR/ML/MC/MR/BL/BC/BR] <${j ?? 'TL'}>:`;
 const MTEXT_TYPE = (isNew: boolean) => `MTEXT  Type the note (Enter starts a new line); Ctrl/⌘+Enter or OK keeps it, Esc ${isNew ? 'cancels' : 'leaves it as it was'}:`;
@@ -440,7 +452,9 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [textAsk, setTextAsk] = useState<{ step: 'height' | 'rot' | null; mm: number; rot: number } | null>(null);
   /** MTEXT (S6 of the 2D gap plan): the note being typed in its box (a new one, not drawn yet, has no id), what the
    * second prompt asks (or Width… from the right-click menu), and the height and justification chosen for new notes. */
-  const [edNote, setEdNote] = useState<{ id?: string; draft: SketchItem } | null>(null);
+  const [edNote, setEdNote] = useState<{ id?: string; draft: SketchItem; ml?: Omit<SketchItem, 'id'> } | null>(null);
+  /** The multileader tools' step (S12). */
+  const [ml, setMl] = useState<MlState | null>(null);
   const [mtAsk, setMtAsk] = useState<{ step: 'height' | 'just' | 'width' | 'ntwidth'; id?: string } | null>(null);
   const [mtSet, setMtSet] = useState<{ mm?: number; just?: NoteAttach }>({});
   /** DRAWORDER (S7): the order chosen before the objects (from the ribbon or the right-click menu), if any. */
@@ -486,7 +500,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   const [dynMenu, setDynMenu] = useState<number | null>(null);
   const dynRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
   // The settings dialog shown: the edit tool's, or the text or dimension styles.
-  const [dlg, setDlg] = useState<'edit' | 'style' | 'dimstyle' | 'qselect' | 'ptype' | null>(null);
+  const [dlg, setDlg] = useState<'edit' | 'style' | 'dimstyle' | 'mlstyle' | 'qselect' | 'ptype' | null>(null);
   /** PASTECLIP: the objects following the cursor until they are placed. */
   const [pasting, setPasting] = useState<ClipPayload | null>(null);
   const [promptMenu, setPromptMenu] = useState<{ at: Pt; items: CtxEntry[]; head?: CtxHead; label?: string } | null>(null);
@@ -633,6 +647,15 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     setHeIds(he ? he.ids : preHatches); setHePhase(he?.phase ?? null); setBoundIsl(true);
     cad.say(`Command: ${PICK_FIRST.includes(tool) && first ? (tool === 'draworder' ? (drMode === 'above' || drMode === 'under' ? DR_REF : DR_OPTIONS) : tool === 'array' ? arrayType(edSet) : TEXT_TOOLS.includes(tool) ? textToolPrompt(tool) : `${tool.toUpperCase()}  ${tool === 'mirror' ? 'Specify first point of the mirror line:' : tool === 'scale' ? 'Specify base point:' : tool === 'align' ? ALIGN_SAY[0].slice(7) : 'Enter to join them:'}`) : tool === 'matchprop' && mp ? 'MATCHPROP  Select destination object(s):' : pre && tool === 'offset' ? OFFSET_SIDE : tool === 'insert' && !insBlock ? 'INSERT  Block name:' : tool === 'attpick' ? PROMPT.attpick : tool === 'blockpick' && blockDlg?.picking === 'objects' ? 'BLOCK  Select objects — Enter when done:' : tool === 'none' && recent[0] ? repeatHint(recent[0].label) : editPrompt(tool, edSet)}`);
     if (tool === 'hatchedit' && preHatches.length && !he) cad.say(hatchEditSay(null, preHatches.length));
+    // The multileader tools: what is picked already decides the first step.
+    const mls = pickedSk.filter((x) => x.kind === 'mleader');
+    if (tool === 'mleaderadd' || tool === 'mleaderremove') {
+      const t = mls.length === 1 ? mls[0] : undefined;
+      setMl({ step: 'pick', target: t?.id, mode: 'vertical' });
+      if (t) cad.say(tool === 'mleaderadd' ? 'MLEADERADD  Specify leader arrowhead location:' : 'MLEADERREMOVE  Specify leaders to remove:');
+    } else if (tool === 'mleaderalign') { setMl({ step: mls.length ? 'ref' : 'pick', mode: 'vertical' }); if (mls.length) cad.say('MLEADERALIGN  Select multileader to align to:'); }
+    else if (tool === 'mleadercollect') { setMl({ step: mls.length > 1 ? 'where' : 'pick', mode: 'vertical' }); if (mls.length > 1) cad.say(ML_WHERE); }
+    else setMl(null);
     // CROP with drawn items picked first: they are what is cut.
     if (tool === 'crop' && first) { const ids = picked.length ? picked.filter((k) => k.startsWith('sk:')).map((k) => k.slice(3)) : [cad.selected!.slice(3)]; setCrop({ step: 'outline', target: { items: ids, label: `${ids.length} drawn object${ids.length === 1 ? '' : 's'}` } }); cad.say(CROP_OUTLINE); }
     // SELECTSIMILAR with drawn objects picked first: they are the pattern. ZOOM needs the model view.
@@ -1040,10 +1063,10 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const shared = <K extends keyof ObjectProps>(k: K): ObjectProps[K] | 'varies' => { const v = new Set(pickedSk.map((it) => it[k])); return v.size > 1 ? 'varies' : [...v][0]; };
     return {
       layers: lRows.filter((r) => r.group === 'drawn').map((r) => ({ name: r.name, color: colourCss(r.color), on: r.on, freeze: r.freeze, lock: r.lock })), current: curLayer, picked: pickedSk.length, blocks: defs.map((d) => d.name),
-      props: pickedSk.length ? { color: shared('color'), lt: shared('lt'), lw: shared('lw') } : newProps,
+      props: pickedSk.length ? { color: shared('color'), lt: shared('lt'), lw: shared('lw') } : newProps, mleaderStyles: { names: mleaderStylesOf(project).styles.map((x) => x.name), current: mleaderStylesOf(project).current },
       scales: scalesOf(project), vp: vpState
     };
-  }, [view, lRows, curLayer, pickedSk, newProps, defs, project.plot?.scales, vpState?.locked, vpState?.frame]); // eslint-disable-line react-hooks/exhaustive-deps -- the scale list, not the whole project
+  }, [view, lRows, curLayer, pickedSk, newProps, defs, project.plot?.scales, project.cadMleaderStyles, vpState?.locked, vpState?.frame]); // eslint-disable-line react-hooks/exhaustive-deps -- the scale list, not the whole project
   // Set by what it says, not by identity: the page draws on every mouse move, and the ribbon redraws with what it sets.
   const ribbonKey = JSON.stringify(ribbonInfo);
   useEffect(() => { cad.setRibbonInfo(ribbonInfo); }, [ribbonKey]); // eslint-disable-line react-hooks/exhaustive-deps -- by value
@@ -1828,11 +1851,13 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (!attdefsOf(blockDefOf(defs, it.block)).length) { cad.say(`ATTEDIT  Block "${it.block}" has no attributes to edit.`); return; }
       cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it }); setAttEdit(it.id); return;
     }
-    if (it.kind !== 'text' && it.kind !== 'dim' && it.kind !== 'mtext') { cad.say(`TEXTEDIT  That is a ${kindOf(it).toLowerCase()}, not a text or dimension. Select a text or dimension:`); return; }
+    if (it.kind !== 'text' && it.kind !== 'dim' && it.kind !== 'mtext' && it.kind !== 'mleader') { cad.say(`TEXTEDIT  That is a ${kindOf(it).toLowerCase()}, not a text or dimension. Select a text or dimension:`); return; }
     if (effective(it, styles).lock) { cad.say(`TEXTEDIT  ${kindOf(it)} on layer ${it.layer}, which is locked: unlock it first (LAYULK).`); return; }
     setPicked([]); cad.setSelected(`sk:${it.id}`); setResult({ kind: 'sketch', it });
     // A note opens its own editor (MTEXT, S6).
     if (it.kind === 'mtext') { setEdNote({ id: it.id, draft: it }); cad.say(MTEXT_TYPE(false)); return; }
+    // A multileader's words open in the same editor (MLEADER, S12).
+    if (it.kind === 'mleader') { setEdNote({ id: it.id, draft: mleaderNote(it, true)! }); cad.say(MTEXT_TYPE(false)); return; }
     setEdText({ id: it.id, value: it.text ?? '' });
     cad.say(it.kind === 'dim' ? 'TEXTEDIT  Type the dimension\'s text (<> stands for the measured value; blank gives it back), Enter:' : 'TEXTEDIT  Type the text, Enter (Esc keeps it as it was):');
   }
@@ -1846,11 +1871,101 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     else { if (!commit) cad.say('*Cancel*'); cancelTakeOver(); } // a text of the drawing taken over and left as it was is given back
     if (tool === 'textedit') cad.say(PROMPT.textedit);
   }
+  /** The multileader a click picks, refused on a locked layer. */
+  function mlPick(at: Pt, pixel: number, name: string): SketchItem | undefined {
+    const sk = hitAt(pickable, at, pickR * pixel);
+    if (!sk || sk.kind !== 'mleader') { cad.say(`${name}  Click a multileader (a drawn one, not the architect's drawing):`); return undefined; }
+    return sk;
+  }
+  /** A click with a multileader tool (S12 of the 2D gap plan). */
+  function mlClick(at: Pt, pixel: number) {
+    if (tool === 'mleader') {
+      if (edNote) return; // the words are being typed: the box takes the clicks
+      if (!points.length) { setPoints([at]); cad.say('MLEADER  Specify leader landing location:'); return; }
+      mlFinish(points[0], at, pixel); return;
+    }
+    if (tool === 'mleaderadd' || tool === 'mleaderremove') {
+      const name = tool === 'mleaderadd' ? 'MLEADERADD' : 'MLEADERREMOVE', t = ml?.target ? sketch.find((x) => x.id === ml.target) : undefined;
+      if (!t) {
+        const sk = mlPick(at, pixel, name);
+        if (!sk) return;
+        pick([], [sk]); setMl({ step: 'pick', target: sk.id, mode: 'vertical' });
+        cad.say(tool === 'mleaderadd' ? 'MLEADERADD  Specify leader arrowhead location:' : 'MLEADERREMOVE  Specify leaders to remove:'); return;
+      }
+      if (effective(t, styles).lock) { cad.say(`${name}  Multileader on layer ${t.layer}, which is locked: unlock it first (LAYULK).`); return; }
+      if (tool === 'mleaderadd') { change(updateSketch(project, fileOf(), withLeaderAdded(t, at)), 'MLEADERADD  Leader added · ⌘Z to undo'); cad.say('MLEADERADD  Specify leader arrowhead location:'); return; }
+      const next = withLeaderRemoved(t, nearestLeader(t, at));
+      if (!next) { cad.say('MLEADERREMOVE  A multileader keeps at least one leader.'); return; }
+      change(updateSketch(project, fileOf(), next), 'MLEADERREMOVE  Leader removed · ⌘Z to undo'); cad.say('MLEADERREMOVE  Specify leaders to remove:'); return;
+    }
+    const name = tool === 'mleaderalign' ? 'MLEADERALIGN' : 'MLEADERCOLLECT';
+    if (!ml || ml.step === 'pick') {
+      const sk = mlPick(at, pixel, name);
+      if (!sk) return;
+      const sks = pickedKeys.has(`sk:${sk.id}`) ? pickedSk.filter((x) => x.id !== sk.id) : [...pickedSk, sk];
+      pick([], sks); cad.say(`${name}  ${picks(sks.length)} — Enter when done`); return;
+    }
+    if (ml.step === 'ref') { const sk = mlPick(at, pixel, name); if (sk) { setMl({ ...ml, step: 'dir', ref: sk.id }); cad.say('MLEADERALIGN  Specify direction <vertical>:'); } return; }
+    if (ml.step === 'dir') { mlAlign(at); return; }
+    mlCollect(at);
+  }
+  /** Enter with multileaders picked: on to the next step (a multileader tool asks for at least one, Collect two). */
+  function mlPickDone() {
+    const mls = pickedSk.filter((x) => x.kind === 'mleader'), name = tool === 'mleaderalign' ? 'MLEADERALIGN' : 'MLEADERCOLLECT';
+    if (!mls.length) { cad.setTool('none'); return; }
+    if (tool === 'mleadercollect') { if (mls.length < 2) { cad.say('MLEADERCOLLECT  Pick at least two multileaders.'); return; } setMl({ step: 'where', mode: ml?.mode ?? 'vertical' }); cad.say(ML_WHERE); return; }
+    setMl({ step: 'ref', mode: 'vertical' }); cad.say(`${name}  Select multileader to align to:`);
+  }
+  /** Typed input at a multileader prompt: Enter ends the step, V / H the way Collect joins the words. True when it was one. */
+  function mlTyped(c: string): boolean {
+    if (tool === 'mleaderalign' || tool === 'mleadercollect') {
+      if (ml?.step === 'pick' && !c) { mlPickDone(); return true; }
+      if (ml?.step === 'dir' && !c) { mlAlign(undefined); return true; }
+      if (ml?.step === 'where' && tool === 'mleadercollect' && (c === 'V' || c === 'VERTICAL' || c === 'H' || c === 'HORIZONTAL')) { const mode = c[0] === 'V' ? 'vertical' : 'horizontal'; setMl({ ...ml, mode }); cad.say(`MLEADERCOLLECT  ${mode === 'vertical' ? 'Vertical' : 'Horizontal'}. ${ML_WHERE}`); return true; }
+      if (ml?.step === 'where' && !c) { cad.say(ML_WHERE); return true; }
+    }
+    if (!c && !(tool === 'mleader' && points.length)) { cad.setTool('none'); return true; }
+    if (!c) { setPoints([]); cad.say(PROMPT.mleader); return true; }
+    return false;
+  }
+  /** The multileaders picked lined up on the one clicked, in the direction clicked (none: vertical). */
+  function mlAlign(dirPt: Pt | undefined) {
+    const ref = sketch.find((x) => x.id === ml?.ref), items = pickedSk.filter((x) => x.kind === 'mleader' && x.id !== ml?.ref);
+    if (!ref || !items.length) { cad.say('MLEADERALIGN  Nothing to align: pick other multileaders than the one aligned to.'); cad.setTool('none'); return; }
+    if (items.some((x) => effective(x, styles).lock)) { cad.say('MLEADERALIGN  A multileader is on a locked layer: unlock it first (LAYULK).'); return; }
+    const out = alignedMleaders(items, ref, dirPt);
+    change(out.reduce((q, x) => updateSketch(q, fileOf(), x), project), `MLEADERALIGN  ${out.length} multileader${out.length === 1 ? '' : 's'} aligned · ⌘Z to undo`);
+    pick([], []); cad.setTool('none');
+  }
+  /** The multileaders picked made one, its landing at the point clicked; the others are erased. */
+  function mlCollect(at: Pt) {
+    const items = pickedSk.filter((x) => x.kind === 'mleader');
+    if (items.length < 2) { cad.say('MLEADERCOLLECT  Pick at least two multileaders.'); cad.setTool('none'); return; }
+    if (items.some((x) => effective(x, styles).lock)) { cad.say('MLEADERCOLLECT  A multileader is on a locked layer: unlock it first (LAYULK).'); return; }
+    const made = collectedMleaders(items, at, ml?.mode ?? 'vertical');
+    const next = addSketch(items.reduce((q, x) => removeSketch(q, fileOf(), x.id), project), fileOf(), made).project;
+    change(next, `MLEADERCOLLECT  ${items.length} multileaders collected · ⌘Z to undo`);
+    pick([], []); cad.setTool('none');
+  }
+  /** MLEADER's second click: the landing. With words (the style's content is Notes) the note editor opens at their place, filled in with
+   * the device's circuit when the style asks for it; none: made at once. */
+  function mlFinish(tip: Pt, land: Pt, pixel: number) {
+    const style = currentMleaderStyle(project), k = tb ? 1 : unitsPerPaperMm(anno, units.factor), layer = tb ? TB_LAYERS.text : ANNO_LAYER;
+    const tpl = newMleader(tip, land, undefined, style, k, layer, anno.textMm);
+    if (style.content === 'none') { draw({ ...tpl, ...newProps }, 'MLEADER  Multileader'); setPoints([]); cad.say(PROMPT.mleader); return; }
+    let words: NotePara[] = [{ runs: [] }];
+    if (style.circuit) {
+      const d = deviceAt(tip, pixel), pt = d?.what === 'lv' ? project.lvPoints?.find((x) => x.id === d.id) : undefined, f = pt ? project.feeders.find((x) => x.id === pt.feederId) : undefined;
+      if (f) words = [{ runs: [{ s: circuitTag(f) }] }];
+    }
+    setEdNote({ draft: mleaderNote({ id: 'new', ...tpl, note: words } as SketchItem, true)!, ml: tpl });
+    cad.say(MTEXT_TYPE(true));
+  }
   /** A left double-click on a drawn text, dimension or note, with no tool running, opens its box. */
   function doubleClick(at: Pt, pixel: number) {
     if (!view || (tool !== 'none' && tool !== 'textedit') || edText || edNote) return;
     const it = hitAt(sketch.filter((x) => !effective(x, styles).hidden), at, pickR * pixel);
-    if (it && (it.kind === 'text' || it.kind === 'dim' || it.kind === 'mtext' || it.kind === 'insert')) startTextEdit(it);
+    if (it && (it.kind === 'text' || it.kind === 'dim' || it.kind === 'mtext' || it.kind === 'mleader' || it.kind === 'insert')) startTextEdit(it);
     // A hatch (its edge, or inside it): HATCHEDIT with it.
     else if (!it || it.hatch) { const h = tool === 'none' ? hatchAtPoint(at, pixel) : undefined; if (h) startHatchEdit([h], null); }
   }
@@ -1871,7 +1986,17 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     const ed = edNote;
     setEdNote(null);
     if (!ed) return;
-    const words = paras.some((p) => p.runs.length);
+    const words = paras.some((p) => p.runs.some((r) => r.s.trim()));
+    // A multileader's words: a new one is drawn with them (nothing drawn without), an old one takes them back.
+    if (ed.ml || sketch.find((x) => x.id === ed.id)?.kind === 'mleader') {
+      const was = ed.id ? sketch.find((x) => x.id === ed.id) : undefined;
+      if (!commit) cad.say('*Cancel*');
+      else if (ed.ml) { if (words) draw({ ...ed.ml, ...newProps, h: ed.draft.h, ...(ed.draft.w !== undefined ? { w: ed.draft.w } : {}), note: paras }, 'MLEADER  Multileader'); else cad.say('MLEADER  Nothing typed: no multileader drawn.'); }
+      else if (was && words) change(updateSketch(project, fileOf(), { ...was, h: ed.draft.h, ...(ed.draft.w !== undefined ? { w: ed.draft.w } : {}), note: paras }), 'MLEADER  Multileader words changed · ⌘Z to undo');
+      else if (was) cad.say('MLEADER  Nothing typed: the multileader is as it was.');
+      if (ed.ml) { setPoints([]); cad.say(PROMPT.mleader); }
+      return;
+    }
     if (!commit) cad.say('*Cancel*');
     else if (!ed.id) { const { id: _id, ...rest } = ed.draft; if (words) draw({ ...rest, note: paras }, 'Note'); else cad.say('MTEXT  Nothing typed: no note drawn.'); }
     else {
@@ -3083,6 +3208,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       change(updateSketch(project, fileOf(), matchedProps(from, sk)), `MATCHPROP  Properties copied to the ${kindOf(sk).toLowerCase()} · ⌘Z to undo`);
       return;
     }
+    if (ML_TOOLS.includes(tool)) { mlClick(at, pixel); return; }
     if (EDIT_TOOLS.includes(tool)) { editClick(at, pixel, shiftKey); return; }
     if (tool === 'copy' && pickedDw.length) {
       // Objects of the opened drawing: copied as drawn objects, the originals stay where they are.
@@ -3857,6 +3983,16 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       else setCurrentLayer(row.name);
       return;
     }
+    // CMLEADERSTYLE <name>: the current multileader style (the ribbon's list).
+    const cms = /^CMLEADERSTYLE\s+(.+)$/i.exec(raw.trim());
+    if (cms && view) {
+      const want = cms[1].trim(), st = mleaderStylesOf(project), row = st.styles.find((x) => x.name.toLowerCase() === want.toLowerCase());
+      cad.say(`Command: CMLEADERSTYLE ${want}`);
+      if (!row) cad.say(`CMLEADERSTYLE  There is no multileader style ${want}. MLS opens the styles.`);
+      else if (row.name !== st.current) { const keep = mleaderStylesToStore({ ...st, current: row.name }), { cadMleaderStyles: _m, ...rest } = project; change(keep ? { ...project, cadMleaderStyles: keep } : rest, `CMLEADERSTYLE  Current multileader style: ${row.name} · ⌘Z to undo`); }
+      return;
+    }
+    if (ML_TOOLS.includes(tool) && mlTyped(c)) return;
     if (tool === 'revcloud' && cloudAsk) {
       if (!c) { setCloudAsk(false); cad.say(PROMPT.revcloud); return; }
       if (!isNumber(c) || !(Number(c) > 0)) { cad.say('REVCLOUD  Type an arc length greater than zero:'); return; }
@@ -3923,7 +4059,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     }
     // A number typed with Scale (before its base point) sets the factor.
     if (tool === 'scale' && isNumber(c) && !c.startsWith('-')) { const k = String(Number(c)); setEdSet({ ...edSet, factor: k }); cad.say(`SCALE  Factor ${k}`); return; }
-    if (DRAW_TOOLS.includes(tool) || tool === 'copybase' || tool === 'paste' || tool === 'dist' || tool === 'area' || tool === 'trace' || tool === 'zoomwin' || tool === 'dimrad' || tool === 'dimdia' || tool === 'dimang' || (tool === 'tcen' && edPhase === 'points') || (tool === 'talign' && tAsk?.step === 'ref') || (tool === 'align' && edPhase === 'points' && edAsk !== 'ascale')
+    if (DRAW_TOOLS.includes(tool) || tool === 'copybase' || tool === 'paste' || tool === 'dist' || tool === 'area' || tool === 'trace' || tool === 'zoomwin' || tool === 'dimrad' || tool === 'dimdia' || tool === 'dimang' || tool === 'mleader' || (tool === 'mleaderadd' && !!ml?.target) || (tool === 'mleaderalign' && ml?.step === 'dir') || (tool === 'mleadercollect' && ml?.step === 'where') || (tool === 'tcen' && edPhase === 'points') || (tool === 'talign' && tAsk?.step === 'ref') || (tool === 'align' && edPhase === 'points' && edAsk !== 'ascale')
       // Mirror's line, Scale's base point and Stretch's two points (after the window), as typed coordinates too.
       || (tool === 'mirror' && edPhase === 'points' && edAsk !== 'erase') || (tool === 'scale' && edPhase === 'points' && edAsk !== 'factor') || (tool === 'stretch' && !!stretchBox)) {
       const p = typedPoint(raw, points[points.length - 1], cursor.at);
@@ -4005,6 +4141,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       snap: () => cad.toggle('snap'),
       help: () => { cad.say(HELP); setLog('help'); },
       textStyle: () => { setDlg('style'); cad.say(`STYLE  Current text style: "${currentTextStyle(project).name}"`); },
+      mleaderStyle: () => { setDlg('mlstyle'); cad.say(`MLEADERSTYLE  Current multileader style: "${mleaderStylesOf(project).current}"`); },
       dimStyle: () => { setDlg('dimstyle'); cad.say(`DIMSTYLE  Current dimension style: "${dimStylesOf(project).current}"`); },
       pointStyle: () => { setDlg('ptype'); cad.say(`PTYPE  Points shown as ${pointShapeLabel(pointStyleOf(project).mode).toLowerCase()}`); },
       blockDialog: () => openBlockDialog(),
@@ -4218,7 +4355,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (vpClip) { setVpClip(null); cad.say('VPCLIP  Cancelled.'); return; }
     if (mv) { setMv(false); cad.say('MVIEW  Cancelled.'); return; }
     if (tool === 'hatchedit' && hePhase) { setHePhase(null); cad.say('*Cancel*'); cad.say(hatchEditSay(null, heIds.length)); return; }
-    if (edNote) { setEdNote(null); cad.say('*Cancel*'); if (tool === 'mtext') cad.setTool('none'); }
+    if (edNote) { const mlNew = !!edNote.ml; setEdNote(null); cad.say('*Cancel*'); if (tool === 'mtext') cad.setTool('none'); if (mlNew) { setPoints([]); cad.say(PROMPT.mleader); } }
     else if (points.length || objectMode || cad.textAt || mtAsk) { setPoints([]); setObjectMode(false); cad.setTextAt(null); setTextAsk(null); setEdAsk(null); setMtAsk(null); cad.say('*Cancel*'); }
     else if (edStep || edAsk === 'radius' || edAsk === 'd1' || edAsk === 'd2') { setEdStep(null); setEdAsk(null); cad.say('*Cancel*'); cad.say(tool === 'offset' ? PROMPT.offset : editPrompt(tool, edSet)); }
     else if (renaming || roomAsk || findAsk || beClose || reClose) { setRenaming(null); setRoomAsk(null); setFindAsk(null); setBeClose(false); setReClose(false); cad.say('*Cancel*'); } else if (tool !== 'none') cad.setTool('none'); else { setResult(null); cad.setSelected(null); setPicked([]); }
@@ -4376,6 +4513,10 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (tool === 'line' && lastPt) return [{ ...base, kind: 'line', pts: [lastPt, cur] }];
     if ((tool === 'xline' || tool === 'ray') && lastPt) return [{ ...base, kind: 'line', infinite: tool, pts: [lastPt, cur] }];
     if (tool === 'leader' && points.length) return [{ ...base, kind: 'line', pts: [...points, cur] }];
+    // MLEADER: the leader, arrowhead and landing from the arrowhead clicked to the cursor, then with the words typed.
+    if (tool === 'mleader' && edNote?.ml) return [{ ...base, ...edNote.ml, note: edNote.draft.note, h: edNote.draft.h } as SketchItem];
+    if (tool === 'mleader' && points.length) return [{ ...base, ...newMleader(points[0], cur, undefined, currentMleaderStyle(project), tb ? 1 : unitsPerPaperMm(anno, units.factor), tb ? TB_LAYERS.text : ANNO_LAYER, anno.textMm) } as SketchItem];
+    if (tool === 'mleaderadd' && ml?.target) { const t = sketch.find((x) => x.id === ml.target); if (t) return [{ ...withLeaderAdded(t, cur), id: '_' }]; }
     if (tool === 'pline' && points.length) return [{ ...base, kind: 'line', pts: [...points, cur] }];
     if (tool === 'cable' && points.length) return [{ ...base, kind: 'line', pts: [...points, cur] }];
     if (tool === 'tray' && points.length) return [{ ...base, kind: 'pline', pts: [...points, cur], tray: { widthMm: cad.tray.widthMm, service: cad.tray.service } }];
@@ -4479,7 +4620,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** The drawing: on the Model tab, or inside the viewport worked in on a layout (fitted to its window). */
   const drawCanvas = (vpProps?: Pick<React.ComponentProps<typeof CadCanvas>, 'fitBox' | 'fixed' | 'onView'>) => (
             <CadCanvas view={view!} fadeExcept={reWork} draft={snapDraft} cursorMode={cursorMode} hover={hover} cutAway={cutPiece && edgeLine ? [{ ...cutPiece, id: edgeLine.id }] : undefined} meets={addPiece ? [addPiece[1]] : undefined} shadowDevices={shadow?.devs.length ? shadow.devs : undefined} movingPoints={stretchLook?.pts} panLeft={tool === 'pan'} pointStyle={pointStyleOf(project)} blocks={defs} onDrop={dropBlock} hidden={hidden} layersOn={layersOn} extents={fitExtents} toggles={snapToggles} gridDots={cad.gridDots} fitKey={cad.fitKey} onCursor={(at, snap, pixel) => setCursor({ at, snap, pixel })} onClick={click} marks={objectArea ? { points: result.points, closed: true } : marks} highlight={highlight} devices={devices} wiring={canvasWiring} sketch={sketch} selectedSketch={[...pickedSk.map((it) => it.id), ...(stretchLook?.sk.map((it) => it.id) ?? [])]} extraSnaps={snapExtra} preview={[...preview, ...emRoutes, ...(grip && cursor.at ? srcAll.filter((x) => x.id === grip.id).map((x) => gripMoved(x, grip.i, cursor.at!)) : []), ...(arlLine.length === 2 ? [{ id: '_arl', layer: '', kind: 'line' as const, pts: arlLine }] : [])]} unitsPerMm={0.001 / units.factor} labels={cableLabels} covers={elv?.covers} gaps={elv?.gaps}
-              numbersTyped={valuesTyped} layerStyle={styles} refs={xr.placed} refSnap={snapRef} windowSelect={tool === 'none' || tool === 'stretch' || tool === 'zoomwin' || tool === 'selsim' || (PICK_FIRST.includes(tool) && edPhase === 'pick') || (tool === 'tcount' && tc?.step === 'pick')} onWindow={pickWindow} onContext={contextAt} onDouble={doubleClick} zoom={zoomReq} onZoomMenu={zoomMenu}
+              numbersTyped={valuesTyped} layerStyle={styles} refs={xr.placed} refSnap={snapRef} windowSelect={tool === 'none' || tool === 'stretch' || tool === 'zoomwin' || tool === 'selsim' || (PICK_FIRST.includes(tool) && edPhase === 'pick') || ((tool === 'mleaderalign' || tool === 'mleadercollect') && ml?.step === 'pick') || (tool === 'tcount' && tc?.step === 'pick')} onWindow={pickWindow} onContext={contextAt} onDouble={doubleClick} zoom={zoomReq} onZoomMenu={zoomMenu}
               grips={gripList} hotGrip={gripOf(hotGrip)} pickedObjects={pickedDwIds} onGripStart={(k) => setGrip(gripList[k] ? { id: gripList[k].id, i: gripList[k].i } : null)}
               onGripEnd={(k, at, moved) => {
                 setGrip(null);
@@ -4500,7 +4641,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                   const px = Math.hypot(up[0] - o[0], up[1] - o[1]), perMm = tb ? 1 : unitsPerPaperMm(anno, units.factor);
                   return <CadNoteEdit key={edNote.id ?? 'new'} left={o[0]} top={o[1]} w={Math.hypot(e[0] - o[0], e[1] - o[1])} h={px} lineH={(px * b.lineH) / b.h} rot={d.rot ?? 0} note={d.note ?? []}
                     heightMm={Math.round((b.h / perMm) * 100) / 100} attach={attachOf(d)} unitsPerPx={b.h / Math.max(px, 1e-9)}
-                    onHeightMm={(v) => setEdNote({ ...edNote, draft: { ...d, h: v * perMm } })} onAttach={(j) => setEdNote({ ...edNote, draft: noteAttached(d, j) })} onWidth={(wu) => setEdNote({ ...edNote, draft: noteWithWidth(d, wu) })}
+                    onHeightMm={(v) => setEdNote({ ...edNote, draft: { ...d, h: v * perMm } })} onAttach={(j) => { if (!edNote.ml && sketch.find((x) => x.id === edNote.id)?.kind !== 'mleader') setEdNote({ ...edNote, draft: noteAttached(d, j) }); }} onWidth={(wu) => setEdNote({ ...edNote, draft: noteWithWidth(d, wu) })}
                     onCommit={(paras) => endNoteEdit(true, paras)} onCancel={() => endNoteEdit(false)} />;
                 }
                 const edIt = edText ? sketch.find((x) => x.id === edText.id) : undefined;
@@ -4663,9 +4804,9 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
             onPick: () => { setHePhase('origin'); cad.say(hatchEditSay('origin', 1)); }, onAdd: () => { setHePhase('add'); cad.say(hatchEditSay('add', 1)); }, onRemove: () => { setHePhase('remove'); cad.say(hatchEditSay('remove', 1)); },
             onAssoc: () => heUpdate((it) => { const { assoc: _a, ...rest } = it; return rest; }, 'No longer associative')
           }} />}
-          {(tool === 'text' || tool === 'mtext' || tool === 'dim' || tool === 'dimlin' || tool === 'dimcont' || tool === 'dimbase' || tool === 'leader' || tool === 'rtag' || tool === 'rtall' || tool === 'north') && view && (
+          {(tool === 'text' || tool === 'mtext' || tool === 'dim' || tool === 'dimlin' || tool === 'dimcont' || tool === 'dimbase' || tool === 'leader' || tool === 'mleader' || tool === 'mleaderadd' || tool === 'mleaderremove' || tool === 'mleaderalign' || tool === 'mleadercollect' || tool === 'rtag' || tool === 'rtall' || tool === 'north') && view && (
             <AnnoPanel anno={anno} onAnno={(a) => onChange({ ...project, cadAnno: a }, `Annotation: ${a.textMm} mm text at 1:${a.scale}`)}
-              {...({ text: { title: 'Text', cmd: 'T', help: 'Click where it goes, type it on the command line, Enter.' }, mtext: { title: 'Notes', cmd: 'MT', help: 'Two corners for the box, then type; lines wrap to its width.' }, dim: { title: 'Dimension', cmd: 'DIM', help: 'Two points, then where the dimension line goes.' }, dimlin: { title: 'Linear dimension', cmd: 'DLI', help: 'Two points, then where the dimension line goes: above or below them it is horizontal, beside them vertical.' }, dimcont: { title: 'Continue dimension', cmd: 'DCO', help: 'Click each next point: a dimension from the last one\'s second point, in line with it. Esc stops.' }, dimbase: { title: 'Baseline dimension', cmd: 'DBA', help: 'Click each next point: a dimension from the last one\'s first point, one step further out. Esc stops.' }, leader: { title: 'Leader', cmd: 'LE', help: 'Click the arrow point, then the text point (more points bend it); type the text and Enter.' }, rtag: { title: 'Room tag', cmd: 'RT', help: 'Click inside a room: its name and area at its centre.' }, rtall: { title: 'Tag all rooms', cmd: 'RTALL', help: 'Enter tags every room of the level with no tag yet; A tags them all again.' }, north: { title: 'North arrow', cmd: 'NORTH', help: 'Click where it goes; it points up the plan.' } } as const)[tool]} />
+              {...({ text: { title: 'Text', cmd: 'T', help: 'Click where it goes, type it on the command line, Enter.' }, mtext: { title: 'Notes', cmd: 'MT', help: 'Two corners for the box, then type; lines wrap to its width.' }, dim: { title: 'Dimension', cmd: 'DIM', help: 'Two points, then where the dimension line goes.' }, dimlin: { title: 'Linear dimension', cmd: 'DLI', help: 'Two points, then where the dimension line goes: above or below them it is horizontal, beside them vertical.' }, dimcont: { title: 'Continue dimension', cmd: 'DCO', help: 'Click each next point: a dimension from the last one\'s second point, in line with it. Esc stops.' }, dimbase: { title: 'Baseline dimension', cmd: 'DBA', help: 'Click each next point: a dimension from the last one\'s first point, one step further out. Esc stops.' }, leader: { title: 'Leader', cmd: 'LE', help: 'Click the arrow point, then the text point (more points bend it); type the text and Enter.' }, mleader: { title: 'Multileader', cmd: 'MLD', help: 'Click the arrowhead, then the landing; type the words in the note editor (several leaders, one note).' }, mleaderadd: { title: 'Add leader', cmd: 'MLEADERADD', help: 'Pick a multileader, then click each arrowhead to add; Enter ends.' }, mleaderremove: { title: 'Remove leader', cmd: 'MLEADERREMOVE', help: 'Pick a multileader, then click the leader to remove; one always stays.' }, mleaderalign: { title: 'Align multileaders', cmd: 'MLA', help: 'Pick the multileaders, Enter, the one to align to, then a direction (Enter: vertical).' }, mleadercollect: { title: 'Collect multileaders', cmd: 'MLC', help: 'Pick two or more multileaders, Enter, then click where the collected one goes.' }, rtag: { title: 'Room tag', cmd: 'RT', help: 'Click inside a room: its name and area at its centre.' }, rtall: { title: 'Tag all rooms', cmd: 'RTALL', help: 'Enter tags every room of the level with no tag yet; A tags them all again.' }, north: { title: 'North arrow', cmd: 'NORTH', help: 'Click where it goes; it points up the plan.' } } as const)[tool]} />
           )}
           {tool === 'matchprop' && view && <><h4>Match properties <span className="m">MP</span></h4><div className="cad-devform"><span className="m">{mpFrom ? 'Click each object to give it the layer, colour, linetype and lineweight of the first; Esc stops. Trays and cable routes keep their layers.' : 'Click the object to copy from.'}</span></div></>}
           {tool === 'match' && view && <MatchPanel from={placed.find((x) => x.key === matchFrom)} settings={matchSet} onSettings={setMatchSet} />}
@@ -4852,6 +4993,13 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
             change(keep ? { ...project, cadTextStyles: keep } : rest, `STYLE  ${s.styles.length} text style${s.styles.length === 1 ? '' : 's'}, current "${s.current}" · ⌘Z to undo`);
           }} />}
         {dlg === 'qselect' && view && <QuickSelectDialog items={pickable} picked={pickedSk} metresPerUnit={units.factor} onClose={() => setDlg(null)} onApply={applyQuickSelect} />}
+        {dlg === 'mlstyle' && <MleaderStyleDialog styles={mleaderStylesOf(project)} annoMm={anno.textMm} onClose={() => setDlg(null)}
+          onSave={(s) => {
+            setDlg(null);
+            const keep = mleaderStylesToStore(s), { cadMleaderStyles: _m, ...rest } = project;
+            if (JSON.stringify(keep) === JSON.stringify(project.cadMleaderStyles)) { cad.say('MLEADERSTYLE  No change.'); return; }
+            change(keep ? { ...project, cadMleaderStyles: keep } : rest, `MLEADERSTYLE  ${s.styles.length} multileader style${s.styles.length === 1 ? '' : 's'}, current "${s.current}" · ⌘Z to undo`);
+          }} />}
         {dlg === 'dimstyle' && <DimStyleDialog styles={dimStylesOf(project)} asBefore={dimStandardAsBefore(project)} onClose={() => setDlg(null)}
           onSave={(s) => {
             setDlg(null);
@@ -5044,6 +5192,7 @@ function ResultView({ r, view, toM, toM2, project, onChange, onMove, onRemove, o
         <dl className="cad-props">
           {it.kind === 'text' && <><dt>Text</dt><dd>{it.text}</dd></>}
           {it.kind === 'mtext' && <><dt>Note</dt><dd>{plainText(it)}</dd></>}
+          {it.kind === 'mleader' && <><dt>Multileader</dt><dd>{it.pts.length - 1} leader{it.pts.length === 2 ? '' : 's'}{plainText(it) ? `, “${plainText(it).replace(/\n/g, ' ')}”` : ''}</dd></>}
           {it.kind === 'dim' && <><dt>Measures</dt><dd>{m(toM(dimMeasure(it)))}</dd></>}
           {it.r !== undefined && <><dt>Radius</dt><dd>{m(toM(it.r))}</dd></>}
           {!it.infinite && it.kind !== 'text' && it.kind !== 'dim' && <><dt>{it.closed || it.kind === 'circle' || it.kind === 'ellipse' ? 'Perimeter' : 'Length'}</dt><dd>{m(toM(len))}</dd></>}

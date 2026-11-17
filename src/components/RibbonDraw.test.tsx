@@ -49,6 +49,7 @@ const tool = (name: string) => document.querySelector(`#ribbon-tools button[aria
 const names = () => [...document.querySelectorAll('#ribbon-tools button')].map((b) => b.getAttribute('aria-label') ?? b.querySelector('span')?.textContent).filter((x): x is string => !!x);
 const DRAFTING = ['Draw', 'Modify', 'Blocks', 'Layers', 'Properties', 'Measure and view'];
 const ELEC = 'Electrical, ELV & sheets';
+const ANNOTATE = ['Text', 'Dimensions', 'Leaders and tags', 'Markup'];
 /** The drawing's layers as the page tells the ribbon: two drawn layers, one frozen; nothing picked. */
 const INFO = { blocks: ['DB-A', 'DB-B'], layers: [{ name: 'LV-SKETCH', color: '#ffffff', on: true, freeze: false, lock: false }, { name: 'E-POWER', color: '#00ffff', on: false, freeze: false, lock: true }, { name: 'E-OLD', on: true, freeze: true, lock: false }], current: 'LV-SKETCH', picked: 0, props: {} };
 /** A split tool's arrow, then an item of its list. */
@@ -89,7 +90,8 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
       ['Distance', 'Area', 'Room area', 'Inspect', 'Zoom extents', 'Drafting settings']]);
     expect(group('Annotate')).toBeNull(); // the LVCAD row had grown wider than a laptop's window
     pick('Annotate');
-    expect(tools('Annotate')).toEqual(['Text', 'Dimension', 'Leader', 'Room tag', 'Keynote', 'North arrow', 'Revision cloud', 'Text style', 'Dim style']);
+    expect(['Text', 'Dimensions', 'Leaders and tags', 'Markup'].map(tools)).toEqual([['Text', 'Text style'], ['Dimension', 'Dim style'],
+      ['Multileader', 'Multileader style', 'Add leader', 'Align', 'Room tag', 'Tag all rooms', 'Keynote'], ['Revision cloud', 'North arrow']]);
     expect(document.querySelector('.ribbon')!.className).toContain('small-named'); // named beside their icons, as on LVCAD
     const look = (subTabs: string[]) => {
       const seen: string[] = [];
@@ -99,12 +101,12 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
       return { panels, seen };
     };
     const shown = look(['LVCAD', 'Annotate', ELEC, 'Output']);
-    expect(shown.panels).toEqual({ LVCAD: DRAFTING, Annotate: ['Annotate'], [ELEC]: ['Rooms', 'Cables and boards', 'Devices', 'Edit devices', 'Wiring', 'Reference', 'Sheet set'], Output: ['Layout', 'Plot', 'Publish', 'Export'] });
+    expect(shown.panels).toEqual({ LVCAD: DRAFTING, Annotate: ANNOTATE, [ELEC]: ['Rooms', 'Cables and boards', 'Devices', 'Edit devices', 'Wiring', 'Reference', 'Sheet set'], Output: ['Layout', 'Plot', 'Publish', 'Export'] });
     expect(shown.seen).not.toContain('Object snap'); // the status bar's toggles stay on the status bar
     rerender({ labels: true });
     const all = look(['LVCAD', 'Annotate', 'Layers & properties', 'Electrical & ELV', 'Sheets', 'Layout', 'Output']);
     expect(all.panels).toEqual({
-      LVCAD: ['Draw', 'Modify', 'Blocks'], Annotate: ['Annotate'], 'Layers & properties': ['Layers', 'Properties', 'Measure and view'],
+      LVCAD: ['Draw', 'Modify', 'Blocks'], Annotate: ANNOTATE, 'Layers & properties': ['Layers', 'Properties', 'Measure and view'],
       'Electrical & ELV': ['Rooms', 'Cables and boards', 'Devices', 'Edit devices', 'Wiring'], Sheets: ['Reference', 'Sheet set'], Layout: ['Layout'], Output: ['Plot', 'Publish', 'Export']
     });
     expect([...all.seen].sort()).toEqual([...shown.seen].sort()); // the same tools, only arranged otherwise
@@ -152,14 +154,17 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
     expect(cad.onTool).toHaveBeenLastCalledWith('ellipse');
     // Annotate: Keynote and Revision cloud; the other forms of Text and Dimension under their arrows.
     pick('Annotate');
-    for (const [t, id] of [['Keynote', 'keynote'], ['Revision cloud', 'revcloud']]) {
+    for (const [t, id] of [['Keynote', 'keynote'], ['Revision cloud', 'revcloud'], ['Multileader', 'mleader'], ['Add leader', 'mleaderadd'], ['Align', 'mleaderalign'], ['Room tag', 'rtag'], ['Tag all rooms', 'rtall'], ['North arrow', 'north']]) {
       click(tool(t));
       expect(cad.onTool, t).toHaveBeenLastCalledWith(id);
     }
-    for (const [t, form, id] of [['Text', 'Notes (MT)', 'mtext'], ['Text', 'Numbered text (TCOUNT)', 'tcount'], ['Text', 'Justify (TJ)', 'tjust'], ['Text', 'Copy words (TCOPY)', 'tcopy'], ['Dimension', 'Linear (DLI)', 'dimlin']]) {
+    for (const [t, form, id] of [['Text', 'Notes (MT)', 'mtext'], ['Text', 'Numbered text (TCOUNT)', 'tcount'], ['Text', 'Justify (TJ)', 'tjust'], ['Text', 'Copy words (TCOPY)', 'tcopy'], ['Dimension', 'Linear (DLI)', 'dimlin'],
+      ['Multileader', 'Leader (LE)', 'leader'], ['Multileader', 'Add leader (MLEADERADD)', 'mleaderadd'], ['Multileader', 'Remove leader (MLEADERREMOVE)', 'mleaderremove'], ['Multileader', 'Collect (MLC)', 'mleadercollect']]) {
       fromList(t, form);
       expect(cad.onTool, form).toHaveBeenLastCalledWith(id);
     }
+    fromList('Multileader', 'Multileader style… (MLS)');
+    expect(cad.onCommand).toHaveBeenLastCalledWith('MLEADERSTYLE');
     for (const t of ['Text style', 'Dim style']) click(tool(t));
     pick('LVCAD');
     for (const t of ['Inspect', 'Zoom extents', 'Drafting settings']) click(tool(t));
@@ -169,7 +174,7 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
     pick(ELEC);
     click(tool('Attach'));
     click(tool('Clip'));
-    expect((cad.onCommand as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0])).toEqual(['STYLE', 'DIMSTYLE', 'LIST', 'FIT', 'DSETTINGS', 'LAYOFF', 'LAYFRZ', 'LAYLCK', 'LAYISO', 'LAYMCUR', 'LAYON', 'LAYTHW', 'LAYULK', 'LAYUNISO', 'LAYER N', 'XATTACH', 'XCLIP']);
+    expect((cad.onCommand as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0])).toEqual(['MLEADERSTYLE', 'STYLE', 'DIMSTYLE', 'LIST', 'FIT', 'DSETTINGS', 'LAYOFF', 'LAYFRZ', 'LAYLCK', 'LAYISO', 'LAYMCUR', 'LAYON', 'LAYTHW', 'LAYULK', 'LAYUNISO', 'LAYER N', 'XATTACH', 'XCLIP']);
     pick('Output');
     const layout = tool('New layout');
     expect(layout.getAttribute('aria-haspopup')).toBe('menu');
@@ -237,6 +242,21 @@ describe('Design CAD ribbon: the main tools named, every tool\'s name on hover',
     expect(offset.getAttribute('aria-describedby')).toBe('ribbon-tip');
     act(() => { offset.dispatchEvent(new MouseEvent('mouseout', { bubbles: true })); });
     expect(document.querySelector('#ribbon-tip')).toBeNull();
+  });
+
+  it('shows the current multileader style under Multileader and lists the styles to make another current', () => {
+    const { cad } = show({ info: { ...INFO, mleaderStyles: { names: ['Standard', 'Circuit'], current: 'Standard' } } });
+    pick('Annotate');
+    const list = document.querySelector('.ribbon-layer') as HTMLButtonElement;
+    expect(list.querySelector('.nm')!.textContent).toBe('Standard');
+    click(list);
+    const rows = [...document.querySelectorAll('[role="menu"][aria-label="Multileader styles"] [role="menuitemradio"]')] as HTMLButtonElement[];
+    expect(rows.map((b) => [b.textContent, b.getAttribute('aria-checked')])).toEqual([['Standard', 'true'], ['Circuit', 'false']]);
+    click(rows[1]);
+    expect(cad.onCommand).toHaveBeenLastCalledWith('CMLEADERSTYLE Circuit');
+    click(list);
+    click(item('Multileader style… (MLS)'));
+    expect(cad.onCommand).toHaveBeenLastCalledWith('MLEADERSTYLE');
   });
 
   it('shows the tooltip of a greyed tool too; running along the icons, the next shows at once', () => {
@@ -426,7 +446,7 @@ describe('Design CAD ribbon: sheets and layouts', () => {
     expect(groups()).toEqual(['Markup']);
     expect(tool('Cloud').disabled).toBe(false);
     rerender({ onPaper: false }); // working in the model through a viewport
-    expect(groups()).toEqual(['Annotate']);
+    expect(groups()).toEqual(ANNOTATE);
     pick('LVCAD');
     expect(groups()).toEqual(DRAFTING);
     pick(ELEC);

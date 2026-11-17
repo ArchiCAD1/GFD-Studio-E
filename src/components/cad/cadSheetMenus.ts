@@ -18,7 +18,7 @@ export function argOf(arg: string): { action: string; value?: string } {
 }
 /** A list's value: the current one is marked (and off, as it is chosen already). */
 const val = (x: CtxItem, now: boolean): CtxItem => (now ? { ...x, now: true, off: true } : x);
-const ICON_OF: Record<string, CtxIcon> = { Line: 'line', Polyline: 'pline', 'Closed polyline': 'pline', Circle: 'circle', Arc: 'arc', Ellipse: 'ellipse', Text: 'text', Note: 'mtext', Block: 'insert', Hatch: 'hatch', Point: 'point', Dimension: 'dim' };
+const ICON_OF: Record<string, CtxIcon> = { Line: 'line', Polyline: 'pline', 'Closed polyline': 'pline', Circle: 'circle', Arc: 'arc', Ellipse: 'ellipse', Text: 'text', Note: 'mtext', Multileader: 'mtext', Block: 'insert', Hatch: 'hatch', Point: 'point', Dimension: 'dim' };
 
 /** The header of an object of the opened drawing picked: its kind, and its layer. */
 export function drawingObjectHead(s: { kind: string; layer?: string; picked: number }): CtxHead {

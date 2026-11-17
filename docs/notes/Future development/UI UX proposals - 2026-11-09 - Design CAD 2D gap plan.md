@@ -7,7 +7,28 @@ Anything not written here stays as it is today. **Built:** S1 (v2.068, `feat/cad
 "Yes, Step 5" on 2026-11-10); S6 (v2.078, `feat/cad-mtext`, "Yes, Step 6" on 2026-11-10); S7 (v2.079,
 `feat/cad-draworder`, "Yes, Step 7" on 2026-11-10); S8 (v2.080, `feat/cad-point-divide-measure`, "Yes, Step 8" on 2026-11-10); S9 (v2.081,
 `feat/cad-block-define`, "Yes, Step 9" on 2026-11-10); S10 (v2.082, `feat/cad-block-insert`, "Yes, Step 10" on 2026-11-10); S11 (v2.083,
-`feat/cad-block-attributes`, "Yes, Step 11" on 2026-11-10) — see the end of this note.
+`feat/cad-block-attributes`, "Yes, Step 11" on 2026-11-10); S12 (v2.181, `feat/cad-multileader`, "Go ahead" on
+2026-11-17) — see the end of this note.
+
+## Built in v2.181 (S12)
+
+- **S12** A multileader is a drawn object of `kind: 'mleader'`: pts[0] is the start of its landing, pts[1..] its
+  arrowheads (straight leaders), its words a note (`note`, `h`, `w`) placed middle left beyond the landing, or middle
+  right when the arrowheads are on the right; `ml` keeps its style name and look in drawing units (arrowhead, size,
+  landing length, gap, frame). All its geometry is in `pts`, so Move, Copy, Rotate, Mirror, Scale, Stretch, Array and
+  Align need nothing new; its landing and words stay level (`src/model/cadMleader.ts`, tested). **MLD / MLEADER**:
+  arrowhead, landing, then the note editor; nothing typed draws nothing. **MLEADERADD**, **MLEADERREMOVE** (one
+  leader always stays), **MLA / MLEADERALIGN** (landings moved onto a line through the one aligned to; Enter:
+  vertical), **MLC / MLEADERCOLLECT** (one multileader with every arrowhead; V one paragraph each, H joined with
+  ", "), **MLS / MLEADERSTYLE** (Leader format · Leader structure · Content tabs, black-and-white preview);
+  `CMLEADERSTYLE <name>` sets the current style. A style can fill in the circuit of the LV point at the arrowhead
+  (`DB-L1-01/L3`). Double-click or ED edits the words; right-click: Multileader tools. Save DXF / DWG writes its lines
+  and one MTEXT (no engine change); a single leader's arrowhead is now written too (a solid hatch). **Ribbon:** the
+  Annotate sub-tab became four panels: Text (Text ▾, Text style) · Dimensions (Dimension ▾, Dim style) · Leaders and
+  tags (Multileader ▾ with Leader, Add, Remove, Align, Collect and Multileader style… under the arrow; the style list
+  over Add leader and Align; Room tag, Tag all rooms, Keynote) · Markup (Revision cloud, North arrow); 813 px wide.
+  **Decisions taken:** leaders are straight (no bends or splines); block content waits; a style's text height 0
+  takes the annotation text height; the note editor's Justify choice does not apply (the side decides).
 
 ## Built in v2.083 (S11)
 

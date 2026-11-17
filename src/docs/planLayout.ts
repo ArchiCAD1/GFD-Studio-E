@@ -13,6 +13,7 @@ import { annoOf, SYMBOL_R_MM } from '../model/cadAnnotate';
 import { PLAN_SYMBOLS, planSymbolSvg } from '../model/planSymbols';
 import { EM_PER_CAP, textBaseAt, textCorners, textWidth } from '../model/cadText';
 import { LINE_FACTOR, noteBox, noteSegAt } from '../model/cadMtext';
+import { mleaderNote } from '../model/cadMleader';
 import { pointMark, pointStyleOf } from '../model/cadPoints';
 import { attdefAsText, blockDefsOf, expandAll } from '../model/cadBlocks';
 import { atOrigin, dotsOnly, hatchDots, hatchStrokes, mirroredY, defOf, placedLines } from '../model/cadHatch';
@@ -368,6 +369,9 @@ function drawnSvg(items: Drawn[], X: (x: number) => number, Y: (y: number) => nu
     for (const [a, b] of segmentsOf(it, 1)) { const s = P(a); d += `${s === end ? '' : `M${s}`}L${(end = P(b))}`; }
     if (d) body.push(`<path d="${d}" fill="none" stroke="${ink}" stroke-width="${n(thin || !lw ? pen.sketch.w : lw)}"${dash.length ? ` stroke-dasharray="${dash.join(' ')}"` : ''}/>`);
     if (it.kind === 'dim' && it.pts.length > 2) { const dl = dimOf(it, 1); text(dl.text, dl.label, dl.h, dl.angle, 'middle'); }
+    // A multileader's words as a note's.
+    const mn = it.kind === 'mleader' ? mleaderNote(it) : undefined;
+    if (mn) { const b = noteBox(mn); for (const line of b.lines) for (const seg of line.segs) text(noteSegAt(b, line, seg), seg.s, seg.h, 0, 'start', seg); }
     if (it.leader && it.pts.length > 1) {
       const ax = X(it.pts[0][0]), ay = Y(it.pts[0][1]), ang = Math.atan2(ay - Y(it.pts[1][1]), ax - X(it.pts[1][0]));
       const tip = (s: number) => `${n(ax - 3 * Math.cos(ang + s))} ${n(ay - 3 * Math.sin(ang + s))}`;

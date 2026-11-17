@@ -118,6 +118,9 @@ export function circuitLabel(_p: Project, f: Feeder): string {
   return `${f.boardId}${ref ? `/${ref}` : ''}${f.name ? ` · ${f.name}` : ''}`;
 }
 
+/** A final circuit as multileaders fill it in: "DB-L1-01/L3" (the board and the circuit's reference). */
+export const circuitTag = (f: Feeder): string => { const ref = circuitRef(f); return `${f.boardId}${ref ? `/${ref}` : ''}`; };
+
 /** A cable as plans name it: "MDB-1 → SMDB-GF" for a feeder to a board, else its circuit ("DB-GF1/R1 · Living lighting"). */
 export const cableLabel = (p: Project, f: Feeder): string => (f.feedsBoardId ? `${f.boardId} → ${f.feedsBoardId}` : circuitLabel(p, f));
 /** Every cable a route can be drawn for: feeders to boards first, then final circuits. */
