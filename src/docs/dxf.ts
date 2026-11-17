@@ -6,6 +6,8 @@
 export type DxfPrimitive = (
   | { type: 'line'; layer: string; x1: number; y1: number; x2: number; y2: number; width?: number; linetype?: string; dashed?: boolean }
   | { type: 'polyline'; layer: string; points: [number, number][]; closed?: boolean; width?: number; linetype?: string; dashed?: boolean; /** Bulge of the segment that starts at each vertex (tan of a quarter of its arc angle). */ bulges?: number[] }
+  /** A filled area: 3 or 4 corners in perimeter order. */
+  | { type: 'solid'; layer: string; points: [number, number][] }
   | { type: 'circle'; layer: string; x: number; y: number; r: number; linetype?: string; dashed?: boolean }
   | { type: 'text'; layer: string; x: number; y: number; height: number; text: string; align?: 'left' | 'center' | 'right'; rotation?: number; width?: number }
   | { type: 'insert'; layer: string; name: string; x: number; y: number; scale?: number; rotation?: number; block: DxfBlock; attribs: DxfAttrib[]; extent?: [[number, number], [number, number]] }
@@ -130,6 +132,7 @@ function boundsPoints(i: DxfPrimitive): [number, number][] {
     const points: [number, number][] = i.type === 'line' ? [[i.x1, i.y1], [i.x2, i.y2]] : i.points;
     return positiveWidth(i.width) ? strokeQuads(i).flat() : points;
   }
+  if (i.type === 'solid') return i.points;
   if (i.type === 'text' && positiveWidth(i.width) && dxfText(i.text).trim()) {
     const { start, end, dx, dy } = fittedBaseline(i);
     // Include a descender allowance as well as the nominal cap height. The
@@ -234,6 +237,15 @@ export function toDxf(items: DxfPrimitive[], layerColours: Record<string, number
     if (i.type === 'line') {
       if (positiveWidth(i.width)) solids(i);
       else { g(0, 'LINE'); g(8, i.layer); ltype(i.linetype); g(10, i.x1); g(20, i.y1); g(30, 0); g(11, i.x2); g(21, i.y2); g(31, 0); xdata(i.tag); }
+    } else if (i.type === 'solid') {
+      if (i.points.length < 3) return;
+      g(0, 'SOLID'); g(8, i.layer);
+      // Corners as for a stroke strip: the last two of four swap; a triangle repeats its last corner.
+      const q = i.points;
+      (q.length === 3 ? [0, 1, 2, 2] : [0, 1, 3, 2]).forEach((corner, j) => {
+        g(10 + j, q[corner][0]); g(20 + j, q[corner][1]); g(30 + j, 0);
+      });
+      xdata(i.tag);
     } else if (i.type === 'circle') {
       g(0, 'CIRCLE'); g(8, i.layer); ltype(i.linetype); g(10, i.x); g(20, i.y); g(30, 0); g(40, i.r); xdata(i.tag);
     } else if (i.type === 'polyline') {

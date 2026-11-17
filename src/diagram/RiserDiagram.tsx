@@ -7,12 +7,6 @@ import { legendLineY, legendPxFor, legendRows } from './legendLayout';
 /** IEC 60617 symbols for the riser diagram, all from one unit U so they
  * scale together (none bigger or smaller than the others). */
 export const RiserSym = {
-  db: (x: number, y: number) => (
-    <g>
-      <rect x={x - 0.8 * U} y={y - 0.45 * U} width={1.6 * U} height={0.9 * U} className="sym" />
-      <polygon points={`${x - 0.8 * U},${y + 0.45 * U} ${x + 0.8 * U},${y + 0.45 * U} ${x + 0.8 * U},${y - 0.45 * U}`} className="sym-fill" />
-    </g>
-  ),
   tx: (x: number, y: number) => (
     <g><circle cx={x - 0.32 * U} cy={y} r={0.5 * U} className="sym-ln" /><circle cx={x + 0.32 * U} cy={y} r={0.5 * U} className="sym-ln" /></g>
   ),
@@ -33,7 +27,6 @@ export const RISER_LEGEND: { key: string; label: string; draw: (x: number, y: nu
   { key: 'gen', label: 'Standby generator', draw: (x, y) => RiserSym.gen(x, y) },
   { key: 'ats', label: 'Changeover (ATS)', draw: (x, y) => RiserSym.ats(x, y) },
   ...PANEL_SYMBOL_IDS.map((id) => ({ key: id, label: SYMBOLS[id].label, draw: (x: number, y: number) => <Sym id={id} x={x} y={y} s={SYM_SCALE.legend} /> })),
-  { key: 'db', label: 'Distribution board / panel', draw: (x, y) => RiserSym.db(x, y) },
   { key: 'bus', label: 'Busbar trunking riser', draw: (x, y) => <g className="riser-bus"><line x1={x - 0.7 * U} y1={y - 0.18 * U} x2={x + 0.7 * U} y2={y - 0.18 * U} /><line x1={x - 0.7 * U} y1={y + 0.18 * U} x2={x + 0.7 * U} y2={y + 0.18 * U} /></g> },
   { key: 'tap', label: 'Tap-off unit', draw: (x, y) => RiserSym.tap(x, y) },
   { key: 'cable', label: 'Cable', draw: (x, y) => <line x1={x - 0.7 * U} y1={y} x2={x + 0.7 * U} y2={y} className="ln" /> },
@@ -103,7 +96,7 @@ export default function RiserDiagram({ project, buildingId, layout: given }: { p
         {L.nodes.map((n) => (
           <g key={n.board.id}>
             <title>{`${n.board.id} — ${n.board.name}`}</title>
-            {n.panel ? <Sym id={n.panel} x={n.x} y={n.y} s={SYM_SCALE.legend} /> : RiserSym.db(n.x, n.y)}
+            <Sym id={n.panel} x={n.x} y={n.y} s={SYM_SCALE.legend} existing={!!n.board.existing} />
             <text x={n.x + 1.0 * U} y={n.y - 2} className="b">{n.title}{n.count ? ` ×${n.count}` : ''}</text>
             <text x={n.x + 1.0 * U} y={n.y + 0.6 * U} className="m">{n.sub}</text>
           </g>

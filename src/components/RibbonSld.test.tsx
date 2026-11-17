@@ -112,6 +112,12 @@ describe('the SLD tab', () => {
     click(item('Fault duty'));
     expect(s.onColorBy).toHaveBeenLastCalledWith('fault');
     expect(items()).toEqual([]);
+    click(tool('Colour by'));
+    const labels = items().map((b) => b.textContent);
+    expect(labels[labels.length - 1]).toBe('Supply');
+    click(item('Supply'));
+    expect(s.onColorBy).toHaveBeenLastCalledWith('supply');
+    expect(items()).toEqual([]);
     click(tool('Scenario'));
     expect(items().map((b) => b.textContent)).toEqual(['Normal supply', 'On generator (mains lost)', 'Transformer of MDB-2 failed']);
     expect(item('On generator (mains lost)').disabled).toBe(true); // no generator in the project
