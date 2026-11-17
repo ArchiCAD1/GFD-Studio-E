@@ -1,13 +1,14 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import {
   AlignLeft, ArrowDown, ArrowUp, Baseline, Bold, Braces, ClipboardPaste, Copy, FilePlus2, FileText, FileType, FolderOpen, Heading1, Heading2, Italic, List, ListOrdered, PaintBucket, Paintbrush,
-  BookOpen, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
+  BookOpen, Columns3, Image as ImageIcon, Rows3, Table as TableIcon, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
 } from 'lucide-react';
 import type { Project } from '../../types';
 import {
   addClause, addDetail, addSection, fieldUses, indentClause, maxLevel, withAppendix, moveClause, moveSection, removeClause, removeDetail, removeSection, slotText, specFields, specRevisionRows, specSetup, specView, starterSpec, withClause, withContents, withCover, withDetail,
-  withInfo, withSectionIncluded, withSectionTitle, withSetup, withTitle, fieldKeys, SPEC_PARTIES, SPEC_SETUP, type SpecDoc, type SpecKind, type SpecLogoPlace, type SpecMargins, type SpecPaper, type SpecSlots
+  withInfo, withSectionIncluded, withSectionTitle, withSetup, withTitle, fieldKeys, captionText, SPEC_PARTIES, SPEC_SETUP, type SpecClause, type SpecDoc, type SpecKind, type SpecLogoPlace, type SpecMargins, type SpecPaper, type SpecSlots
 } from '../../model/specDoc';
+import { addCol, addRow, deleteCol, deleteRow, imageFromDataUrl, setCell, tableFromSheet, tableFromText, tableSize, IMAGE_MAX_BYTES } from '../../model/specBlocks';
 import { Big, Group, Icons, IconTool, PageRibbon, RIBBON_CSS, Rows, Small } from '../pageRibbon';
 import { buildSpecHtml, specPdfPage } from '../../docs/specReport';
 import { safeFileName, saveBinary, savePdf } from '../../util/files';
@@ -44,6 +45,16 @@ const CSS = `${RIBBON_CSS}
 .spx-line.h.l1 { margin-left: 0; grid-template-columns: 52px 1fr; font-size: 13px; }
 .spx-line.brk { margin-top: 22px; position: relative; }
 .spx-line.brk::before { content: "Page break"; position: absolute; left: 0; right: 0; top: -18px; border-top: 1px dashed #999; font-size: 10px; font-weight: 400; font-style: normal; color: #666; text-align: center; }
+.spx-line.blk { display: block; margin-left: 52px; cursor: pointer; }
+.spx-cap { font-size: 12px; font-weight: 700; margin: 2px 0 4px; }
+.spx-tb { border-collapse: collapse; width: 100%; font-size: 12px; } .spx-tb th, .spx-tb td { border: 1px solid currentColor; padding: 3px 6px; text-align: left; vertical-align: top; }
+.spx-tb input, .spx-capin { box-sizing: border-box; width: 100%; border: 0; padding: 2px 0; font: inherit; color: inherit; background: transparent; }
+.spx-tb input:focus, .spx-capin:focus { outline: 2px solid var(--acc); outline-offset: 1px; }
+.spx-capin { border-bottom: 1px dashed currentColor; margin-bottom: 6px; font-weight: 700; }
+.spx-blk-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; font-size: 11.5px; }
+.spx-blk-tools button, .spx-blk-tools select { height: 28px; padding: 0 8px; border: 1px solid currentColor; border-radius: 4px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.spx-blk-tools button:disabled { opacity: .45; cursor: default; }
+.spx-pic { display: block; max-width: 100%; height: auto; }
 .spx-line.sel { border-color: #b8860b; background: #fffbea; }
 .spx-line textarea { box-sizing: border-box; width: 100%; min-height: 64px; border: 1px solid #999; padding: 4px 6px; font: inherit; font-weight: 400; font-style: normal; color: #1a1a1a; background: #fff; resize: vertical; }
 .spx-f { background: #fff2cc; border-bottom: 1px solid #b8860b; padding: 0 3px; }
@@ -81,7 +92,7 @@ function Entry({ label, value, placeholder, onSave, type }: { label: string; val
   return <input key={value} type={type ?? 'text'} aria-label={label} defaultValue={value} placeholder={placeholder} {...(type === 'number' ? { min: 5, max: 60, step: 1 } : {})}
     onBlur={(e) => { if (e.currentTarget.value !== value) onSave(e.currentTarget.value); }} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />;
 }
-const KIND_CLASS: Record<SpecKind, string> = { heading: 'h', clause: '', note: 'n' };
+const KIND_CLASS: Record<SpecKind, string> = { heading: 'h', clause: '', note: 'n', table: 'blk', image: 'blk' };
 
 export default function SpecPage({ project, onChange, onStatus, onUndo }: { project: Project; onChange: (p: Project, step?: boolean) => void; onStatus?: (m: string) => void; onUndo?: () => void }) {
   const doc: SpecDoc = useMemo(() => project.spec ?? starterSpec(), [project.spec]);
@@ -121,6 +132,51 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
   }
   const setup = useMemo(() => specSetup(doc, project), [doc, project]);
   const logoFile = useRef<HTMLInputElement>(null);
+  const picFile = useRef<HTMLInputElement>(null);
+  const [cell, setCell_] = useState<[number, number] | null>(null); // the table cell last clicked, for row and column tools
+  /** Puts a table or a picture after the clause being edited (at the end of the section when none) and selects it. */
+  const addBlock = (kind: 'table' | 'image', block: Pick<SpecClause, 'table' | 'image'>, what: string) => {
+    const next = addClause(doc, section!.id, kind, '', clause?.id, block);
+    const before = new Set(section!.clauses.map((c) => c.id));
+    save(next);
+    setClauseId(next.sections.find((x) => x.id === section!.id)!.clauses.find((c) => !before.has(c.id))!.id); setCell_(null);
+    onStatus?.(what);
+  };
+  const addCells = (text: string, from: string): boolean => {
+    const rows = tableFromText(text);
+    if (!rows) return false;
+    addBlock('table', { table: { rows } }, `Table added from ${from}: ${rows.length} row${rows.length === 1 ? '' : 's'} × ${rows[0].length} column${rows[0].length === 1 ? '' : 's'}`);
+    return true;
+  };
+  const addPicture = (file: File | undefined | null) => {
+    if (!file) return;
+    if (!/^image\/(png|jpeg)$/.test(file.type)) { onStatus?.('Picture: choose a PNG or JPEG picture'); return; }
+    if (file.size > IMAGE_MAX_BYTES) { onStatus?.(`Picture: the file is ${Math.round(file.size / 1000)} kB; use one under ${IMAGE_MAX_BYTES / 1000} kB (it is kept in the project file)`); return; }
+    const r = new FileReader();
+    r.onload = () => { const image = imageFromDataUrl(String(r.result)); if (image) addBlock('image', { image }, `Picture added: ${image.w} × ${image.h} pixels`); else onStatus?.('Picture: the file could not be read as a PNG or JPEG picture'); };
+    r.readAsDataURL(file);
+  };
+  /** Paste on the page: copied cells (Sheets, Excel) become a table, a copied picture a picture; plain text is left
+   * to the text box it is pasted into. */
+  const onPaste = (e: ClipboardEvent) => {
+    const pic = [...(e.clipboardData?.files ?? [])].find((f) => /^image\/(png|jpeg)$/.test(f.type));
+    if (e.target instanceof HTMLInputElement) return; // a table cell or a caption: paste as text
+    if (addCells(e.clipboardData?.getData('text/plain') ?? '', 'the copied cells')) { e.preventDefault(); return; }
+    if (pic) { e.preventDefault(); addPicture(pic); }
+  };
+  const pasteCells = () => {
+    const read = navigator.clipboard?.readText?.();
+    if (!read) { onStatus?.('Paste cells: click the page and press Ctrl+V'); return; }
+    void read.then((text) => { if (!addCells(text, 'the copied cells')) onStatus?.('Paste cells: nothing copied from a sheet — copy two or more cells in Sheets or Excel first'); }).catch(() => onStatus?.('Paste cells: click the page and press Ctrl+V'));
+  };
+  const fromSheet = (id: string) => {
+    const sheet = project.sheets?.sheets.find((x) => x.id === id), rows = sheet && tableFromSheet(sheet);
+    if (!sheet) return;
+    if (!rows) { onStatus?.(`Table from sheet: ${sheet.name} is empty`); return; }
+    addBlock('table', { table: { rows } }, `Table added from sheet ${sheet.name}: ${rows.length} × ${rows[0].length} (a copy — it does not follow the sheet)`);
+  };
+  const isBlock = clause?.kind === 'table' || clause?.kind === 'image';
+  const setTable = (c: SpecClause, table: NonNullable<SpecClause['table']>) => save(withClause(doc, section!.id, c.id, { table }));
   const info = doc.info ?? {};
   const setSlot = (edge: 'header' | 'footer', i: number, v: string) => { const next = [...setup[edge]] as SpecSlots; next[i] = v; save(withSetup(doc, { [edge]: next })); };
   const setMargin = (side: keyof SpecMargins, v: string) => { const n = Number(v); if (Number.isFinite(n)) save(withSetup(doc, { marginsMm: { ...setup.marginsMm, [side]: Math.min(60, Math.max(5, n)) } })); };
@@ -254,14 +310,27 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
             </Group>
             <Group name="Styles">
               <Rows>
-                <Small icon={Heading1} label="Clause heading" onClick={clause ? () => setKind('heading') : undefined} disabled={!clause} pressed={clause?.kind === 'heading'} />
-                <Small icon={Pilcrow} label="Clause" onClick={clause ? () => setKind('clause') : undefined} disabled={!clause} pressed={clause?.kind === 'clause'} />
-                <Small icon={StickyNote} label="Note" onClick={clause ? () => setKind('note') : undefined} disabled={!clause} pressed={clause?.kind === 'note'} />
+                <Small icon={Heading1} label="Clause heading" onClick={clause && !isBlock ? () => setKind('heading') : undefined} disabled={!clause || isBlock} pressed={clause?.kind === 'heading'} />
+                <Small icon={Pilcrow} label="Clause" onClick={clause && !isBlock ? () => setKind('clause') : undefined} disabled={!clause || isBlock} pressed={clause?.kind === 'clause'} />
+                <Small icon={StickyNote} label="Note" onClick={clause && !isBlock ? () => setKind('note') : undefined} disabled={!clause || isBlock} pressed={clause?.kind === 'note'} />
               </Rows>
+            </Group>
+            <Group name="Tables and pictures">
+              <Big icon={TableIcon} label="Add table" onClick={() => addBlock('table', { table: { rows: [['', '', ''], ['', '', ''], ['', '', '']] } }, 'Table added: 3 × 3')} />
+              <Rows>
+                <Small icon={ClipboardPaste} label="Paste cells" onClick={pasteCells} />
+                <Small icon={ImageIcon} label="Add picture" onClick={() => picFile.current?.click()} />
+              </Rows>
+              {(project.sheets?.sheets.length ?? 0) > 0 && (
+                <select className="spx-insert" aria-label="Table from sheet" value="" title="Copy one of the project's sheets into the text as a table" onChange={(e) => fromSheet(e.target.value)}>
+                  <option value="">Table from sheet…</option>
+                  {project.sheets!.sheets.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                </select>
+              )}
             </Group>
             <Group name="Project data">
               <Braces size={26} aria-hidden style={{ color: 'var(--acc)' }} />
-              <select className="spx-insert" aria-label="Insert field" value="" disabled={!clause} title={clause ? 'Put a project value in the clause being edited' : 'Click a clause first'} onChange={(e) => insertField(e.target.value)}>
+              <select className="spx-insert" aria-label="Insert field" value="" disabled={!clause || isBlock} title={clause ? 'Put a project value in the clause being edited' : 'Click a clause first'} onChange={(e) => insertField(e.target.value)}>
                 <option value="">Insert field…</option>
                 {[...new Set(fields.map((f) => f.group))].map((g) => <optgroup key={g} label={g}>{fields.filter((f) => f.group === g).map((f) => <option key={f.key} value={f.key}>{f.label}{f.value === undefined ? ' — not set' : ` — ${f.value}`}</option>)}</optgroup>)}
               </select>
@@ -288,6 +357,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
         {view.missing.length ? <span className="bad">{view.missing.length} missing: {[...new Set(view.missing.map((m) => m.label))].join(', ')}</span> : <span>None missing</span>}
       </div>
 
+      <input ref={picFile} type="file" accept="image/png,image/jpeg" aria-label="Picture file" hidden onChange={(e) => { addPicture(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       <input ref={logoFile} type="file" accept="image/png,image/jpeg" aria-label="Logo picture" hidden onChange={(e) => { readLogo(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       {tab === 'setup' ? (
         <div className="spx-setup">
@@ -385,7 +455,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
           <p className="spx-note">Tick a section to include it. Clauses renumber by themselves. An appendix is lettered and goes after the numbered sections.</p>
         </section>
 
-        <div className="spx-paper" aria-label={`Section ${section.title}`}>
+        <div className="spx-paper" aria-label={`Section ${section.title}`} tabIndex={0} onPaste={onPaste}>
           <div className="spx-head">{setup.header.map((x, i) => <span key={i}>{setup.logo && setup.logoPlace === `header-${['left', 'center', 'right'][i]}` ? '[logo]' : slotText(x, doc, project)}</span>)}</div>
           <h5>{block.heading}</h5>
           {!section.included && <p className="spx-off">This section is not included in the specification. Tick it in the list to include it.</p>}
@@ -393,6 +463,50 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
           {block.lines.map((l) => {
             const c = section.clauses.find((x) => x.id === l.id)!;
             const sel = l.id === clauseId;
+            if (l.table || l.image) {
+              const t = c.table, [nr, nc] = t ? tableSize(t) : [0, 0], at = sel ? cell : null;
+              return (
+                <div key={l.id} data-clause={l.id} className={`spx-line blk${sel ? ' sel' : ''}${l.breakBefore ? ' brk' : ''}`} onClick={() => { if (!sel) { pick(l.id); setCell_(null); } }}>
+                  {sel
+                    ? <input key={`${c.id}:${c.text}`} className="spx-capin" aria-label={`${l.label} caption`} defaultValue={c.text} placeholder={`${l.label} — caption (optional)`} onBlur={(e) => commitText(c.id, e.currentTarget.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
+                    : l.table && <div className="spx-cap">{captionText(l)}</div>}
+                  {l.table && t && (
+                    <table className="spx-tb" aria-label={l.label}>
+                      <tbody>
+                        {t.rows.map((row, r) => (
+                          <tr key={r}>{row.map((v, k) => {
+                            const Tag = l.table!.header && r === 0 ? 'th' : 'td';
+                            return <Tag key={k}>{sel ? <input key={`${r}:${k}:${v}`} aria-label={`${l.label} row ${r + 1} column ${k + 1}`} defaultValue={v} onFocus={() => setCell_([r, k])} onBlur={(e) => { if (e.currentTarget.value !== v) setTable(c, setCell(t, r, k, e.currentTarget.value)); }} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} /> : v}</Tag>;
+                          })}</tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {l.image && <img className="spx-pic" src={l.image.src} alt={captionText(l)} style={{ width: `${l.image.widthPct}%` }} />}
+                  {!sel && l.image && <div className="spx-cap">{captionText(l)}</div>}
+                  {sel && t && (
+                    <div className="spx-blk-tools" aria-label="Table tools">
+                      <button type="button" onClick={() => setTable(c, addRow(t, at?.[0]))}><Rows3 size={13} aria-hidden /> Add row</button>
+                      <button type="button" onClick={() => setTable(c, addCol(t, at?.[1]))}><Columns3 size={13} aria-hidden /> Add column</button>
+                      <button type="button" disabled={!at || nr <= 1} onClick={() => { setTable(c, deleteRow(t, at![0])); setCell_(null); }}>Delete row</button>
+                      <button type="button" disabled={!at || nc <= 1} onClick={() => { setTable(c, deleteCol(t, at![1])); setCell_(null); }}>Delete column</button>
+                      <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={l.table!.header} onChange={(e) => setTable(c, { ...t, header: e.target.checked })} /> Header row</label>
+                      <span>{nr} × {nc}{at ? ` · row ${at[0] + 1}, column ${at[1] + 1}` : ' · click a cell for row and column tools'}</span>
+                    </div>
+                  )}
+                  {sel && c.image && (
+                    <div className="spx-blk-tools" aria-label="Picture tools">
+                      <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>Width
+                        <select aria-label="Picture width" value={l.image!.widthPct} onChange={(e) => save(withClause(doc, section.id, c.id, { image: { ...c.image!, widthPct: Number(e.target.value) } }))}>
+                          {[25, 40, 50, 60, 75, 100].map((w) => <option key={w} value={w}>{w} % of the text width</option>)}
+                        </select>
+                      </label>
+                      <span>{c.image.w} × {c.image.h} pixels</span>
+                    </div>
+                  )}
+                </div>
+              );
+            }
             return (
               <div key={l.id} data-clause={l.id} className={`spx-line ${KIND_CLASS[l.kind]}${sel ? ' sel' : ''}${l.level ? ` l${l.level}` : ''}${l.breakBefore ? ' brk' : ''}`} onClick={() => { if (!sel) pick(l.id); }}>
                 <span>{l.no}</span>
@@ -414,7 +528,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
         </section>
       </div>
       )}
-      <p className="spx-note">Click a clause to edit it; click elsewhere to finish, Esc to cancel. Greyed tools come in later stages.</p>
+      <p className="spx-note">Click a clause to edit it; click elsewhere to finish, Esc to cancel. Copy cells in Sheets or Excel, click the page and press Ctrl+V to put them in as a table; a copied picture goes in the same way. Greyed tools come in later stages.</p>
     </div>
   );
 }
