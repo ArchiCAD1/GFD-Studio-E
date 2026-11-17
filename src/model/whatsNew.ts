@@ -15,6 +15,14 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.189', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: multileader', text: 'One note with several arrows. Annotate → Leaders and tags → Multileader (MLD): click the arrowhead, then the landing, then type the words. It has its own styles (arrowhead, landing, text height, frame; MLS), Add leader and Remove leader, Align and Collect, and a style can fill in the circuit of the device at the arrowhead.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: Annotate in four panels', text: 'The Annotate sub-tab now has Text, Dimensions, Leaders and tags (with Room tag, Tag all rooms and Keynote) and Markup (revision cloud and north arrow).' },
+      { title: 'Design CAD: leader arrowheads in Save DXF / DWG', text: 'A leader\'s arrowhead is now written to the DXF or DWG, as it shows on the screen and the plan sheets.' }
+    ]
+  },
+  {
     version: '2.187', date: '2026-11-17',
     items: [
       { title: 'Excel in my format', text: 'Load schedule → Export has Excel: my format and Excel: my format, all panels: the schedule as an Excel file in your own format, filled from the project, one sheet per panel. The file opens with the paper of the format, fitted to the page width, and its heading rows repeat on every printed page.' }

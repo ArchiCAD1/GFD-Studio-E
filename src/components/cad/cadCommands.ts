@@ -8,7 +8,7 @@ import type { CadTool } from './cadState';
 export type CadAction = 'new' | 'open' | 'close' | 'fit' | 'addRooms' | 'schedules' | 'select' | 'xref' | 'xattach' | 'xclip' | 'layerManager' | 'newLayer' | 'clayer' | 'layiso' | 'layuniso'
   | 'layoff' | 'layfrz' | 'laylck' | 'layulk' | 'laymcur' | 'layon' | 'laythw'
   | 'alignDevices' | 'plot' | 'properties' | 'options' | 'unitsTab' | 'regen' | 'wireAll' | 'wireTags' | 'coverage' | 'erase' | 'restoreDwg' | 'save' | 'saveDwg' | 'layers' | 'osnap' | 'grid' | 'ortho' | 'snap' | 'help'
-  | 'textStyle' | 'dimStyle' | 'pointStyle' | 'blockDialog' | 'blocksPalette' | 'attDef' | 'attExport' | 'saveAs' | 'closeOthers' | 'export' | 'exportPdf' | 'pngOut' | 'wblock' | 'publish' | 'dsettings' | 'osnapSettings' | 'polar' | 'otrack' | 'lwt'
+  | 'textStyle' | 'dimStyle' | 'mleaderStyle' | 'pointStyle' | 'blockDialog' | 'blocksPalette' | 'attDef' | 'attExport' | 'saveAs' | 'closeOthers' | 'export' | 'exportPdf' | 'pngOut' | 'wblock' | 'publish' | 'dsettings' | 'osnapSettings' | 'polar' | 'otrack' | 'lwt'
   | 'copyClip' | 'cutClip' | 'copyBase' | 'pasteClip' | 'pasteOrig' | 'tbSave' | 'zoomPrev' | 'qselect'
   | 'undo' | 'redo' | 'selectAll' | 'selectInvert' | 'zoomSel' | 'count' | 'isolateObjects' | 'hideObjects' | 'unisolateObjects' | 'addSelected' | 'quickMeasure' | 'find' | 'bedit' | 'bsave' | 'bclose' | 'refedit' | 'refclose';
 
@@ -129,6 +129,12 @@ export const CAD_COMMANDS: readonly CadCommand[] = [
   { aliases: ['REVCLOUD', 'RC'], desc: 'Revision cloud', tool: 'revcloud' },
   { aliases: ['T', 'DT', 'TEXT'], desc: 'Text', tool: 'text' },
   { aliases: ['MT', 'MTEXT'], desc: 'Notes: a paragraph text in a box, its lines wrapped to the width', tool: 'mtext' },
+  { aliases: ['MLD', 'MLEADER'], desc: 'Multileader: arrowhead, landing, then the words (several leaders, one note)', tool: 'mleader' },
+  { aliases: ['MLEADERADD'], desc: 'Add a leader to a multileader', tool: 'mleaderadd' },
+  { aliases: ['MLEADERREMOVE'], desc: 'Remove a leader from a multileader', tool: 'mleaderremove' },
+  { aliases: ['MLA', 'MLEADERALIGN'], desc: 'Line up multileaders on one multileader', tool: 'mleaderalign' },
+  { aliases: ['MLC', 'MLEADERCOLLECT'], desc: 'Collect multileaders into one', tool: 'mleadercollect' },
+  { aliases: ['MLS', 'MLEADERSTYLE'], desc: 'Multileader style', action: 'mleaderStyle' },
   { aliases: ['ED', 'TEXTEDIT', 'DDEDIT'], desc: 'Edit a text or dimension in place (or double-click it)', tool: 'textedit' },
   { aliases: ['TJ', 'TJUST', 'JUSTIFYTEXT'], desc: 'Justify the texts picked without moving them', tool: 'tjust' },
   { aliases: ['TH', 'TXTHEIGHT', 'TEXTHEIGHT'], desc: 'Text height on paper (mm) of the texts picked, or for new text', tool: 'th' },

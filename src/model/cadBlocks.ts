@@ -57,6 +57,7 @@ export function placed(it: SketchItem, k: number, a: number, to: Pt): SketchItem
   if (it.h !== undefined) out.h = it.h * k;
   if (it.w !== undefined) out.w = it.w * k;
   if (it.cloud !== undefined) out.cloud = it.cloud * k;
+  if (it.ml) out.ml = { ...it.ml, size: it.ml.size * k, land: it.ml.land * k, gap: it.ml.gap * k };
   if (it.ax) out.ax = rot([it.ax[0] * k, it.ax[1] * k], a);
   if (it.kind === 'insert' && k !== 1) out.sc = (it.sc ?? 1) * k;
   if (it.look) out.look = Object.fromEntries(Object.entries(it.look).map(([key, v]) => [key, typeof v === 'number' && key !== 'decimals' ? v * k : v])) as typeof it.look;

@@ -35,6 +35,11 @@ export interface CadDimStyle {
   hideExt1: boolean; hideExt2: boolean; textPos: DimTextPos; textAlong: DimTextAlong; textFlat: boolean; gapMm: number;
   decimals: number; unit: DimUnit; scale: number; round: number; trimZeros: boolean; comma: boolean; prefix: string; suffix: string;
 }
+/** A multileader style: arrowhead and its size, landing on and its length, what the leader carries (notes or nothing),
+ * the words' height (0: the annotation text height) and gap, a frame round the words, and whether a new one fills in
+ * the circuit of the device at its arrowhead. Sizes are paper mm. */
+export interface CadMleaderStyle { name: string; arrow: DimArrow; arrowMm: number; landing: boolean; landingMm: number;
+  content: 'note' | 'none'; textMm: number; gapMm: number; frame: boolean; circuit: boolean }
 /** The styles of a kind and the one new text or dimensions take. */
 export interface CadStyles<T> { styles: T[]; current: string }
 
@@ -45,6 +50,7 @@ export const DIM_DEFAULTS: Omit<CadDimStyle, 'name' | 'arrow' | 'arrowMm' | 'tex
   arrow2: 'same', dleMm: 0, hideExt1: false, hideExt2: false, textPos: 'outside', textAlong: 'centre', textFlat: false, gapMm: 0.6,
   scale: 1, round: 0, trimZeros: false, comma: false, prefix: '', suffix: ''
 };
+export const STANDARD_MLEADER: CadMleaderStyle = { name: STANDARD, arrow: 'filled', arrowMm: 3, landing: true, landingMm: 2.5, content: 'note', textMm: 0, gapMm: 1, frame: false, circuit: false };
 const standardDim = (p: Project): CadDimStyle => ({ name: STANDARD, arrow: 'tick', arrowMm: 2.5, textMm: annoOf(p).textMm * 0.8, offsetMm: 0.6, extendMm: 1.25, decimals: 2, unit: 'm', ...DIM_DEFAULTS });
 /** A style saved before some settings existed, with them as it drew. */
 export const fullDimStyle = (s: Partial<CadDimStyle> & Pick<CadDimStyle, 'name'>, p: Project): CadDimStyle => ({ ...standardDim(p), ...s });
@@ -57,6 +63,10 @@ export function dimStylesOf(p: Project): CadStyles<CadDimStyle> {
   const s = withStandard(p.cadDimStyles, standardDim(p));
   return { ...s, styles: s.styles.map((x) => fullDimStyle(x, p)) };
 }
+export const mleaderStylesOf = (p: Project): CadStyles<CadMleaderStyle> => {
+  const s = withStandard(p.cadMleaderStyles, STANDARD_MLEADER);
+  return { ...s, styles: s.styles.map((x) => ({ ...STANDARD_MLEADER, ...x })) };
+};
 /** What the project keeps of the styles saved: Standard only once changed, and nothing at all when only an unchanged
  * Standard is left as the current style. */
 function toStore<T extends { name: string }>(s: CadStyles<T>, standard: T): CadStyles<T> | undefined {
@@ -68,9 +78,11 @@ export const textStylesToStore = (s: CadStyles<CadTextStyle>) => toStore(s, STAN
 export const dimStylesToStore = (p: Project, s: CadStyles<CadDimStyle>) => toStore(s, standardDim(p));
 /** Standard as before: not changed, so not stored. */
 export const dimStandardAsBefore = (p: Project) => !p.cadDimStyles?.styles.some((x) => x.name === STANDARD);
+export const mleaderStylesToStore = (s: CadStyles<CadMleaderStyle>) => toStore(s, STANDARD_MLEADER);
 const currentOf = <T extends { name: string }>(s: CadStyles<T>) => s.styles.find((x) => x.name === s.current) ?? s.styles[0];
 export const currentTextStyle = (p: Project) => currentOf(textStylesOf(p));
 export const currentDimStyle = (p: Project) => currentOf(dimStylesOf(p));
+export const currentMleaderStyle = (p: Project) => currentOf(mleaderStylesOf(p));
 
 /** How a new dimension looks (drawing units): from the current dimension style; none (sized from its length, as
  * before) while that is Standard unchanged. */

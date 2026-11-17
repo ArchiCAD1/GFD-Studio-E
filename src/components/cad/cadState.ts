@@ -20,7 +20,7 @@ import type { PlanTarget } from '../../model/planTarget';
  * with a legend line; `rtall` tags every room of the level. */
 export type CadTool = 'none' | 'dist' | 'area' | 'room' | 'trace' | 'name' | 'tray' | 'cable' | 'link' | 'dev' | 'fill' | 'lux' | 'em' | 'arl' | 'match' | 'wire' | 'move' | 'copy' | 'rotate' | 'mirror' | 'scale' | 'align' | 'stretch' | 'trim' | 'extend' | 'offset' | 'fillet' | 'chamfer' | 'break' | 'join' | 'explode' | 'array' | 'matchprop' | 'hatch' | 'leader' | 'rtag' | 'north' | 'line' | 'xline' | 'ray' | 'pline' | 'rect' | 'circle' | 'arc' | 'text' | 'dim' | 'xattach' | 'xclip'
   | 'polygon' | 'ellipse' | 'circle2p' | 'circle3p' | 'circled' | 'arcsce' | 'revcloud' | 'crop'
-  | 'dimlin' | 'dimcont' | 'dimbase' | 'tjust' | 'th' | 'talign' | 'tcase' | 'tprefix' | 'tsuffix' | 'torient' | 'tcen' | 'tcopy' | 'rtall' | 'tframe' | 'tmask' | 'tcount' | 'keynote' | 'mtext' | 'draworder' | 'texttofront' | 'point' | 'divide' | 'measure' | 'block' | 'blockpick' | 'insert' | 'attedit' | 'attpick' | 'copybase' | 'paste'
+  | 'dimlin' | 'dimcont' | 'dimbase' | 'tjust' | 'th' | 'talign' | 'tcase' | 'tprefix' | 'tsuffix' | 'torient' | 'tcen' | 'tcopy' | 'rtall' | 'tframe' | 'tmask' | 'tcount' | 'keynote' | 'mtext' | 'mleader' | 'mleaderadd' | 'mleaderremove' | 'mleaderalign' | 'mleadercollect' | 'draworder' | 'texttofront' | 'point' | 'divide' | 'measure' | 'block' | 'blockpick' | 'insert' | 'attedit' | 'attpick' | 'copybase' | 'paste'
   | 'zoom' | 'zoomwin' | 'zoomscale' | 'pan' | 'selsim' | 'dimrad' | 'dimdia' | 'dimang' | 'textedit' | 'hatchedit' | 'boundary';
 
 /** Sample plans shipped with the app (electron/samples, made by scripts/make-sample-villa-plans.mjs), shown while no
@@ -76,6 +76,8 @@ export interface CadRibbonInfo {
   props: { [K in keyof ObjectProps]: ObjectProps[K] | 'varies' };
   /** The drawing's own blocks, for Insert's arrow (S10 of the 2D gap plan). */
   blocks: string[];
+  /** The multileader styles and the current one, for the Annotate list. */
+  mleaderStyles?: { names: string[]; current: string };
   /** The scales offered for viewports (1:n). */
   scales?: number[];
   /** The viewport the layout tools act on: locked, and whether its frame prints. */
