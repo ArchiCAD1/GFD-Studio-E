@@ -30,12 +30,13 @@ A preliminary risk assessment at the top of the lightning protection study. It w
 
 ## Stages
 
-1. **Engine** — `src/calc/lightningRisk.ts` with tests. No UI, no project data. (This PR.)
-2. **Project data and the study page** — inputs saved with the project; the card, tables and result cards above; rectangle and entered area.
+1. **Engine** — `src/calc/lightningRisk.ts` with tests. No UI, no project data. (PR #645.)
+2. **Project data and the study page** — inputs saved with the project (`lightning.risk`); the card, tables and result cards above; rectangle and entered area. The result cards and the risk checks show once something is entered, so a study without a risk assessment is unchanged. (Done.)
 3. **Report** — the risk section in the PDF, Word and Excel exports. Needs PDF baselines made on the Mac.
 4. **Roof outline** — the outline from Design CAD as the collection area, and the offset drawing in the report.
 
 ## Later
 
+- Load preset / Save as preset for the engineer's own factor sets (needs a place to keep presets outside one project).
 - Parts of the building with different heights, and tall roof elements (each with its own reach).
 - The other risk components: strikes near the building and on incoming lines.

@@ -8,7 +8,7 @@
  * DATA REQUIRED — nothing is assumed. Only the arithmetic and the geometry of the collection area are here:
  * the roof outline pushed out by three times the building height. Metres, one height for the whole building. */
 
-import type { LpsClass } from './lightningProtection';
+import type { LpsClass, LpsInputs } from './lightningProtection';
 
 export type RiskShape = 'outline' | 'rectangle' | 'area';
 export const RISK_SHAPES: { id: RiskShape; label: string }[] = [
@@ -82,6 +82,16 @@ export interface RiskResult {
   /** How each figure was reached, for the page and the report. */
   working: { step: string; formula: string; result: string }[];
   checks: { status: 'ok' | 'warn' | 'bad'; text: string }[];
+}
+
+/** The study's risk inputs: the rectangle shape takes the building size of the study. */
+export function studyRiskInputs(i: Pick<LpsInputs, 'lengthM' | 'widthM' | 'heightM' | 'risk'>): RiskInputs {
+  const k: RiskInputs = i.risk ?? { shape: 'rectangle' };
+  return k.shape === 'rectangle' ? { ...k, lengthM: i.lengthM, widthM: i.widthM, heightM: i.heightM } : k;
+}
+/** Whether anything has been entered for the risk assessment (a study without one shows no risk checks). */
+export function riskStarted(k: RiskInputs | undefined): boolean {
+  return !!k && Object.entries(k).some(([key, v]) => key !== 'shape' && (typeof v === 'object' ? Object.values(v ?? {}).some((x) => x !== undefined) : v !== undefined));
 }
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
