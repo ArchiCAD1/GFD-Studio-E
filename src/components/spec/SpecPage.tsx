@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import {
   AlignLeft, ArrowDown, ArrowUp, Baseline, Bold, Braces, ClipboardPaste, Copy, FilePlus2, FileText, FileType, FolderOpen, Heading1, Heading2, Italic, List, ListOrdered, PaintBucket, Paintbrush,
-  BookmarkPlus, BookOpen, LibraryBig, Save, Columns3, Image as ImageIcon, Rows3, Table as TableIcon, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
+  BookmarkPlus, BookOpen, Link2, LibraryBig, Save, Columns3, Image as ImageIcon, Rows3, Table as TableIcon, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
 } from 'lucide-react';
 import type { Project } from '../../types';
 import {
@@ -12,6 +12,7 @@ import { addCol, addRow, deleteCol, deleteRow, imageFromDataUrl, setCell, tableF
 import { Big, Group, Icons, IconTool, PageRibbon, RIBBON_CSS, Rows, Small } from '../pageRibbon';
 import { buildSpecHtml, specPdfPage } from '../../docs/specReport';
 import { safeFileName, saveBinary, savePdf, saveText } from '../../util/files';
+import { linkFields, linkSuggestions } from '../../model/specLink';
 import {
   applyTemplate, loadTemplates, removeTemplate, saveTemplates, specFileText, specFromFileText, templateNameError, templateOf, templateSummary, withTemplate,
   SPEC_FILE_EXT, TEMPLATE_KINDS, TEMPLATE_MAX_CHARS, type SpecTemplate, type SpecTemplateKind
@@ -124,7 +125,9 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
   const save = (next: SpecDoc) => onChange({ ...project, spec: next }, true);
   const included = doc.sections.filter((s) => s.included).length;
   const [busy, setBusy] = useState(false);
-  const [panel, setPanel] = useState<null | 'save' | 'library'>(null);
+  const [panel, setPanel] = useState<null | 'save' | 'library' | 'link'>(null);
+  const [linkOff, setLinkOff] = useState<Set<string>>(new Set()); // the suggested values the engineer has unticked
+  const wordFile = useRef<HTMLInputElement>(null);
   const [templates, setTemplates] = useState<SpecTemplate[]>(loadTemplates);
   const [tplName, setTplName] = useState('');
   const [tplKind, setTplKind] = useState<SpecTemplateKind>('section');
@@ -220,6 +223,27 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
     save(next); setSectionId(next.sections[0].id); setClauseId(null);
     onStatus?.(`Specification opened from ${file.name}: ${next.sections.length} section${next.sections.length === 1 ? '' : 's'} (undo to return to the one before)`);
   };
+  // ---- a Word document, and linking typed values to the project
+  const openWord = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const { readSpecDocx, wordReadText } = await import('../../docs/specWordRead');
+      const { doc: read, report } = await readSpecDocx(await file.arrayBuffer());
+      // The wording comes from the file; the document's own information and page setup stay.
+      const next: SpecDoc = { ...read, ...(doc.info ? { info: doc.info } : {}), ...(doc.setup ? { setup: doc.setup } : {}) };
+      save(next); setSectionId(next.sections[0].id); setClauseId(null);
+      const found = linkSuggestions(next, specFields(project, next)).length;
+      setLinkOff(new Set()); setPanel(found ? 'link' : null);
+      onStatus?.(`Word document opened — ${file.name}: ${wordReadText(report)}${found ? `. ${found} project value${found === 1 ? '' : 's'} found in the wording: choose which to link` : ''} (undo to return to the specification before)`);
+    } catch (e) { onStatus?.(`${file.name}: ${String((e as Error)?.message ?? e)}`); }
+  };
+  const suggestions = useMemo(() => (panel === 'link' ? linkSuggestions(doc, fields) : []), [panel, doc, fields]);
+  const linkChosen = () => {
+    const r = linkFields(doc, suggestions.filter((x) => !linkOff.has(x.key)).map((x) => x.key), fields);
+    if (r.replaced) save(r.doc);
+    onStatus?.(r.replaced ? `Linked to the project: ${r.replaced} place${r.replaced === 1 ? '' : 's'} now follow${r.replaced === 1 ? 's' : ''} the project values` : 'Nothing was chosen to link');
+    setPanel(null);
+  };
   const isBlock = clause?.kind === 'table' || clause?.kind === 'image';
   const setTable = (c: SpecClause, table: NonNullable<SpecClause['table']>) => save(withClause(doc, section!.id, c.id, { table }));
   const info = doc.info ?? {};
@@ -282,7 +306,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
               <Rows>
                 <Small icon={FolderOpen} label="Open specification" onClick={() => specFile.current?.click()} />
                 <Small icon={Save} label="Save specification as" onClick={() => void saveSpecFile()} />
-                <Small icon={FolderOpen} label="Open Word template" />
+                <Small icon={FileText} label="Open Word document" onClick={() => wordFile.current?.click()} />
               </Rows>
             </Group>
             <Group name="Templates">
@@ -382,6 +406,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
               )}
             </Group>
             <Group name="Project data">
+              <Rows><Small icon={Link2} label="Link values" onClick={() => { setLinkOff(new Set()); setPanel(panel === 'link' ? null : 'link'); }} pressed={panel === 'link'} /></Rows>
               <Braces size={26} aria-hidden style={{ color: 'var(--acc)' }} />
               <select className="spx-insert" aria-label="Insert field" value="" disabled={!clause || isBlock} title={clause ? 'Put a project value in the clause being edited' : 'Click a clause first'} onChange={(e) => insertField(e.target.value)}>
                 <option value="">Insert field…</option>
@@ -430,6 +455,24 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
             <button type="button" onClick={saveTemplate} disabled={!!tplError}>Save template</button>
             <button type="button" onClick={() => setPanel(null)}>Close</button>
             <span>{tplName && tplError ? tplError : 'Fields stay fields: the template fills in from the project it is used in. A template of the same name and kind is replaced.'}</span>
+          </div>
+        </section>
+      )}
+      <input ref={wordFile} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Word document" hidden onChange={(e) => { void openWord(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
+      {panel === 'link' && tab !== 'setup' && (
+        <section className="spx-card" aria-label="Link values to the project">
+          <h4>Link values to the project</h4>
+          {suggestions.length === 0 && <p className="spx-note">No project value is typed in the wording. Where a clause should follow the project, click it and use Insert field.</p>}
+          {suggestions.map((x) => (
+            <label key={x.key} className="spx-tick">
+              <input type="checkbox" aria-label={`Link ${x.label}`} checked={!linkOff.has(x.key)} onChange={(e) => { const next = new Set(linkOff); if (e.target.checked) next.delete(x.key); else next.add(x.key); setLinkOff(next); }} />
+              <span><b>{x.value}</b> → {x.label} <span className="spx-note">· typed in {x.count} place{x.count === 1 ? '' : 's'}</span></span>
+            </label>
+          ))}
+          <p className="spx-note">A linked value becomes a field: it then changes with the project, and shows DATA REQUIRED if the project loses it. Untick a value that only happens to be the same (a rating that is not this board’s). Whole words only; fields already in the text are left alone.</p>
+          <div className="spx-blk-tools">
+            <button type="button" onClick={linkChosen} disabled={suggestions.every((x) => linkOff.has(x.key))}>Link the ticked values</button>
+            <button type="button" onClick={() => setPanel(null)}>Close</button>
           </div>
         </section>
       )}
