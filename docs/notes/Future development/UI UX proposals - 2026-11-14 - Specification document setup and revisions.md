@@ -33,8 +33,8 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
 | 3 | Cover page (logo, title, project, number, status, parties, own details, revision table, note; no header or footer) and contents page (sections, optionally clause headings, page numbers), each on unless turned off. The revision table lists the project's issued revisions until stage 7 gives the specification its own. | done (#648) |
 | 4 | Indent / outdent (sub-headings 2.1.3; items a), b) … and i), ii) …), a page break before a line, appendices (lettered, after the numbered sections). | done (#650) |
 | 5 | Tables and pictures as blocks in the text flow, with numbered captions (Table 1, Figure 1). A table comes from cells copied in Sheets or Excel and pasted on the page, from one of the project's sheets (a copy), or empty; cells, rows, columns and the header row are edited on the page. A picture is a PNG or JPEG (up to 1 MB, kept in the project file), from a file or pasted, at a chosen share of the text width. | done (#652) |
-| 6a | Template library (a heading with its clauses, a section, or the whole specification; fields stay fields; kept on the computer and synced with the library file). The specification as a file of its own: Save specification as, Open specification (`.lvspec`). | this change |
-| 6b | Open a Word document; turn its values into live fields. | next |
+| 6a | Template library (a heading with its clauses, a section, or the whole specification; fields stay fields; kept on the computer and synced with the library file). The specification as a file of its own: Save specification as, Open specification (`.lvspec`). | done (#658) |
+| 6b | Open a Word document (.docx): headings become sections and clause headings, paragraphs clauses, lists lettered items, tables tables; typed numbers are dropped and the document's own contents page skipped. Link values: project values found typed in the wording are listed, and the ticked ones become fields. | this change |
 | 7 | Specification revisions with highlight, cloud and revision marks. | |
 
 ## Changes to what is on screen (stage 1 + 2)
@@ -77,6 +77,14 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
 - File tab: "Open specification" and "Save specification as" beside Starter wording; a "Templates" group with
   Templates (the library: use or delete) and Save as template (what to save, and its name).
 - "Open Word template" stays greyed until stage 6b.
+
+## Changes to what is on screen (stage 6b)
+
+- File tab: the greyed "Open Word template" is now "Open Word document" and live.
+- Home tab, Project data group: "Link values", which opens a card listing the project values found typed in the
+  wording, each with a tick box; nothing is linked without the engineer choosing it.
+- Not read from a Word file: pictures (counted and reported), text boxes, headers and footers, footnotes,
+  tracked changes, bold / italic / colour. An older .doc file must first be saved as .docx in Word.
 
 ## Not checked on screen
 
