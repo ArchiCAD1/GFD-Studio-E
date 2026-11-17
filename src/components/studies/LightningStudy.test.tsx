@@ -214,3 +214,25 @@ describe('Lightning protection study — other risk components', () => {
   });
 });
 
+describe('Lightning protection study — a probability for each line', () => {
+  it('"By line" moves the probability to a row for each line', () => {
+    let last: Project | undefined;
+    const render = (p: Project) => act(() => root.render(<LightningStudy project={p} onChange={(x) => { last = x; render(x); }} />));
+    const box = (label: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+    const type = (label: string, value: string) => act(() => { const el = box(label); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, value); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });
+    const name = 'Physical damage — strike on an incoming line', line = { lengthM: 1000, strikeWidthM: 40, installationFactor: 0.5, environmentFactor: 0.5, typeFactor: 1 };
+    render({ ...sampleProject, lightning: { lengthM: 35, widthM: 26, heightM: 8.5, method: 'mesh', risk: { shape: 'rectangle', thunderDays: 40, strikeRatio: 1, locationFactor: 1, fireRisk: 0.02, fireProvisions: 0.5, specialHazard: 1, typicalLoss: 0.5,
+      tolerableRisk: 1e-5, damageProbability: { none: 1, IV: 0.2, III: 0.1, II: 0.05, I: 0.02 }, lines: [{ ...line, name: 'Power' }, { ...line, lengthM: 500 }], components: { damageLine: { on: true, loss: 0.005, probability: 0.05 } } } } });
+    expect(text()).toContain('More than Class I');
+    expect(box(`Probability by line — Injury by touch and step voltage — strike on the building`)).toBeNull();
+    act(() => box(`Probability by line — ${name}`).click());
+    expect(text()).toContain('For each line, below');
+    expect(text()).toContain('probability — physical damage — strike on an incoming line — Power');
+    type(`Probability — ${name} — line 1`, '0.01');
+    type(`Probability — ${name} — line 2`, '0.05');
+    expect(last!.lightning!.risk!.lines!.map((x) => x.probabilities)).toEqual([{ damageLine: { probability: 0.01 } }, { damageLine: { probability: 0.05 } }]);
+    expect(text()).toContain('Class I (minimum)');
+    expect(text()).toContain('7 × 10⁻⁶');
+  });
+});
+

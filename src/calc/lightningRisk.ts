@@ -2,8 +2,8 @@
  * physical damage brings, and the risk left with each protection class, against the tolerable risk. A standard
  * industry calculation. Physical damage from a strike on the building is always in it; the engineer ticks the other
  * risk components that apply (injury, failure of internal systems, strikes near the building, strikes on and near
- * incoming lines) and they are added to it. One zone, and one probability for each component whatever the number
- * of lines.
+ * incoming lines) and they are added to it. One zone. A line component takes one probability for all the lines,
+ * or one for each line.
  *
  * No value of a standard is built in. The lightning activity, the location and loss factors, the damage
  * probability of each class and the tolerable risk are entered by the engineer. A value that is missing gives
@@ -27,7 +27,8 @@ export function riskScope(k: RiskInputs): string {
   const on = RISK_COMPONENTS.filter((c) => k.components?.[c.id]?.on), off = RISK_COMPONENTS.filter((c) => !k.components?.[c.id]?.on);
   if (!on.length) return 'One risk component only: physical damage from a direct strike. Strikes near the building and on incoming lines are not included, so the class is a minimum.';
   const list = (x: typeof on) => x.map((c) => c.label.toLowerCase()).join('; ');
-  return `Risk components included: ${RISK_DAMAGE_LABEL.toLowerCase()}; ${list(on)}.${off.length ? ` Not included: ${list(off)}.` : ''} One zone, and one probability for each component whatever the number of lines.`;
+  const shared = on.some((c) => (c.events === 'line' || c.events === 'nearLine') && !k.components![c.id]!.byLine);
+  return `Risk components included: ${RISK_DAMAGE_LABEL.toLowerCase()}; ${list(on)}.${off.length ? ` Not included: ${list(off)}.` : ''} One zone${shared ? ', and one probability for each line component whatever the number of lines' : ''}.`;
 }
 export const RISK_NOTE = 'Standard industry calculation. The input data and the results must be verified by a qualified engineer against the applicable standard.';
 
@@ -45,9 +46,11 @@ export const RISK_COMPONENTS: { id: RiskComponentId; label: string; events: Risk
   { id: 'systemsNearLine', label: 'Failure of internal systems — strike near an incoming line', events: 'nearLine' }
 ];
 export const RISK_DAMAGE_LABEL = 'Physical damage — strike on the building';
-/** One added risk component, as entered: whether it applies, its loss, and its probability — one value, or one
- * for each protection class when the protection changes it. */
-export interface RiskComponentInput { on?: boolean; loss?: number; probability?: number; byClass?: boolean; classProbability?: Partial<Record<RiskLevel, number>> }
+/** A probability as entered: one value, or one for each protection class when the protection changes it. */
+export interface RiskProbability { probability?: number; classProbability?: Partial<Record<RiskLevel, number>> }
+/** One added risk component, as entered: whether it applies, its loss, and its probability. `byClass`: one for
+ * each protection class. `byLine` (a line component): the probability is entered on each line instead. */
+export interface RiskComponentInput extends RiskProbability { on?: boolean; loss?: number; byClass?: boolean; byLine?: boolean }
 /** An incoming line (power, telecom): its length, the width that collects strikes on it and near it, and its
  * factors, all entered. Optionally the structure at its far end: its collection area and location factor. */
 export interface RiskLine {
@@ -60,6 +63,8 @@ export interface RiskLine {
   typeFactor?: number;
   farEndAreaM2?: number;
   farEndLocationFactor?: number;
+  /** This line's own probability for a line component marked `byLine`. */
+  probabilities?: Partial<Record<RiskComponentId, RiskProbability>>;
 }
 
 /** A part of the building with its own height (a tower, a lift overrun, a mast), in the coordinates of the roof outline. */
@@ -335,6 +340,8 @@ export function lightningRisk(i: RiskInputs): RiskResult {
   const on = RISK_COMPONENTS.filter((c) => i.components?.[c.id]?.on), needs = (e: RiskEvents) => on.some((c) => c.events === e);
   const far = pos(i.nearDensity) ? i.nearDensity : density;
   const events: Partial<Record<RiskEvents, number>> = { building: strikes };
+  const perLine: Partial<Record<RiskEvents, number>>[] = [], lineTag = (line: RiskLine, n: number) => line.name?.trim() || `line ${n + 1}`;
+  const byLine = (c: (typeof RISK_COMPONENTS)[number]) => (c.events === 'line' || c.events === 'nearLine') && !!i.components?.[c.id]?.byLine;
   if (needs('near')) {
     let nearArea: number | undefined;
     if (i.shape === 'area') {
@@ -354,7 +361,7 @@ export function lightningRisk(i: RiskInputs): RiskResult {
     if (!lines.length) missing.push('incoming lines');
     let onLines: number | undefined = 0, nearLines: number | undefined = 0;
     lines.forEach((line, n) => {
-      const tag = line.name?.trim() || `line ${n + 1}`, lack = (what: string) => { missing.push(`${tag}: ${what}`); return false; };
+      const tag = lineTag(line, n), lack = (what: string) => { missing.push(`${tag}: ${what}`); return false; };
       const sized = [pos(line.lengthM) || lack('length'), pos(line.installationFactor) || lack('installation factor'), pos(line.environmentFactor) || lack('environment factor'), pos(line.typeFactor) || lack('line type factor')].every(Boolean);
       const common = sized && far !== undefined ? far * line.lengthM! * line.installationFactor! * line.environmentFactor! * line.typeFactor! * 1e-6 : undefined;
       if (needs('line')) {
@@ -365,12 +372,14 @@ export function lightningRisk(i: RiskInputs): RiskResult {
         const hit = common !== undefined && wide && end !== undefined ? common * line.strikeWidthM! + end : undefined;
         if (hit !== undefined) working.push({ step: `Strikes on ${tag}`, formula: `density × length × width × installation × environment × type × 10⁻⁶${end ? ' + far-end structure (density × area × location factor × type × 10⁻⁶)' : ''} = ${r2(far!)} × ${r2(line.lengthM!)} × ${r2(line.strikeWidthM!)} × ${line.installationFactor} × ${line.environmentFactor} × ${line.typeFactor} × 10⁻⁶${end ? ` + ${riskText(end)}` : ''}`, result: `${riskText(hit)} /yr` });
         onLines = onLines !== undefined && hit !== undefined ? onLines + hit : undefined;
+        perLine[n] = { ...perLine[n], line: hit };
       }
       if (needs('nearLine')) {
         const wide = pos(line.nearWidthM) || lack('width for strikes near the line');
         const hit = common !== undefined && wide ? common * line.nearWidthM! : undefined;
         if (hit !== undefined) working.push({ step: `Strikes near ${tag}`, formula: `density × length × width × installation × environment × type × 10⁻⁶ = ${r2(far!)} × ${r2(line.lengthM!)} × ${r2(line.nearWidthM!)} × ${line.installationFactor} × ${line.environmentFactor} × ${line.typeFactor} × 10⁻⁶`, result: `${riskText(hit)} /yr` });
         nearLines = nearLines !== undefined && hit !== undefined ? nearLines + hit : undefined;
+        perLine[n] = { ...perLine[n], nearLine: hit };
       }
     });
     if (lines.length && needs('line')) events.line = onLines;
@@ -381,8 +390,14 @@ export function lightningRisk(i: RiskInputs): RiskResult {
   for (const c of on) {
     const e = i.components![c.id]!, name = c.label.toLowerCase();
     if (!zeroUp(e.loss)) missing.push(`loss — ${name}`);
-    if (!e.byClass && !zeroUp(e.probability)) missing.push(`probability — ${name}`);
     const n = events[c.events];
+    if (byLine(c)) {
+      // Each line has its own probability: the weight is the loss, and the strikes come line by line.
+      const each = (i.lines ?? []).map((line, m) => e.byClass || zeroUp(line.probabilities?.[c.id]?.probability) || (missing.push(`probability — ${name} — ${lineTag(line, m)}`), false)).every(Boolean);
+      weight.set(c.id, n !== undefined && zeroUp(e.loss) && each ? e.loss : undefined);
+      continue;
+    }
+    if (!e.byClass && !zeroUp(e.probability)) missing.push(`probability — ${name}`);
     weight.set(c.id, n !== undefined && zeroUp(e.loss) && (e.byClass || zeroUp(e.probability)) ? n * e.loss : undefined);
   }
 
@@ -399,7 +414,18 @@ export function lightningRisk(i: RiskInputs): RiskResult {
     const parts: RiskRow['parts'] = {};
     if (ready && zeroUp(p)) parts.damage = strikes! * p * loss!;
     for (const c of on) {
-      const e = i.components![c.id]!, q = e.byClass ? e.classProbability?.[level] : e.probability;
+      const e = i.components![c.id]!;
+      if (byLine(c)) {
+        let sum: number | undefined = 0;
+        (i.lines ?? []).forEach((line, m) => {
+          const own = line.probabilities?.[c.id], q = e.byClass ? own?.classProbability?.[level] : own?.probability;
+          if (!zeroUp(q)) { gaps.push(`probability — ${c.label.toLowerCase()} — ${lineTag(line, m)} — ${riskLevelLabel(level).toLowerCase()}`); sum = undefined; }
+          else if (sum !== undefined && ready) sum += perLine[m][c.events]! * q * weight.get(c.id)!;
+        });
+        if (sum !== undefined && ready) parts[c.id] = sum;
+        continue;
+      }
+      const q = e.byClass ? e.classProbability?.[level] : e.probability;
       if (!zeroUp(q)) gaps.push(`probability — ${c.label.toLowerCase()} — ${riskLevelLabel(level).toLowerCase()}`);
       else if (ready) parts[c.id] = weight.get(c.id)! * q;
     }

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { SPD_TYPES, type Project } from '../../types';
 import { AIR_METHODS, airResultText as resultText, lightningProtection, lpsLayout, type AirMethod, type AirResult, type LpsClass, type LpsInputs } from '../../calc/lightningProtection';
 import { lightningRisk, RISK_COMPONENTS, RISK_DAMAGE_LABEL, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskOutlineSketch, riskScope, riskStarted, riskText, studyRiskInputs,
-  type RiskComponentId, type RiskComponentInput, type RiskInputs, type RiskLevel, type RiskLine } from '../../calc/lightningRisk';
+  type RiskComponentId, type RiskComponentInput, type RiskInputs, type RiskLevel, type RiskLine, type RiskProbability } from '../../calc/lightningRisk';
 import { areaOf } from '../../model/cadMeasure';
 import { buildLightningReportHtml, LPS_SECTIONS, type LpsSectionKey } from '../../docs/lightningReport';
 import { applyRiskPreset, loadRiskPresets, saveRiskPresets, withRiskPreset } from '../../model/lightningRiskPresets';
@@ -95,7 +95,9 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
   const setComp = (id: RiskComponentId, p: Partial<RiskComponentInput>) => setRisk({ components: { ...k0.components, [id]: { ...comp(id), ...p } } });
   const lines = k0.lines ?? [];
   const setLine = (n: number, p: Partial<RiskLine>) => setRisk({ lines: lines.map((x, m) => (m === n ? { ...x, ...p } : x)) });
+  const setLineProbability = (n: number, id: RiskComponentId, p: Partial<RiskProbability>) => setLine(n, { probabilities: { ...lines[n].probabilities, [id]: { ...lines[n].probabilities?.[id], ...p } } });
   const counted = RISK_COMPONENTS.filter((c) => comp(c.id).on);
+  const ownLine = counted.filter((c) => (c.events === 'line' || c.events === 'nearLine') && comp(c.id).byLine);
   const needsNear = counted.some((c) => c.events === 'near'), needsLines = counted.some((c) => c.events === 'line' || c.events === 'nearLine');
   const picked = LPS_SECTIONS.map((x) => x.key).filter((x) => sections.includes(x));
   async function exportReport() {
@@ -256,9 +258,9 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
             </g>
           </svg>
         )}
-        <p className="m">Other risk components: tick the ones that apply and enter the loss and the probability of each. Tick "By class" when the protection class changes the probability. Physical damage from a strike on the building is always counted.</p>
+        <p className="m">Other risk components: tick the ones that apply and enter the loss and the probability of each. Tick "By class" when the protection class changes the probability, and "By line" when the lines differ. Physical damage from a strike on the building is always counted.</p>
         <table>
-          <thead><tr><th>Count</th><th>Risk component</th><th>Loss</th><th>Probability</th><th>By class</th></tr></thead>
+          <thead><tr><th>Count</th><th>Risk component</th><th>Loss</th><th>Probability</th><th>By class</th><th>By line</th></tr></thead>
           <tbody>
             {RISK_COMPONENTS.map((c) => {
               const e = comp(c.id);
@@ -268,11 +270,13 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
                   <td style={{ whiteSpace: 'normal' }}>{c.label}</td>
                   <td>{e.on && <NumCell label={`Loss — ${c.label}`} value={e.loss} onSet={(v) => setComp(c.id, { loss: v })} />}</td>
                   <td>
-                    {e.on && (e.byClass
+                    {e.on && (e.byLine && c.events !== 'building' && c.events !== 'near' ? 'For each line, below'
+                      : e.byClass
                       ? RISK_LEVELS.map((l) => <NumCell key={l} width={58} hint={l === 'none' ? 'None' : l} label={`Probability — ${c.label} — ${riskLevelLabel(l)}`} value={e.classProbability?.[l]} onSet={(v) => setComp(c.id, { classProbability: { ...e.classProbability, [l]: v } })} />)
                       : <NumCell label={`Probability — ${c.label}`} value={e.probability} onSet={(v) => setComp(c.id, { probability: v })} />)}
                   </td>
                   <td>{e.on && <input type="checkbox" aria-label={`Probability by class — ${c.label}`} checked={!!e.byClass} onChange={(ev) => setComp(c.id, { byClass: ev.target.checked })} />}</td>
+                  <td>{e.on && (c.events === 'line' || c.events === 'nearLine') && <input type="checkbox" aria-label={`Probability by line — ${c.label}`} checked={!!e.byLine} onChange={(ev) => setComp(c.id, { byLine: ev.target.checked })} />}</td>
                 </tr>
               );
             })}
@@ -311,6 +315,27 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
               <button className="chip" onClick={() => setRisk({ lines: [...lines, {}] })}>Add incoming line</button>
               <span>Each line: its length, the width that collects strikes on it and near it, and its factors. The far-end structure is optional.</span>
             </div>
+            {ownLine.length > 0 && lines.length > 0 && (
+              <table>
+                <thead><tr><th>Incoming line</th><th>Risk component</th><th>Probability for this line</th></tr></thead>
+                <tbody>
+                  {lines.flatMap((line, n) => ownLine.map((c) => {
+                    const own = line.probabilities?.[c.id], tag = line.name?.trim() || `Line ${n + 1}`;
+                    return (
+                      <tr key={`${n}-${c.id}`}>
+                        <td>{tag}</td>
+                        <td style={{ whiteSpace: 'normal' }}>{c.label}</td>
+                        <td>
+                          {comp(c.id).byClass
+                            ? RISK_LEVELS.map((l) => <NumCell key={l} width={58} hint={l === 'none' ? 'None' : l} label={`Probability — ${c.label} — line ${n + 1} — ${riskLevelLabel(l)}`} value={own?.classProbability?.[l]} onSet={(v) => setLineProbability(n, c.id, { classProbability: { ...own?.classProbability, [l]: v } })} />)
+                            : <NumCell label={`Probability — ${c.label} — line ${n + 1}`} value={own?.probability} onSet={(v) => setLineProbability(n, c.id, { probability: v })} />}
+                        </td>
+                      </tr>
+                    );
+                  }))}
+                </tbody>
+              </table>
+            )}
           </>
         )}
         {risk.working.length > 0 && (
