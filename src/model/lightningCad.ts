@@ -51,24 +51,38 @@ export function withLightningBlock(p: Project, file: string): { project: Project
 
 const sameFile = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-export interface RoofOutline { id: string; layer: string; areaM2: number; pts: [number, number][]; arcs: boolean }
+export interface RoofOutline { id: string; layer: string; areaM2: number; pts: [number, number][]; arcs: boolean; /** Its own lower left in the drawing (m). */ origin: [number, number] }
 /** Closed outlines the engineer drew over a drawing, in metres from the outline's own lower left, largest first:
- * the roof outline of the risk assessment is picked from these. A hatch or a revision cloud is not an outline;
- * arc segments are taken as straight (`arcs` says the outline has some). */
+ * the roof outline of the risk assessment and its parts are picked from these. A circle counts, as 48 straight
+ * sides (a mast or a round tower). A hatch or a revision cloud is not an outline; arc segments are taken as
+ * straight (`arcs` says the outline has some). */
 export function roofOutlines(p: Project, file: string): RoofOutline[] {
   const items = p.cadSketch?.find((x) => sameFile(x.file, file))?.items ?? [];
   const f = planScale(p, file, p.cadPlans?.find((x) => sameFile(x.file, file))?.units).factor, mm = (v: number) => Math.round(v * 1000) / 1000;
-  return items.filter((x) => x.kind === 'pline' && x.closed && !x.hatch && !x.cloud && x.pts.length >= 3).map((x) => {
-    const x0 = Math.min(...x.pts.map((q) => q[0])), y0 = Math.min(...x.pts.map((q) => q[1]));
-    const pts = x.pts.map(([a, b]): [number, number] => [mm((a - x0) * f), mm((b - y0) * f)]);
-    return { id: x.id, layer: x.layer, areaM2: Math.round(areaOf(pts).area * 100) / 100, pts, arcs: !!x.bulges?.some((v) => v) };
+  const round = (x: SketchItem): [number, number][] => Array.from({ length: 48 }, (_, n) => [x.pts[0][0] + x.r! * Math.cos((n * Math.PI) / 24), x.pts[0][1] + x.r! * Math.sin((n * Math.PI) / 24)]);
+  return items.filter((x) => (x.kind === 'pline' && x.closed && !x.hatch && !x.cloud && x.pts.length >= 3) || (x.kind === 'circle' && x.pts.length === 1 && (x.r ?? 0) > 0)).map((x) => {
+    const at = x.kind === 'circle' ? round(x) : x.pts;
+    const x0 = Math.min(...at.map((q) => q[0])), y0 = Math.min(...at.map((q) => q[1]));
+    const pts = at.map(([a, b]): [number, number] => [mm((a - x0) * f), mm((b - y0) * f)]);
+    return { id: x.id, layer: x.layer, areaM2: Math.round(areaOf(pts).area * 100) / 100, pts, arcs: !!x.bulges?.some((v) => v), origin: [mm(x0 * f), mm(y0 * f)] as [number, number] };
   }).filter((o) => o.areaM2 > 0).sort((a, b) => b.areaM2 - a.areaM2);
 }
 
 /** The project with that outline taken as the roof outline of the risk assessment (a copy: take it again after
- * changing the drawing). */
+ * changing the drawing). Parts taken against an earlier outline are dropped: they would no longer line up. */
 export function withRoofOutline(p: Project, file: string, id: string): Project | undefined {
   const o = roofOutlines(p, file).find((x) => x.id === id);
   if (!o || !p.lightning) return undefined;
-  return { ...p, lightning: { ...p.lightning, risk: { ...p.lightning.risk, shape: 'outline', outline: o.pts } } };
+  const { parts: _parts, ...rest } = p.lightning.risk ?? { shape: 'outline' as const };
+  return { ...p, lightning: { ...p.lightning, risk: { ...rest, shape: 'outline', outline: o.pts, outlineOrigin: o.origin } } };
+}
+
+/** The project with that outline added as a part with its own height (to be entered), placed where it is in the
+ * drawing relative to the roof outline. Needs a roof outline taken from the same drawing first. */
+export function withRoofPart(p: Project, file: string, id: string): Project | undefined {
+  const o = roofOutlines(p, file).find((x) => x.id === id), risk = p.lightning?.risk;
+  if (!o || !p.lightning || risk?.shape !== 'outline' || !risk.outline?.length || !risk.outlineOrigin) return undefined;
+  const [dx, dy] = [o.origin[0] - risk.outlineOrigin[0], o.origin[1] - risk.outlineOrigin[1]], mm = (v: number) => Math.round(v * 1000) / 1000;
+  const outline = o.pts.map(([x, y]): [number, number] => [mm(x + dx), mm(y + dy)]);
+  return { ...p, lightning: { ...p.lightning, risk: { ...risk, parts: [...(risk.parts ?? []), { outline }] } } };
 }

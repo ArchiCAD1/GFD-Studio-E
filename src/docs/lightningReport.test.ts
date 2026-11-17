@@ -189,3 +189,19 @@ describe('lightning risk assessment report — roof outline', () => {
     expect(ws.getCell('B8').value).toBeNull();
   });
 });
+
+describe('lightning risk assessment report — parts with their own height', () => {
+  const study: LpsInputs = { ...lightning, heightM: 8, risk: { shape: 'outline', outline: [[0, 0], [40, 0], [40, 30], [0, 30]], thunderDays: 40, strikeRatio: 1, locationFactor: 1,
+    parts: [{ outline: [[10, 10], [14, 10], [14, 14], [10, 14]], heightM: 20 }] } };
+  const p: Project = { ...sampleProject, lightning: study };
+
+  it('names the parts in the inputs and draws each on its own band', () => {
+    const blocks = lightningReportBlocks(p, study, ['risk']);
+    expect(new Map(blocks[0].pairs).get('Collection area')).toBe('Roof outline and its parts, each pushed out by 3 × its own height');
+    expect(new Map(blocks[0].pairs).get('Parts with their own height')).toBe('1: 16 m² roof, 20 m high');
+    const html = buildLightningReportHtml(p, ['risk']);
+    expect(html.match(/<path /g)!.length).toBe(4);
+    expect(html).toContain('and 1 part · each reaches 3 × its own height (shaded)');
+    expect(html.match(/#[0-9a-f]{3,6}/gi)!.every((c) => /^#(000|fff|444|f2f2f2)$/i.test(c))).toBe(true);
+  });
+});
