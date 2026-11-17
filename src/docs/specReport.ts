@@ -1,5 +1,5 @@
-import { revisionStamp } from '../model/revisions';
-import { captionText, lineText, slotRuns, specAnchor, specContents, specFields, specRevisionRows, specSetup, specView, SPEC_PAPER_MM, SPEC_PARTIES, type SpecDoc, type SpecLine, type SpecPage, type SpecView } from '../model/specDoc';
+import { changeRows, deletedBySection, marksOf, specChanges } from '../model/specRevisions';
+import { captionText, lineText, slotRuns, specAnchor, specContents, specFields, specRevisionRows, specSetup, specStamp, specView, SPEC_PAPER_MM, SPEC_PARTIES, type SpecDoc, type SpecLine, type SpecPage, type SpecView } from '../model/specDoc';
 import type { Project } from '../types';
 import { cssImage, cssStr } from './printDoc';
 import { destMarker } from './outline';
@@ -21,6 +21,13 @@ const CSS = `
   ol.contents li.l2 { padding-left: 34px; grid-template-columns: 40px 1fr auto; font-size: 9.5pt; }
   ol.contents .dots { border-bottom: 0.5pt dotted #000; margin-bottom: 3px; } ol.contents li > span:nth-child(2) { display: flex; gap: 6px; } ol.contents li > span:nth-child(2) i { flex: 1; font-style: normal; }
   a.dest { display: block; height: 0; }
+  .cl, figure.blk, h2 { position: relative; }
+  .chg.cld { background-clip: padding-box; }
+  .chg { background: rgb(0 0 0 / 0.12); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .cld { border: 12px solid transparent; border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='288' height='288' viewBox='0 0 36 36' fill='none' stroke='black' stroke-width='1'%3E%3Cpath d='M12 10A6 6 0 0 1 24 10M12 26A6 6 0 0 0 24 26M10 12A6 6 0 0 0 10 24M26 12A6 6 0 0 1 26 24M10 12A5 5 0 1 1 12 10M24 10A5 5 0 1 1 26 12M26 24A5 5 0 1 1 24 26M12 26A5 5 0 1 1 10 24'/%3E%3C/svg%3E") 96 / 12px / 5px round; }
+  .cl.cld, figure.blk.cld { margin-top: 7px; margin-bottom: 11px; }
+  svg.rv { position: absolute; right: 0; top: 0; width: 6.5mm; height: 5.7mm; } .cl:has(svg.rv), h2:has(svg.rv), figure.blk:has(svg.rv) figcaption { padding-right: 8mm; } figure.blk figcaption { position: relative; }
+  .cl.del s { text-decoration: line-through; }
   figure.blk { margin: 8px 0 10px 46px; } figure.blk.brk { break-before: page; } figure.blk.pic { break-inside: avoid; }
   figure.blk figcaption { font-size: 9pt; font-weight: 700; margin: 0 0 3px; } figure.blk.pic figcaption { margin: 3px 0 0; }
   figure.blk img { display: block; height: auto; }
@@ -86,8 +93,8 @@ export function missingList(v: SpecView): { label: string; clauses: string[] }[]
 }
 /** A table or a picture of the text, with its numbered caption (above a table, under a picture). A picture that is
  * not a plain PNG or JPEG is left out, its caption kept. */
-function blockHtml(l: SpecLine): string {
-  const cap = lineHtml(l), caption = `<figcaption>${esc(l.label ?? '')}${cap.trim() ? ` — ${cap}` : ''}</figcaption>`, brk = l.breakBefore ? ' brk' : '';
+function blockHtml(l: SpecLine, mark = { cls: '', tri: '' }): string {
+  const cap = lineHtml(l), caption = `<figcaption>${mark.tri}${esc(l.label ?? '')}${cap.trim() ? ` — ${cap}` : ''}</figcaption>`, brk = `${l.breakBefore ? ' brk' : ''}${mark.cls}`;
   if (l.table) {
     const row = (cells: string[], tag: 'th' | 'td') => `<tr>${cells.map((c) => `<${tag}>${esc(c)}</${tag}>`).join('')}</tr>`;
     const [head, ...rest] = l.table.rows;
@@ -102,7 +109,7 @@ export function buildSpecHtml(project: Project, doc: SpecDoc, pages: Record<stri
   const v = specView(doc, project), missing = missingList(v), setup = specSetup(doc, project);
   const fields = new Map(specFields(project, doc).map((f) => [f.key, f.value]));
   const infoTable = (rows: [string, string][]) => (rows.length ? `<table class="info">${rows.map(([k, x]) => `<tr><td>${esc(k)}</td><td>${esc(x)}</td></tr>`).join('')}</table>` : '');
-  const stamp = esc(revisionStamp(project));
+  const stamp = esc(specStamp(doc, project));
   const mark = setup.watermark ? `<div class="wm"><span>${esc(setup.watermark)}</span></div>` : '';
   const warn = missing.length ? `<div class="missing"><b>DATA REQUIRED</b> — the project has no value for: ${missing.map((m) => `${esc(m.label)} (${esc(m.clauses.join(', '))})`).join('; ')}.</div>` : '';
   const entries = setup.contents.on ? specContents(v, setup.contents.headings) : [];
@@ -112,7 +119,7 @@ export function buildSpecHtml(project: Project, doc: SpecDoc, pages: Record<stri
   let front: string;
   if (setup.cover.on) {
     const c = setup.cover, logo = c.logo ? cssImage(setup.logo) : undefined;
-    const revs = c.revisions ? specRevisionRows(project) : [];
+    const revs = c.revisions ? specRevisionRows(project, doc) : [];
     const sub = [fields.get('doc.number'), stamp].filter(Boolean).join(' · ');
     const [pw, ph] = SPEC_PAPER_MM[setup.paper];
     const cover = `<section class="cover first" style="height: ${(setup.landscape ? pw : ph) - 39}mm"><div class="ctop">${logo ? `<img src="${logo}" alt="">` : '<span></span>'}<span>${esc(fields.get('party.consultant') ?? '')}</span></div>
@@ -124,12 +131,24 @@ ${c.note ? `<div class="cnote">${esc(c.note)}</div>` : ''}</section>`;
   } else {
     front = `<section class="first"><header><h1>${esc(doc.title)}</h1><div class="meta">${esc(project.name)} · ${stamp}</div></header>${infoTable(specInfoRows(doc, project))}${contents}${warn}</section>`;
   }
-  const sections = v.blocks.map((b) => `<section id="${specAnchor(b.id)}">${destMarker(specAnchor(b.id), b.heading)}<h2>${esc(b.heading)}</h2>${b.lines.map((l) => {
-    if (l.table || l.image) return blockHtml(l);
-    const id = specAnchor(b.id, l.id), anchored = l.kind === 'heading' && setup.contents.on && setup.contents.headings;
-    return `<div${anchored ? ` id="${id}"` : ''} class="cl ${l.kind === 'heading' ? 'h' : l.kind === 'note' ? 'n' : ''}${l.level ? ` l${l.level}` : ''}${l.breakBefore ? ' brk' : ''}"><span>${anchored ? `<a class="dest" href="#${id}"></a>` : ''}${esc(l.no)}</span><span>${lineHtml(l)}</span></div>`;
-  }).join('')}</section>`).join('');
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(project.name)} — ${esc(doc.title)}</title><style>${pageCss(doc, project, setup)}${CSS}</style></head><body>${mark}${front}${sections}</body></html>`;
+  // What changed against the revision before: shown as the engineer chose (highlight, cloud, revision mark, the
+  // deleted words struck through), each mark carrying the revision it belongs to.
+  const ch = specChanges(doc), mk = marksOf(doc), on = ch.base !== undefined, gone = on && mk.deleted ? deletedBySection(ch) : new Map<string, Map<string, { text: string; kind: string; level?: number }[]>>();
+  const tri = on && mk.triangle ? `<svg class="rv" viewBox="0 0 24 21"><path d="M12 1.5 22.5 19.5h-21z" fill="none" stroke="#000" stroke-width="1.2"/><text x="12" y="16.5" text-anchor="middle" font-size="9" font-family="Arial, sans-serif">${esc(ch.rev)}</text></svg>` : '';
+  const marked = (changed: boolean) => (on && changed ? { cls: `${mk.highlight ? ' chg' : ''}${mk.cloud ? ' cld' : ''}`, tri } : { cls: '', tri: '' });
+  const struck = (sectionId: string, after: string) => (gone.get(sectionId)?.get(after) ?? []).map((l) => `<div class="cl del${l.level ? ` l${l.level}` : ''}"><span>${tri}</span><span><s>${esc(l.text.replace(/\{\{\s*([^}\s]+)\s*\}\}/g, (_, k: string) => fields.get(k) ?? k) || (l.kind === 'table' ? 'Table' : 'Picture'))}</s></span></div>`).join('');
+  const sections = v.blocks.map((b) => {
+    const fresh = ch.newSections.has(b.id), head = marked(fresh || ch.titles.has(b.id));
+    return `<section id="${specAnchor(b.id)}">${destMarker(specAnchor(b.id), b.heading)}<h2${head.cls ? ` class="${head.cls.trim()}"` : ''}>${head.tri}${esc(b.heading)}</h2>${struck(b.id, '')}${b.lines.map((l) => {
+      const m = marked(!fresh && ch.lines.has(l.id));
+      if (l.table || l.image) return blockHtml(l, m) + struck(b.id, l.id);
+      const id = specAnchor(b.id, l.id), anchored = l.kind === 'heading' && setup.contents.on && setup.contents.headings;
+      return `<div${anchored ? ` id="${id}"` : ''} class="cl ${l.kind === 'heading' ? 'h' : l.kind === 'note' ? 'n' : ''}${l.level ? ` l${l.level}` : ''}${l.breakBefore ? ' brk' : ''}${m.cls}"><span>${anchored ? `<a class="dest" href="#${id}"></a>` : ''}${m.tri}${esc(l.no)}</span><span>${lineHtml(l)}</span></div>${struck(b.id, l.id)}`;
+    }).join('')}</section>`;
+  }).join('');
+  const rows = on && mk.list ? changeRows(doc, v, ch) : [];
+  const list = on && mk.list ? `<section><h2>Changes in revision ${esc(ch.rev)}${ch.issued ? '' : ' (draft)'}</h2><div class="meta">Compared with revision ${esc(ch.base!)}.</div>${rows.length ? `<table class="rev"><tr><th>Clause</th><th>Change</th><th>Text</th></tr>${rows.map((r) => `<tr><td>${esc(r.ref)}</td><td>${esc(r.what)}</td><td>${esc(r.text)}</td></tr>`).join('')}</table>` : '<p>No changes.</p>'}</section>` : '';
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(project.name)} — ${esc(doc.title)}</title><style>${pageCss(doc, project, setup)}${CSS}</style></head><body>${mark}${front}${list}${sections}</body></html>`;
 }
 
 /** The specification as plain text lines (number, tab, text), for a quick copy or a check. */

@@ -134,7 +134,7 @@ describe('Specification page', () => {
     render(sampleProject);
     for (const label of ['Paste', 'Bold', 'Find and replace', 'Bullets']) expect(tool(label).disabled).toBe(true);
     expect(tool('Paste').title).toBe('Comes in a later stage');
-    expect([...document.querySelectorAll<HTMLButtonElement>('.prb-tab')].filter((t) => t.disabled).map((t) => t.textContent)).toEqual(['Insert', 'Review']);
+    expect([...document.querySelectorAll<HTMLButtonElement>('.prb-tab')].filter((t) => t.disabled).map((t) => t.textContent)).toEqual(['Insert']);
     expect(document.querySelector<HTMLSelectElement>('select[aria-label="Insert field"]')!.disabled).toBe(true);
   });
 
@@ -261,6 +261,78 @@ describe('Specification page', () => {
       await open('notes.lvspec', 'not a specification');
       expect(status[status.length - 1]).toBe('notes.lvspec: not a specification saved by LV Design Studio');
       expect(changes).toBe(before);
+    });
+  });
+
+  describe('Review tab: the specification\'s own revisions', () => {
+    const typeIn = (label: string, v: string) => act(() => {
+      const el = document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, v);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const card = (label: string) => document.querySelector<HTMLElement>(`section[aria-label="${label}"]`)!;
+    const editFirstClause = (text: string) => {
+      tabTo('Home');
+      act(() => lines()[1].click());
+      edit(text);
+    };
+
+    it('issues a revision, tracks the edits after it as the next draft, and shows them on the page and in the list', async () => {
+      saved.length = 0;
+      render(sampleProject);
+      tabTo('Review');
+      expect(tool('Issue revision').disabled).toBe(true); // no description yet
+      expect(card('Revisions').textContent).toContain('None issued yet');
+      typeIn('Revision description', 'Issued for tender'); typeIn('Revision by', 'PS');
+      press('Issue revision');
+      expect(spec().revisions!.map((r) => [r.id, r.description, r.by])).toEqual([['A', 'Issued for tender', 'PS']]);
+      expect(status[status.length - 1]).toBe('Specification revision A issued');
+      expect(document.querySelector('.spx-strip')!.textContent).toContain('Revision A issued');
+      typeIn('Revision description', 'Again');
+      expect(card('Revisions').textContent).toContain('Nothing has changed since revision A.');
+
+      editFirstClause('A reworded first clause.');
+      expect(lines()[1].classList.contains('rvc')).toBe(true);
+      expect(lines()[1].getAttribute('data-rev')).toBe('B');
+      expect(lines()[0].classList.contains('rvc')).toBe(false);
+      expect(document.querySelector('.spx-strip')!.textContent).toContain('Draft of revision B · 1 change since A');
+      tabTo('Review');
+      expect(card('Changes').textContent).toContain('Changes in revision B (draft) — against revision A');
+      expect(card('Changes').textContent).toContain('ChangedA reworded first clause.');
+
+      press('Revision cloud'); press('Deleted text'); press('Change list page'); press('Highlight');
+      expect(spec().marks).toEqual({ cloud: true, deleted: true, list: true, highlight: false });
+      await act(async () => { tool('Export PDF').click(); await vi.waitFor(() => expect(saved.length).toBe(1)); });
+      expect(saved[0].html).toContain('<h2>Changes in revision B (draft)</h2>');
+      expect(saved[0].html).toContain('class="cl  cld"');
+
+      typeIn('Revision description', 'Wording revised');
+      press('Issue revision');
+      expect(spec().revisions!.map((r) => r.id)).toEqual(['A', 'B']);
+      expect(status[status.length - 1]).toBe('Specification revision B issued — 1 change against revision A');
+      expect(card('Changes').textContent).toContain('Changes in revision B — against revision A');
+      // a row of the list opens its section on the Home tab
+      act(() => card('Changes').querySelector<HTMLElement>('tr.go')!.click());
+      expect(document.querySelector('.spx-paper')).not.toBeNull();
+      expect(lines()[1].classList.contains('rvc')).toBe(true);
+    });
+
+    it('takes a chosen revision id, refuses a repeated one, and withdraws the last revision', () => {
+      render(sampleProject);
+      tabTo('Review');
+      typeIn('Revision id', 'P1'); typeIn('Revision description', 'Preliminary');
+      press('Issue revision');
+      expect(spec().revisions![0].id).toBe('P1');
+      expect(document.querySelector<HTMLInputElement>('input[aria-label="Revision id"]')!.placeholder).toBe('P2');
+      editFirstClause('Changed again.');
+      tabTo('Review');
+      typeIn('Revision id', 'p1'); typeIn('Revision description', 'x');
+      expect(tool('Issue revision').disabled).toBe(true);
+      expect(card('Revisions').textContent).toContain('Revision p1 is already issued.');
+      press('Withdraw last');
+      expect(spec().revisions).toEqual([]);
+      expect(status[status.length - 1]).toContain('Revision P1 withdrawn');
+      expect(tool('Withdraw last').disabled).toBe(true);
     });
   });
 

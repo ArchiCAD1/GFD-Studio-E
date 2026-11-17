@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import {
   AlignLeft, ArrowDown, ArrowUp, Baseline, Bold, Braces, ClipboardPaste, Copy, FilePlus2, FileText, FileType, FolderOpen, Heading1, Heading2, Italic, List, ListOrdered, PaintBucket, Paintbrush,
-  BookmarkPlus, BookOpen, Link2, LibraryBig, Save, Columns3, Image as ImageIcon, Rows3, Table as TableIcon, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
+  BookmarkPlus, BookOpen, Link2, Cloud, Highlighter as MarkIcon, ListChecks, Stamp, Strikethrough, Triangle, Undo as WithdrawIcon, LibraryBig, Save, Columns3, Image as ImageIcon, Rows3, Table as TableIcon, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
 } from 'lucide-react';
 import type { Project } from '../../types';
 import {
@@ -13,6 +13,8 @@ import { Big, Group, Icons, IconTool, PageRibbon, RIBBON_CSS, Rows, Small } from
 import { buildSpecHtml, specPdfPage } from '../../docs/specReport';
 import { safeFileName, saveBinary, savePdf, saveText } from '../../util/files';
 import { linkFields, linkSuggestions } from '../../model/specLink';
+import { changeRows, changedSinceIssue, issueRevision, marksOf, nextRevisionId, revisionIdError, specChanges, withdrawLast, withMarks } from '../../model/specRevisions';
+import { fmtDate } from '../../util/format';
 import {
   applyTemplate, loadTemplates, removeTemplate, saveTemplates, specFileText, specFromFileText, templateNameError, templateOf, templateSummary, withTemplate,
   SPEC_FILE_EXT, TEMPLATE_KINDS, TEMPLATE_MAX_CHARS, type SpecTemplate, type SpecTemplateKind
@@ -59,6 +61,10 @@ const CSS = `${RIBBON_CSS}
 .spx-blk-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; font-size: 11.5px; }
 .spx-blk-tools button, .spx-blk-tools select { height: 28px; padding: 0 8px; border: 1px solid currentColor; border-radius: 4px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .spx-blk-tools button:disabled { opacity: .45; cursor: default; }
+.spx-line.rvc { background: rgba(0, 0, 0, .1); position: relative; padding-right: 34px; }
+.spx-line.rvc::after { content: "△" attr(data-rev); position: absolute; right: 4px; top: 2px; font-size: 10px; font-weight: 700; font-style: normal; }
+.spx-revs { border-collapse: collapse; width: 100%; font-size: 12.5px; } .spx-revs th, .spx-revs td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.spx-revs th { color: var(--mut); font-weight: 600; } .spx-revs tr.go { cursor: pointer; } .spx-revs tr.go:hover td { background: var(--p2); }
 .spx-tpl { display: grid; grid-template-columns: minmax(0, 1fr) auto 36px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
 .spx-tpl button { height: 34px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--p2); color: var(--tx); font: inherit; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .spx-pic { display: block; max-width: 100%; height: auto; }
@@ -88,7 +94,7 @@ const CSS = `${RIBBON_CSS}
 .spx-insert { box-sizing: border-box; height: 40px; max-width: 220px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--p2); color: var(--tx); font: inherit; font-size: 12.5px; }
 `;
 
-type Tab = 'file' | 'home' | 'setup';
+type Tab = 'file' | 'home' | 'setup' | 'review';
 const LOGO_PLACES: [SpecLogoPlace, string][] = [['none', 'Not shown'], ['header-left', 'Header, left'], ['header-right', 'Header, right'], ['footer-left', 'Footer, left'], ['footer-right', 'Footer, right']];
 const LOGO_MAX = 400_000; // bytes: the logo is kept in the project file
 const SIDES = ['left', 'centre', 'right'] as const;
@@ -230,7 +236,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
       const { readSpecDocx, wordReadText } = await import('../../docs/specWordRead');
       const { doc: read, report } = await readSpecDocx(await file.arrayBuffer());
       // The wording comes from the file; the document's own information and page setup stay.
-      const next: SpecDoc = { ...read, ...(doc.info ? { info: doc.info } : {}), ...(doc.setup ? { setup: doc.setup } : {}) };
+      const next: SpecDoc = { ...read, ...(doc.info ? { info: doc.info } : {}), ...(doc.setup ? { setup: doc.setup } : {}), ...(doc.revisions ? { revisions: doc.revisions } : {}), ...(doc.marks ? { marks: doc.marks } : {}) };
       save(next); setSectionId(next.sections[0].id); setClauseId(null);
       const found = linkSuggestions(next, specFields(project, next)).length;
       setLinkOff(new Set()); setPanel(found ? 'link' : null);
@@ -244,6 +250,22 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
     onStatus?.(r.replaced ? `Linked to the project: ${r.replaced} place${r.replaced === 1 ? '' : 's'} now follow${r.replaced === 1 ? 's' : ''} the project values` : 'Nothing was chosen to link');
     setPanel(null);
   };
+  // ---- the specification's own revisions
+  const changes = useMemo(() => specChanges(doc), [doc]);
+  const marks = marksOf(doc), revs = doc.revisions ?? [], lastRev = revs[revs.length - 1];
+  const changeList = useMemo(() => changeRows(doc, view, changes), [doc, view, changes]);
+  const [revId, setRevId] = useState(''), [revNote, setRevNote] = useState(''), [revBy, setRevBy] = useState('');
+  const idToIssue = revId.trim() || nextRevisionId(revs);
+  const issueError = revisionIdError(doc, idToIssue) ?? (!revNote.trim() ? 'Say what this revision is (e.g. Issued for tender).' : !changedSinceIssue(doc) ? `Nothing has changed since revision ${lastRev?.id}.` : !included ? 'Include a section first.' : undefined);
+  const issue = () => {
+    if (issueError) return;
+    save(issueRevision(doc, { id: idToIssue, description: revNote, by: revBy }));
+    onStatus?.(`Specification revision ${idToIssue} issued${changes.base ? ` — ${changes.count} change${changes.count === 1 ? '' : 's'} against revision ${changes.base}` : ''}`);
+    setRevId(''); setRevNote('');
+  };
+  const withdraw = () => { if (!lastRev) return; save(withdrawLast(doc)); onStatus?.(`Revision ${lastRev.id} withdrawn — the wording is unchanged (undo to bring it back)`); };
+  /** The revision a line's change belongs to, when changes are shown at all (any of the marks on). */
+  const lineMark = (id: string): string | undefined => (changes.base && (marks.highlight || marks.cloud || marks.triangle) && (changes.lines.has(id) || changes.newSections.has(section!.id)) ? changes.rev : undefined);
   const isBlock = clause?.kind === 'table' || clause?.kind === 'image';
   const setTable = (c: SpecClause, table: NonNullable<SpecClause['table']>) => save(withClause(doc, section!.id, c.id, { table }));
   const info = doc.info ?? {};
@@ -298,7 +320,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
       <h3>Specification</h3>
       <p className="spx-note">The project specification, electrical and ELV. Tick the sections, edit the clauses in your own wording, and put project values in a clause as fields — they follow the design. The starter text is plain wording to edit, not text of any standard. Export Word gives a file to finish in Word; Export PDF a black-and-white document.</p>
 
-      <PageRibbon label="Specification tools" tab={tab} onTab={setTab} tabs={[{ id: 'file', name: 'File' }, { id: 'home', name: 'Home' }, { id: 'setup', name: 'Specification' }, { id: null, name: 'Insert' }, { id: null, name: 'Review' }]}>
+      <PageRibbon label="Specification tools" tab={tab} onTab={setTab} tabs={[{ id: 'file', name: 'File' }, { id: 'home', name: 'Home' }, { id: 'setup', name: 'Specification' }, { id: null, name: 'Insert' }, { id: 'review', name: 'Review' }]}>
         {tab === 'file' ? (
           <>
             <Group name="Specification">
@@ -322,6 +344,34 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
                 <Small icon={ArrowDown} label="Move section down" onClick={() => save(moveSection(doc, section.id, 1))} disabled={doc.sections[doc.sections.length - 1].id === section.id} />
                 <Small icon={Paperclip} label="Appendix" onClick={() => save(withAppendix(doc, section.id, !section.appendix))} pressed={!!section.appendix} />
               </Rows>
+            </Group>
+            <Group name="Output">
+              <Big icon={FileText} label="Export Word" onClick={() => void exportAs('docx')} disabled={busy || !included} />
+              <Big icon={FileType} label="Export PDF" onClick={() => void exportAs('pdf')} disabled={busy || !included} />
+            </Group>
+          </>
+        ) : tab === 'review' ? (
+          <>
+            <Group name="Revision">
+              <Big icon={Stamp} label="Issue revision" onClick={issue} disabled={!!issueError} />
+              <Rows><Small icon={WithdrawIcon} label="Withdraw last" onClick={withdraw} disabled={!lastRev} /></Rows>
+            </Group>
+            <Group name="Show changes">
+              <Rows>
+                <Small icon={MarkIcon} label="Highlight" onClick={() => save(withMarks(doc, { highlight: !marks.highlight }))} pressed={marks.highlight} />
+                <Small icon={Cloud} label="Revision cloud" onClick={() => save(withMarks(doc, { cloud: !marks.cloud }))} pressed={marks.cloud} />
+                <Small icon={Triangle} label="Revision mark" onClick={() => save(withMarks(doc, { triangle: !marks.triangle }))} pressed={marks.triangle} />
+              </Rows>
+              <Rows>
+                <Small icon={Strikethrough} label="Deleted text" onClick={() => save(withMarks(doc, { deleted: !marks.deleted }))} pressed={marks.deleted} />
+                <Small icon={ListChecks} label="Change list page" onClick={() => save(withMarks(doc, { list: !marks.list }))} pressed={marks.list} />
+              </Rows>
+            </Group>
+            <Group name="Compare">
+              <select className="spx-insert" aria-label="Compare with" value={doc.marks?.against && revs.some((r) => r.id === doc.marks!.against) ? doc.marks.against : ''} disabled={revs.length === 0} onChange={(e) => save(withMarks(doc, { against: e.target.value || undefined }))}>
+                <option value="">Compare with the revision before</option>
+                {revs.filter((r) => !(changes.issued && r === lastRev)).map((r) => <option key={r.id} value={r.id}>Revision {r.id} — {fmtDate(r.date)}</option>)}
+              </select>
             </Group>
             <Group name="Output">
               <Big icon={FileText} label="Export Word" onClick={() => void exportAs('docx')} disabled={busy || !included} />
@@ -430,6 +480,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
         <span>Document: <b>{doc.title}</b>{info.number?.trim() ? <> · {info.number.trim()}</> : null}{info.status?.trim() ? <> · {info.status.trim()}</> : null}</span>
         <span>{setup.cover.on ? 'Cover page' : 'No cover page'} · {setup.contents.on ? 'contents page' : 'no contents page'}</span>
         <span>{setup.paper} {setup.landscape ? 'landscape' : 'portrait'}{setup.watermark ? <> · watermark <b>{setup.watermark}</b></> : null}</span>
+        <span>{lastRev ? (changes.issued ? <>Revision <b>{lastRev.id}</b> issued {fmtDate(lastRev.date)}</> : <>Draft of revision <b>{changes.rev}</b> · {changes.count} change{changes.count === 1 ? '' : 's'} since {changes.base}</>) : 'No revision issued yet'}</span>
         <span>{included} of {doc.sections.length} sections included</span>
         <span>{view.blocks.reduce((n, b) => n + b.lines.reduce((m, l) => m + l.runs.filter((r) => 'field' in r).length, 0), 0)} project values</span>
         {view.missing.length ? <span className="bad">{view.missing.length} missing: {[...new Set(view.missing.map((m) => m.label))].join(', ')}</span> : <span>None missing</span>}
@@ -438,7 +489,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
       <input ref={picFile} type="file" accept="image/png,image/jpeg" aria-label="Picture file" hidden onChange={(e) => { addPicture(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       <input ref={logoFile} type="file" accept="image/png,image/jpeg" aria-label="Logo picture" hidden onChange={(e) => { readLogo(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       <input ref={specFile} type="file" accept={`.${SPEC_FILE_EXT},application/json`} aria-label="Specification file" hidden onChange={(e) => { void openSpecFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
-      {panel === 'save' && tab !== 'setup' && (
+      {panel === 'save' && tab !== 'setup' && tab !== 'review' && (
         <section className="spx-card" aria-label="Save as template">
           <h4>Save as template</h4>
           <div className="spx-form" style={{ maxWidth: 640 }}>
@@ -459,7 +510,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
         </section>
       )}
       <input ref={wordFile} type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-label="Word document" hidden onChange={(e) => { void openWord(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
-      {panel === 'link' && tab !== 'setup' && (
+      {panel === 'link' && tab !== 'setup' && tab !== 'review' && (
         <section className="spx-card" aria-label="Link values to the project">
           <h4>Link values to the project</h4>
           {suggestions.length === 0 && <p className="spx-note">No project value is typed in the wording. Where a clause should follow the project, click it and use Insert field.</p>}
@@ -476,7 +527,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
           </div>
         </section>
       )}
-      {panel === 'library' && tab !== 'setup' && (
+      {panel === 'library' && tab !== 'setup' && tab !== 'review' && (
         <section className="spx-card" aria-label="Templates">
           <h4>Templates</h4>
           {templates.length === 0 && <p className="spx-note">No templates yet. Write a product specification once — a heading with its clauses, a section or the whole document — then use Save as template.</p>}
@@ -491,7 +542,50 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
           <div className="spx-blk-tools"><button type="button" onClick={() => setPanel(null)}>Close</button></div>
         </section>
       )}
-      {tab === 'setup' ? (
+      {tab === 'review' ? (
+        <div className="spx-setup">
+          <section className="spx-card" aria-label="Revisions">
+            <h4>Revisions of this specification</h4>
+            {revs.length === 0 && <p className="spx-note">None issued yet. The specification has revisions of its own, apart from the project’s: issue one when the wording goes out, and the next changes are tracked against it.</p>}
+            {revs.length > 0 && (
+              <table className="spx-revs"><tbody>
+                <tr><th>Rev</th><th>Date</th><th>Description</th><th>By</th></tr>
+                {revs.map((r) => <tr key={r.id}><td>{r.id}</td><td>{fmtDate(r.date)}</td><td>{r.description}</td><td>{r.by ?? ''}</td></tr>)}
+              </tbody></table>
+            )}
+            <div className="spx-form" style={{ marginTop: 12 }}>
+              <label>Next revision</label>
+              <input aria-label="Revision id" value={revId} placeholder={nextRevisionId(revs)} onChange={(e) => setRevId(e.target.value)} />
+              <label>Description</label>
+              <input aria-label="Revision description" value={revNote} placeholder="e.g. Issued for tender" onChange={(e) => setRevNote(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') issue(); }} />
+              <label>By</label>
+              <input aria-label="Revision by" value={revBy} placeholder="Initials" onChange={(e) => setRevBy(e.target.value)} />
+            </div>
+            <div className="spx-blk-tools">
+              <button type="button" onClick={issue} disabled={!!issueError}>Issue revision {idToIssue}</button>
+              <span>{issueError ?? 'Issuing keeps the wording as it stands; later edits show as changes against it.'}</span>
+            </div>
+            <p className="spx-note">Once issued, the revision table on the cover and the “Revision and date” field follow these revisions instead of the project’s.</p>
+          </section>
+
+          <section className="spx-card" aria-label="Changes">
+            <h4>{changes.base ? `Changes in revision ${changes.rev}${changes.issued ? '' : ' (draft)'} — against revision ${changes.base}` : 'Changes'}</h4>
+            {!changes.base && <p className="spx-note">{revs.length === 0 ? 'Changes are listed once a revision is issued and the wording is edited.' : `Revision ${lastRev!.id} is the first: there is no earlier revision to compare it with. Edit the wording and the changes since ${lastRev!.id} are listed here.`}</p>}
+            {changes.base && changeList.length === 0 && <p className="spx-note">No changes.</p>}
+            {changeList.length > 0 && (
+              <table className="spx-revs"><tbody>
+                <tr><th>Clause</th><th>Change</th><th>Text</th></tr>
+                {changeList.map((r, i) => (
+                  <tr key={i} className={r.sectionId ? 'go' : ''} onClick={r.sectionId ? () => { setSectionId(r.sectionId!); setClauseId(null); setTab('home'); } : undefined} title={r.sectionId ? 'Open this section' : undefined}>
+                    <td>{r.ref}</td><td>{r.what}</td><td>{r.text}</td>
+                  </tr>
+                ))}
+              </tbody></table>
+            )}
+            <p className="spx-note">Show changes sets how these print: a grey highlight, a revision cloud round the line (a box in the Word file), a revision mark △{changes.rev}, the deleted words struck through, and this list as a page after the contents. Moving a clause is not a change; a change of a project value in a field is not either.</p>
+          </section>
+        </div>
+      ) : tab === 'setup' ? (
         <div className="spx-setup">
           <section className="spx-card" aria-label="Document and parties">
             <h4>Document and parties</h4>
@@ -598,7 +692,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
             if (l.table || l.image) {
               const t = c.table, [nr, nc] = t ? tableSize(t) : [0, 0], at = sel ? cell : null;
               return (
-                <div key={l.id} data-clause={l.id} className={`spx-line blk${sel ? ' sel' : ''}${l.breakBefore ? ' brk' : ''}`} onClick={() => { if (!sel) { pick(l.id); setCell_(null); } }}>
+                <div key={l.id} data-clause={l.id} className={`spx-line blk${sel ? ' sel' : ''}${l.breakBefore ? ' brk' : ''}${lineMark(l.id) ? ' rvc' : ''}`} data-rev={lineMark(l.id)} onClick={() => { if (!sel) { pick(l.id); setCell_(null); } }}>
                   {sel
                     ? <input key={`${c.id}:${c.text}`} className="spx-capin" aria-label={`${l.label} caption`} defaultValue={c.text} placeholder={`${l.label} — caption (optional)`} onBlur={(e) => commitText(c.id, e.currentTarget.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
                     : l.table && <div className="spx-cap">{captionText(l)}</div>}
@@ -640,7 +734,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
               );
             }
             return (
-              <div key={l.id} data-clause={l.id} className={`spx-line ${KIND_CLASS[l.kind]}${sel ? ' sel' : ''}${l.level ? ` l${l.level}` : ''}${l.breakBefore ? ' brk' : ''}`} onClick={() => { if (!sel) pick(l.id); }}>
+              <div key={l.id} data-clause={l.id} className={`spx-line ${KIND_CLASS[l.kind]}${sel ? ' sel' : ''}${l.level ? ` l${l.level}` : ''}${l.breakBefore ? ' brk' : ''}${lineMark(l.id) ? ' rvc' : ''}`} data-rev={lineMark(l.id)} onClick={() => { if (!sel) pick(l.id); }}>
                 <span>{l.no}</span>
                 {sel
                   ? <textarea ref={editor} key={`${c.id}:${c.text}`} aria-label={`Edit clause ${l.no}`} defaultValue={c.text} autoFocus spellCheck

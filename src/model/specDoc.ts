@@ -1,6 +1,7 @@
 import { AIR_METHODS } from '../calc/lightningProtection';
 import type { Project } from '../types';
 import { earthingSystemOf } from './earthingPlan';
+import { fmtDate } from '../util/format';
 import { currentRevision, revisionStamp } from './revisions';
 import { mainBoards } from './transformers';
 
@@ -47,9 +48,26 @@ export interface SpecCover { on?: boolean; logo?: boolean; parties?: boolean; de
 /** The contents page: on unless turned off; sections, and the clause headings under them when asked; page numbers
  * on unless turned off. */
 export interface SpecContents { on?: boolean; headings?: boolean; pageNumbers?: boolean }
-export interface SpecDoc { title: string; sections: SpecSection[]; info?: SpecInfo; setup?: SpecSetup }
+/** A line of the wording as it stood at a revision: enough to tell what has changed since (`sig`: a short mark of a
+ * table's or picture's content). */
+export interface SpecSnapLine { id: string; kind: SpecKind; text: string; level?: number; sig?: string }
+export interface SpecSnapSection { id: string; title: string; appendix?: boolean; lines: SpecSnapLine[] }
+/** An issued revision of the specification — its own, apart from the project's: the wording of the included
+ * sections as issued. */
+export interface SpecRevision { id: string; date: string; description: string; by?: string; title: string; sections: SpecSnapSection[] } // date: yyyy-mm-dd
+/** How the changes of a revision show in the document. `against`: the revision the wording is compared with (none:
+ * the one before the current revision). */
+export interface SpecMarks { highlight?: boolean; cloud?: boolean; triangle?: boolean; deleted?: boolean; list?: boolean; against?: string }
+export interface SpecDoc { title: string; sections: SpecSection[]; info?: SpecInfo; setup?: SpecSetup; revisions?: SpecRevision[]; marks?: SpecMarks }
 
 // ---- fields from the project
+
+/** The revision and date printed on the document: the specification's own last revision once it has one, else the
+ * project's. */
+export function specStamp(doc: SpecDoc | undefined, p: Project): string {
+  const last = doc?.revisions?.[doc.revisions.length - 1];
+  return last ? `REV ${last.id} · ${fmtDate(last.date)}` : revisionStamp(p);
+}
 
 export type SpecPartyKey = 'client' | 'consultant' | 'mainContractor' | 'mepContractor';
 /** The parties of the document, and where the project already holds each (Project information). */
@@ -75,7 +93,7 @@ export function specFields(p: Project, doc: SpecDoc | undefined = p.spec): SpecF
     { key: 'doc.status', label: 'Document status', group: 'Document', value: t(info?.status) },
     ...SPEC_PARTIES.map((x) => ({ key: `party.${x.key}`, label: x.label, group: 'Parties', value: t(info?.[x.key]) ?? t(x.from(p)) })),
     ...(info?.details ?? []).filter((d) => d.name.trim()).map((d) => ({ key: `detail.${d.id}`, label: d.name.trim(), group: 'Additional details', value: t(d.value) })),
-    { key: 'project.issue', label: 'Revision and date', group: 'Project', value: t(revisionStamp(p)) },
+    { key: 'project.issue', label: 'Revision and date', group: 'Project', value: t(specStamp(doc, p)) },
     { key: 'project.name', label: 'Project name', group: 'Project', value: t(p.name) },
     { key: 'project.revision', label: 'Revision', group: 'Project', value: t(currentRevision(p)?.id) },
     { key: 'project.voltage', label: 'System voltage', group: 'Project', value: n(p.voltageV, 'V') },
@@ -226,10 +244,10 @@ export function specContents(v: SpecView, headings: boolean): SpecEntry[] {
     ...(headings ? b.lines.filter((l) => l.kind === 'heading').map((l) => ({ id: specAnchor(b.id, l.id), no: l.no, title: lineText(l), level: 2 as const })) : [])
   ]);
 }
-/** The revision table of the cover: the project's issued revisions, oldest first (the specification's own
- * revisions take this place when they come). */
-export const specRevisionRows = (p: Project): { id: string; date: string; description: string; by: string }[] =>
-  (p.revisions ?? []).map((r) => ({ id: r.id, date: r.date, description: r.description, by: r.by ?? '' }));
+/** The revision table of the cover, oldest first: the specification's own revisions, or — while it has none — the
+ * project's issued revisions. */
+export const specRevisionRows = (p: Project, doc?: SpecDoc): { id: string; date: string; description: string; by: string }[] =>
+  (doc?.revisions?.length ? doc.revisions : p.revisions ?? []).map((r) => ({ id: r.id, date: r.date, description: r.description, by: r.by ?? '' }));
 export const withTitle = (doc: SpecDoc, title: string): SpecDoc => (title.trim() ? { ...doc, title: title.trim() } : doc);
 /** Adds a detail (name and value) to the document's information; its field is detail.<id>. */
 export function addDetail(doc: SpecDoc, name = '', value = ''): SpecDoc {

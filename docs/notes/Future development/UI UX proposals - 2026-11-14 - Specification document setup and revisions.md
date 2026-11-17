@@ -34,8 +34,8 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
 | 4 | Indent / outdent (sub-headings 2.1.3; items a), b) … and i), ii) …), a page break before a line, appendices (lettered, after the numbered sections). | done (#650) |
 | 5 | Tables and pictures as blocks in the text flow, with numbered captions (Table 1, Figure 1). A table comes from cells copied in Sheets or Excel and pasted on the page, from one of the project's sheets (a copy), or empty; cells, rows, columns and the header row are edited on the page. A picture is a PNG or JPEG (up to 1 MB, kept in the project file), from a file or pasted, at a chosen share of the text width. | done (#652) |
 | 6a | Template library (a heading with its clauses, a section, or the whole specification; fields stay fields; kept on the computer and synced with the library file). The specification as a file of its own: Save specification as, Open specification (`.lvspec`). | done (#658) |
-| 6b | Open a Word document (.docx): headings become sections and clause headings, paragraphs clauses, lists lettered items, tables tables; typed numbers are dropped and the document's own contents page skipped. Link values: project values found typed in the wording are listed, and the ticked ones become fields. | this change |
-| 7 | Specification revisions with highlight, cloud and revision marks. | |
+| 6b | Open a Word document (.docx): headings become sections and clause headings, paragraphs clauses, lists lettered items, tables tables; typed numbers are dropped and the document's own contents page skipped. Link values: project values found typed in the wording are listed, and the ticked ones become fields. | done (#662) |
+| 7 | The specification's own revisions, apart from the project's: issue (id, description, by), withdraw the last, compare with the revision before or a chosen one, change list. Changes show as a grey highlight, a revision cloud, a revision mark △B, the deleted words struck through, and a change list page — each on or off. | this change |
 
 ## Changes to what is on screen (stage 1 + 2)
 
@@ -85,6 +85,19 @@ Approved by the owner on 2026-11-14 ("Go ahead"), after the mockup "Document set
   wording, each with a tick box; nothing is linked without the engineer choosing it.
 - Not read from a Word file: pictures (counted and reported), text boxes, headers and footers, footnotes,
   tracked changes, bold / italic / colour. An older .doc file must first be saved as .docx in Word.
+
+## Changes to what is on screen (stage 7)
+
+- The greyed "Review" tab of the page ribbon is now live: Issue revision, Withdraw last; Show changes (Highlight,
+  Revision cloud, Revision mark, Deleted text, Change list page); Compare with; and two cards — the revisions with
+  the issue form, and the change list (a row opens its section).
+- On the page a changed line is shaded and carries △ and its revision; the summary strip says which revision is
+  issued, or which is in draft and how many changes it has.
+- Once the specification has a revision, the cover's revision table and the "Revision and date" field (default
+  footer) follow the specification's revisions instead of the project's.
+- In the Word file the revision cloud is a box round the line (Word has no cloud border) and the revision mark
+  stands after the line.
+- Not tracked: a moved clause, and a changed project value in a field.
 
 ## Not checked on screen
 

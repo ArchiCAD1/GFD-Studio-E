@@ -1,6 +1,6 @@
-import { AlignmentType, BorderStyle, Bookmark, Document, ImportedXmlComponent, LeaderType, PageReference, Footer, Header, HeadingLevel, ImageRun, Packer, PageNumber, PageOrientation, Paragraph, TabStopType, Table, TableCell, TableRow, TextRun, WidthType, type ParagraphChild } from 'docx';
-import { revisionStamp } from '../model/revisions';
-import { slotRuns, specAnchor, specContents, specFields, specRevisionRows, specSetup, specView, SPEC_PAPER_MM, type SpecDoc, type SpecLine, type SpecPage } from '../model/specDoc';
+import { ShadingType, AlignmentType, BorderStyle, Bookmark, Document, ImportedXmlComponent, LeaderType, PageReference, Footer, Header, HeadingLevel, ImageRun, Packer, PageNumber, PageOrientation, Paragraph, TabStopType, Table, TableCell, TableRow, TextRun, WidthType, type ParagraphChild } from 'docx';
+import { changeRows, deletedBySection, marksOf, specChanges } from '../model/specRevisions';
+import { slotRuns, specAnchor, specContents, specFields, specRevisionRows, specSetup, specStamp, specView, SPEC_PAPER_MM, type SpecDoc, type SpecLine, type SpecPage } from '../model/specDoc';
 import type { Project } from '../types';
 import { missingList, specInfoRows } from './specReport';
 import { fmtDate } from '../util/format';
@@ -13,7 +13,7 @@ import { fmtDate } from '../util/format';
 
 const INDENT = 850; // twips: where clause text starts, the number hanging before it
 const STEP = 480; // twips: one level of indent (items a), b) … and i), ii) …)
-const runs = (l: SpecLine, more: { bold?: boolean; italics?: boolean; size?: number } = {}) =>
+const runs = (l: SpecLine, more: { bold?: boolean; italics?: boolean; size?: number; shading?: { type: (typeof ShadingType)[keyof typeof ShadingType]; fill: string; color: string } } = {}) =>
   l.runs.map((r) => ('text' in r ? new TextRun({ text: r.text, ...more }) : r.value !== undefined ? new TextRun({ text: r.value, ...more }) : new TextRun({ text: `DATA REQUIRED: ${r.label}`, bold: true, underline: {} })));
 
 const TWIP = 1440 / 25.4; // twips per mm
@@ -65,7 +65,7 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
   const body: (Paragraph | Table)[] = [];
   if (setup.cover.on) {
     const c = setup.cover, logo = c.logo ? logoRun(setup.logo, 180, 60) : undefined;
-    const revs = c.revisions ? specRevisionRows(project) : [];
+    const revs = c.revisions ? specRevisionRows(project, doc) : [];
     const line = { style: BorderStyle.SINGLE, size: 4, color: '000000' }, box = { top: line, bottom: line, left: line, right: line };
     const cell = (text: string, bold = false) => new TableCell({ borders: box, children: [new Paragraph({ children: [new TextRun({ text, bold, size: 18 })] })] });
     body.push(
@@ -73,7 +73,7 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
       new Paragraph({ spacing: { before: 3600 }, children: [new TextRun({ text: (fields.get('doc.status') ?? '').toUpperCase(), size: 18, characterSpacing: 40 })] }),
       new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(doc.title)] }),
       new Paragraph({ children: [new TextRun({ text: project.name, size: 28 })] }),
-      new Paragraph({ spacing: { after: 1800 }, children: [new TextRun([fields.get('doc.number'), revisionStamp(project)].filter(Boolean).join(' · '))] }),
+      new Paragraph({ spacing: { after: 1800 }, children: [new TextRun([fields.get('doc.number'), specStamp(doc, project)].filter(Boolean).join(' · '))] }),
       ...infoLines(specInfoRows(doc, project, { number: false, parties: c.parties, details: c.details }), 300)
     );
     if (revs.length) body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [
@@ -85,7 +85,7 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
     const info = specInfoRows(doc, project);
     body.push(
       new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(doc.title)] }),
-      new Paragraph({ children: [new TextRun({ text: `${project.name} · ${revisionStamp(project)}` })], spacing: { after: info.length ? 120 : 300 } }),
+      new Paragraph({ children: [new TextRun({ text: `${project.name} · ${specStamp(doc, project)}` })], spacing: { after: info.length ? 120 : 300 } }),
       ...infoLines(info, 300)
     );
   }
@@ -102,12 +102,32 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
     body.push(new Paragraph({ pageBreakBefore: setup.cover.on && !entries.length, spacing: { before: 300 }, children: [new TextRun({ text: 'DATA REQUIRED', bold: true }), new TextRun(` — the project has no value for: ${missing.map((x) => `${x.label} (${x.clauses.join(', ')})`).join('; ')}.`)] }));
   }
   const marked = setup.contents.on && setup.contents.headings;
+  // What changed against the revision before, shown as chosen: grey shading (highlight), a box round the line (Word
+  // has no cloud border), the revision mark after the line, the deleted words struck through.
+  const ch = specChanges(doc), mk = marksOf(doc), on = ch.base !== undefined, gone = on && mk.deleted ? deletedBySection(ch) : undefined;
+  const edge = { style: BorderStyle.SINGLE, size: 8, color: '000000', space: 2 };
+  const shade = { shading: { type: ShadingType.CLEAR, fill: 'D9D9D9', color: 'auto' } };
+  const marks = (changed: boolean) => {
+    const hit = on && changed;
+    return { hit, run: hit && mk.highlight ? shade : {}, para: hit && mk.cloud ? { border: { top: edge, bottom: edge, left: edge, right: edge } } : {}, tail: hit && mk.triangle ? [new TextRun({ text: `  △${ch.rev}`, bold: true, size: 16 })] : [] };
+  };
+  const struck = (sectionId: string, after: string) => { for (const l of gone?.get(sectionId)?.get(after) ?? []) body.push(new Paragraph({ indent: { left: INDENT + (l.level ?? 0) * STEP }, spacing: { after: 100 }, children: [new TextRun({ text: l.text.replace(/\{\{\s*([^}\s]+)\s*\}\}/g, (_, k: string) => fields.get(k) ?? k) || (l.kind === 'table' ? 'Table' : 'Picture'), strike: true }), ...(mk.triangle ? [new TextRun({ text: `  △${ch.rev}`, bold: true, size: 16 })] : [])] })); };
+  if (on && mk.list) {
+    const rows = changeRows(doc, v, ch), line = { style: BorderStyle.SINGLE, size: 4, color: '000000' }, box = { top: line, bottom: line, left: line, right: line };
+    const cell = (text: string, bold = false) => new TableCell({ borders: box, margins: { top: 40, bottom: 40, left: 90, right: 90 }, children: [new Paragraph({ children: [new TextRun({ text, bold, size: 18 })] })] });
+    body.push(new Paragraph({ pageBreakBefore: true, spacing: { after: 80 }, children: [new TextRun({ text: `Changes in revision ${ch.rev}${ch.issued ? '' : ' (draft)'}`, bold: true, size: 26 })] }),
+      new Paragraph({ spacing: { after: 160 }, children: [new TextRun({ text: `Compared with revision ${ch.base}.`, size: 18 })] }));
+    if (rows.length) body.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [new TableRow({ tableHeader: true, children: ['Clause', 'Change', 'Text'].map((x) => cell(x, true)) }), ...rows.map((r) => new TableRow({ children: [cell(r.ref), cell(r.what), cell(r.text)] }))] }));
+    else body.push(new Paragraph({ children: [new TextRun('No changes.')] }));
+  }
   for (const b of v.blocks) {
-    body.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new Bookmark({ id: specAnchor(b.id), children: [new TextRun(b.heading)] })] }));
+    const fresh = ch.newSections.has(b.id), hm = marks(fresh || ch.titles.has(b.id));
+    body.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, ...hm.para, children: [new Bookmark({ id: specAnchor(b.id), children: [new TextRun({ text: b.heading, ...hm.run })] }), ...hm.tail] }));
+    struck(b.id, '');
     for (const l of b.lines) {
-      const brk = l.breakBefore ? { pageBreakBefore: true } : {};
+      const brk = l.breakBefore ? { pageBreakBefore: true } : {}, m = marks(!fresh && ch.lines.has(l.id));
       if (l.table || l.image) {
-        const caption = (before: number, after: number) => new Paragraph({ ...(l.table ? brk : {}), keepNext: !!l.table, indent: { left: INDENT }, spacing: { before, after }, children: [new TextRun({ text: l.label ?? '', bold: true, size: 18 }), ...(l.runs.some((r) => !('text' in r) || r.text.trim()) ? [new TextRun({ text: ' — ', bold: true, size: 18 }), ...runs(l, { bold: true, size: 18 })] : [])] });
+        const caption = (before: number, after: number) => new Paragraph({ ...(l.table ? brk : {}), keepNext: !!l.table, indent: { left: INDENT }, spacing: { before, after }, children: [new TextRun({ text: l.label ?? '', bold: true, size: 18, ...m.run }), ...(l.runs.some((r) => !('text' in r) || r.text.trim()) ? [new TextRun({ text: ' — ', bold: true, size: 18 }), ...runs(l, { bold: true, size: 18, ...m.run })] : []), ...m.tail] });
         if (l.table) {
           const t = l.table, line = { style: BorderStyle.SINGLE, size: 4, color: '000000' }, box = { top: line, bottom: line, left: line, right: line };
           body.push(caption(120, 60), new Table({
@@ -119,12 +139,14 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
           if (pic) body.push(new Paragraph({ ...brk, keepNext: true, indent: { left: INDENT }, spacing: { before: 120 }, children: [pic] }));
           body.push(caption(40, 160));
         }
+        struck(b.id, l.id);
         continue;
       }
       const left = INDENT + (l.kind === 'heading' ? 0 : l.level * STEP), hang = l.level ? STEP : INDENT; // an item's letter hangs in a narrower column
-      if (l.kind === 'heading') body.push(new Paragraph({ ...brk, heading: l.level ? HeadingLevel.HEADING_3 : HeadingLevel.HEADING_2, tabStops: [{ type: TabStopType.LEFT, position: INDENT }], children: marked ? [new Bookmark({ id: specAnchor(b.id, l.id), children: [new TextRun(`${l.no}\t`), ...runs(l)] })] : [new TextRun(`${l.no}\t`), ...runs(l)] }));
-      else if (l.kind === 'note') body.push(new Paragraph({ ...brk, indent: { left }, spacing: { after: 100 }, children: runs(l, { italics: true }) }));
-      else body.push(new Paragraph({ ...brk, indent: { left, hanging: hang }, tabStops: [{ type: TabStopType.LEFT, position: left }], spacing: { after: 100 }, alignment: AlignmentType.LEFT, children: [new TextRun(`${l.no}\t`), ...runs(l)] }));
+      if (l.kind === 'heading') body.push(new Paragraph({ ...brk, ...m.para, heading: l.level ? HeadingLevel.HEADING_3 : HeadingLevel.HEADING_2, tabStops: [{ type: TabStopType.LEFT, position: INDENT }], children: marked ? [new Bookmark({ id: specAnchor(b.id, l.id), children: [new TextRun(`${l.no}\t`), ...runs(l, m.run)] }), ...m.tail] : [new TextRun(`${l.no}\t`), ...runs(l, m.run), ...m.tail] }));
+      else if (l.kind === 'note') body.push(new Paragraph({ ...brk, ...m.para, indent: { left }, spacing: { after: 100 }, children: [...runs(l, { italics: true, ...m.run }), ...m.tail] }));
+      else body.push(new Paragraph({ ...brk, ...m.para, indent: { left, hanging: hang }, tabStops: [{ type: TabStopType.LEFT, position: left }], spacing: { after: 100 }, alignment: AlignmentType.LEFT, children: [new TextRun(`${l.no}\t`), ...runs(l, m.run), ...m.tail] }));
+      struck(b.id, l.id);
     }
   }
   const mark = (n: number) => (setup.watermark ? [watermark(setup.watermark, n)] : []); // one shape per header, as Word numbers its own
