@@ -12,6 +12,8 @@ tags:
 
 The user reported that the Design CAD colour picker expands far beyond a usable dialog size when it is opened from the ribbon. They also asked to move the Layers panel, and other CAD ribbon panels, into a preferred order.
 
+Interactive mockup: [cad-colour-picker-ribbon-order-mockup.html](../../mockups/cad-colour-picker-ribbon-order-mockup.html). Static preview: [cad-colour-picker-ribbon-order-mockup.svg](../../mockups/cad-colour-picker-ribbon-order-mockup.svg).
+
 No UI change is approved or implemented by this note.
 
 ## 1. Compact colour picker
@@ -24,7 +26,7 @@ The likely collision is between the general `.ribbon-group button` rule and the 
 
 ### Proposed appearance and behaviour
 
-- Use one compact picker, about 420 × 340 px at 100% zoom, capped to the available viewport on smaller windows.
+- Use one compact picker, about 420 × 420 px at 100% zoom, capped to the available viewport on smaller windows.
 - Keep it beside the colour field when room exists; otherwise place it to the left or above so the whole picker remains visible.
 - Add two clear tabs:
   - **Index colour** — ByLayer / As drawn, standard colours 1–9, the complete 10–249 grid, greys 250–255, and an index field accepting 1–255.
