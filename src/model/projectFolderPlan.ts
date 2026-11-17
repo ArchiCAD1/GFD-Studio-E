@@ -95,3 +95,27 @@ export function rememberFolder(projectId: string | undefined, f: RememberedFolde
     if (f) store(s)?.setItem(KEY(projectId), JSON.stringify(f)); else store(s)?.removeItem(KEY(projectId));
   } catch { /* not remembered on this computer */ }
 }
+
+/* ---------- where the user saved an output instead, on this computer (spec F2) ---------- */
+
+const CHOICE_KEY = (projectId: string | undefined) => `lvds.projectFolderChoices.${projectId ?? 'new'}`;
+
+function readChoices(projectId: string | undefined, s?: Store): Record<string, string> {
+  try {
+    const v = JSON.parse(store(s)?.getItem(CHOICE_KEY(projectId)) ?? 'null') as unknown;
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+    return Object.fromEntries(Object.entries(v).filter(([, d]) => typeof d === 'string' && !!d)) as Record<string, string>;
+  } catch { return {}; }
+}
+
+/** The folder the user saved this project's outputs of a role in, when it was not the role's own folder. */
+export const rememberedChoice = (projectId: string | undefined, role: string, s?: Store): string | undefined => readChoices(projectId, s)[role];
+
+/** Remembers (or, with '' or undefined, forgets) the folder chosen for a project and role. */
+export function rememberChoice(projectId: string | undefined, role: string, dir: string | undefined, s?: Store): void {
+  try {
+    const all = readChoices(projectId, s);
+    if (dir) all[role] = dir.slice(0, 1000); else delete all[role];
+    if (Object.keys(all).length) store(s)?.setItem(CHOICE_KEY(projectId), JSON.stringify(all)); else store(s)?.removeItem(CHOICE_KEY(projectId));
+  } catch { /* not remembered on this computer */ }
+}

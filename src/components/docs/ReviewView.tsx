@@ -50,12 +50,12 @@ export default function ReviewView({ project, me = "", run, stale = [], onChange
         const parts: Uint8Array[] = [await toBytes!({ html: reviewHtml(d), pageSize: 'A4', landscape: true })];
         for (const p of pages) parts.push(await toBytes!({ html: p.html, cssPages: true }));
         const bytes = await mergePdfs(parts, `${project.name} · ${d.title}`, [d.title, ...pages.map((p) => `${p.s.number}  ${p.s.title}`)]);
-        const saved = await saveBinary(`${name}.pdf`, bytes, 'PDF', 'pdf', 'application/pdf');
+        const saved = await saveBinary(`${name}.pdf`, bytes, 'PDF', 'pdf', 'application/pdf', { output: 'reviewReport', project });
         if (saved) onStatus(`${saved} — report + ${pages.length} diagram sheet${pages.length === 1 ? '' : 's'}`);
         return;
       }
-      const m = kind === 'pdf' ? await savePdf(`${name}.pdf`, reviewHtml(d), { pageSize: 'A4', landscape: true })
-        : await saveBinary(`${name}.docx`, await docxBytes(buildReviewDocx(d)), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      const m = kind === 'pdf' ? await savePdf(`${name}.pdf`, reviewHtml(d), { pageSize: 'A4', landscape: true }, { output: 'reviewReport', project })
+        : await saveBinary(`${name}.docx`, await docxBytes(buildReviewDocx(d)), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', { output: 'reviewReport', project });
       if (m) onStatus(m);
     } catch (e) { onStatus(`Export failed: ${e instanceof Error ? e.message : String(e)}`); } finally { setBusy(''); }
   }

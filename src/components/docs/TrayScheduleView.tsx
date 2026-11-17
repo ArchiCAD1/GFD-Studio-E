@@ -112,7 +112,7 @@ function TrayDesignView({ project, onChange, onStatus, modeSwitch }: {
     setBusy(true);
     try {
       const bytes = await workbookBytes(buildTrayWorkbook(project, plan, results));
-      const m = await saveBinary(`${safeFileName(project.name)}-cable-tray-schedule.xlsx`, bytes, 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      const m = await saveBinary(`${safeFileName(project.name)}-cable-tray-schedule.xlsx`, bytes, 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'cableTraySchedule', project });
       if (m) onStatus(m);
     } finally {
       setBusy(false);
@@ -121,7 +121,7 @@ function TrayDesignView({ project, onChange, onStatus, modeSwitch }: {
   async function exportPdf() {
     setBusy(true);
     try {
-      const m = await savePdf(`${safeFileName(project.name)}-cable-tray-schedule.pdf`, buildTrayReportHtml(project, plan, results));
+      const m = await savePdf(`${safeFileName(project.name)}-cable-tray-schedule.pdf`, buildTrayReportHtml(project, plan, results), undefined, { output: 'cableTraySchedule', project });
       if (m) onStatus(m);
     } finally {
       setBusy(false);

@@ -3,7 +3,7 @@ import type { PDFDocumentProxy, PDFDocumentLoadingTask, RenderTask } from 'pdfjs
 import type { CalcRun } from '../../calc/runs';
 import { setOf, type DrawingSheet } from '../../model/drawingSet';
 import type { Project } from '../../types';
-import { saveBinary } from '../../util/files';
+import { saveBinary, type SaveContext } from '../../util/files';
 import { Modal } from '../ui';
 import { renderDrawingSetPdf } from './sheetRender';
 
@@ -15,11 +15,11 @@ type ToBytes = NonNullable<Window['lvds']['files']['pdfBytes']>;
 export function SheetPdfPreview(props: { project: Project; sheet: DrawingSheet; run?: CalcRun; onClose: () => void }) {
   const [{ project, sheet, run }] = useState(() => ({ project: props.project, sheet: props.sheet, run: props.run }));
   const load = (toBytes: ToBytes) => renderDrawingSetPdf(project, setOf(project), run, toBytes, [sheet.id]);
-  return <PdfPreview title={`${sheet.number} · ${sheet.title}`} load={load} onClose={props.onClose} />;
+  return <PdfPreview title={`${sheet.number} · ${sheet.title}`} load={load} onClose={props.onClose} save={{ output: 'drawingPdf', project, values: { Sheet: sheet.number, Seq: sheet.number, Rev: sheet.rev } }} />;
 }
 
 /** A PDF made on opening (`load`, given the app's html-to-pdf function) shown page by page, to save. */
-export function PdfPreview({ title, load, onClose }: { title: string; load: (toBytes: ToBytes) => Promise<{ bytes: Uint8Array; name: string }>; onClose: () => void }) {
+export function PdfPreview({ title, load, onClose, save: saveAs = { output: 'drawingPdf' } }: { title: string; load: (toBytes: ToBytes) => Promise<{ bytes: Uint8Array; name: string }>; onClose: () => void; /** Where Save puts the PDF (spec F2). */ save?: SaveContext }) {
   const loadRef = useRef(load);
   const [pdf, setPdf] = useState<{ document: PDFDocumentProxy; bytes: Uint8Array; name: string }>();
   const [page, setPage] = useState(1);
@@ -89,7 +89,7 @@ export function PdfPreview({ title, load, onClose }: { title: string; load: (toB
     setSaving(true);
     setSaveMessage('');
     try {
-      const message = await saveBinary(pdf.name, pdf.bytes, 'PDF', 'pdf', 'application/pdf');
+      const message = await saveBinary(pdf.name, pdf.bytes, 'PDF', 'pdf', 'application/pdf', saveAs);
       if (message) setSaveMessage(message);
     } catch (e) {
       setSaveMessage(`PDF save failed: ${e instanceof Error ? e.message : String(e)}`);

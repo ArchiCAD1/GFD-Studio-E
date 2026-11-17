@@ -32,7 +32,7 @@ export default function ContainmentCalculator({ project, onChange, onStatus }: {
   const buried = t === 'trench' || t === 'ducts';
 
   async function report() {
-    const m = await savePdf(`${safeFileName(`${project.name} containment${input.title ? ` ${input.title}` : ''}`)}.pdf`, containmentReportHtml(project, input, r), { pageSize: 'A4' });
+    const m = await savePdf(`${safeFileName(`${project.name} containment${input.title ? ` ${input.title}` : ''}`)}.pdf`, containmentReportHtml(project, input, r), { pageSize: 'A4' }, { output: 'containmentReport', project });
     if (m) onStatus(m);
   }
 

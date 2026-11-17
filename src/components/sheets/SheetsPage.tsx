@@ -236,7 +236,7 @@ export default function SheetsPage({ project, onChange, onStatus, onUndo, openSh
     try {
       const { buildXlsx } = await import('../../docs/sheetXlsx');
       const base = (sheet.source ?? `${project.name} - Sheets`).replace(/\.xlsx$/i, '');
-      const m = await saveBinary(`${safeFileName(base)}.xlsx`, new Uint8Array(await buildXlsx(book.sheets.map((x) => fillLinked(project, x))).xlsx.writeBuffer()), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      const m = await saveBinary(`${safeFileName(base)}.xlsx`, new Uint8Array(await buildXlsx(book.sheets.map((x) => fillLinked(project, x))).xlsx.writeBuffer()), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'sheetsWorkbook' });
       if (m) onStatus?.(m);
     } finally {
       setBusy(false);

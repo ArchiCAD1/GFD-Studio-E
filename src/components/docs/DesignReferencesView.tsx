@@ -96,7 +96,7 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
   }
   async function exportOne(list: DesignReference[], name: string) {
     const defaultName = `${name.replace(/[^\w ()-]+/g, '').trim() || 'Design references'}.json`;
-    const m = await saveText(defaultName, exportReferences(list), 'Design references', 'json');
+    const m = await saveText(defaultName, exportReferences(list), 'Design references', 'json', { output: 'designReferences' });
     if (m) onStatus(m);
   }
   async function importFile(file: File) {

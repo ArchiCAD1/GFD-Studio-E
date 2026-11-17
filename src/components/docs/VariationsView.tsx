@@ -35,7 +35,7 @@ export default function VariationsView({ project, items, bom, cur, onChange, onS
     try {
       const single = sheets?.length === 1;
       const html = buildVariationHtml(project, single ? { register: false, sheets } : {});
-      const m = await savePdf(`${base} - ${single ? sheets![0] : 'Variation register'}.pdf`, html, { pageSize: 'A4', cssPages: true, selfNumbered: true });
+      const m = await savePdf(`${base} - ${single ? sheets![0] : 'Variation register'}.pdf`, html, { pageSize: 'A4', cssPages: true, selfNumbered: true }, { output: 'variations', project });
       if (m) {
         onStatus(m);
         const v = single ? vos.find((x) => x.id === sheets![0]) : undefined;
@@ -45,7 +45,7 @@ export default function VariationsView({ project, items, bom, cur, onChange, onS
     } catch (e) { onStatus(`PDF export failed: ${e instanceof Error ? e.message : String(e)}`); }
   }
   async function excel() {
-    const m = await saveBinary(`${base} - Variation register.xlsx`, await workbookBytes(buildVariationWorkbook(project)), 'Excel', 'xlsx', XLSX);
+    const m = await saveBinary(`${base} - Variation register.xlsx`, await workbookBytes(buildVariationWorkbook(project)), 'Excel', 'xlsx', XLSX, { output: 'variations', project });
     if (m) onStatus(m);
   }
   async function fold() {

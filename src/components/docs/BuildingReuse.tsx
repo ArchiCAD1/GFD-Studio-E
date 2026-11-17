@@ -125,7 +125,7 @@ export function ReuseDialog({ project, onAdd, onClose, onStatus }: {
     onStatus(`Imported ${added.length} building preset${added.length === 1 ? '' : 's'}`);
   }
   async function exportAll() {
-    const m = await saveText(`${safeFileName('Building presets')}.json`, exportBuildingPresets(presets), 'Building presets', 'json');
+    const m = await saveText(`${safeFileName('Building presets')}.json`, exportBuildingPresets(presets), 'Building presets', 'json', { output: 'buildingPresets' });
     if (m) onStatus(m);
   }
 
@@ -152,7 +152,7 @@ export function ReuseDialog({ project, onAdd, onClose, onStatus }: {
                         <td className="m">{whenText(Date.parse(p.savedAt))}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           <button className="chip primary" onClick={() => { setSource({ kind: 'preset', preset: p }); setRooms(true); }}>Use</button>
-                          <button className="icon-btn" title="Export this preset" onClick={async () => { const m = await saveText(`${safeFileName(p.name)}.json`, exportBuildingPresets([p]), 'Building preset', 'json'); if (m) onStatus(m); }}>⤓</button>
+                          <button className="icon-btn" title="Export this preset" onClick={async () => { const m = await saveText(`${safeFileName(p.name)}.json`, exportBuildingPresets([p]), 'Building preset', 'json', { output: 'buildingPresets' }); if (m) onStatus(m); }}>⤓</button>
                           <button className="icon-btn" title="Delete this preset" onClick={async () => (await ask(`Delete the building preset "${p.name}"? Projects made from it keep their buildings.`)) && storePresets(presets.filter((x) => x.id !== p.id))} aria-label="Delete this preset"><X size={14} aria-hidden /></button>
                         </td>
                       </tr>

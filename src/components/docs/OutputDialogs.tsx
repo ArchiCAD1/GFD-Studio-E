@@ -27,7 +27,7 @@ const sheetWith = (p: Project, id: string, patch: Partial<DrawingSheet>): Projec
 export async function exportRegister(project: Project, onStatus: (m: string) => void): Promise<void> {
   try {
     const [{ workbookBytes }, { buildRegisterWorkbook }] = await Promise.all([import('../../docs/formWorkbook'), import('../../docs/registerWorkbook')]);
-    const m = await saveBinary(`${safeFileName(project.name)} - drawing register.xlsx`, await workbookBytes(buildRegisterWorkbook(project, setOf(project))), 'Excel', 'xlsx', XLSX);
+    const m = await saveBinary(`${safeFileName(project.name)} - drawing register.xlsx`, await workbookBytes(buildRegisterWorkbook(project, setOf(project))), 'Excel', 'xlsx', XLSX, { output: 'drawingRegister', project });
     if (m) onStatus(m);
   } catch (e) { onStatus(`Register export failed: ${e instanceof Error ? e.message : String(e)}`); }
 }
@@ -180,7 +180,7 @@ export function PageSetupsDialog({ project, current, onChange, onStatus, onClose
             const { project: next, added, kept } = importSetups(project, found);
             onChange(next, `${added.length} page setup(s) imported${kept.length ? `; ${kept.length} of the same name left as ${kept.length === 1 ? 'it is' : 'they are'}` : ''} · ⌘Z to undo`);
           }} />
-          <button className="chip" disabled={!setups.length} onClick={async () => { const m = await saveText(`${safeFileName(project.name)} page setups.json`, JSON.stringify(setupsFile(project), null, 2), 'Page setups', 'json'); if (m) onStatus?.(m); }}>Export…</button>
+          <button className="chip" disabled={!setups.length} onClick={async () => { const m = await saveText(`${safeFileName(project.name)} page setups.json`, JSON.stringify(setupsFile(project), null, 2), 'Page setups', 'json', { output: 'pageSetups' }); if (m) onStatus?.(m); }}>Export…</button>
         </>}
         <span className="sp" />
         {saved && !applying && <button className="chip" onClick={() => setApplying(new Set([...users.map((x) => x.id), ...(current ? [current] : [])]))}>Apply to…</button>}

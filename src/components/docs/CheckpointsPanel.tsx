@@ -51,7 +51,7 @@ export default function CheckpointsPanel({ project, onRestore, onOpenCopy, onSta
     try {
       const all = store && projectId ? await store.list(projectId) : [];
       const bytes = await buildBackup(project, all, __APP_VERSION__);
-      const where = await saveBinary(`${safeFileName(project.name)}.${BACKUP_EXT}`, bytes, 'LV Design Studio backup', BACKUP_EXT, 'application/zip');
+      const where = await saveBinary(`${safeFileName(project.name)}.${BACKUP_EXT}`, bytes, 'LV Design Studio backup', BACKUP_EXT, 'application/zip', { output: 'projectBackup' });
       if (where !== null) onStatus(`Backup exported with ${all.length} checkpoint${all.length === 1 ? '' : 's'} — the project as it is now (save it first if you want the file to match)`);
     } catch (e) { fail('Export backup')(e); }
   }

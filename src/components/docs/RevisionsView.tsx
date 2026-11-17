@@ -74,7 +74,7 @@ export default function RevisionsView({ project, me = '', onChange, onStatus }: 
     const rows = shown.flatMap((c) =>
       c.fields.length ? c.fields.map((f) => [c.boardId ?? '', CLASS_LABEL[c.class], KIND[c.kind], c.label, f.field, f.from, f.to]) : [[c.boardId ?? '', CLASS_LABEL[c.class], KIND[c.kind], c.label, '', '', '']]
     );
-    const m = await saveCsv(`${project.name} changes ${label(fromId)} to ${label(to)}`, ['Board', 'Kind of change', 'Change', 'Item', 'Field', 'From', 'To'], rows);
+    const m = await saveCsv(`${project.name} changes ${label(fromId)} to ${label(to)}`, ['Board', 'Kind of change', 'Change', 'Item', 'Field', 'From', 'To'], rows, { output: 'changesList', project });
     if (m) onStatus(m);
   }
 

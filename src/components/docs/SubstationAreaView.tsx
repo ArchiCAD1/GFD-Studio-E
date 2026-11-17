@@ -43,7 +43,7 @@ export default function SubstationAreaView({ project, onChange, onStatus }: {
   async function exportPdf(which: DmSubstationRoom[]) {
     setBusy(true);
     try {
-      const msg = await savePdf(`${safeFileName(project.name)} - DM-D-013 substation areas${which.length === 1 ? ` ${safeFileName(which[0].name)}` : ''}.pdf`, buildDmFormHtml(project, which), { pageSize: 'A4', landscape: false });
+      const msg = await savePdf(`${safeFileName(project.name)} - DM-D-013 substation areas${which.length === 1 ? ` ${safeFileName(which[0].name)}` : ''}.pdf`, buildDmFormHtml(project, which), { pageSize: 'A4', landscape: false }, { output: 'dmSubstationForm', project });
       if (msg) onStatus(msg);
     } finally {
       setBusy(false);

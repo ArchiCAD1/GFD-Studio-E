@@ -76,7 +76,7 @@ export default function TemplateExportDialog({ project, boardId, onStatus, onClo
       const { workbook } = await m.fillLoadScheduleTemplate(project, tpl.bytes, { boardIds });
       const { workbookBytes } = await import('../../docs/formWorkbook');
       const stem = tpl.name.replace(/\.xlsx$/i, '');
-      const saved = await saveBinary(`${safeFileName(`${project.name} ${scope === 'this' ? boardId : 'DB schedules'} - ${stem}`)}.xlsx`, await workbookBytes(workbook), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      const saved = await saveBinary(`${safeFileName(`${project.name} ${scope === 'this' ? boardId : 'DB schedules'} - ${stem}`)}.xlsx`, await workbookBytes(workbook), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'loadSchedule', project, values: scope === 'this' ? { Board: boardId } : undefined });
       if (saved) { onStatus(saved); onClose(); }
     } catch (e) {
       setError(`Excel export failed: ${e instanceof Error ? e.message : String(e)}`);

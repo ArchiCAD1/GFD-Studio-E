@@ -34,13 +34,13 @@ function ScheduleTable({ schedule }: { schedule: Schedule }) {
 
 type Status = (msg: string) => void;
 
-function ExportCsvButton({ name, schedule, onStatus, project }: { name: string; schedule: Schedule; onStatus: Status; project?: Project }) {
+function ExportCsvButton({ name, schedule, onStatus, project, output }: { name: string; schedule: Schedule; onStatus: Status; project?: Project; output: 'cableSchedule' | 'equipmentSchedule' }) {
   return (
     <>
-      <button className="chip" onClick={async () => { const m = await saveCsv(name, schedule.headers, csvRows(schedule)); if (m) onStatus(m); }}>
+      <button className="chip" onClick={async () => { const m = await saveCsv(name, schedule.headers, csvRows(schedule), { output, project }); if (m) onStatus(m); }}>
         Export CSV (Excel)
       </button>
-      {project && <button className="chip" onClick={async () => { const m = await savePdf(`${safeFileName(name)}.pdf`, scheduleHtml(project, schedule, name), { pageSize: 'A4', landscape: true, cssPages: true }); if (m) onStatus(m); }}>
+      {project && <button className="chip" onClick={async () => { const m = await savePdf(`${safeFileName(name)}.pdf`, scheduleHtml(project, schedule, name), { pageSize: 'A4', landscape: true, cssPages: true }, { output, project }); if (m) onStatus(m); }}>
         Export PDF
       </button>}
     </>
@@ -55,7 +55,7 @@ export function CableScheduleView({ project, onStatus, focus, onClearFocus }: { 
     return { ...s, rows: s.rows.filter((r) => ids.has(String(r[1]))) };
   }, [project, focus]);
   return (
-    <Page title="Cable schedule" actions={<><FocusChip id={focus} onClear={onClearFocus} /><ExportCsvButton project={project} name={`${project.name} cable schedule${focus ? ` ${focus}` : ''}`} schedule={schedule} onStatus={onStatus} /></>}>
+    <Page title="Cable schedule" actions={<><FocusChip id={focus} onClear={onClearFocus} /><ExportCsvButton output="cableSchedule" project={project} name={`${project.name} cable schedule${focus ? ` ${focus}` : ''}`} schedule={schedule} onStatus={onStatus} /></>}>
       <ScheduleTable schedule={schedule} />
     </Page>
   );
@@ -67,7 +67,7 @@ export function EquipmentScheduleView({ project, onStatus }: { project: Project;
     <Page
       title="Equipment schedule"
       intro="Transformers and boards. Edit board equipment data in the board's properties panel (select the board in the diagram)."
-      actions={<ExportCsvButton project={project} name={`${project.name} equipment schedule`} schedule={schedule} onStatus={onStatus} />}
+      actions={<ExportCsvButton output="equipmentSchedule" project={project} name={`${project.name} equipment schedule`} schedule={schedule} onStatus={onStatus} />}
     >
       <ScheduleTable schedule={schedule} />
     </Page>
@@ -93,7 +93,7 @@ export function ReportView({ project, onStatus, stale = false, docNo, onDocNo }:
     setBusy(true);
     try {
       // Landscape and the document's own header / page numbers (CSS @page boxes), as the BOQ.
-      const m = await savePdf(`${safeFileName(project.name)}-calculation-report.pdf`, html, { pageSize: 'A4', landscape: true, cssPages: true, selfNumbered: true });
+      const m = await savePdf(`${safeFileName(project.name)}-calculation-report.pdf`, html, { pageSize: 'A4', landscape: true, cssPages: true, selfNumbered: true }, { output: 'calcReport', project });
       if (m) onStatus(m);
     } finally {
       setBusy(false);

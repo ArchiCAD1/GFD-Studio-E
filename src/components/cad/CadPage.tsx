@@ -1395,7 +1395,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** HATCH → Export .pat…: every pattern in the list (built in, this project's, those kept on this computer) as a .pat file. */
   async function exportPat() {
     const all = withPatterns(withPatterns(builtInAsCustom(), computerPats), project.cadPatterns ?? []);
-    const done = await saveText('hatch-patterns.pat', formatPat(all), 'Hatch pattern file', 'pat');
+    const done = await saveText('hatch-patterns.pat', formatPat(all), 'Hatch pattern file', 'pat', { output: 'hatchPatterns' });
     cad.say(done ? `HATCH  ${all.length} patterns exported. ${done}` : 'HATCH  Export cancelled.');
   }
   /** The room outlines of this level (drawing units). */
@@ -1612,7 +1612,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       const over = again && c.path ? window.lvds?.files?.overwriteBinary : undefined;
       let r: { message: string; path?: string; name: string } | null;
       if (over && c.path) { await over({ file: c.path, bytes, bak: draft.keepBak }); r = { message: `Saved ${c.name}`, path: c.path, name: c.name }; }
-      else r = await saveBinaryAt(c.name, bytes, c.as === 'dwg' ? 'DWG drawing' : 'DXF drawing', c.as, c.as === 'dwg' ? 'application/acad' : 'application/dxf');
+      else r = await saveBinaryAt(c.name, bytes, c.as === 'dwg' ? 'DWG drawing' : 'DXF drawing', c.as, c.as === 'dwg' ? 'application/acad' : 'application/dxf', { output: 'cadDrawing', project });
       if (!r) return false;
       if (keep) { cad.saved.current.set(view.file.toLowerCase(), { ...c, name: r.name, path: r.path }); cad.markDirty(view.file, false); }
       cad.say(`SAVE  ${r.message} (${shownDevices.length} device${shownDevices.length === 1 ? '' : 's'} on E-LV-POINTS / E-ELV-DEVICES / E-BOARDS, ${drawn.length} drawn object${drawn.length === 1 ? '' : 's'} on ${DRAW_LAYER} / ${ANNO_LAYER}${refLines.length ? `, ${boundText(refLines)} bound on NAME$0$LAYER layers` : ''}${wired.length ? `, ${wired.length} circuit${wired.length === 1 ? '' : 's'} wired on ${WIRING_LAYER} / ${TAG_LAYER}` : ''})`);
@@ -1666,10 +1666,10 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (kind === 'pdfView' || kind === 'png') {
         const img = viewImage(kind === 'pdfView');
         if (!img) { cad.say('EXPORT  The view could not be read.'); return; }
-        if (kind === 'png') { const bin = atob(img.split(',')[1]); say(await saveBinary(`${base}.png`, Uint8Array.from(bin, (ch) => ch.charCodeAt(0)), 'PNG image', 'png', 'image/png')); return; }
+        if (kind === 'png') { const bin = atob(img.split(',')[1]); say(await saveBinary(`${base}.png`, Uint8Array.from(bin, (ch) => ch.charCodeAt(0)), 'PNG image', 'png', 'image/png', { output: 'cadDrawing', project })); return; }
         const esc = (t: string) => t.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
         const title = `${view.file}${floor ? ` · ${floorLabel(project.building, floor)}` : ''} · ${new Date().toISOString().slice(0, 10)}`;
-        say(await savePdf(`${base}.pdf`, `<!doctype html><html><head><meta charset="utf-8"><title>${esc(view.file)}</title><style>body{margin:0;font:10pt sans-serif;color:black}img{display:block;max-width:100%;max-height:180mm;margin:0 auto;border:0.3mm solid black}p{margin:2mm 0}</style></head><body><p>${esc(title)}</p><img src="${img}" alt=""></body></html>`, { pageSize: 'A3', landscape: true }));
+        say(await savePdf(`${base}.pdf`, `<!doctype html><html><head><meta charset="utf-8"><title>${esc(view.file)}</title><style>body{margin:0;font:10pt sans-serif;color:black}img{display:block;max-width:100%;max-height:180mm;margin:0 auto;border:0.3mm solid black}p{margin:2mm 0}</style></head><body><p>${esc(title)}</p><img src="${img}" alt=""></body></html>`, { pageSize: 'A3', landscape: true }, { output: 'cadDrawing', project }));
         return;
       }
       if (kind === 'wblock') {
@@ -1677,7 +1677,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         if (!items.length && !pickedItems.length) { cad.say('WBLOCK  Pick the drawn objects or devices first, then WBLOCK.'); return; }
         const { devs, symbols } = devicesOut(pickedItems);
         const bytes = await drawingWithDevices({ bytes: new TextEncoder().encode(toDxf([])) }, devs, [...shapesOut(items, units.factor), ...blockDefsOut(defs, units.factor), pointStyleOut(pointStyleOf(project)), ...symbols], 'dxf');
-        say(await saveBinary(`${base} - objects.dxf`, bytes, 'DXF drawing', 'dxf', 'application/dxf'));
+        say(await saveBinary(`${base} - objects.dxf`, bytes, 'DXF drawing', 'dxf', 'application/dxf', { output: 'cadDrawing', project }));
         return;
       }
       const { default: ExcelJS } = await import('exceljs');
@@ -1687,13 +1687,13 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       if (kind === 'attributes' || kind === 'attributesCsv') {
         const rows = attributeRows(sketch, defs, units.factor, project.feeders);
         if (!rows.length) { cad.say('EXPORT  No blocks with attributes on this plan.'); return; }
-        if (kind === 'attributesCsv') { say(await saveBinary(`${base} - attributes.csv`, new TextEncoder().encode(attributesCsv(rows)), 'CSV file', 'csv', 'text/csv')); return; }
+        if (kind === 'attributesCsv') { say(await saveBinary(`${base} - attributes.csv`, new TextEncoder().encode(attributesCsv(rows)), 'CSV file', 'csv', 'text/csv', { output: 'cadDrawing', project })); return; }
         const ws = wb.addWorksheet('Attributes');
         ws.addRow([`${view.file}${floor ? ` · ${floorLabel(project.building, floor)}` : ''}`]);
         ws.addRow([...ATTRIBUTE_HEAD, 'Feeder']).font = { bold: true };
         for (const r of rows) ws.addRow([r.block, r.tag, r.value, r.layer, Math.round(r.x * 1000) / 1000, Math.round(r.y * 1000) / 1000, r.feeder ?? '']);
         ws.columns.forEach((col) => { col.width = 18; });
-        say(await saveBinary(`${base} - attributes.xlsx`, await workbookBytes(wb), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
+        say(await saveBinary(`${base} - attributes.xlsx`, await workbookBytes(wb), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'cadDrawing', project }));
         return;
       }
       const ws = wb.addWorksheet(kind === 'devices' ? 'Devices' : 'Cable routes');
@@ -1703,7 +1703,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       for (const r of rows) ws.addRow(r);
       ws.columns.forEach((col) => { col.width = 18; });
       if (!rows.length) { cad.say(`EXPORT  No ${kind === 'devices' ? 'devices placed' : 'cable routes drawn'} on this plan.`); return; }
-      say(await saveBinary(`${base} - ${kind === 'devices' ? 'devices' : 'cable routes'}.xlsx`, await workbookBytes(wb), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
+      say(await saveBinary(`${base} - ${kind === 'devices' ? 'devices' : 'cable routes'}.xlsx`, await workbookBytes(wb), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'cadDrawing', project }));
     } catch (e) { const msg = e instanceof Error ? e.message : String(e); cad.say(msg); onStatus(msg); }
   }
   // Drafting settings (DS) open at a tab; Publish (the sheets of this drawing's layouts ticked).

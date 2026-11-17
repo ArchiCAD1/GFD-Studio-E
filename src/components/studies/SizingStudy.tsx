@@ -63,8 +63,8 @@ export function TransformerGeneratorStudy({ project, onChange, onStatus }: { pro
       const meta = { title: section.title, docNo: setup.docNo, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy };
       const name = safeFileName(`${project.name} - Transformer and generator sizing`);
       const m = kind === 'pdf'
-        ? await savePdf(`${name}.pdf`, buildStudyReportHtml(project, scope, [section], meta), { cssPages: true })
-        : await saveBinary(`${name}.xlsx`, await workbookBytes(buildStudyWorkbook(project, scope, [section], meta)), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        ? await savePdf(`${name}.pdf`, buildStudyReportHtml(project, scope, [section], meta), { cssPages: true }, { output: 'txGenReport', project })
+        : await saveBinary(`${name}.xlsx`, await workbookBytes(buildStudyWorkbook(project, scope, [section], meta)), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'txGenReport', project });
       if (m) onStatus?.(m);
     } finally {
       setBusy(false);
