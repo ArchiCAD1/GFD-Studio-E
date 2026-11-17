@@ -27,6 +27,7 @@ const SYMBOLS: Record<string, ReactNode> = {
   'board:EMDB': EMAIN_ICON,
   'board:LV-EMDB': EMAIN_ICON,
   'board:SMDB': SMDB_ICON,
+  'board:ESMDB': <>{BOARD_EDGE}<path d="M2 7L12 12L2 17Z" {...FILL} /><path d="M22 7L12 12L22 17Z" {...FILL} />{CROSS}</>,
   'board:DB': <>{BOARD_EDGE}<path d="M2 17L22 7" /></>,
   'board:EDB': <>{BOARD_EDGE}{CROSS}</>,
   'board:MCC': <>{BOARD_EDGE}<path d="M2 7H22V12H2Z" {...FILL} /><path d="M2 12H22" /></>,

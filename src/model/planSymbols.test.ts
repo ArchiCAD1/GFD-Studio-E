@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ANNO_START, SYMBOL_R_MM, symbolUnits } from './cadAnnotate';
 import { LV_PALETTE, PALETTE_GROUPS } from './cadDevices';
+import { SYMBOLS } from '../diagram/symbolLibrary';
 import { PLAN_SYMBOL_IDS, PLAN_SYMBOLS, planSymbolShapes, planSymbolSvg, symbolBox, symbolGeom } from './planSymbols';
 
 describe('plan symbols', () => {
@@ -14,10 +15,10 @@ describe('plan symbols', () => {
     for (const scale of [50, 100, 200]) expect((symbolUnits({ ...ANNO_START, scale }, 1) * 1000) / scale).toBeCloseTo(SYMBOL_R_MM, 6);
   });
 
-  it('holds the 26 plan symbols and the 4 plain ones, each with a name and unique id', () => {
-    expect(PLAN_SYMBOL_IDS.filter((id) => PLAN_SYMBOLS[id].group !== 'plain')).toHaveLength(26);
-    expect(PLAN_SYMBOL_IDS).toHaveLength(30);
-    expect(new Set(PLAN_SYMBOL_IDS).size).toBe(30);
+  it('holds the 34 plan symbols and the 4 plain ones, each with a name and unique id', () => {
+    expect(PLAN_SYMBOL_IDS.filter((id) => PLAN_SYMBOLS[id].group !== 'plain')).toHaveLength(34);
+    expect(PLAN_SYMBOL_IDS).toHaveLength(38);
+    expect(new Set(PLAN_SYMBOL_IDS).size).toBe(38);
     for (const id of PLAN_SYMBOL_IDS) { expect(PLAN_SYMBOLS[id].label).not.toBe(''); expect(PLAN_SYMBOLS[id].prims.length).toBeGreaterThan(0); }
   });
 
@@ -41,7 +42,7 @@ describe('plan symbols', () => {
   });
 
   it('scales and moves with its point, and takes a tag for its text', () => {
-    const g = symbolGeom('db', 10, 20, 0.1, 'EDB')!;
+    const g = symbolGeom('switch-panel', 10, 20, 0.1, 'EDB')!;
     expect(g.paths[0].pts[0][0]).toBeCloseTo(9.7); expect(g.paths[0].pts[0][1]).toBeCloseTo(20.175);
     expect(g.texts[0]).toMatchObject({ s: 'EDB', at: [10, 20] });
     expect(g.texts[0].h).toBeCloseTo(0.18);
@@ -67,6 +68,15 @@ describe('plan symbols', () => {
     expect(planSymbolShapes('socket', 'L', 0, 0, 1).map((s) => s.kind)).toEqual(['pline', 'line', 'line']);
   });
 
+  it('saves a filled path as a solid hatch, and nothing else as one', () => {
+    const hatches = (id: string) => planSymbolShapes(id, 'L', 0, 0, 1).filter((s) => s.kind === 'hatch');
+    expect(hatches('p-smdb')).toEqual([{ layer: 'L', kind: 'hatch', pts: [], loops: [[[-3.5, 1.75], [3.5, 1.75], [-3.5, -1.75]]], solid: true }]);
+    expect(hatches('p-db')).toHaveLength(0);
+    expect(hatches('exhaust-fan')).toHaveLength(2);
+    expect(hatches('exhaust-fan').every((s) => s.solid)).toBe(true);
+    expect(planSymbolShapes('dimmer', 'L', 0, 0, 1).filter((s) => s.kind === 'hatch')).toHaveLength(1);
+  });
+
   it('the palette points only at symbols that exist, every item under a heading with a symbol for its button', () => {
     const linked = LV_PALETTE.filter((x) => x.symbol.plan);
     expect(linked.filter((x) => 'lv' in x.kind).map((x) => x.id)).toEqual(['exfan', 's13', 's13t', 's13-floor', 's13-ceiling', 'shaver', 's15', 'hd', 'isol', 'isol-fused']);
@@ -86,6 +96,41 @@ describe('plan symbols', () => {
     expect(symbolGeom(s15.plan!, 0, 0, 1, s15.tag)!.texts.map((t) => t.s)).toEqual(['15 A']);
     expect(planSymbolSvg(s15.plan!, 0, 0, 1, s15.tag)).toContain('>15 A</text>');
     expect(symbolBox(s15.plan!, s15.tag)!.x1).toBeLessThan(symbolBox(s15.plan!, '100 A TPN')!.x1);
+  });
+});
+
+describe('board plan symbols', () => {
+  const ids = ['p-mdb', 'p-emdb', 'p-smdb', 'p-esmdb', 'p-db', 'p-edb', 'p-mcc', 'p-emcc', 'p-fp', 'p-ups', 'p-mc', 'p-apfc'];
+  const fills = (id: string) => PLAN_SYMBOLS[id].prims.filter((p) => p.k === 'line' && p.fill).length;
+
+  it('are the SLD library\'s boards, with its ids and labels, in that order', () => {
+    expect(PLAN_SYMBOL_IDS.filter((id) => id.startsWith('p-'))).toEqual(ids);
+    for (const id of ids) {
+      expect(PLAN_SYMBOLS[id].group).toBe('board');
+      expect(PLAN_SYMBOLS[id].label, id).toBe((SYMBOLS as Record<string, { label: string }>)[id].label);
+    }
+  });
+
+  it('are 7 × 3.5 mm about the point', () => {
+    for (const id of ids) {
+      const b = symbolBox(id)!;
+      expect(b.x1 - b.x0, id).toBeCloseTo(7); expect(b.y1 - b.y0, id).toBeCloseTo(3.5);
+    }
+  });
+
+  it('carry the pattern of their kind', () => {
+    const frames = (id: string) => PLAN_SYMBOLS[id].prims.filter((p) => p.k === 'line' && p.closed && !p.fill).length;
+    expect([frames('p-mdb'), frames('p-emdb'), frames('p-smdb')]).toEqual([2, 2, 1]);
+    expect(Object.fromEntries(ids.map((id) => [id, fills(id)]))).toMatchObject({ 'p-smdb': 1, 'p-esmdb': 2, 'p-emdb': 2, 'p-mdb': 1, 'p-mcc': 1, 'p-emcc': 2, 'p-db': 0, 'p-edb': 0, 'p-fp': 0 });
+    for (const [id, code] of [['p-ups', 'UPS'], ['p-mc', 'MC'], ['p-apfc', 'APFC']]) expect(symbolGeom(id, 0, 0, 1)!.texts.map((t) => t.s)).toEqual([code]);
+  });
+
+  it('draw in black and white only', () => {
+    for (const id of ids) {
+      const svg = planSymbolSvg(id, 10, 10);
+      expect(svg, id).not.toMatch(/NaN|undefined/);
+      expect(svg.match(/#[0-9a-f]{3,6}/gi)!.every((c) => c === '#000' || c === '#fff')).toBe(true);
+    }
   });
 });
 

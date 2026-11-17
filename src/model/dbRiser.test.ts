@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import type { Board, Feeder, Project } from '../types';
-import { cablesAtGap, countTotal, dbRiserLayout, dbRiserOffered, dbRiserSummary, dbRiserTitles, flagLetter, refLines, rowsTotal } from './dbRiser';
+import { cablesAtGap, countCol, countTotal, dbRiserLayout, dbRiserOffered, dbRiserSummary, dbRiserTitles, flagLetter, refLines, rowsTotal } from './dbRiser';
 import { dbRiserDrawing, dbRiserSheetNos } from '../diagram/dbRiserDrawing';
 import { addDbRiserSheets, autoSize, drawable, setOf, sheetChecks, toggleRiserBreak, type DrawingSet } from './drawingSet';
 import { addG10RiserMockup } from './riserMockup';
@@ -43,6 +43,8 @@ function tower(n = 4, extra?: (boards: Board[], feeders: Feeder[]) => void): Pro
 }
 
 describe('DB riser by level', () => {
+  it('counts an ESMDB in the SMDB column', () => expect(countCol('ESMDB')).toBe('smdb'));
+
   it('collapses identical floors and counts boards by kind', () => {
     const L = dbRiserLayout(tower(), B);
     expect(L.rows).toHaveLength(4);

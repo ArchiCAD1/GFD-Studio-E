@@ -15,6 +15,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.181', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: boards drawn by their kind', text: 'A board placed on a plan is now drawn with its SLD pattern: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, a double frame for a main board, and so on, with its tag beside it. Plan sheets print the same symbols and their legend lists each kind shown. Saved DXF and DWG files keep the filled parts solid.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Boards: ESMDB type', text: 'A board can now be set to ESMDB, an emergency sub-main distribution board. It is drawn as a cross with its left and right parts filled, and it counts as emergency supply wherever it is fed from. A sub-main below an EMDB still shows as an ESMDB without changing its type.' }
+    ]
+  },
+  {
     version: '2.179', date: '2026-11-17',
     items: [
       { title: 'Design CAD: compact colour dialog', text: 'A layer or object colour now opens in a compact dialog that stays inside the window. Index colour has every number from 1 to 255 and a number field; True colour has a colour well, Hex and RGB fields. OK applies it, Cancel or Esc leaves it alone.', action: 'cad', actionLabel: 'Open Design CAD' },
