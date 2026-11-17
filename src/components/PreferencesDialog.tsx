@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { POINT_TEMPLATES, STUDY_DEFAULTS, type Project, type StudySettings } from '../types';
 import { defaultsFromProject, readLogo, signature, type DesignDefaults, type Preferences, type UserProfile } from '../model/profile';
+import FolderTemplatesPanel from './FolderTemplatesPanel';
 import { Modal } from './ui';
 import { PALETTE_LABEL, THEME_LABEL, type PalettePref, type ThemePref } from '../theme/theme';
 
-type Tab = 'me' | 'defaults' | 'app';
+type Tab = 'me' | 'defaults' | 'app' | 'folders';
 const ELCB_MA = [10, 30, 100, 300];
 
 /** My details (name, designation, company, logo…), what new projects start
@@ -20,6 +21,7 @@ export default function PreferencesDialog({ prefs, project, onSave, onApplyToPro
   const [tab, setTab] = useState<Tab>('me');
   const [p, setP] = useState<Preferences>(prefs);
   const [logoErr, setLogoErr] = useState('');
+  const [editingTemplate, setEditingTemplate] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const u = p.profile;
   const d = p.defaults;
@@ -33,12 +35,13 @@ export default function PreferencesDialog({ prefs, project, onSave, onApplyToPro
   );
 
   return (
-    <Modal onClose={onClose} className="modal prefs" onSubmit={(e) => { e.preventDefault(); onSave(p); }}>
+    <Modal onClose={onClose} className={tab === 'folders' ? 'modal prefs wide' : 'modal prefs'} closeOnBackdrop={!editingTemplate} onSubmit={(e) => { e.preventDefault(); onSave(p); }}>
       <h3>Profile &amp; preferences</h3>
       <div className="tabs prefs-tabs">
         <button type="button" className={tab === 'me' ? 'on' : ''} onClick={() => setTab('me')}>My details</button>
         <button type="button" className={tab === 'defaults' ? 'on' : ''} onClick={() => setTab('defaults')}>New project defaults</button>
         <button type="button" className={tab === 'app' ? 'on' : ''} onClick={() => setTab('app')}>Appearance &amp; saving</button>
+        <button type="button" className={tab === 'folders' ? 'on' : ''} onClick={() => setTab('folders')}>Folder templates</button>
       </div>
 
       {tab === 'me' && (
@@ -171,11 +174,15 @@ export default function PreferencesDialog({ prefs, project, onSave, onApplyToPro
         </>
       )}
 
-      <div className="modal-actions">
-        <span className="sp" />
-        <button type="button" className="chip" onClick={onClose}>Cancel</button>
-        <button type="submit" className="chip primary">Save</button>
-      </div>
+      {tab === 'folders' && <FolderTemplatesPanel onEditing={setEditingTemplate} />}
+
+      {!(tab === 'folders' && editingTemplate) && (
+        <div className="modal-actions">
+          <span className="sp" />
+          <button type="button" className="chip" onClick={onClose}>Cancel</button>
+          <button type="submit" className="chip primary">Save</button>
+        </div>
+      )}
     </Modal>
   );
 }

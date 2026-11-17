@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.180', date: '2026-11-17',
+    items: [
+      { title: 'Folder templates: library and editor', text: 'Profile & preferences has a new Folder templates tab. It lists the built-in folder templates (locked) and your own. Duplicate one, then add, rename, delete, drag, indent and renumber its folders, and choose which outputs each folder is for. Problems such as a character Windows does not allow are shown as you type. Templates are kept on this computer and can be shared as a file. Nothing is created on disk yet: making a project\'s folders from a template comes next.' }
+    ]
+  },
+  {
     version: '2.179', date: '2026-11-17',
     items: [
       { title: 'Design CAD: compact colour dialog', text: 'A layer or object colour now opens in a compact dialog that stays inside the window. Index colour has every number from 1 to 255 and a number field; True colour has a colour well, Hex and RGB fields. OK applies it, Cancel or Esc leaves it alone.', action: 'cad', actionLabel: 'Open Design CAD' },
