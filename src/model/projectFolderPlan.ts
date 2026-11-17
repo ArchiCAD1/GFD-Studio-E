@@ -5,6 +5,7 @@
 
 import { applyOverrides, expandTemplate, fillName, FOLDER_LIMITS, FOLDER_WHEN, safeNamePart, walkNodes, type FolderBuilding, type FolderNode, type FolderTemplate, type FolderVars, type FolderWhen, type ProjectFolder } from './folderTemplates';
 import type { Project } from '../types';
+import type { ScopeId } from './brief';
 import { projectNumber } from './projectNumber';
 
 /** Conditions a folder can depend on that the user ticks: everything but "always" and "each building". */
@@ -20,11 +21,14 @@ export function folderVars(project: Pick<Project, 'name' | 'info' | 'studyReport
   return v;
 }
 
-/** Conditions the project brief switches on: Solar PV and UPS in the scope. The others (fire, ELV, tender,
- * supervision) are not in the brief yet, so the user ticks those folders. */
+/** The brief's scope items that switch folders on, in the order the folders list them. */
+const SCOPE_FLAG: [ScopeId, FolderWhen][] = [['solar', 'scope:pv'], ['ups', 'scope:standby'], ['fire', 'scope:fire'], ['elv', 'scope:elv'], ['tender', 'stage:tender'], ['supervision', 'service:supervision']];
+
+/** Conditions the project brief switches on: Solar PV → scope:pv, UPS → scope:standby, Fire alarm → scope:fire,
+ * ELV → scope:elv, Tender stage → stage:tender, Site supervision → service:supervision. */
 export function folderFlags(project: Pick<Project, 'brief'>): FolderWhen[] {
   const scope = project.brief?.scope ?? [];
-  return [...(scope.includes('solar') ? ['scope:pv' as const] : []), ...(scope.includes('ups') ? ['scope:standby' as const] : [])];
+  return SCOPE_FLAG.filter(([id]) => scope.includes(id)).map(([, flag]) => flag);
 }
 
 /** The project's buildings as folder names use them: B1, B2… and the building's name. */
