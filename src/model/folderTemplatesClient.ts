@@ -3,6 +3,7 @@
  * templates come from the code and are never stored. */
 
 import { BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE_ID } from './folderTemplateBuiltins';
+import { namingIssues } from './fileNaming';
 import { isFolderTemplate, validateTemplate, type FolderTemplate } from './folderTemplates';
 
 export interface TemplatesState { templates: FolderTemplate[]; defaultId: string | null; skipped: number; error?: string }
@@ -61,7 +62,8 @@ export function templatesClient(): TemplatesClient {
 export async function saveTemplate(client: TemplatesClient, t: FolderTemplate): Promise<TemplatesState> {
   const errors = validateTemplate(t).filter((i) => i.level === 'error');
   if (!t.name.trim()) throw new Error('The template has no name.');
-  if (errors.length) throw new Error(errors.map((e) => e.message).join(' · '));
+  const problems = [...errors.map((e) => e.message), ...namingIssues(t.naming)];
+  if (problems.length) throw new Error(problems.join(' · '));
   const { builtIn: _b, ...own } = t;
   return client.save({ ...own, name: t.name.trim() });
 }

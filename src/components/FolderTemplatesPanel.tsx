@@ -11,6 +11,8 @@ import {
 } from '../model/folderTemplates';
 import { allTemplates, defaultTemplateId, saveTemplate, templatesClient, type TemplatesClient, type TemplatesState } from '../model/folderTemplatesClient';
 import { ask } from './ConfirmDialog';
+import { NamingTab, RolesTab } from './FolderTemplateTabs';
+import { namingIssues } from '../model/fileNaming';
 
 const WHEN_LABEL: Record<FolderWhen, string> = {
   always: 'Always', 'scope:pv': 'Solar PV is in scope', 'scope:standby': 'Generator / UPS is in scope', 'scope:fire': 'Fire / Civil Defence is in scope',
@@ -190,7 +192,8 @@ function TemplateEditor({ template, isNew, onSave, onCancel }: {
   const setNodes = (folders: FolderNode[]) => set({ ...t, folders });
   const node = sel ? findNode(nodes, sel) : undefined;
   const issues = useMemo(() => validateTemplate(t), [t]);
-  const errors = issues.filter((i) => i.level === 'error');
+  const naming = useMemo(() => namingIssues(t.naming), [t.naming]);
+  const errors = [...issues.filter((i) => i.level === 'error'), ...naming.map((m) => ({ level: 'error' as const, message: m }))];
   const flagged = useMemo(() => new Map(issues.filter((i) => i.nodeId).map((i) => [i.nodeId!, i])), [issues]);
   const open = (id: string) => setClosed((c) => { const n = new Set(c); n.delete(id); return n; });
 
@@ -386,9 +389,8 @@ function TemplateEditor({ template, isNew, onSave, onCancel }: {
         </>
       )}
 
-      {(tab === 'roles' || tab === 'naming') && (
-        <p className="m ft-soon">{tab === 'roles' ? 'A table of every output and the folder it saves to' : 'The file name builder'} is coming in the next update. For now, give a folder its roles on the Tree tab.</p>
-      )}
+      {tab === 'roles' && <RolesTab nodes={nodes} onChange={setNodes} />}
+      {tab === 'naming' && <NamingTab rule={t.naming} onChange={(naming) => set({ ...t, naming })} />}
 
       {preview && (
         <>
