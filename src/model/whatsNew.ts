@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.184', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD opens drawings with a damaged record', text: 'A DWG or DXF with a few records that cannot be read, such as an object another program wrote short, no longer stops with "could not be read". The drawing opens without those records; a file with nothing readable still shows the message.' }
+    ]
+  },
+  {
     version: '2.182', date: '2026-11-17',
     items: [
       { title: 'Folder templates: roles and file naming', text: 'The folder template editor has two more tabs. Roles lists every output the app makes with the folder it saves to: pick a folder, or let Auto-assign match folders to outputs by name. File naming builds the file name from fields such as the project number, document type, number and revision, with a preview for each document type and your own pattern for a type where you need one. Saving files into these folders with these names comes with the project folder step.' }
