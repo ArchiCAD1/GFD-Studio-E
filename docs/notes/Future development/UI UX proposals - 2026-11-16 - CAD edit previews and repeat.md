@@ -1,6 +1,6 @@
 # UI UX proposal – Design CAD edit previews and repeat (2026-11-16)
 
-Status: **waiting for approval** (five decisions at the end).
+Status: **approved 2026-11-17**. The user chose the recommended answer (in bold) for all five decisions. Step 1 is being built.
 
 The user asked on 2026-11-16 for these changes in Design CAD:
 
@@ -80,6 +80,8 @@ What the commands do is already in place. `trim` and `extend` (`src/model/cadEdi
 3. Rotate with several objects picked: **all of them; devices move round the base point, and cameras and speakers also turn**, drawn objects only, or one at a time as today?
 4. Scale: **the factor stays typed, and the shadow shows it while typing**, or also drag to scale (factor from the cursor's distance)?
 5. Repeat hint: **on the command line when a command ends**, or as the grey hint in the empty command box ("Type a command · Space repeats TRIM")?
+
+Answered 2026-11-17: the answer in bold for all five.
 
 ## Steps once approved
 
