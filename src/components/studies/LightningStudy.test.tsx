@@ -125,3 +125,31 @@ describe('Lightning protection study — roof outline for the risk assessment', 
     expect(document.querySelectorAll('svg path[stroke-linejoin="round"]').length).toBe(1);
   });
 });
+
+describe('Lightning protection study — risk factor presets', () => {
+  it('saves the factors under a name on this computer and loads them into another study', () => {
+    localStorage.clear();
+    let last: Project | undefined;
+    const messages: string[] = [];
+    const render = (p: Project) => act(() => root.render(<LightningStudy project={p} onChange={(x) => { last = x; render(x); }} onStatus={(m) => messages.push(m)} />));
+    const button = (label: string) => [...document.querySelectorAll('button')].find((b) => b.textContent === label)!;
+    render({ ...sampleProject, lightning: { lengthM: 35, widthM: 26, heightM: 8.5, method: 'mesh', risk: { shape: 'rectangle', thunderDays: 40, fireRisk: 0.02, tolerableRisk: 1e-5, damageProbability: { II: 0.05 } } } });
+    expect(button('Load preset').disabled).toBe(true);
+    expect(button('Save as preset').disabled).toBe(true);
+    const name = [...document.querySelectorAll('label.nf')].find((l) => l.querySelector('span')?.textContent === 'Preset name')!.querySelector('input')!;
+    act(() => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(name, 'Villas'); name.dispatchEvent(new Event('input', { bubbles: true })); });
+    act(() => button('Save as preset').click());
+    expect(messages[messages.length - 1]).toContain('Saved risk factor preset "Villas"');
+    expect(JSON.parse(localStorage.getItem('lvds.lightningRiskPresets')!)[0]).toMatchObject({ name: 'Villas', factors: { fireRisk: 0.02, tolerableRisk: 1e-5, damageProbability: { II: 0.05 } } });
+
+    act(() => root.unmount());
+    root = createRoot(host);
+    render({ ...sampleProject, lightning: { lengthM: 20, widthM: 10, heightM: 6, method: 'mesh', risk: { shape: 'rectangle', thunderDays: 25, fireRisk: 0.5, typicalLoss: 0.1 } } });
+    act(() => button('Load preset').click());
+    expect(last!.lightning!.risk).toEqual({ shape: 'rectangle', thunderDays: 25, fireRisk: 0.02, tolerableRisk: 1e-5, damageProbability: { II: 0.05 } });
+    act(() => button('Delete preset').click());
+    expect(JSON.parse(localStorage.getItem('lvds.lightningRiskPresets')!)).toEqual([]);
+    expect(button('Load preset').disabled).toBe(true);
+  });
+});
+
