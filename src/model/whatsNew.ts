@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.189', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: less work for dense drawings', text: 'Design CAD does less work to get a drawing with millions of line pieces ready to show, and lists and counts layers faster in drawings with thousands of them.' }
+    ]
+  },
+  {
     version: '2.184', date: '2026-11-17',
     items: [
       { title: 'Design CAD: boards drawn by their kind', text: 'A board placed on a plan is now drawn with its SLD pattern: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, a double frame for a main board, and so on, with its tag beside it. Plan sheets print the same symbols and their legend lists each kind shown. Saved DXF and DWG files keep the filled parts solid.', action: 'cad', actionLabel: 'Open Design CAD' },

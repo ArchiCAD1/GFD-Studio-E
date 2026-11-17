@@ -12,7 +12,7 @@ import { POINT_STYLE_DEFAULT, pointMark, pointRadius, type PointStyle } from '..
 import { attdefAsText, expandAll, type CadBlockDef } from '../../model/cadBlocks';
 import type { PlanCells, PlanCover } from '../elv/elvOverlay';
 import { fittingLabel, trayFittings } from '../../model/cadTrayFittings';
-import { cssRgb, dashArray, hatchLines, mixCss, patternLength, screenColour, tileOf } from '../../model/cadDraw';
+import { cssRgb, dashArray, hatchLines, lineBatches, mixCss, patternLength, screenColour } from '../../model/cadDraw';
 import { BAR_ALPHA, emPerCap, READ_PX, SCREEN_FONT, textBar, widthPerPx } from '../../model/cadTextScreen';
 import type { SketchItem } from '../../types';
 import { effective, styleOf, type LayerStyle } from '../../model/cadLayerStyle';
@@ -297,24 +297,8 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
     return { segs, objects: new Set(hidden.objects) };
   }, [view, hidden]);
   const batches = useMemo(() => {
-    type Batch = { layer: number; rgb: number; lt: number; path: Path2D; box: [number, number, number, number]; end: [number, number] };
-    const by = new Map<string, Batch>();
-    const { segs, segLayers, segColors, segLinetypes } = view;
     const [e0, e1, e2, e3] = view.info.extents;
-    const ext: [number, number, number, number] = [e0 - o0, e1 - o1, e2 - o0, e3 - o1];
-    for (let i = 0; i < segLayers.length; i += 1) {
-      if (gone?.segs[i]) continue;
-      const [x1, y1, x2, y2] = [segs[i * 4], segs[i * 4 + 1], segs[i * 4 + 2], segs[i * 4 + 3]];
-      const lt = segLinetypes?.[i] ?? 0;
-      const key = `${segLayers[i]}:${segColors[i]}:${lt}:${tileOf((x1 + x2) / 2, (y1 + y2) / 2, ext)}`;
-      let b = by.get(key);
-      if (!b) { b = { layer: segLayers[i], rgb: segColors[i], lt, path: new Path2D(), box: [x1, y1, x1, y1], end: [NaN, NaN] }; by.set(key, b); }
-      if (b.end[0] !== x1 || b.end[1] !== y1) b.path.moveTo(x1, y1);
-      b.path.lineTo(x2, y2);
-      b.end = [x2, y2];
-      b.box = [Math.min(b.box[0], x1, x2), Math.min(b.box[1], y1, y2), Math.max(b.box[2], x1, x2), Math.max(b.box[3], y1, y2)];
-    }
-    return [...by.values()];
+    return lineBatches(view.segs, view.segLayers, view.segColors, view.segLinetypes, [e0 - o0, e1 - o1, e2 - o0, e3 - o1], () => new Path2D(), gone?.segs);
   }, [view, gone, o0, o1]);
   // References: a path per reference and layer, relative to the origin.
   const refPaths = useMemo(() => refs.map((r) => {
