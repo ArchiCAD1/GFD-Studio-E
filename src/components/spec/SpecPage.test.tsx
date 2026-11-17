@@ -264,6 +264,60 @@ describe('Specification page', () => {
     });
   });
 
+  describe('opening a Word document and linking its values', () => {
+    const card = () => document.querySelector<HTMLElement>('section[aria-label="Link values to the project"]');
+    const openFile = async (name: string, bytes: Uint8Array | string) => {
+      const input = document.querySelector<HTMLInputElement>('input[aria-label="Word document"]')!;
+      const file = new File([bytes as BlobPart], name);
+      if (!file.arrayBuffer) Object.defineProperty(file, 'arrayBuffer', { value: async () => (typeof bytes === 'string' ? new TextEncoder().encode(bytes).buffer : bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)) });
+      Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+      await act(async () => { input.dispatchEvent(new Event('change', { bubbles: true })); await vi.waitFor(() => expect(status[status.length - 1]).toContain(name), { timeout: 5000 }); });
+    };
+
+    it('reads the wording, keeps the document information and page setup, and offers the project values it found', async () => {
+      const { Packer } = await import('docx');
+      const { buildSpecDocx } = await import('../../docs/specWord');
+      const name = sampleProject.name;
+      const word: Project = { ...sampleProject, spec: { title: 'From Word', setup: { cover: { on: false }, contents: { on: false } }, sections: [{ id: 'S1', title: 'General', included: true, clauses: [
+        { id: 'C1', kind: 'heading', text: 'Scope' }, { id: 'C2', kind: 'clause', text: `These works are for ${name}.` }, { id: 'C3', kind: 'clause', text: 'Nothing to link here.' }] }] } };
+      const bytes = new Uint8Array(await Packer.toBuffer(buildSpecDocx(word, word.spec!)));
+      render({ ...sampleProject, spec: { ...starterSpec(), info: { number: 'E-7' }, setup: { watermark: 'DRAFT' } } });
+      tabTo('File');
+      await openFile('office.docx', bytes);
+      expect(spec().info).toEqual({ number: 'E-7' });
+      expect(spec().setup).toEqual({ watermark: 'DRAFT' });
+      const general = spec().sections.find((x) => x.title === 'General')!;
+      expect(general.clauses.map((c) => c.text)).toEqual(['Scope', `These works are for ${name}.`, 'Nothing to link here.']);
+      expect(status[status.length - 1]).toContain('Word document opened — office.docx');
+      expect(status[status.length - 1]).toContain('undo to return');
+      // the project name was found typed in the wording
+      expect(card()!.textContent).toContain(`${name} → Project name`);
+      act(() => [...card()!.querySelectorAll('button')].find((b) => b.textContent === 'Link the ticked values')!.click());
+      expect(spec().sections.find((x) => x.title === 'General')!.clauses[1].text).toBe('These works are for {{project.name}}.');
+      expect(status[status.length - 1]).toMatch(/^Linked to the project: \d+ place/);
+      expect(card()).toBeNull();
+    });
+
+    it('a value that is unticked is left as typed', () => {
+      const name = sampleProject.name;
+      render({ ...sampleProject, spec: { title: 'x', sections: [{ id: 'S1', title: 'General', included: true, clauses: [{ id: 'C1', kind: 'clause', text: `For ${name}.` }] }] } });
+      press('Link values');
+      act(() => document.querySelector<HTMLInputElement>('input[aria-label="Link Project name"]')!.click());
+      const go = [...card()!.querySelectorAll('button')].find((b) => b.textContent === 'Link the ticked values')!;
+      expect(go.disabled).toBe(true);
+      expect(spec().sections[0].clauses[0].text).toBe(`For ${name}.`);
+    });
+
+    it('says so when the file is not a Word document, and changes nothing', async () => {
+      render(sampleProject);
+      tabTo('File');
+      const before = changes;
+      await openFile('notes.docx', 'plain text');
+      expect(status[status.length - 1]).toContain('notes.docx: The file is not a Word document (.docx)');
+      expect(changes).toBe(before);
+    });
+  });
+
   describe('tables and pictures', () => {
     const paste = (target: Element, text: string) => act(() => {
       const e = new Event('paste', { bubbles: true, cancelable: true });
