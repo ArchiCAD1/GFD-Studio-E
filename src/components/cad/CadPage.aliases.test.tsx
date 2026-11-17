@@ -103,7 +103,7 @@ describe('CAD command aliases (2026-11-14)', () => {
   it('TR is Trim and TRACE traces a room', async () => {
     await start();
     await command('TR');
-    await until(() => hist().includes('TRIM  Click the part to cut away'));
+    await until(() => hist().includes('TRIM  Select the part to cut away'));
     expect(state.tool).toBe('trim');
     await command('TRACE');
     await until(() => state.tool === 'trace');
