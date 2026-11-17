@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.185', date: '2026-11-17',
+    items: [
+      { title: 'PDF in my format: choose the paper', text: 'A schedule in your own format can print on A4 or A3, landscape or portrait. Choose it under PDF paper in Sheets → Link columns; it is saved with the format. A PDF of all panels gives each panel the paper of its format.', action: 'sheets', actionLabel: 'Open Sheets' }
+    ]
+  },
+  {
     version: '2.184', date: '2026-11-17',
     items: [
       { title: 'Design CAD: boards drawn by their kind', text: 'A board placed on a plan is now drawn with its SLD pattern: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, a double frame for a main board, and so on, with its tag beside it. Plan sheets print the same symbols and their legend lists each kind shown. Saved DXF and DWG files keep the filled parts solid.', action: 'cad', actionLabel: 'Open Design CAD' },
