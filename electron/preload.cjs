@@ -55,6 +55,12 @@ contextBridge.exposeInMainWorld('lvds', {
     import: () => ipcRenderer.invoke('folderTemplates:import'),
     export: (templates, defaultName) => ipcRenderer.invoke('folderTemplates:export', { templates, defaultName })
   },
+  projectFolders: {
+    chooseParent: (start) => ipcRenderer.invoke('projectFolders:chooseParent', start),
+    create: (root, paths) => ipcRenderer.invoke('projectFolders:create', { root, paths }),
+    status: (root, paths) => ipcRenderer.invoke('projectFolders:status', { root, paths }),
+    open: (root) => ipcRenderer.invoke('projectFolders:open', root)
+  },
   engines: {
     probe: () => ipcRenderer.invoke('engines:probe'),
     run: (request) => ipcRenderer.invoke('engines:run', request)

@@ -8,6 +8,8 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { lazyPage as lazy } from './util/onDemand';
 import { ErrorBoundary, setCrashKeeper } from './components/ErrorBoundary';
 import { Feeder, Board, Project, newProject } from './types';
+import { choiceReady, createChosenFolders, folderDisk, projectFolderOf, type FolderChoice } from './components/projectFolderActions';
+import { folderBuildings, folderVars } from './model/projectFolderPlan';
 import { sampleProject } from './data/sampleProject';
 import { evaluateProject, type Status } from './calc/electrical';
 import { boardIncomerLabel } from './docs/loadScheduleDoc';
@@ -960,15 +962,23 @@ export default function App() {
     setStatus(`Opened ${boardId} in Sheets.`);
   }
 
-  function createProject(name: string, brief?: ProjectBrief, template?: SetupTemplate, reference?: DesignReference, formats?: Partial<Record<PanelCategory, ScheduleFormat>>) {
+  function createProject(name: string, brief?: ProjectBrief, template?: SetupTemplate, reference?: DesignReference, formats?: Partial<Record<PanelCategory, ScheduleFormat>>, folder?: FolderChoice) {
     setWizard(false);
     // Your Parameters.xlsx defaults, then your profile's defaults and details, then a setup template,
     // then the authority's rule set chosen in the wizard, then the brief.
     const base0 = applyDefaults(applyParameters(newProject(name), db), prefs);
     const base1 = template ? applyTemplateSystem(base0, template) : base0;
     const base = reference ? applyReference(base1, reference) : base1;
-    const made = brief ? applyBrief(base, brief) : base;
+    const briefed = brief ? applyBrief(base, brief) : base;
+    // The project keeps its own copy of the folder template; where the folder is stays on this computer.
+    const made = folder ? { ...briefed, folder: projectFolderOf(folder.template) } : briefed;
     loadIntoApp(PANEL_CATEGORIES.reduce((p, c) => withProjectFormat(p, c.key, formats?.[c.key]), made), undefined, 'New project — not saved yet');
+    const disk = folderDisk();
+    if (folder && disk && choiceReady(folder, disk)) {
+      createChosenFolders(disk, made.id, folder, folderVars(made), folderBuildings(made))
+        .then((m) => setStatus(`New project, not saved yet. ${m}`))
+        .catch((e: unknown) => setStatus(`New project, not saved yet. The project folder was not made: ${e instanceof Error ? e.message : String(e)}`));
+    }
   }
 
   function saveFeeder(f: Feeder) {
@@ -1946,7 +1956,7 @@ export default function App() {
       )}
       {wizard && (
         <NewProjectWizard templates={loadTemplates()} initialName="Untitled project" company={prefs.profile.company} taken={projectList.map((m) => m.name)}
-          defaults={defaultsPreview(db, prefs)} storage={hasBridge ? projectsFolder || 'the projects folder' : 'this browser (use Download file to keep a copy)'} onChooseFolder={hasBridge ? chooseFolder : undefined}
+          defaults={defaultsPreview(db, prefs)} storage={hasBridge ? projectsFolder || 'the projects folder' : 'this browser (use Download file to keep a copy)'} onChooseFolder={hasBridge ? chooseFolder : undefined} folderParent={hasBridge ? projectsFolder : ''}
           onCancel={() => setWizard(false)} onQuick={(n) => createProject(n)} onCreate={createProject} />
       )}
       {briefDialog && (
