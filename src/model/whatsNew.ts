@@ -15,11 +15,42 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.181', date: '2026-11-17',
+    version: '2.186', date: '2026-11-17',
     items: [
       { title: 'Design CAD: multileader', text: 'One note with several arrows. Annotate → Leaders and tags → Multileader (MLD): click the arrowhead, then the landing, then type the words. It has its own styles (arrowhead, landing, text height, frame; MLS), Add leader and Remove leader, Align and Collect, and a style can fill in the circuit of the device at the arrowhead.', action: 'cad', actionLabel: 'Open Design CAD' },
       { title: 'Design CAD: Annotate in four panels', text: 'The Annotate sub-tab now has Text, Dimensions, Leaders and tags (with Room tag, Tag all rooms and Keynote) and Markup (revision cloud and north arrow).' },
       { title: 'Design CAD: leader arrowheads in Save DXF / DWG', text: 'A leader\'s arrowhead is now written to the DXF or DWG, as it shows on the screen and the plan sheets.' }
+    ]
+  },
+  {
+    version: '2.184', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: boards drawn by their kind', text: 'A board placed on a plan is now drawn with its SLD pattern: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, a double frame for a main board, and so on, with its tag beside it. Plan sheets print the same symbols and their legend lists each kind shown. Saved DXF and DWG files keep the filled parts solid.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Boards: ESMDB type', text: 'A board can now be set to ESMDB, an emergency sub-main distribution board. It is drawn as a cross with its left and right parts filled, and it counts as emergency supply wherever it is fed from. A sub-main below an EMDB still shows as an ESMDB without changing its type.' }
+    ]
+  },
+  {
+    version: '2.183', date: '2026-11-17',
+    items: [
+      { title: 'Project folders: make a job folder from a template', text: 'New project has a Project folder step: choose a folder template, where the folder goes and its name, untick the folders this job does not need, and the app makes the empty folders. Skip folders keeps things as before. The Overview has a Project folder card that opens the folder, shows which folders are present or missing and makes the missing ones. Only new, empty folders are made: nothing is moved, renamed or deleted. The web version gives the folders as a ZIP file. Project files and exports are still saved where they were.' }
+    ]
+  },
+  {
+    version: '2.182', date: '2026-11-17',
+    items: [
+      { title: 'Folder templates: roles and file naming', text: 'The folder template editor has two more tabs. Roles lists every output the app makes with the folder it saves to: pick a folder, or let Auto-assign match folders to outputs by name. File naming builds the file name from fields such as the project number, document type, number and revision, with a preview for each document type and your own pattern for a type where you need one. Saving files into these folders with these names comes with the project folder step.' }
+    ]
+  },
+  {
+    version: '2.181', date: '2026-11-17',
+    items: [
+      { title: 'Folder templates: library and editor', text: 'Profile & preferences has a new Folder templates tab. It lists the built-in folder templates (locked) and your own. Duplicate one, then add, rename, delete, drag, indent and renumber its folders, and choose which outputs each folder is for. Problems such as a character Windows does not allow are shown as you type. Templates are kept on this computer and can be shared as a file. Nothing is created on disk yet: making a project\'s folders from a template comes next.' }
+    ]
+  },
+  {
+    version: '2.180', date: '2026-11-17',
+    items: [
+      { title: 'PDF in my format: headings on every page', text: 'A schedule in your own format that runs over one page now has its column headings again at the top of each following page (Load schedule → Export → PDF: my format). The headings are the rows directly above the first circuit row; the title and the panel\'s details stay on the first page.' }
     ]
   },
   {

@@ -1,6 +1,7 @@
 import { buildingInfoOf, floorsOf } from '../calc/building';
 import { cableSizeText } from '../calc/electrical';
 import { circuitCategory } from '../calc/loadSchedule';
+import { boardSymbolOf } from '../diagram/panelBox';
 import { cableLabel, EMERGENCY_ITEMS, lvItemOf } from '../model/cadDevices';
 import { levelOfPlan, planOfLevel } from '../model/cadPlans';
 import { printedRefs } from '../model/cadRefs';
@@ -10,7 +11,7 @@ import { insidePolygon, segmentInPolygon } from '../model/viewportClip';
 import { dimOf, scaleLook, segmentsOf, sketchOf, trayLabel, trayLength, trayLine } from '../model/cadSketch';
 import { effective, layerStylesOf, styleOf } from '../model/cadLayerStyle';
 import { annoOf, SYMBOL_R_MM } from '../model/cadAnnotate';
-import { PLAN_SYMBOLS, planSymbolSvg } from '../model/planSymbols';
+import { PLAN_SYMBOL_IDS, PLAN_SYMBOLS, planSymbolSvg, symbolBox } from '../model/planSymbols';
 import { EM_PER_CAP, textBaseAt, textCorners, textWidth } from '../model/cadText';
 import { LINE_FACTOR, noteBox, noteSegAt } from '../model/cadMtext';
 import { mleaderNote } from '../model/cadMleader';
@@ -85,7 +86,7 @@ function notesLeftMm(p: Project, size: SheetSize): number {
 
 interface Mark { x: number; y: number; key: string; label: string; svg: (x: number, y: number, r: number) => string }
 /** `trays` and `cables` are the drawn runs in metres; a cable's `text` is its tag. */
-interface Content { marks: Mark[]; boards: { x: number; y: number; id: string }[]; wiring: Pt[][]; homes: Pt[][]; tags: { at: Pt; text: string }[]; trays: SketchItem[]; cables: SketchItem[] }
+interface Content { marks: Mark[]; boards: { x: number; y: number; id: string; sym: string }[]; wiring: Pt[][]; homes: Pt[][]; tags: { at: Pt; text: string }[]; trays: SketchItem[]; cables: SketchItem[] }
 
 const ink = (body: string) => `<g fill="#fff" stroke="#000" stroke-width="0.25">${body}</g>`;
 /** An LV point's plan symbol (the CAD palette's shapes): a light is a circle with a cross, a socket a box … */
@@ -96,10 +97,11 @@ function lvSymbol(shape: string, text: string, x: number, y: number, r: number):
   const k = r * 0.7;
   return ink(`<circle cx="${x}" cy="${y}" r="${r}"/>${shape === 'cross' ? `<path d="M${x - k} ${y - k}L${x + k} ${y + k}M${x - k} ${y + k}L${x + k} ${y - k}"/>` : ''}${label}`);
 }
-const boardSymbol = (x: number, y: number) => `<g stroke="#000" stroke-width="0.25"><rect x="${x - 2.5}" y="${y - 1.25}" width="5" height="2.5" fill="#fff"/><path d="M${x - 2.5} ${y + 1.25}L${x + 2.5} ${y - 1.25}L${x + 2.5} ${y + 1.25}Z" fill="#000"/></g>`;
 
+/** A board symbol's half size in mm (all the board symbols share the outline), for a home run's arrow to stop outside it. */
+const BOARD_HALF = (() => { const b = symbolBox('p-db')!; return { w: (b.x1 - b.x0) / 2, h: (b.y1 - b.y0) / 2 }; })();
 const onLevel = (d: { buildingId: string; levelId: string }, b: string, l: string) => d.buildingId === b && d.levelId === l;
-const boardsOn = (p: Project, b: string, l: string) => p.boards.flatMap((bd) => (bd.planPoint && bd.level?.building === b && bd.level?.level === l ? [{ x: bd.planPoint.x, y: bd.planPoint.y, id: bd.id }] : []));
+const boardsOn = (p: Project, b: string, l: string) => p.boards.flatMap((bd) => (bd.planPoint && bd.level?.building === b && bd.level?.level === l ? [{ x: bd.planPoint.x, y: bd.planPoint.y, id: bd.id, sym: boardSymbolOf(p, bd) }] : []));
 
 /** The tray runs and cable routes drawn on the level's plan file, in metres, and the level's DBs when there are any. A
  * route of a circuit no longer in the design is left off (the plan still shows it, as removed). */
@@ -456,14 +458,16 @@ function contentSvg(p: Project, s: Pick<DrawingSheet, 'plot'> | undefined, c: Co
     out.push(`<path class="ln" d="${d}" fill="none" stroke="${inkOf(pen.routes)}" stroke-width="${w(pen.routes, 1.4)}"/>`);
     const [a, b] = [h[h.length - 2], h[h.length - 1]];
     if (!inside(b)) continue;
-    const ang = Math.atan2(-(b[1] - a[1]), b[0] - a[0]), bx = X(b[0]), by = Y(b[1]), back = 3.2; // stops short of the DB symbol
+    const ang = Math.atan2(-(b[1] - a[1]), b[0] - a[0]), bx = X(b[0]), by = Y(b[1]);
+    const co = Math.abs(Math.cos(ang)), si = Math.abs(Math.sin(ang));
+    const back = Math.min(co > 1e-9 ? BOARD_HALF.w / co : Infinity, si > 1e-9 ? BOARD_HALF.h / si : Infinity) + 0.7; // stops 0.7 mm short of the board's outline
     const tx = bx - back * Math.cos(ang), ty = by - back * Math.sin(ang);
     out.push(`<path d="M${n(tx)} ${n(ty)}L${n(tx - 1.6 * Math.cos(ang - 0.4))} ${n(ty - 1.6 * Math.sin(ang - 0.4))}L${n(tx - 1.6 * Math.cos(ang + 0.4))} ${n(ty - 1.6 * Math.sin(ang + 0.4))}Z" fill="#000" stroke="#000" stroke-width="0.2"/>`);
   }
   if (tags) for (const t of c.tags) if (inside(t.at)) out.push(`<text x="${n(X(t.at[0]) + 1)}" y="${n(Y(t.at[1]) - 1)}" font-size="2.5" fill="#000">${esc(t.text)}</text>`);
   // Devices and DBs at the devices pen (their symbols are drawn at 0.25 mm in black).
   const dev = (svg: string) => (pen.devices.w === 0.25 && pen.devices.grey >= 100 ? svg : svg.replace(/stroke="#000" stroke-width="0\.25"/g, `stroke="${inkOf(pen.devices)}" stroke-width="${w(pen.devices)}"`));
-  for (const d of c.boards) if (inside([d.x, d.y])) out.push(dev(boardSymbol(X(d.x), Y(d.y))), tags ? `<text x="${n(X(d.x) + 3.2)}" y="${n(Y(d.y) - 1.8)}" font-size="2.8" font-weight="700" fill="#000">${esc(d.id)}</text>` : '');
+  for (const d of c.boards) if (inside([d.x, d.y])) out.push(dev(planSymbolSvg(d.sym, X(d.x), Y(d.y))), tags ? `<text x="${n(X(d.x) + symbolBox(d.sym)!.x1 + 0.7)}" y="${n(Y(d.y) - 1.8)}" font-size="2.8" font-weight="700" fill="#000">${esc(d.id)}</text>` : '');
   const counts = new Map<string, { label: string; n: number; svg: Mark['svg'] }>();
   for (const m of c.marks) {
     if (!inside([m.x, m.y])) continue;
@@ -641,7 +645,8 @@ function legendRows(type: PlanType, used: { label: string; n: number; svg: Mark[
   for (const [label, m] of trayM.sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))) rows.push({ label, sym: line(0.5), count: `${txt.fixed(m, 1)} m` });
   for (const [label, k] of fittings) rows.push({ label, sym: () => '', count: String(k) });
   if (c.cables.length) rows.push({ label: 'Cable route, with its cable and size', sym: line(0.25, '2 1') });
-  if (c.boards.some((d) => within([d.x, d.y], win))) rows.push({ label: 'Distribution board', sym: (y) => boardSymbol(4, y) });
+  const drawn = new Set(c.boards.filter((d) => within([d.x, d.y], win)).map((d) => d.sym));
+  for (const id of PLAN_SYMBOL_IDS) if (drawn.has(id)) rows.push({ label: PLAN_SYMBOLS[id].label, sym: (y) => planSymbolSvg(id, 4, y) });
   if (type !== 'elv' && c.wiring.length) rows.push({ label: 'Circuit wiring', sym: line(0.25) });
   if (type !== 'elv' && c.homes.length) rows.push({ label: 'Home run to DB: circuit · cable · length', sym: (y) => `${line(0.35)(y)}<path d="M7.5 ${y}L5.8 ${y - 0.7}L5.8 ${y + 0.7}Z" fill="#000"/>` });
   for (const r of refs) rows.push({ label: `${r.name} (reference)`, sym: line(0.25, '', r.ink) });

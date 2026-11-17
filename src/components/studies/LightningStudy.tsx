@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { SPD_TYPES, type Project } from '../../types';
 import { AIR_METHODS, airResultText as resultText, lightningProtection, lpsLayout, type AirMethod, type AirResult, type LpsClass, type LpsInputs } from '../../calc/lightningProtection';
-import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskLevel } from '../../calc/lightningRisk';
+import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskOutlineSketch, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskLevel } from '../../calc/lightningRisk';
+import { areaOf } from '../../model/cadMeasure';
 import { buildLightningReportHtml, LPS_SECTIONS, type LpsSectionKey } from '../../docs/lightningReport';
 import { applyRiskPreset, loadRiskPresets, saveRiskPresets, withRiskPreset } from '../../model/lightningRiskPresets';
-import { lightningPlanFiles, LP_BLOCK, roofOutlines, withLightningBlock, withRoofOutline } from '../../model/lightningCad';
+import { lightningPlanFiles, LP_BLOCK, roofOutlines, withLightningBlock, withRoofOutline, withRoofPart } from '../../model/lightningCad';
 import { safeFileName, saveBinary, savePdf } from '../../util/files';
 import { boardsInSupplyOrder } from '../../calc/summary';
 import { NumField, Page, ResultCard, ResultCards, StatusCell, StatusCounts } from '../ui';
@@ -74,6 +75,12 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
     setPresetId(next.find((x) => x.name === name)!.id);
     storePresets(next, `Saved risk factor preset "${name}" — load it in any project on this computer.`);
   }
+  function takePart() {
+    const done = toFile && outline ? withRoofPart({ ...project, lightning: i }, toFile, outline.id) : undefined;
+    if (!done) return;
+    onChange(done, true);
+    onStatus?.(`Part added from ${toFile}: ${n2(outline!.areaM2)} m². Enter its height above ground.`);
+  }
   const picked = LPS_SECTIONS.map((x) => x.key).filter((x) => sections.includes(x));
   async function exportReport() {
     setBusy(true);
@@ -94,14 +101,9 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
   const X = (m: number) => 35 + m * k, Y = (m: number) => 30 + m * k;
   // Collection area sketch: the building and its 3 × height reach drawn to fit a 300 × 190 box.
   const reach = 3 * i.heightM, ks = r.invalid ? 0 : Math.min(300 / (i.lengthM + 2 * reach), 190 / (i.widthM + 2 * reach));
-  // The same for a roof outline: its path (y upwards in the drawing) and the scale, for the band 3 × height wide.
-  const ol = useMemo(() => {
-    const o = k0.outline ?? [];
-    if (o.length < 3 || !(reach > 0)) return undefined;
-    const xs = o.map((q) => q[0]), ys = o.map((q) => q[1]), x0 = Math.min(...xs) - reach, y1 = Math.max(...ys) + reach;
-    const s = Math.min(300 / (Math.max(...xs) + reach - x0), 190 / (y1 - Math.min(...ys) + reach));
-    return { s, path: `M${o.map(([x, y]) => `${(20 + (x - x0) * s).toFixed(1)} ${(10 + (y1 - y) * s).toFixed(1)}`).join('L')}Z` };
-  }, [k0.outline, reach]);
+  // The same for a roof outline and its parts: each one's path and the width of its band.
+  const sk = useMemo(() => riskOutlineSketch(studyRiskInputs(i)), [i]);
+  const parts = k0.parts ?? [];
 
   return (
     <Page
@@ -169,6 +171,7 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
                 </select>
               </label>
               <button className="chip" disabled={!outline} onClick={takeOutline}>Take roof outline</button>
+              <button className="chip" disabled={!outline || !k0.outline?.length || !k0.outlineOrigin} onClick={takePart}>Add as a part with its own height</button>
             </>
           )}
           {k0.shape === 'area' && <NumField label="Collection area (entered)" unit="m²" value={k0.collectionAreaM2} min={0} onSet={(v) => setRisk({ collectionAreaM2: v })} optional />}
@@ -196,14 +199,34 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
         </div>
         <p className="m">{RISK_NOTE} A missing value shows DATA REQUIRED; nothing is assumed. A preset keeps your own factors (not the site or the building) on this computer, for any project. One risk component only — physical damage from a direct strike — so the class is a minimum.</p>
         {k0.shape === 'outline' && (
-          <p className="m">{k0.outline?.length ? `Outline taken: ${k0.outline.length} points. ` : 'No outline taken yet. '}In Design CAD, draw one closed polyline round the roof, then take it here; take it again after changing the drawing. The height is the building height above.</p>
+          <p className="m">{k0.outline?.length ? `Outline taken: ${k0.outline.length} points. ` : 'No outline taken yet. '}In Design CAD, draw one closed polyline round the roof, then take it here; take it again after changing the drawing. The height is the building height above. A tower, a lift overrun or a mast: draw its outline (a closed polyline or a circle) on the same drawing, add it as a part and give its height above ground; each part reaches 3 × its own height.{k0.outline?.length && !k0.outlineOrigin ? ' To add parts, take the roof outline again first.' : ''}</p>
         )}
-        {k0.shape === 'outline' && ol && (
-          <svg viewBox="0 0 340 230" role="img" aria-label={`Collection area: the roof outline and everything within ${n2(reach)} m of it`} style={{ width: '100%', maxWidth: 420, height: 'auto' }}>
-            <path d={ol.path} fill="var(--mut)" fillOpacity={0.25} stroke="var(--mut)" strokeOpacity={0.25} strokeWidth={2 * reach * ol.s} strokeLinejoin="round" />
-            <path d={ol.path} fill="none" stroke="var(--tx)" strokeWidth={2} />
+        {k0.shape === 'outline' && parts.length > 0 && (
+          <table>
+            <thead><tr><th>Part with its own height</th><th className="num">Roof area (m²)</th><th>Height above ground (m)</th><th /></tr></thead>
+            <tbody>
+              {parts.map((part, n) => (
+                <tr key={n}>
+                  <td>Part {n + 1}</td>
+                  <td className="num">{n2(areaOf(part.outline).area)}</td>
+                  <td>
+                    <input key={`${part.heightM ?? ''}`} aria-label={`Height of part ${n + 1}`} inputMode="decimal" style={{ width: 80 }} defaultValue={part.heightM ?? ''}
+                      onBlur={(e) => { const t = e.target.value.trim().replace(',', '.'), v = t === '' ? undefined : Number(t); if (v === undefined || (Number.isFinite(v) && v > 0)) { if (v !== part.heightM) setRisk({ parts: parts.map((x, m) => (m === n ? { ...x, heightM: v } : x)) }); } else e.target.value = part.heightM === undefined ? '' : String(part.heightM); }} />
+                  </td>
+                  <td><button className="chip" onClick={() => setRisk({ parts: parts.filter((_, m) => m !== n) })}>Remove</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {k0.shape === 'outline' && sk && (
+          <svg viewBox="0 0 340 230" role="img" aria-label={sk.length > 1 ? 'Collection area: the roof outline and its parts, each with everything within 3 × its own height' : `Collection area: the roof outline and everything within ${n2(reach)} m of it`} style={{ width: '100%', maxWidth: 420, height: 'auto' }}>
+            <g opacity={0.25}>
+              {sk.map((g, n) => <path key={n} d={g.path} fill="var(--mut)" stroke="var(--mut)" strokeWidth={g.band} strokeLinejoin="round" />)}
+            </g>
+            {sk.map((g, n) => <path key={n} d={g.path} fill="none" stroke="var(--tx)" strokeWidth={n ? 1.2 : 2} />)}
             <g fontSize={11} fill="var(--tx)">
-              <text x={20} y={222}>Roof outline · reach 3 × height = {n2(reach)} m (shaded){risk.collectionAreaM2 ? ` · ${n2(risk.collectionAreaM2)} m²` : ''}</text>
+              <text x={20} y={222}>{sk.length > 1 ? `Roof outline and ${sk.length - 1} part${sk.length > 2 ? 's' : ''} · each reaches 3 × its own height` : `Roof outline · reach 3 × height = ${n2(reach)} m`} (shaded){risk.collectionAreaM2 ? ` · ${n2(risk.collectionAreaM2)} m²` : ''}</text>
             </g>
           </svg>
         )}

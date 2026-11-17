@@ -37,7 +37,8 @@ A preliminary risk assessment at the top of the lightning protection study. It w
 
 5. **Presets** — the engineer's own factor sets, kept on this computer (`lvds.lightningRiskPresets`, synced through Library.json) and loaded into any project: a preset list with Load and Delete, a name and Save as preset. A preset holds the factors only, not the site or the building. None is built in. (Done.)
 
+6. **Parts with their own height** — with a roof outline, any other closed outline or circle on the same drawing (a tower, a lift overrun, a mast) can be added as a part with its own height above ground. Each part reaches 3 × its own height; overlaps count once. On the page: "Add as a part with its own height", a table of parts (roof area, height, Remove), and each part drawn on its own band; the same in the report. Taking the roof outline again drops the parts. The owner asked for this item ("NEXT", 2026-11-17) without a mockup. (Done.)
+
 ## Later
 
-- Parts of the building with different heights, and tall roof elements (each with its own reach).
 - The other risk components: strikes near the building and on incoming lines.

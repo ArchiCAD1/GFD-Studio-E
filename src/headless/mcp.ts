@@ -5,6 +5,7 @@ import path from 'node:path';
 import type { Project } from '../types';
 import { openProject, redactPaths } from './project';
 import { hider, projectAlias } from './privacy';
+import { DATA_INSTRUCTIONS, cleanResult, cleanText } from './untrusted';
 
 /** MCP server over stdio: the engineer's own AI program (any MCP client, or a local model through one)
  * starts `lvds mcp` and calls the tools. The app has no AI of its own, no account and no key. Runs on this
@@ -41,7 +42,7 @@ function hiding(tool: string, args: Record<string, unknown>, ctx: ToolContext): 
 export function createMcp(ctx: ToolContext, version: string): McpServer {
   const server = new McpServer(
     { name: 'lv-design-studio', title: 'LV Design Studio', version },
-    { instructions: `${ctx.write ? WRITE_INSTRUCTIONS : READ_INSTRUCTIONS}${ctx.hideNames ? HIDDEN_INSTRUCTIONS : ''}` }
+    { instructions: `${ctx.write ? WRITE_INSTRUCTIONS : READ_INSTRUCTIONS}${DATA_INSTRUCTIONS}${ctx.hideNames ? HIDDEN_INSTRUCTIONS : ''}` }
   );
   for (const t of offeredTools(ctx)) {
     server.registerTool(t.name, {
@@ -55,10 +56,11 @@ export function createMcp(ctx: ToolContext, version: string): McpServer {
       const hide = ctx.hideNames ? hiding(t.name, args, ctx) : undefined;
       try {
         const result = await callTool(t, args, { ...ctx, client: clientLabel(server.server.getClientVersion()) ?? 'unnamed MCP client' });
-        return { content: [{ type: 'text' as const, text: JSON.stringify(hide ? hide.result(result) : result) }] };
+        // Text in a result is data from project files (src/headless/untrusted.ts).
+        return { content: [{ type: 'text' as const, text: JSON.stringify(cleanResult(hide ? hide.result(result) : result)) }] };
       } catch (e) {
         const message = redactPaths((e as Error).message, ctx.folder);
-        return { isError: true, content: [{ type: 'text' as const, text: hide ? hide.text(message) : message }] };
+        return { isError: true, content: [{ type: 'text' as const, text: cleanText(hide ? hide.text(message) : message) }] };
       }
     });
   }

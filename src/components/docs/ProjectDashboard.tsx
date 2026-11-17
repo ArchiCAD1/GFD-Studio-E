@@ -1,4 +1,5 @@
 import { proposalOutstanding } from '../../model/proposalStatus';
+import { ProjectFolderCard } from '../ProjectFolder';
 import { useMemo, useState } from 'react';
 import type { Project } from '../../types';
 import type { CalcRun, StudyKey } from '../../calc/runs';
@@ -167,6 +168,7 @@ export default function ProjectDashboard({ project, run, stale, saved = false, o
             )}
           </>}
       </section>
+      <ProjectFolderCard project={project} onChangeProject={onChangeProject} onStatus={onStatus} />
       <div className="dash-tiles key">
         <Tile label="Maximum demand" value={`${f0(d.demandKw)} kW`} sub={<>{f0(d.demandKva)} kVA · PF {d.pf.toFixed(2)}</>} />
         <Tile label="Transformers" value={d.transformers.length ? sizesText(d.transformers.map((t) => t.kva)) : 'None'}

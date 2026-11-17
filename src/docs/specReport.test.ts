@@ -175,6 +175,39 @@ describe('specification — indent levels, page breaks and appendices in the out
   });
 });
 
+describe('specification — tables and pictures in the output', () => {
+  const PIC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAoCAIAAAC6iKlyAAAAc0lEQVR4Xu3QQQ0AIBDAMMC/5yOIYK/WwJLtmVn8d/4neIyOGB0xOmJ0xOiI0RGjI0ZHjI4YHTE6YnTE6IjREaMjRkeMjhgdMTpidMToiNERoyNGR4yOGB0xOmJ0xOiI0RGjI0ZHjI4YHTE6YnTE6IjRkQub1QNNNLL5wAAAAABJRU5ErkJggg==';
+  const d: SpecDoc = { title: 'Spec', setup: { cover: { on: false } }, sections: [{ id: 'S1', title: 'General', included: true, clauses: [
+    { id: 'C1', kind: 'clause', text: 'See below.' },
+    { id: 'C2', kind: 'table', text: 'Boards <main>', table: { rows: [['Board', 'Rating'], ['MDB & Co', '1600 A']] } },
+    { id: 'C3', kind: 'table', text: '', breakBefore: true, table: { rows: [['a', 'b']], header: false } },
+    { id: 'C4', kind: 'image', text: 'Riser', image: { src: PIC, w: 120, h: 40, widthPct: 50 } },
+    { id: 'C5', kind: 'image', text: '', image: { src: 'javascript:alert(1)', w: 1, h: 1 } }] }] };
+
+  it('PDF: a table with its caption above and a repeating header row, a picture with its caption under', () => {
+    const html = buildSpecHtml(sampleProject, d);
+    expect(html).toContain('<figure class="blk"><figcaption>Table 1 — Boards &lt;main&gt;</figcaption><table class="tb"><thead><tr><th>Board</th><th>Rating</th></tr></thead><tbody><tr><td>MDB &amp; Co</td><td>1600 A</td></tr></tbody></table></figure>');
+    expect(html).toContain('<figure class="blk brk"><figcaption>Table 2</figcaption><table class="tb"><tbody><tr><td>a</td><td>b</td></tr></tbody></table></figure>');
+    expect(html).toContain(`<figure class="blk pic"><img src="${PIC}" style="width: 50%" alt=""><figcaption>Figure 1 — Riser</figcaption></figure>`);
+    expect(html).toContain('<figure class="blk pic"><figcaption>Figure 2</figcaption></figure>');
+    expect(html).not.toContain('javascript');
+    expect(specPlainText(sampleProject, d).split('\n').slice(1, 6)).toEqual(['1.1\tSee below.', 'Table 1 — Boards <main>', 'Board\tRating', 'MDB & Co\t1600 A', 'Table 2']);
+  });
+
+  it('Word: the table with a header row, the picture at its share of the text width, both with captions', async () => {
+    const JSZip = (await import('jszip')).default;
+    const zip = await JSZip.loadAsync(await Packer.toBuffer(buildSpecDocx(sampleProject, d)));
+    const xml = await zip.file('word/document.xml')!.async('string');
+    expect(xml).toContain('Table 1');
+    expect(xml).toContain('MDB &amp; Co');
+    expect(xml).toContain('<w:tblHeader/>');
+    expect(xml).toContain('Figure 1');
+    expect(Object.keys(zip.files).filter((f) => /^word\/media\/.+/.test(f)).length).toBe(1);
+    // 50 % of the text width less the clause indent: (210 − 18 − 16) mm = 9978 twips, less 850, at 15 twips a pixel: 304 pixels wide, 101 high (120 × 40 kept in proportion).
+    expect(xml).toMatch(/<wp:extent cx="2895600" cy="962025"\/>/);
+  });
+});
+
 describe('specification — Word file', () => {
   it('carries the page setup: paper and margins, the header and footer slots with page numbers, and the watermark', async () => {
     const JSZip = (await import('jszip')).default;

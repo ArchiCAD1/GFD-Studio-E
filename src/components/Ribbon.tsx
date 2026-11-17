@@ -1084,7 +1084,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
         { label: 'DWG', icon: FileDown, title: onSheet ? 'This sheet as DWG (2018 format)' : inModel ? 'Save the drawing as DWG: the version and what goes in (SAVEAS)' : noDrawing, onClick: () => onSheet ? act().exportAs('dwg') : a.cad?.onSaveDwg?.(), disabled: onSheet ? false : !inModel || !a.cad?.onSaveDwg },
         { label: 'Register', icon: FileSpreadsheet, title: 'The sheet register as an Excel workbook', onClick: () => a.output?.onRegister(), disabled: !a.output }
       ],
-      // Dimensions (v2.181, with Text, Leaders and tags and Markup, on the Annotate sub-tab): Dimension and its forms, Dim style.
+      // Dimensions (v2.186, with Text, Leaders and tags and Markup, on the Annotate sub-tab): Dimension and its forms, Dim style.
       [
         { ...cadTool('dim', 'Dimension', MoveHorizontal, 'Dimension (DIM): two points, then where the dimension line goes; it shows the length in the unit of its dimension style'), menu: [
           { label: 'Aligned (DIM)', title: 'Two points, then where the dimension line goes', onClick: () => a.cad?.onTool('dim') },

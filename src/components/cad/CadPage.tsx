@@ -841,7 +841,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     ...arlAt.map(([x, y], i) => ({ key: `arl${i}`, x: x / units.factor, y: y / units.factor, r: rUnits, shape: arlItem?.symbol.shape ?? 'cross', text: arlItem?.symbol.text ?? '', label: '', ghost: true }))
   ];
   const devices: CanvasDevice[] = cad.showDevices ? [...ghosts, ...placed.filter((d) => shown(d.key)).map((d) => ({
-    key: d.key, x: d.x / units.factor, y: d.y / units.factor, r: d.what === 'board' ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text, ...('plan' in d.symbol && d.symbol.plan ? { plan: d.symbol.plan, tag: d.symbol.tag, rot: d.rot } : {}),
+    key: d.key, x: d.x / units.factor, y: d.y / units.factor, r: d.what === 'board' && !('plan' in d.symbol && d.symbol.plan) ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text, ...('plan' in d.symbol && d.symbol.plan ? { plan: d.symbol.plan, tag: d.symbol.tag, rot: d.rot } : {}),
     label: d.what === 'lv' ? d.detail.split(' · ')[0] : d.what === 'board' ? d.label : '', selected: pickedKeys.has(d.key), elv: d.what === 'elv'
   }))] : ghosts;
   // Circuit wiring on this level (metres), and as the canvas draws it (drawing units).
@@ -4479,7 +4479,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   }, [stretchBox, sketch, placed, units.factor]);
   // Move, Copy, Rotate, Mirror, Scale and Stretch before the click: what the click would do follows the cursor, each
   // drawn object dashed and each device as its own symbol at 45 %, for up to SHADOW_MAX objects.
-  const ghostAt = (d: PlacedItem, at: Pt): CanvasDevice => ({ key: `_${d.key}`, x: at[0], y: at[1], r: d.what === 'board' ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text,
+  const ghostAt = (d: PlacedItem, at: Pt): CanvasDevice => ({ key: `_${d.key}`, x: at[0], y: at[1], r: d.what === 'board' && !('plan' in d.symbol && d.symbol.plan) ? rUnits * 2 : rUnits, shape: d.symbol.shape, text: d.symbol.text,
     ...('plan' in d.symbol && d.symbol.plan ? { plan: d.symbol.plan, tag: d.symbol.tag, rot: d.rot } : {}), label: '', elv: d.what === 'elv', ghost: true });
   const shadow = ((): { items: SketchItem[]; devs: CanvasDevice[] } | null => {
     const c = cursor.at, b0 = points[0], f = units.factor;

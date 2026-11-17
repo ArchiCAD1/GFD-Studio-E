@@ -31,7 +31,7 @@ export interface ElvPlacementPlan {
 }
 
 const MAIN_KINDS: BoardKind[] = ['MDB', 'LV-MDB', 'SMDB'];
-const ESSENTIAL_KINDS: BoardKind[] = ['EMDB', 'LV-EMDB', 'EDB', 'EMCC'];
+const ESSENTIAL_KINDS: BoardKind[] = ['EMDB', 'LV-EMDB', 'EDB', 'ESMDB', 'EMCC'];
 const PLACEHOLDER = /^ELV \/ BMS \/ security/;
 const SINGLE_PHASE_MAX_KW = 3;
 

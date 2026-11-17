@@ -13,6 +13,7 @@ const { htmlToPdf, htmlToPrinter, printerList, pdfSession, SHEETS } = require('.
 const cadFile = require('./cadFile.cjs');
 const errorLog = require('./errorLog.cjs');
 const folderTemplates = require('./folderTemplates.cjs');
+const projectFolders = require('./projectFolders.cjs');
 const betaUpdate = require('./betaUpdate.cjs');
 
 // `lvds` (the command line) exports drawings and PDFs through this app with --lvds-headless-export:
@@ -434,6 +435,18 @@ handle('folderTemplates:export', async (evt, args) => {
   fs.writeFileSync(result.filePath, text, 'utf-8');
   return result.filePath;
 });
+// A project's folders (projectFolders.cjs): new empty folders only; nothing is deleted, moved or renamed.
+handle('projectFolders:chooseParent', async (evt, start) => {
+  const result = await dialog.showOpenDialog(ownerOf(evt), {
+    title: 'Choose where the project folder goes',
+    defaultPath: typeof start === 'string' && start.length < 4096 && path.isAbsolute(start) ? start : ensureProjectsFolder(),
+    properties: ['openDirectory', 'createDirectory']
+  });
+  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+});
+handle('projectFolders:create', (_evt, args) => projectFolders.create(args));
+handle('projectFolders:status', (_evt, args) => projectFolders.status(args));
+handle('projectFolders:open', async (_evt, root) => (await shell.openPath(projectFolders.openable(root))) || null);
 handle('database:open', (_evt, file) => {
   const folder = database.folderFor(ensureProjectsFolder());
   // Only files the spec knows about, or the folder itself.

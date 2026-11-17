@@ -11,7 +11,8 @@ import { boardOf } from '../calc/network';
  * `standby` (generator kVA, ATS): the existing generator scenario and sizing
  * then treat everything on and below it as essential load.
  * Emergency sub-panels are ordinary SMDB / DB boards below an EMDB; their
- * role (ESMDB / EDB) — and so their name prefix — comes from being below it. */
+ * role (ESMDB / EDB) — and so their name prefix — comes from being below it.
+ * A board of kind ESMDB or EDB is emergency wherever it is fed from. */
 
 export type PanelRole = 'LV-ACB' | 'MDB' | 'LV-MDB' | 'SMDB' | 'DB' | 'LV-EMDB' | 'EMDB' | 'ESMDB' | 'EDB' | 'MCC' | 'EMCC' | 'FP';
 export const PANEL_ROLES: { role: PanelRole; label: string }[] = [

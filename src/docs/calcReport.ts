@@ -4,7 +4,7 @@ import { evaluateSelectivity } from '../calc/protection';
 import { cableDataNotice } from '../calc/cableTable';
 import { CALC_DISCLAIMER, STATUS_TEXT } from '../calc/statusText';
 import { settingsOf } from '../calc/sizing';
-import { withNetwork } from '../calc/network/index';
+import { perProject, withNetwork } from '../calc/network/index';
 import type { Project, StudyReportKind } from '../types';
 import { DEFAULT_CABLE_TYPE } from '../types';
 import { buildCalcRecord, calcRecordHtml } from './calcRecord';
@@ -30,12 +30,16 @@ const LABEL: Record<Status, string> = STATUS_TEXT;
 const worst = (xs: Status[]): Status => (xs.includes('bad') ? 'bad' : xs.includes('warn') ? 'warn' : 'ok');
 const counts = (xs: Status[]) => { const t = tally(xs); return `${t.ok} pass · ${t.warn} warning · ${t.bad} fail`; };
 
-/** One calculation of the whole network: what the report prints and the pre-export check reads. */
+/** One calculation of the whole network: what the report prints and the pre-export check reads. Worked out once
+ * for a project object (the report and its pre-export check ask for it one after the other), and again when the
+ * project or the data behind the results (cables, breakers, catalogue) changes. */
 export function calcReportData(project: Project): { data: CalcData; scope: Scope; sections: Section[] } {
-  const { results, earthing, selectivity } = withNetwork(project, () => ({ results: evaluateProject(project), earthing: evaluateEarthingAll(project), selectivity: evaluateSelectivity(project) }));
-  const data: CalcData = { project, results, earthing, selectivity };
-  const scope = scopeOf(project, { boards: [], downstream: true });
-  return { data, scope, sections: CALC_REPORT_STUDIES.map((k) => buildSection(k, data, scope)) };
+  return perProject(project, 'calcReportData', () => {
+    const { results, earthing, selectivity } = withNetwork(project, () => ({ results: evaluateProject(project), earthing: evaluateEarthingAll(project), selectivity: evaluateSelectivity(project) }));
+    const data: CalcData = { project, results, earthing, selectivity };
+    const scope = scopeOf(project, { boards: [], downstream: true });
+    return { data, scope, sections: CALC_REPORT_STUDIES.map((k) => buildSection(k, data, scope)) };
+  });
 }
 
 /** The sections of the calculation report, from one calculation of the whole network. */
@@ -65,23 +69,32 @@ const CALC_CSS = `<style>
 .calc .overall { font-size: 10pt; margin: 0 0 2mm; } ul.method { margin: 0 0 1mm 5mm; color: ${PRINT.ink2}; } ul.method li { margin: 0 0 0.6mm; }
 </style>`;
 
-/** Self-contained, print-ready HTML calculation report (A4 landscape). */
-export function buildReportHtml(project: Project): string {
-  const sections = calcReportSections(project);
+/** Self-contained, print-ready HTML calculation report (A4 landscape).
+ *
+ * calcOf: the project object whose calculation this report prints, when `project` is that project with only its
+ * document data changed (the document number being typed). The sections — nearly all of the report on a large
+ * network — are then taken from that object's calculation and not worked out and written again for every letter. */
+export function buildReportHtml(project: Project, calcOf: Project = project): string {
+  const sections = calcReportSections(calcOf);
+  const sectionsHtml = perProject(calcOf, 'calcReportSectionsHtml', () => sections.map((s, i) => sectionHtml(s, i + 1)).join(''));
   const settings = settingsOf(project);
-  // Page 1 lists what fails or needs a look, worst first (the issue package's own list), so nobody has to scan the tables.
-  const attention = unresolvedChecks(sections);
-  const shown = attention.slice(0, ATTENTION_MAX);
-  const rated = sections.filter((s) => s.statuses.length);
-  const summary = `<div class="sum"><table class="grid"><thead><tr><th>Study</th><th>Pass</th><th>Warning</th><th>Fail</th></tr></thead><tbody>${rated.map((s) => {
+  // The same for the results summary of page 1 and the list of items needing attention: they read every row.
+  const { summary, allItems } = perProject(calcOf, 'calcReportAttention', () => {
+    // Page 1 lists what fails or needs a look, worst first (the issue package's own list), so nobody has to scan the tables.
+    const attention = unresolvedChecks(sections);
+    const shown = attention.slice(0, ATTENTION_MAX);
+    const rated = sections.filter((s) => s.statuses.length);
+    const summary = `<div class="sum"><table class="grid"><thead><tr><th>Study</th><th>Pass</th><th>Warning</th><th>Fail</th></tr></thead><tbody>${rated.map((s) => {
     const t = tally(s.statuses);
     return `<tr><td>${esc(s.title)}</td><td>${t.ok}</td><td>${t.warn}</td><td class="bad">${t.bad}</td></tr>`;
   }).join('')}</tbody></table>
     <div class="box"><b>${attention.length ? `Needs attention (${attention.length})` : 'Nothing needs attention — every check passes'}</b>${shown.length ? `<table>${shown.map((a) => `<tr><td>${esc(a.item === '—' ? a.study : a.item)}</td><td><span class="${a.status}">${LABEL[a.status]}</span> — ${esc(a.study)}: ${esc(a.check)}${a.value && a.value !== LABEL[a.status] ? ` — ${esc(a.value)}` : ''}</td></tr>`).join('')}</table>` : ''}
     ${attention.length > ATTENTION_MAX ? `<p class="note">…and ${attention.length - ATTENTION_MAX} more — all ${attention.length} are listed under “Items needing attention” below.</p>` : ''}</div></div>`;
-  // Every failed or unverified check, none left out: the page-1 box shows the first ones, this lists them all.
-  const allItems = attention.length > ATTENTION_MAX ? `<h2 id="attention">${destMarker('attention', `Items needing attention (all ${attention.length})`)}Items needing attention (all ${attention.length})</h2>
+    // Every failed or unverified check, none left out: the page-1 box shows the first ones, this lists them all.
+    const allItems = attention.length > ATTENTION_MAX ? `<h2 id="attention">${destMarker('attention', `Items needing attention (all ${attention.length})`)}Items needing attention (all ${attention.length})</h2>
 <table class="grid"><thead><tr><th>Status</th><th>Study</th><th>Item</th><th>Check</th><th>Value</th></tr></thead><tbody>${attention.map((a) => `<tr><td class="${a.status}">${statusSpan(LABEL[a.status])}</td><td>${esc(a.study)}</td><td>${esc(a.item)}</td><td>${esc(a.check)}</td><td>${esc(a.value)}</td></tr>`).join('')}</tbody></table>` : '';
+    return { summary, allItems };
+  });
   const cableTypes = [...new Set(project.feeders.map((x) => x.cableType || DEFAULT_CABLE_TYPE))];
   const basis = [
     ['System', `${project.voltageV} V, 3-phase + N, ${project.frequencyHz} Hz, TN-S (as calculated)`],
@@ -101,7 +114,7 @@ ${allItems}
 
 <h2 id="basis">${destMarker('basis', 'Design basis')}Design basis</h2><table class="grid"><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>${basis.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table>
 
-${sections.map((s, i) => sectionHtml(s, i + 1)).join('')}
+${sectionsHtml}
 
 <section class="calc" id="assumptions">
 <h2>${destMarker('assumptions', `${sections.length + 1}. Assumptions and limitations`)}${sections.length + 1}. Assumptions and limitations</h2><ul>

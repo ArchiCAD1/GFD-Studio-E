@@ -81,7 +81,7 @@ export const PALETTE: { group: string; entries: PaletteEntry[] }[] = [
   },
   {
     group: 'Distribution boards',
-    entries: (['MDB', 'LV-MDB', 'LV-ACB', 'SMDB', 'DB', 'EDB', 'EMDB', 'LV-EMDB', 'UPS'] as BoardKind[]).map((k) => ({
+    entries: (['MDB', 'LV-MDB', 'LV-ACB', 'SMDB', 'DB', 'EDB', 'ESMDB', 'EMDB', 'LV-EMDB', 'UPS'] as BoardKind[]).map((k) => ({
       item: { kind: 'board', board: k } as PaletteItem,
       label: k,
       title: k === 'MDB'
@@ -170,7 +170,7 @@ export const itemKey = (i: PaletteItem) =>
 
 /** Typical rating (A) of a new board by type; its incomer breaker and cable
  * are sized for it until real loads are added. */
-const BOARD_RATING: Record<BoardKind, number> = { MC: 400, 'LV-ACB': 1600, MDB: 1600, 'LV-MDB': 1600, SMDB: 250, DB: 63, EDB: 63, MCC: 400, EMCC: 400, EMDB: 250, 'LV-EMDB': 800, FP: 250, UPS: 32 };
+const BOARD_RATING: Record<BoardKind, number> = { MC: 400, 'LV-ACB': 1600, MDB: 1600, 'LV-MDB': 1600, SMDB: 250, ESMDB: 250, DB: 63, EDB: 63, MCC: 400, EMCC: 400, EMDB: 250, 'LV-EMDB': 800, FP: 250, UPS: 32 };
 
 const isRoot = (p: Project, boardId: string) => !p.boards.find((b) => b.id === boardId)?.upstreamId;
 
