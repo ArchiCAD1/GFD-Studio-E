@@ -136,10 +136,9 @@ describe('SLD main earth-pit arrangement', () => {
     const host = draw(project);
     const id = project.boards.find((b) => !b.upstreamId)!.id;
     const earth = host.querySelector<SVGGElement>(`.earth-pit[data-board-id="${id}"]`)!;
-    const panel = host.querySelector<SVGRectElement>(`g.bd[data-lv-id="board:${id}"] rect.box`)!;
-    // No outgoing ways: the board is drawn as a board symbol centred on the incomer line.
-    const panelX = Number(panel.getAttribute('x')), panelY = Number(panel.getAttribute('y'));
-    const incomerX = panelX + Number(panel.getAttribute('width')) / 2;
+    const panel = host.querySelector<SVGGElement>(`g.bd[data-lv-id="board:${id}"] .board-sym g.iec`)!;
+    // No outgoing ways: the board is drawn as a board symbol centred on the incomer line, its lead-in starting at its top.
+    const incomerX = Number(panel.getAttribute('data-sym-x')), panelY = Number(panel.getAttribute('data-sym-y')) - 16 * Number(panel.getAttribute('data-sym-s'));
     const isMet = (el: Element) => el.classList.contains('met-bar') || el.textContent === 'MET';
     const parts = [...earth.querySelectorAll<SVGGraphicsElement>('rect, text, line')].filter((el) => !el.closest('.tx-earth'));
     const ys = parts.map((el) => Number(el.getAttribute('y') ?? el.getAttribute('y1'))).filter(Number.isFinite);

@@ -7,7 +7,7 @@ import type { SymbolId } from './symbolLibrary';
 import { feedersOn } from '../calc/network';
 
 const PANEL_SYM: Record<string, SymbolId> = {
-  MDB: 'p-mdb', 'LV-MDB': 'p-mdb', 'LV-ACB': 'p-mdb', EMDB: 'p-mdb', 'LV-EMDB': 'p-mdb', SMDB: 'p-smdb', ESMDB: 'p-smdb', DB: 'p-db', EDB: 'p-edb', MCC: 'p-mcc', EMCC: 'p-mcc'
+  MDB: 'p-mdb', 'LV-MDB': 'p-mdb', 'LV-ACB': 'p-mdb', EMDB: 'p-emdb', 'LV-EMDB': 'p-emdb', SMDB: 'p-smdb', ESMDB: 'p-esmdb', DB: 'p-db', EDB: 'p-edb', MCC: 'p-mcc', EMCC: 'p-emcc'
 };
 
 const waysOf = (project: Project, b: Board) => feedersOn(project, b.id).filter((f) => !isScheduleCircuit(f));
@@ -17,6 +17,14 @@ const capacitorsOnly = (ways: Project['feeders']) => ways.length > 0 && ways.eve
  * way on it is a capacitor bank. Meter cabinets and UPS boards have none. */
 export function panelSymbolOf(project: Project, b: Board): SymbolId | undefined {
   return capacitorsOnly(waysOf(project, b)) ? 'p-apfc' : PANEL_SYM[roleOf(project, b)];
+}
+
+/** The symbol of any board: its panel symbol, else by kind (fire pump, UPS, meter cabinet), else by its role. */
+export function boardSymbolOf(project: Project, b: Board): SymbolId {
+  const panel = panelSymbolOf(project, b);
+  if (panel) return panel;
+  const kind = b.kind ?? (b.upstreamId ? 'DB' : 'MDB');
+  return kind === 'FP' ? 'p-fp' : kind === 'UPS' ? 'p-ups' : kind === 'MC' ? 'p-mc' : PANEL_SYM[kind] ?? 'p-db';
 }
 
 /** Boards at the end of the tree, drawn on the SLD as one panel box at the end
@@ -38,4 +46,15 @@ export function hiddenBoardIds(project: Project): Set<string> {
     for (const b of project.boards) if (b.upstreamId && out.has(b.upstreamId) && !out.has(b.id)) { out.add(b.id); grew = true; }
   }
   return out;
+}
+
+/** Boards the SLD draws as a board symbol: boxed boards whose parent is drawn, and drawn boards with no ways,
+ * no bus spares and no changeover (the layout's `terminal` boards). */
+export function symbolBoardIds(project: Project): Set<string> {
+  const boxed = boxedBoardIds(project), hidden = hiddenBoardIds(project);
+  const byId = new Map(project.boards.map((b) => [b.id, b]));
+  return new Set(project.boards.filter((b) => {
+    if (boxed.has(b.id)) return !!b.upstreamId && byId.has(b.upstreamId) && !hidden.has(b.upstreamId);
+    return !hidden.has(b.id) && !isInterlocked(b) && waysOf(project, b).length === 0 && (isDbBoard(b) || spareWaysOf(b).length === 0);
+  }).map((b) => b.id));
 }
