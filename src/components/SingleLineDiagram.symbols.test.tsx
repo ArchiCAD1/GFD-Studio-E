@@ -21,8 +21,8 @@ describe('Board view symbols', () => {
     expect(svg.match(/<g class="iec"/g)!.length).toBeGreaterThanOrEqual(8); // a breaker and a symbol per circuit
   });
 
-  it('draws the board\'s panel symbol above a way that feeds a board (SMDB-GF → DB-GF1)', () => {
-    expect(view('SMDB-GF')).toContain('>DB</text>');
+  it('draws the board\'s symbol below a way that feeds a board (SMDB-GF → DB-GF1)', () => {
+    expect(view('SMDB-GF')).toContain('data-sym="p-db"');
   });
 
   it('draws motors on an MCC as the motor symbol, the fire pump marked FP, at load size', () => {
@@ -32,9 +32,9 @@ describe('Board view symbols', () => {
     expect(svg).toMatch(/<circle cx="[\d.]+" cy="252" r="12.25"/); // big enough for M and 3~ inside
   });
 
-  it('ends a way to a board in its panel symbol, with a card for the board name, TCL and MDL', () => {
+  it('ends a way to a board in its symbol, with a card for the board name, TCL and MDL', () => {
     const svg = view('SMDB-GF');
-    expect(svg).toMatch(/<rect x="[\d.]+" y="238" width="24.5" height="28"/); // DB symbol at load size
+    expect(svg).toMatch(/<rect x="[\d.]+" y="241.06" width="43.75" height="21.88"/); // DB symbol at load size
     expect(svg).toContain('>DB-GF1</text>');
     expect(svg).toMatch(/>TCL [\d,]+\.\d\d kW</);
     expect(svg).toMatch(/>MDL [\d.]+ kW · \d+ A</);

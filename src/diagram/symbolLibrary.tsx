@@ -4,7 +4,8 @@
  * marked `acc` (drawout marks, toroids, signal links, earths, side boxes) may
  * sit outside the box. A drawing places a symbol by its body centre (30, 40)
  * at one scale, so all symbols of a kind come out the same size. Text keeps
- * the diagram's own font sizes and is not scaled. */
+ * the diagram's own font sizes and is not scaled. Board symbols (`p-*`) are the
+ * exception: 2:1 rectangles of 50 × 25 units, wider than the 28-unit box. */
 
 export type SymCls = 'ln' | 'sym' | 'open' | 'fill' | 'thick' | 'dash';
 
@@ -12,11 +13,12 @@ export type SymPrim =
   | { k: 'p'; d: string; c?: SymCls; acc?: true }
   | { k: 'c'; cx: number; cy: number; r: number; c?: SymCls; acc?: true }
   | { k: 'e'; cx: number; cy: number; rx: number; ry: number; c?: SymCls; acc?: true }
-  | { k: 'r'; x: number; y: number; w: number; h: number; c?: SymCls; acc?: true }
+  | { k: 'r'; x: number; y: number; w: number; h: number; c?: SymCls; acc?: true; edge?: true }
   /** Text centred on (x, y); `side` labels sit right of the axis and are drawn only on request. */
   | { k: 't'; x: number; y: number; s: string; b?: true; side?: true; acc?: true };
 
-export interface SymDef { label: string; iec: string; prims: SymPrim[] }
+/** `existingInset`: units the pattern of a board symbol is pulled in from the edge when it is drawn as existing. */
+export interface SymDef { label: string; iec: string; prims: SymPrim[]; existingInset?: number }
 
 export const SYM_BOX = { x: 16, y: 24, w: 28, h: 32 } as const;
 export const SYM_CX = 30;
@@ -42,7 +44,12 @@ const SIGNAL = (s: string) => [p('M44 40H62', 'dash', true), side(s, 34)];
 const box = (code: string): SymPrim[] => [r(16, 24, 28, 32), code.length > 2 ? t(30, 40, code) : t(30, 40, code, true)];
 /** A motor starter's code in a box less tall than the frame (18 of 32), drawn at SYM_SCALE.starter: room round the code. */
 const starterBox = (code: string): SymPrim[] => [r(16, 31, 28, 18), t(30, 40, code)];
-const panel = (code: string): SymPrim[] => [r(16, 24, 28, 32), r(16, 24, 28, 5, 'fill'), t(30, 42, code, code.length <= 2 || undefined)];
+/** A board: lead-in, the 50 × 25 outline (`edge`) and its pattern, which tells the kind of board. */
+const board = (...pattern: SymPrim[]): SymPrim[] => [p('M30 24V27.5'), { k: 'r', x: 5, y: 27.5, w: 50, h: 25, edge: true }, ...pattern];
+const fillP = (d: string) => p(d, 'fill');
+const boardCode = (code: string): SymPrim[] => board(t(30, 40, code, code.length <= 2 || undefined));
+const FRAME = r(8.5, 31, 43, 18, 'open');
+const CROSS_LINES = p('M5 27.5L55 52.5M5 52.5L55 27.5');
 const instrument = (letter: string, sub?: string): SymPrim[] => sub
   ? [c(30, 40, 14), t(30, 36, letter, true), t(30, 48, sub)]
   : [c(30, 40, 14), t(30, 40, letter, true)];
@@ -73,13 +80,19 @@ export const SYMBOLS = {
   rcd: { label: 'Earth leakage protection (RCD)', iec: '07-20', prims: [p('M30 24V56'), { k: 'e', cx: 30, cy: 40, rx: 6, ry: 3, c: 'open' }] },
   shunt: { label: 'Breaker with shunt trip', iec: '07-13-05 + 07-15', prims: [...CB, p('M25 42H48', 'dash', true), r(48, 36, 12, 12, 'sym', true), { k: 't', x: 54, y: 42, s: 'ST', acc: true }] },
   ats: { label: 'Changeover / ATS', iec: '07-02-05', prims: [p('M18 24V30M42 24V30M30 56L19 31'), side('ATS')] },
-  // Panels and boards, drawn as one box without downstream detail
-  'p-mdb': { label: 'LV main panel (MDB)', iec: '11-15', prims: panel('MDB') },
-  'p-smdb': { label: 'Sub-main board (SMDB)', iec: '11-15', prims: panel('SMDB') },
-  'p-db': { label: 'Distribution board (DB)', iec: '11-15', prims: panel('DB') },
-  'p-edb': { label: 'Emergency DB (EDB)', iec: '11-15', prims: panel('EDB') },
-  'p-mcc': { label: 'Motor control centre (MCC)', iec: '11-15', prims: panel('MCC') },
-  'p-apfc': { label: 'Capacitor panel (APFC)', iec: '11-15 + 04-02-01', prims: panel('APFC') },
+  // Boards, drawn as one 2:1 rectangle without downstream detail
+  'p-mdb': { label: 'Main distribution board (MDB)', iec: '11-15', existingInset: 0, prims: board(fillP('M8.5 31L51.5 31L8.5 49Z'), p('M8.5 49L51.5 31'), FRAME) },
+  'p-emdb': { label: 'Emergency main distribution board (EMDB)', iec: '11-15', existingInset: 0, prims: board(fillP('M8.5 31L30 40L8.5 49Z'), fillP('M51.5 31L30 40L51.5 49Z'), p('M8.5 31L51.5 49M8.5 49L51.5 31'), FRAME) },
+  'p-smdb': { label: 'Sub-main distribution board (SMDB)', iec: '11-15', existingInset: 2.5, prims: board(fillP('M5 27.5L55 27.5L5 52.5Z'), p('M5 52.5L55 27.5')) },
+  'p-esmdb': { label: 'Emergency sub-main distribution board (ESMDB)', iec: '11-15', existingInset: 2.5, prims: board(fillP('M5 27.5L30 40L5 52.5Z'), fillP('M55 27.5L30 40L55 52.5Z'), CROSS_LINES) },
+  'p-db': { label: 'Distribution board (DB)', iec: '11-15', existingInset: 2.5, prims: board(p('M5 52.5L55 27.5')) },
+  'p-edb': { label: 'Emergency distribution board (EDB)', iec: '11-15', existingInset: 2.5, prims: board(CROSS_LINES) },
+  'p-mcc': { label: 'Motor control centre (MCC)', iec: '11-15', existingInset: 2.5, prims: board(fillP('M5 27.5H55V40H5Z'), p('M5 40H55')) },
+  'p-emcc': { label: 'Emergency motor control centre (EMCC)', iec: '11-15', existingInset: 2.5, prims: board(fillP('M5 27.5L55 27.5L30 40Z'), fillP('M5 52.5L55 52.5L30 40Z'), CROSS_LINES) },
+  'p-fp': { label: 'Fire pump panel (FP)', iec: '11-15', existingInset: 2.5, prims: board(p('M5 40H55')) },
+  'p-ups': { label: 'UPS output board (UPS)', iec: '11-15', existingInset: 2.5, prims: boardCode('UPS') },
+  'p-mc': { label: 'Meter cabinet (MC)', iec: '11-15', existingInset: 2.5, prims: boardCode('MC') },
+  'p-apfc': { label: 'Capacitor panel (APFC)', iec: '11-15', existingInset: 2.5, prims: boardCode('APFC') },
   // Motor starters & relays
   dol: { label: 'DOL starter', iec: '11-15', prims: starterBox('DOL') },
   sd: { label: 'Star-delta starter', iec: '11-15', prims: starterBox('Y-Δ') },
@@ -128,7 +141,7 @@ export const SYMBOLS = {
 
 export type SymbolId = keyof typeof SYMBOLS;
 export const SYMBOL_IDS = Object.keys(SYMBOLS) as SymbolId[];
-/** Panels and boards drawn as one box. */
+/** Boards drawn as one symbol. */
 export const PANEL_SYMBOL_IDS = SYMBOL_IDS.filter((id) => id.startsWith('p-'));
 
 /** Scale per drawing role: switching devices fill the 16-unit breaker slot (device) or, on the System
@@ -169,21 +182,41 @@ const SVG_PAINT: Record<SymCls, string> = {
   ln: 'fill="none" stroke="#000" stroke-width="1.2"', sym: 'fill="none" stroke="#000" stroke-width="1.2"', open: 'fill="none" stroke="#000" stroke-width="1.2"',
   fill: 'fill="#000" stroke="#000" stroke-width="1.2"', thick: 'fill="none" stroke="#000" stroke-width="3"', dash: 'fill="none" stroke="#000" stroke-width="1.2" stroke-dasharray="2 1.5"'
 };
+const SVG_EDGE_EXISTING = `${SVG_PAINT.sym} stroke-dasharray="4 2.5"`;
+const EDGE_DASH = { strokeDasharray: '4 2.5' };
 const xmlText = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** How a symbol's prims are mapped: normally by `map`; for an existing board symbol its edge is dashed and every
+ * prim after it is pulled in from the edge by the symbol's `existingInset` first. */
+function primMaps(id: SymbolId, map: (u: number, v: number) => [number, number], existing: boolean) {
+  const prims = SYMBOLS[id].prims as SymPrim[];
+  const edgeAt = existing ? prims.findIndex((q) => q.k === 'r' && q.edge) : -1;
+  const ins = (SYMBOLS[id] as SymDef).existingInset ?? 0;
+  const inner = (u: number, v: number): [number, number] => map(SYM_CX + (u - SYM_CX) * (50 - 2 * ins) / 50, SYM_CY + (v - SYM_CY) * (25 - 2 * ins) / 25);
+  return { prims, edgeAt, mapOf: (i: number) => (edgeAt >= 0 && i > edgeAt ? inner : map) };
+}
+
+/** A rect prim as drawing coordinates through `map`. */
+function rectOf(q: Extract<SymPrim, { k: 'r' }>, map: (u: number, v: number) => [number, number]) {
+  const [x0, y0] = map(q.x, q.y), [x1, y1] = map(q.x + q.w, q.y + q.h);
+  return { x: n(Math.min(x0, x1)), y: n(Math.min(y0, y1)), w: n(Math.abs(x1 - x0)), h: n(Math.abs(y1 - y0)) };
+}
 
 /** The drawing of a library symbol as SVG elements, body centre at (x, y), `flip` mirroring it top to bottom
  * as Sym does; side labels are left off. */
-export function symBody(id: SymbolId, x: number, y: number, s = 1, flip = false): string {
+export function symBody(id: SymbolId, x: number, y: number, s = 1, flip = false, existing = false): string {
   const X = (u: number) => n(x + (u - SYM_CX) * s);
   const Y = (v: number) => n(y + (v - SYM_CY) * (flip ? -s : s));
   const map = (u: number, v: number): [number, number] => [X(u), Y(v)];
-  return (SYMBOLS[id].prims as SymPrim[]).map((q) => {
-    const paint = q.k === 't' ? '' : SVG_PAINT[q.c ?? (q.k === 'p' ? 'ln' : 'sym')];
+  const { prims, edgeAt, mapOf } = primMaps(id, map, existing);
+  return prims.map((q, i) => {
+    const paint = q.k === 't' ? '' : i === edgeAt ? SVG_EDGE_EXISTING : SVG_PAINT[q.c ?? (q.k === 'p' ? 'ln' : 'sym')];
+    const m = mapOf(i);
     switch (q.k) {
-      case 'p': return `<path d="${placePath(q.d, map, s, flip)}" ${paint}/>`;
+      case 'p': return `<path d="${placePath(q.d, m, s, flip)}" ${paint}/>`;
       case 'c': return `<circle cx="${X(q.cx)}" cy="${Y(q.cy)}" r="${n(q.r * s)}" ${paint}/>`;
       case 'e': return `<ellipse cx="${X(q.cx)}" cy="${Y(q.cy)}" rx="${n(q.rx * s)}" ry="${n(q.ry * s)}" ${paint}/>`;
-      case 'r': return `<rect x="${X(q.x)}" y="${flip ? Y(q.y + q.h) : Y(q.y)}" width="${n(q.w * s)}" height="${n(q.h * s)}" ${paint}/>`;
+      case 'r': { const b = rectOf(q, m); return `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" ${paint}/>`; }
       case 't':
         if (q.side) return '';
         return `<text x="${X(q.x)}" y="${n(Y(q.y) + (q.b ? 4 : 3))}" fill="#000" font-family="Arial, Helvetica, sans-serif" font-size="${q.b ? 11 : 7.5}"${q.b ? ' font-weight="bold"' : ''} text-anchor="middle">${xmlText(q.s)}</text>`;
@@ -193,32 +226,39 @@ export function symBody(id: SymbolId, x: number, y: number, s = 1, flip = false)
 
 /** A library symbol as a black-on-white SVG string (printed sheets and DXF): symBody in a group that
  * names the symbol, so the DXF export can insert it as a block. */
-export function symSvg(id: SymbolId, x: number, y: number, s = 1, flip = false): string {
-  return `<g class="iec" data-sym="${id}" data-sym-x="${n(x)}" data-sym-y="${n(y)}" data-sym-s="${s}"${flip ? ' data-sym-flip="1"' : ''}>${symBody(id, x, y, s, flip)}</g>`;
+export function symSvg(id: SymbolId, x: number, y: number, s = 1, flip = false, existing = false): string {
+  return `<g class="iec" data-sym="${id}" data-sym-x="${n(x)}" data-sym-y="${n(y)}" data-sym-s="${s}"${flip ? ' data-sym-flip="1"' : ''}${existing ? ' data-sym-ex="1"' : ''}>${symBody(id, x, y, s, flip, existing)}</g>`;
 }
 
 const CLASS: Record<SymCls, string> = { ln: 'ln', sym: 'sym', open: 'sym-open', fill: 'sym-fill', thick: 'ln thick', dash: 'ln' };
 const DASH = { strokeDasharray: '2 1.5' };
 
 /** Draw a library symbol with its body centre at (x, y). `flip` mirrors it
- * top to bottom, for a device drawn upward from a busbar. */
-export function Sym({ id, x, y, s = 1, labels = false, flip = false }: { id: SymbolId; x: number; y: number; s?: number; labels?: boolean; flip?: boolean }) {
+ * top to bottom, for a device drawn upward from a busbar. `existing` draws a
+ * board symbol's outline dashed with its pattern pulled in. `tint` colours it
+ * on screen only (Colour by → Supply); its group is marked `screen-c`, so the
+ * print shows it as drawn. */
+export function Sym({ id, x, y, s = 1, labels = false, flip = false, existing = false, tint }: { id: SymbolId; x: number; y: number; s?: number; labels?: boolean; flip?: boolean; existing?: boolean; tint?: string }) {
   const X = (u: number) => n(x + (u - SYM_CX) * s);
   const Y = (v: number) => n(y + (v - SYM_CY) * (flip ? -s : s));
   const map = (u: number, v: number): [number, number] => [X(u), Y(v)];
+  const { prims, edgeAt, mapOf } = primMaps(id, map, existing);
   return (
-    <g className="iec" data-sym={id} data-sym-x={x} data-sym-y={y} data-sym-s={s} data-sym-flip={flip ? 1 : undefined}>
-      {(SYMBOLS[id].prims as SymPrim[]).map((q, i) => {
-        const cls = q.k === 't' ? '' : CLASS[q.c ?? (q.k === 'p' ? 'ln' : 'sym')];
-        const style = q.k !== 't' && q.c === 'dash' ? DASH : undefined;
+    <g className={tint ? 'iec screen-c' : 'iec'} data-sym={id} data-sym-x={x} data-sym-y={y} data-sym-s={s} data-sym-flip={flip ? 1 : undefined} data-sym-ex={existing ? 1 : undefined}>
+      {prims.map((q, i) => {
+        const edgeEx = i === edgeAt;
+        const cls = q.k === 't' ? '' : edgeEx ? 'ln' : CLASS[q.c ?? (q.k === 'p' ? 'ln' : 'sym')];
+        const base = q.k !== 't' && edgeEx ? EDGE_DASH : q.k !== 't' && q.c === 'dash' ? DASH : undefined;
+        const style = tint && q.k !== 't' ? { ...base, ...(cls === 'sym-fill' ? { fill: tint } : { stroke: tint }) } : base;
+        const m = mapOf(i);
         switch (q.k) {
-          case 'p': return <path key={i} d={placePath(q.d, map, s, flip)} className={cls} style={style} />;
+          case 'p': return <path key={i} d={placePath(q.d, m, s, flip)} className={cls} style={style} />;
           case 'c': return <circle key={i} cx={X(q.cx)} cy={Y(q.cy)} r={n(q.r * s)} className={cls} style={style} />;
           case 'e': return <ellipse key={i} cx={X(q.cx)} cy={Y(q.cy)} rx={n(q.rx * s)} ry={n(q.ry * s)} className={cls} style={style} />;
-          case 'r': return <rect key={i} x={X(q.x)} y={flip ? Y(q.y + q.h) : Y(q.y)} width={n(q.w * s)} height={n(q.h * s)} className={cls} style={style} />;
+          case 'r': { const b = rectOf(q, m); return <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} className={cls} style={style} />; }
           case 't':
             if (q.side && !labels) return null;
-            return <text key={i} x={X(q.x)} y={Y(q.y) + (q.b ? 4 : 3)} textAnchor={q.side ? 'start' : 'middle'} className={q.b ? 'iec-t b' : 'iec-t s'} data-sym-side={q.side ? 1 : undefined}>{q.s}</text>;
+            return <text key={i} x={X(q.x)} y={Y(q.y) + (q.b ? 4 : 3)} textAnchor={q.side ? 'start' : 'middle'} className={q.b ? 'iec-t b' : 'iec-t s'} style={tint ? { fill: tint } : undefined} data-sym-side={q.side ? 1 : undefined}>{q.s}</text>;
         }
       })}
     </g>

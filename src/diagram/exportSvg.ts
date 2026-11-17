@@ -7,13 +7,16 @@ export { pathPoints } from './svgPath';
 
 /** The SLD for printing and CAD: the live diagram copied with its computed
  * styles written in, dark-theme colours turned into black-on-white (heat
- * colours kept), and on-screen-only parts such as the check-status dots removed. */
+ * colours kept), and on-screen-only parts such as the check-status dots and
+ * the Colour by → Supply colours removed. */
 
 const STYLE_PROPS = ['stroke', 'stroke-width', 'stroke-dasharray', 'fill', 'opacity', 'font-size', 'font-weight', 'font-family', 'text-anchor', 'display', 'writing-mode'];
 const DROP = '.bus-hit, .sel-ring, title, .grid-bg, .status-dot';
 /** Marks in a status colour on screen (revision clouds, cable references, circuits that
  * fail a check) that print black, like the rest of the drawing. */
 const PRINT_BLACK = '.rev-cloud path, .cable-ref-c, .ln.warn, .ln.bad, .load.warn, .load.bad, .icon.warn *, .icon.bad *';
+/** Colours shown on screen only (Colour by → Supply): taken off while the styles are read, so the drawing prints as drawn. */
+const SCREEN_ONLY = '.screen-c, .screen-c *';
 const KEEP_FILL = new Set(['none', '#ffffff', 'rgba(0, 0, 0, 0)']);
 
 /** Theme colour (rgb string) → print colour. */
@@ -35,7 +38,19 @@ function printPalette(): Map<string, string> {
 
 export function printableSvg(live: SVGSVGElement, width: number, height: number): string {
   // The palette below maps the dark theme's colours; read everything with it in force.
-  return withPrintTheme(() => printableSvgDark(live, width, height));
+  return withPrintTheme(() => withoutScreenColours(live, () => printableSvgDark(live, width, height)));
+}
+
+/** Runs `read` with the screen-only colours taken off the live drawing, then puts them back exactly
+ * (one pass each way, so the styles are worked out again only once). */
+function withoutScreenColours<T>(live: SVGSVGElement, read: () => T): T {
+  const lifted = [...live.querySelectorAll<SVGElement>(SCREEN_ONLY)].map((el) => [el, el.getAttribute('style')] as const);
+  for (const [el] of lifted) { el.style.removeProperty('stroke'); el.style.removeProperty('fill'); }
+  try {
+    return read();
+  } finally {
+    for (const [el, style] of lifted) { if (style === null) el.removeAttribute('style'); else el.setAttribute('style', style); }
+  }
 }
 
 function printableSvgDark(live: SVGSVGElement, width: number, height: number): string {
@@ -122,14 +137,14 @@ const symbolBlocks = new Map<string, { block: DxfBlock; bounds: [[number, number
 
 /** The block of a library symbol (one per symbol, orientation and drawn scale, so texts and dashes keep their
  * size): the symbol about its body centre, y up, on layer 0 so the insert's layer applies. Side labels are left out. */
-function symbolBlock(id: SymbolId, flipped: boolean, drawn: number) {
-  const key = `${id}${flipped ? '-UP' : ''}${drawn === 1 ? '' : `-${Math.round(drawn * 100)}`}`;
+function symbolBlock(id: SymbolId, flipped: boolean, drawn: number, existing = false) {
+  const key = `${id}${flipped ? '-UP' : ''}${drawn === 1 ? '' : `-${Math.round(drawn * 100)}`}${existing ? '-EX' : ''}`;
   let hit = symbolBlocks.get(key);
   if (!hit) {
-    const items = svgToDxf(`<svg xmlns="http://www.w3.org/2000/svg"><g class="iec">${symBody(id, 0, 0, drawn, flipped)}</g></svg>`, 0, true);
+    const items = svgToDxf(`<svg xmlns="http://www.w3.org/2000/svg"><g class="iec">${symBody(id, 0, 0, drawn, flipped, existing)}</g></svg>`, 0, true);
     const xs: number[] = [], ys: number[] = [];
     for (const i of items) {
-      const pts: [number, number][] = i.type === 'line' ? [[i.x1, i.y1], [i.x2, i.y2]] : i.type === 'polyline' ? i.points : i.type === 'circle' ? [[i.x - i.r, i.y - i.r], [i.x + i.r, i.y + i.r]] : i.type === 'text' ? [[i.x, i.y], [i.x, i.y + i.height]] : [];
+      const pts: [number, number][] = i.type === 'line' ? [[i.x1, i.y1], [i.x2, i.y2]] : i.type === 'polyline' || i.type === 'solid' ? i.points : i.type === 'circle' ? [[i.x - i.r, i.y - i.r], [i.x + i.r, i.y + i.r]] : i.type === 'text' ? [[i.x, i.y], [i.x, i.y + i.height]] : [];
       for (const [x, y] of pts) { xs.push(x); ys.push(y); }
     }
     const lo = (a: number[]) => a.reduce((m, v) => Math.min(m, v), 0), hi = (a: number[]) => a.reduce((m, v) => Math.max(m, v), 0);
@@ -185,7 +200,7 @@ export function svgToDxf(svgMarkup: string, height: number, block = false): DxfP
     };
     const symId = el.tagName === 'g' && !block ? el.getAttribute('data-sym') : null;
     if (symId && symId in SYMBOLS) {
-      const { block: def, bounds } = symbolBlock(symId as SymbolId, el.hasAttribute('data-sym-flip'), Number(el.getAttribute('data-sym-s')) || 1);
+      const { block: def, bounds } = symbolBlock(symId as SymbolId, el.hasAttribute('data-sym-flip'), Number(el.getAttribute('data-sym-s')) || 1, el.hasAttribute('data-sym-ex'));
       const [px, py] = flip(apply(mm, Number(el.getAttribute('data-sym-x')), Number(el.getAttribute('data-sym-y'))));
       const k = scale;
       const rot = -Math.atan2(mm[1], mm[0]);
@@ -202,6 +217,13 @@ export function svgToDxf(svgMarkup: string, height: number, block = false): DxfP
     const strokeWidth = Number(style.match(/(?:^|;)\s*stroke-width:\s*([\d.]+)/)?.[1] ?? el.getAttribute('stroke-width') ?? 4);
     const width = layer === 'BUSBAR' && strokeWidth > 0 ? strokeWidth * scale : undefined;
     const noStroke = /stroke:\s*none/.test(style) || /stroke:\s*rgba\(0, 0, 0, 0\)/.test(style);
+    // Black-filled rects, polygons and paths of 3 or 4 corners also become filled SOLIDs.
+    const fill = (style.match(/(?:^|;)\s*fill:\s*([^;]+)/)?.[1] ?? el.getAttribute('fill') ?? '').trim().toLowerCase();
+    const blackFill = fill === '#000' || fill === '#000000' || fill === 'rgb(0, 0, 0)';
+    const solid = (corners: [number, number][]) => {
+      const pts = corners.length > 1 && corners[0][0] === corners[corners.length - 1][0] && corners[0][1] === corners[corners.length - 1][1] ? corners.slice(0, -1) : corners;
+      if (blackFill && (pts.length === 3 || pts.length === 4)) emit({ type: 'solid', layer, points: pts.map(([a, b]) => flip(apply(mm, a, b))) });
+    };
     switch (el.tagName) {
       case 'line': {
         if (noStroke) break;
@@ -211,8 +233,9 @@ export function svgToDxf(svgMarkup: string, height: number, block = false): DxfP
         break;
       }
       case 'rect': {
-        if (noStroke) break;
         const [x, y, w, h] = [num('x'), num('y'), num('width'), num('height')];
+        solid([[x, y], [x + w, y], [x + w, y + h], [x, y + h]]);
+        if (noStroke) break;
         const [rx, ry] = [num('rx'), num('ry')];
         const r = Math.max(0, Math.min(rx || ry, ry || rx, w / 2, h / 2));
         if (r > 0 && !width && !(dashed && inIec)) {
@@ -257,10 +280,12 @@ export function svgToDxf(svgMarkup: string, height: number, block = false): DxfP
         const pts = (el.getAttribute('points') ?? '').trim().split(/[\s,]+/).map(Number);
         const run: [number, number][] = [];
         for (let i = 0; i + 1 < pts.length; i += 2) run.push(flip(apply(mm, pts[i], pts[i + 1])));
+        if (el.tagName === 'polygon') solid(Array.from({ length: Math.floor(pts.length / 2) }, (_, i): [number, number] => [pts[2 * i], pts[2 * i + 1]]));
         if (run.length > 1) push({ type: 'polyline', layer, points: run, closed: el.tagName === 'polygon', ...(width ? { width } : {}) });
         break;
       }
       case 'path': {
+        for (const run of pathPoints(el.getAttribute('d') ?? '')) solid(run);
         if (noStroke) break;
         for (const run of pathPoints(el.getAttribute('d') ?? '')) push({ type: 'polyline', layer, points: run.map(([a, b]) => flip(apply(mm, a, b))), ...(width ? { width } : {}) });
         break;

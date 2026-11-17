@@ -3,7 +3,7 @@ import { boardsInSupplyOrder, boardSummary } from '../calc/summary';
 import { floorList, type Floor } from '../model/levels';
 import { cableTypeOf } from '../model/cableTypes';
 import { runsOf } from '../calc/electrical';
-import { panelSymbolOf } from './panelBox';
+import { boardSymbolOf } from './panelBox';
 import type { SymbolId } from './symbolLibrary';
 import { sizeRiser } from '../calc/busbar';
 import { fmtFixed } from '../util/format';
@@ -20,8 +20,8 @@ const LEFT = 4.2 * U; // level names
 const TOP = 1.5 * U;
 
 export interface RiserRow { label: string; sub: string; y: number; floors: Floor[] }
-/** panel: the board's IEC panel symbol (none for meter cabinets and UPS boards: the plain DB box). */
-export interface RiserNode { board: Board; x: number; y: number; title: string; sub: string; count?: number; panel?: SymbolId }
+/** panel: the board's symbol. */
+export interface RiserNode { board: Board; x: number; y: number; title: string; sub: string; count?: number; panel: SymbolId }
 export interface RiserBus { id: string; label: string; x: number; y1: number; y2: number; taps: number[] }
 export interface RiserLink { points: [number, number][]; label: string; standby?: boolean; fireRated?: boolean; labelAt: [number, number]; vertical: boolean }
 export interface RiserSource { kind: 'tx' | 'gen'; x: number; y: number; title: string; sub: string }
@@ -92,9 +92,9 @@ export function riserLayout(project: Project, buildingId: string): RiserLayout {
     const twins = row.floors.length > 1 ? boards.filter((o) => o.id !== b.id && o.upstreamId === b.upstreamId && rowIdx(o) === rowIdx(b) && !placed.has(o.id)) : [];
     twins.forEach((t) => placed.add(t.id));
     placed.add(b.id);
-    const node: RiserNode = { board: b, x, y: yOf(b), title: twins.length ? `${b.id} …` : b.id, sub: [fmtA(b), sm.demandKw ? `${fmtFixed(sm.demandKw, 0)} kW` : ''].filter(Boolean).join(' · '), count: twins.length ? twins.length + 1 : undefined, panel: panelSymbolOf(project, b) };
+    const node: RiserNode = { board: b, x, y: yOf(b), title: twins.length ? `${b.id} …` : b.id, sub: [fmtA(b), sm.demandKw ? `${fmtFixed(sm.demandKw, 0)} kW` : ''].filter(Boolean).join(' · '), count: twins.length ? twins.length + 1 : undefined, panel: boardSymbolOf(project, b) };
     nodes.push(node);
-    used.add(node.panel ?? 'db');
+    used.add(node.panel);
     return node;
   };
 
