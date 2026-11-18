@@ -1,6 +1,6 @@
 # UI UX proposal – Load schedule circuit tools and ELCB / RCD (2026-11-18)
 
-Status: **mockup only, waiting for the user's decisions** (A–E below). Nothing is built.
+Status: **approved on 2026-11-18** with A, B, D, E as below; C (the 1-phase RCBO) was explained and waits for the user's word. Step 1 is being built.
 
 Mockup: `docs/mockups/load-schedule-circuit-tools-mockup.html` (image: `load-schedule-circuit-tools-mockup.png`).
 
@@ -25,11 +25,11 @@ The user sent a picture of the DB load distribution schedule (DB-GF1) and asked 
 
 ## Decisions for the user
 
-- **A.** 3-phase ELCB: 4-pole (TP&N, as the form prints today) by default with 3-pole as a choice, or 3-pole only?
-- **B.** New rows in the next free way, as today (recommended), or after the selected row (renumbers every way below it)?
-- **C.** 1-phase RCBO in place of the MCB: now, or only the 3-phase ELCB first?
-- **D.** Intro text only behind the **i**: OK, or keep one short line under the title?
-- **E.** Ribbon keeps Add circuit / Spare as they are (recommended).
+- **A.** 3-phase ELCB: 4-pole (TP&N, as the form prints today) by default with 3-pole as a choice, or 3-pole only? **Answer: 4-pole default, 3-pole as a choice.**
+- **B.** New rows in the next free way, as today (recommended), or after the selected row (renumbers every way below it)? **Answer: next free way.**
+- **C.** 1-phase RCBO in place of the MCB: now, or only the 3-phase ELCB first? **Explained; waiting.**
+- **D.** Intro text only behind the **i**: OK, or keep one short line under the title? **Answer: keep it behind the i; the text is not needed on the page.**
+- **E.** Ribbon keeps Add circuit / Spare as they are (recommended). **Answer: keep.**
 
 ## Suggested build steps (after approval)
 
