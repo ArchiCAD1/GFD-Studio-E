@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Load schedule board picker mockup</title>
+<style>
+/* App tokens (src/theme/tokens.css), Blueprint light; sizes from src/styles.css (.stage-head, .ls-nav, .chip, .menu-pop) */
+:root{--bg:#EDF3FA;--panel:#ffffff;--p2:#E4EDF6;--line:#C9D8E8;--line-strong:#A7BED6;--tx:#142D4A;--mut:#4A647F;--acc:#1D5FBF;--ok:#177336;--warn:#8a5d00;--new:#7a3fd1}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/18px -apple-system,"Segoe UI",system-ui,sans-serif;width:1952px;padding:16px 20px 20px}
+h1{font-size:17px;margin:0 0 4px}
+h2{font-size:13px;margin:18px 0 6px;font-weight:600}
+h2 .hm{font-weight:400;color:var(--mut);margin-left:8px}
+.n{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:var(--new);color:#fff;text-align:center;font-size:11px;font-weight:700;margin-right:6px;vertical-align:1px}
+p.lead{margin:0 0 8px;color:var(--mut);max-width:1600px}
+.legend{color:var(--mut);font-size:12px;margin:0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin:0 5px 0 14px;border:1.5px dashed var(--new)}
+svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+.frame{border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);padding:14px 18px 16px;position:relative}
+.ph{display:flex;align-items:center;justify-content:space-between;min-height:34px}
+.tl{display:flex;align-items:center;gap:12px}
+.tl h3{font-size:18px;font-weight:600;margin:0}
+.info{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1.5px solid var(--mut);border-radius:50%;font:italic 600 11px/1 Georgia,serif;color:var(--mut)}
+.vsep{display:inline-block;width:1px;height:20px;background:var(--line)}
+.crumb{font-size:12px}
+.sel{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line-strong);border-radius:6px;padding:6px 10px;background:var(--panel);font-size:12px;min-width:230px;justify-content:space-between}
+.sel svg{width:12px;height:12px}
+.nav{display:flex;align-items:center;gap:6px 10px;margin:8px 0 10px;flex-wrap:wrap}
+.nav.wall{flex-wrap:nowrap;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px;flex:none}
+.seg span{padding:6px 12px;white-space:nowrap}
+.seg span.on{background:var(--acc);color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);border-radius:6px;padding:5px 11px;font-size:12px;background:var(--panel);white-space:nowrap}
+.chip.on{border-color:var(--acc);color:var(--acc);background:#EAF1FB}
+.chip svg{width:14px;height:14px}
+.chip .w{color:var(--warn)}
+.chip.ic{padding:5px 7px}
+.sp{flex:1}
+.nw{outline:1.5px dashed var(--new);outline-offset:3px;border-radius:6px}
+.hbar{position:absolute;right:-2px;width:0;border-right:2px solid var(--new)}
+.hlab{position:absolute;right:10px;font-size:11px;color:var(--new);font-weight:600;background:var(--panel);padding:0 4px}
+.rowmark{position:relative}
+.below{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--mut);display:flex;gap:18px;align-items:center}
+.below b{color:var(--tx)}
+
+/* the picker */
+.pick{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--acc);border-radius:6px;padding:5px 10px;font-size:12px;background:#EAF1FB;color:var(--acc);white-space:nowrap}
+.pick b{font-weight:600}
+.pick .m{color:var(--mut)}
+.pick svg{width:12px;height:12px}
+.stat{font-size:12px;white-space:nowrap}
+.pop{position:absolute;z-index:3;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(20,45,74,.18);padding:10px;width:930px}
+.pop .top{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+.pop .search{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--acc);border-radius:6px;padding:6px 9px;box-shadow:0 0 0 2px rgba(29,95,191,.15)}
+.pop .search svg{width:14px;height:14px;color:var(--mut)}
+.pop .search .ph{min-height:0;color:var(--mut);justify-content:flex-start}
+.pop .tick{display:inline-flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap}
+.pop .tick i{display:inline-block;width:13px;height:13px;border:1px solid var(--line-strong);border-radius:3px}
+.pop .by{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);white-space:nowrap}
+.pop .by .s{border:1px solid var(--line-strong);border-radius:5px;padding:3px 8px;color:var(--tx)}
+.pop .grp{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin:8px 2px 4px;display:flex;justify-content:space-between}
+.pop .grp .c{text-transform:none;letter-spacing:0}
+.pop .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:5px}
+.pop .grid .chip{justify-content:center;padding:4px 6px}
+.pop .grid .chip.kb{box-shadow:0 0 0 2px rgba(29,95,191,.35)}
+.pop .foot{display:flex;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--mut)}
+.pop .foot kbd{font:inherit;border:1px solid var(--line-strong);border-radius:3px;padding:0 4px;background:var(--p2);color:var(--tx)}
+
+/* lists */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:14px}
+.box{border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);padding:12px 16px}
+.box h4{margin:0 0 8px;font-size:13px}
+.box ol,.box ul{margin:0;padding-left:20px}
+.box li{margin:0 0 6px}
+.box li b{font-weight:600}
+.rec{color:var(--ok);font-weight:600}
+</style>
+</head>
+<body>
+<h1>Load schedule — board picker for many panels</h1>
+<p class="lead">Today the page shows one button per panel of the open tab. With 84 DBs that is six rows of buttons (your picture of DB-83). Proposed: the buttons stay while they fit on one row, as on the MDB, SMDB and MCC tabs today. When they do not fit, the row shows the open panel with ◀ ▶ and a list that opens below it, with search, a "not filled" filter and floors. The same rule applies to every tab: MDB, SMDB, DB, Emergency, MCC and Other.</p>
+<p class="legend"><i></i>new or changed</p>
+
+<h2>Today — DB tab with 84 panels <span class="hm" id="h-today"></span></h2>
+<div class="frame">
+  <div class="ph">
+    <div class="tl"><h3>Load distribution schedule</h3><span class="info">i</span><span class="vsep"></span><span class="crumb">Supply TX-1 (1000 kVA) → MDB-1 → MCC-1 → DB-83</span></div>
+    <span class="sel">DB-83 — DB 83 <svg viewBox="0 0 12 12"><path d="M3 4.5 6 7.5 9 4.5"/></svg></span>
+  </div>
+  <div class="nav wall" id="today">
+    <span class="seg"><span>TCL summary</span><span>MDB (1)</span><span>SMDB (2)</span><span class="on">DB (84)</span><span>MCC (1)</span></span>
+    <span class="vsep"></span>
+    <div class="chips" id="wall"></div>
+  </div>
+  <div class="below"><b>DB-83</b> board bar · then the add row · then the schedule</div>
+</div>
+
+<h2>Proposed — the same DB tab <span class="hm" id="h-new"></span></h2>
+<div class="frame">
+  <div class="ph">
+    <div class="tl"><h3>Load distribution schedule</h3><span class="info">i</span><span class="vsep"></span><span class="crumb">Supply TX-1 (1000 kVA) → MDB-1 → MCC-1 → DB-83</span></div>
+    <span class="sel">DB-83 — DB 83 <svg viewBox="0 0 12 12"><path d="M3 4.5 6 7.5 9 4.5"/></svg></span>
+  </div>
+  <div class="nav" id="proposed">
+    <span class="seg"><span>TCL summary</span><span>MDB (1)</span><span>SMDB (2)</span><span class="on">DB (84)</span><span>MCC (1)</span></span>
+    <span class="vsep"></span>
+    <span class="nw" style="display:inline-flex;gap:6px;align-items:center">
+      <span class="chip ic" title="Previous panel"><svg viewBox="0 0 14 14"><path d="M8.5 3 4.5 7l4 4"/></svg></span>
+      <span class="pick"><b>DB-83</b> <span class="m">Sixth floor · 84 of 84</span> <svg viewBox="0 0 12 12"><path d="M3 4.5 6 7.5 9 4.5"/></svg></span>
+      <span class="chip ic" title="Next panel"><svg viewBox="0 0 14 14"><path d="M5.5 3 9.5 7l-4 4"/></svg></span>
+    </span>
+    <span class="nw" style="display:inline-flex;gap:8px;align-items:center">
+      <span class="stat"><span class="w">!</span> 83 of 84 not filled</span>
+      <span class="chip">Next not filled <svg viewBox="0 0 14 14"><path d="M5.5 3 9.5 7l-4 4"/></svg></span>
+    </span>
+    <span class="sp"></span>
+    <span class="seg"><span class="on">Load schedule</span><span>Connected load &amp; MD</span></span>
+  </div>
+  <div class="below"><b>DB-83</b> board bar · then the add row · then the schedule</div>
+</div>
+
+<h2>Proposed — the list open (click the panel name, or press Ctrl/⌘ K)</h2>
+<div class="frame" style="height:560px">
+  <div class="ph">
+    <div class="tl"><h3>Load distribution schedule</h3><span class="info">i</span><span class="vsep"></span><span class="crumb">Supply TX-1 (1000 kVA) → MDB-1 → MCC-1 → DB-83</span></div>
+    <span class="sel">DB-83 — DB 83 <svg viewBox="0 0 12 12"><path d="M3 4.5 6 7.5 9 4.5"/></svg></span>
+  </div>
+  <div class="nav">
+    <span class="seg"><span>TCL summary</span><span>MDB (1)</span><span>SMDB (2)</span><span class="on">DB (84)</span><span>MCC (1)</span></span>
+    <span class="vsep"></span>
+    <span class="chip ic"><svg viewBox="0 0 14 14"><path d="M8.5 3 4.5 7l4 4"/></svg></span>
+    <span class="pick" id="pickBtn" style="box-shadow:0 0 0 2px rgba(29,95,191,.2)"><b>DB-83</b> <span class="m">Sixth floor · 84 of 84</span> <svg viewBox="0 0 12 12"><path d="M3 4.5 6 7.5 9 4.5"/></svg></span>
+    <span class="chip ic"><svg viewBox="0 0 14 14"><path d="M5.5 3 9.5 7l-4 4"/></svg></span>
+    <span class="stat"><span class="w">!</span> 83 of 84 not filled</span>
+    <span class="chip">Next not filled <svg viewBox="0 0 14 14"><path d="M5.5 3 9.5 7l-4 4"/></svg></span>
+    <span class="sp"></span>
+    <span class="seg"><span class="on">Load schedule</span><span>Connected load &amp; MD</span></span>
+  </div>
+  <div class="pop nw" id="pop">
+    <div class="top">
+      <span class="search"><svg viewBox="0 0 14 14"><circle cx="6" cy="6" r="4"/><path d="m9 9 3 3"/></svg><span class="ph">Find a DB: number, name or room — e.g. 6 or "pump"</span></span>
+      <span class="tick"><i></i> Not filled only</span>
+      <span class="by">Group by <span class="s">Floor ▾</span></span>
+    </div>
+    <div id="groups"></div>
+    <div class="foot"><span>Type to filter · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> move · <kbd>Enter</kbd> opens · <kbd>Esc</kbd> closes</span><span><span class="w" style="color:var(--warn)">!</span> = schedule not filled yet · 84 DBs</span></div>
+  </div>
+</div>
+
+<h2>Few panels — SMDB tab (2): unchanged, the buttons fit on the row</h2>
+<div class="frame">
+  <div class="ph">
+    <div class="tl"><h3>Connected load, maximum demand &amp; kWh metering</h3><span class="info">i</span><span class="vsep"></span><span class="crumb">Supply TX-1 (1000 kVA) → MDB-1 → SMDB-GF</span></div>
+    <span class="sel">SMDB-GF — Ground floor SMDB <svg viewBox="0 0 12 12"><path d="M3 4.5 6 7.5 9 4.5"/></svg></span>
+  </div>
+  <div class="nav">
+    <span class="seg"><span>TCL summary</span><span>MDB (1)</span><span class="on">SMDB (2)</span><span>DB (84)</span><span>MCC (1)</span></span>
+    <span class="vsep"></span>
+    <span class="chip on">SMDB-GF</span><span class="chip">SMDB-FF</span>
+  </div>
+</div>
+
+<div class="cols">
+  <div class="box">
+    <h4>What changes</h4>
+    <ol>
+      <li><b>One row on every tab.</b> The panel buttons stay while they all fit on the row beside the tabs (MDB, SMDB, MCC today). The rule is the window width, not a fixed number: a wide screen keeps buttons longer.</li>
+      <li><b>When they do not fit</b>, the row shows <b>◀ DB-83 ▶</b>: the open panel, its floor and its place in the list (84 of 84). ◀ ▶ step through the list, as the ribbon's previous / next already do.</li>
+      <li><b>"! 83 of 84 not filled"</b> with <b>Next not filled</b>: jumps to the next panel whose schedule is still empty, so you work through them in order.</li>
+      <li><b>The list</b> opens below the panel name (click, or Ctrl/⌘ K). It has a search box (number, name or room), a "Not filled only" tick, and groups by <b>floor</b> from Building information. Without floors it groups by the panel each one is fed from, and if that is the same for all, it is one list. The ! marks stay. Keys: type to filter, arrows, Enter, Esc.</li>
+      <li><b>Number order</b> in the list: DB-1, DB-2 … DB-83 within each floor, instead of the supply order (DB-GF1, DB-41 … DB-83, DB-1 … DB-40 in your picture). ◀ ▶ follow the list.</li>
+      <li>Space: with 84 DBs, the tabs and panel buttons take <span id="h-sum"></span>: about 5 more circuit rows at this width, about 7 on a window where the buttons take six rows (your picture). Tabs with few panels look as they do now.</li>
+    </ol>
+  </div>
+  <div class="box">
+    <h4>Decisions for you</h4>
+    <ul>
+      <li><b>A.</b> Many panels: the ◀ panel ▾ ▶ picker with the list <span class="rec">(recommended)</span>, or one row of buttons that scrolls sideways with ◀ ▶ at its ends?</li>
+      <li><b>B.</b> When to switch: when the buttons no longer fit on the row <span class="rec">(recommended)</span>, or above a fixed count (say 12)?</li>
+      <li><b>C.</b> Groups in the list: floor, else fed-from panel <span class="rec">(recommended)</span>, or no groups?</li>
+      <li><b>D.</b> Order: number order in the list and for ◀ ▶ <span class="rec">(recommended)</span>, or keep the supply order?</li>
+      <li><b>E.</b> The select at the top right (every panel of the project): keep it as it is <span class="rec">(recommended)</span>, or remove it because the list can find any panel?</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// Today's wall, in the order of your picture: DB-GF1, DB-41 … DB-83, DB-1 … DB-40; only DB-GF1 is filled.
+const order = ['DB-GF1', ...Array.from({ length: 43 }, (_, i) => `DB-${41 + i}`), ...Array.from({ length: 40 }, (_, i) => `DB-${1 + i}`)];
+document.getElementById('wall').innerHTML = order.map((id) => `<span class="chip${id === 'DB-83' ? ' on' : ''}">${id}${id === 'DB-GF1' ? '' : ' <span class="w">!</span>'}</span>`).join('');
+
+// The list: number order, 12 per floor.
+const floors = ['Ground floor', 'First floor', 'Second floor', 'Third floor', 'Fourth floor', 'Fifth floor', 'Sixth floor'];
+const num = ['DB-GF1', ...Array.from({ length: 83 }, (_, i) => `DB-${1 + i}`)];
+document.getElementById('groups').innerHTML = floors.map((f, k) => {
+  const ids = num.slice(k * 12, k * 12 + 12);
+  const open = ids.filter((id) => id !== 'DB-GF1').length;
+  return `<div class="grp"><span>${f}</span><span class="c">${ids.length} DBs${open ? ` · ${open} not filled` : ''}</span></div><div class="grid">${ids.map((id) => `<span class="chip${id === 'DB-83' ? ' on' : ''}${id === 'DB-84' ? ' kb' : ''}">${id}${id === 'DB-GF1' ? '' : ' <span class="w">!</span>'}</span>`).join('')}</div>`;
+}).join('');
+const btn = document.getElementById('pickBtn'), pop = document.getElementById('pop'), fr = pop.parentElement;
+pop.style.left = (btn.getBoundingClientRect().left - fr.getBoundingClientRect().left) + 'px';
+pop.style.top = (btn.getBoundingClientRect().bottom - fr.getBoundingClientRect().top + 6) + 'px';
+
+// Heights of the tabs-and-panels row, measured.
+const hT = document.getElementById('today').offsetHeight, hN = document.getElementById('proposed').offsetHeight;
+document.getElementById('h-today').textContent = `tabs and panel buttons: ${hT} px`;
+document.getElementById('h-new').textContent = `tabs and panel picker: ${hN} px`;
+document.getElementById('h-sum').textContent = `${hN} px instead of ${hT} px`;
+document.title = `${hT}/${hN}`;
+document.head.appendChild(document.createElement('style')).textContent = '@page{size:1952px ' + (Math.ceil(document.documentElement.scrollHeight) + 4) + 'px;margin:0}';
+</script>
+</body>
+</html>
