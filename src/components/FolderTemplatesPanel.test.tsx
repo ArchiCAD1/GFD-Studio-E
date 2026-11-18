@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BUILT_IN_TEMPLATES } from '../model/folderTemplateBuiltins';
 import { webTemplatesClient, type TemplatesClient } from '../model/folderTemplatesClient';
+import type { FolderScan } from '../model/folderLearn';
 import type { FolderTemplate } from '../model/folderTemplates';
 import FolderTemplatesPanel from './FolderTemplatesPanel';
 
@@ -149,5 +150,70 @@ describe('the File naming tab (C4)', () => {
     click(button('Save template'));
     await flush();
     expect(saved[0].naming).toMatchObject({ preset: 'custom', pattern: '{ProjectNo}-{Rev}-{Seq:3}' });
+  });
+});
+
+describe('Learn from folder (C5)', () => {
+  const JOB: FolderScan = {
+    name: '2309_Jumeirah Park Villas', files: 1, count: 6, depth: 3, totalFiles: 40, truncated: false, deeper: false, skipped: 1, unreadable: 0,
+    folders: [
+      { name: 'A-Admin', files: 3, children: [{ name: 'Minutes', files: 14, children: [] }] },
+      { name: 'B-Received', files: 0, children: [{ name: 'Arch', files: 0, children: [{ name: 'Rev A 12-03', files: 18, children: [] }] }] },
+      { name: 'C-DEWA', files: 5, children: [] }
+    ]
+  };
+  const learnWith = async (scanFolder?: () => Promise<FolderScan | null>) => {
+    client = { ...client, scanFolder };
+    await render();
+  };
+
+  it('is offered only where folders can be read', async () => {
+    await learnWith(undefined);
+    expect(button('Learn from folder…')).toBeUndefined();
+  });
+
+  it('reads a folder, suggests roles, leaves the revision folder out, saves and opens the editor', async () => {
+    let asked = 0;
+    await learnWith(async () => { asked++; return JOB; });
+    click(button('Learn from folder…'));
+    expect(button('Next').disabled).toBe(true);
+    click(button('Choose…'));
+    await flush();
+    expect(asked).toBe(1);
+    expect(host.textContent).toContain('✓ Read 6 folders, 3 levels. 41 files ignored.');
+    click(button('Next'));
+    expect(host.textContent).toContain('{ProjectNo}_{ProjectShort}');
+    expect(host.querySelector<HTMLSelectElement>('select[aria-label="Role for C-DEWA"]')!.value).toBe('authDewa');
+    expect(host.textContent).toContain('Leave out (revision / date folder)');
+    act(() => {
+      const sel = host.querySelector<HTMLSelectElement>('select[aria-label="Role for A-Admin"]')!;
+      sel.value = 'programme';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    click(button('Next'));
+    expect(host.querySelector<HTMLInputElement>('.ft-title input')!.value).toBe('Jumeirah Park Villas layout (2309)');
+    expect(host.textContent).toContain('5 folders · 4 roles assigned');
+    click(host.querySelector('input[type=checkbox]')!);
+    click(button('Save and edit'));
+    await flush();
+    expect(saved).toHaveLength(1);
+    const t = saved[0];
+    expect([t.root, t.numbering, t.id.startsWith('user-')]).toEqual(['{ProjectNo}_{ProjectShort}', 'A-', true]);
+    expect(JSON.stringify(t)).not.toContain('Rev A');
+    expect(t.folders[0].role).toBe('programme');
+    expect((await client.list()).defaultId).toBe(t.id);
+    expect(button('Save template')).toBeTruthy();
+    expect(names()).toContain('A-Admin');
+  });
+
+  it('cancels back to the library, and shows why a folder could not be read', async () => {
+    await learnWith(async () => { throw new Error('The chosen folder is a link; choose the folder itself.'); });
+    click(button('Learn from folder…'));
+    click(button('Choose…'));
+    await flush();
+    expect(host.querySelector('[role=alert]')?.textContent).toContain('is a link');
+    click(button('Cancel'));
+    expect(button('Learn from folder…')).toBeTruthy();
+    expect(saved).toHaveLength(0);
   });
 });

@@ -1,5 +1,8 @@
 /** What each release added, in plain words, for the What's new window shown once after an update (and from Help).
  * Add the new version at the top of RELEASES with each release batch, one line per feature. */
+import { SEEN_KEY } from './whatsNewSeen';
+
+export { markSeen } from './whatsNewSeen';
 
 export type WhatsNewAction = 'cad' | 'sheets' | 'floor-plan' | 'floor-plan-lengths' | 'floor-plan-trays' | 'floor-plan-boards';
 
@@ -15,9 +18,22 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.191', date: '2026-11-18',
+    version: '2.196', date: '2026-11-18',
     items: [
       { title: 'Design CAD: less work for dense drawings', text: 'Design CAD does less work to get a drawing with millions of line pieces ready to show, and lists and counts layers faster in drawings with thousands of them.' }
+    ]
+  },
+
+  {
+    version: '2.195', date: '2026-11-18',
+    items: [
+      { title: 'Folder templates: learn from a job folder', text: 'Profile & preferences → Folder templates has Learn from folder…. Choose one of your old job folders and the app reads its folder names (never your files, and nothing in the folder is changed), suggests which output saves to which folder, leaves revision and date folders out, and keeps your numbering. Check the suggestions, name the template and it opens in the editor to finish.' }
+    ]
+  },
+  {
+    version: '2.190', date: '2026-11-18',
+    items: [
+      { title: 'Design CAD opens drawings with a damaged record', text: 'A DWG or DXF with a few records that cannot be read, such as an object another program wrote short, no longer stops with "could not be read". The drawing opens without those records; a file with nothing readable still shows the message.' }
     ]
   },
   {
@@ -1339,7 +1355,6 @@ export function unseenReleases(lastSeen: string | undefined, current: string, us
   return upTo.filter((r) => compareVersions(r.version, lastSeen) > 0);
 }
 
-const SEEN_KEY = 'lvds.whatsNewSeen';
 
 /** The releases this computer has not seen yet (localStorage; an app with other saved settings was used before). */
 export function pendingReleases(current: string): Release[] {
@@ -1354,6 +1369,3 @@ export function pendingReleases(current: string): Release[] {
   }
 }
 
-export function markSeen(current: string): void {
-  try { localStorage.setItem(SEEN_KEY, current); } catch { /* storage refused: shown again next time */ }
-}

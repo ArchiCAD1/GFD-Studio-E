@@ -224,7 +224,15 @@ function folderTemplatesExportArgs(a) {
   return { templates: a.templates.map(folderTemplate), defaultName: defaultFileName(a.defaultName, 'folder-templates.json') };
 }
 
+/** The folder "Learn from folder" reads (folderScan.cjs): an absolute path, not a drive's top. */
+function scanRoot(v) {
+  if (typeof v !== 'string' || !v || v.length > 4096 || v.includes('\0') || !path.isAbsolute(v)) fail('folder to read');
+  const full = path.resolve(v);
+  if (path.parse(full).root === full) fail('folder to read: a drive or the top of the disk');
+  return full;
+}
+
 /** Permissions the app's pages may be granted (everything else, e.g. camera, location, notifications, is denied). */
 const ALLOWED_PERMISSIONS = new Set(['clipboard-sanitized-write']);
 
-module.exports = { defaultFileName, fileFilter, saveTextArgs, saveBinaryArgs, overwriteBinaryArgs, pdfArgs, printArgs, projectSaveArgs, recoveryArgs, logText, workbookRows, libraryData, engineRequest, folderTemplate, folderTemplateId, folderTemplatesExportArgs, ALLOWED_PERMISSIONS, PAGE_SIZES };
+module.exports = { defaultFileName, fileFilter, saveTextArgs, saveBinaryArgs, overwriteBinaryArgs, pdfArgs, printArgs, projectSaveArgs, recoveryArgs, logText, workbookRows, libraryData, engineRequest, folderTemplate, folderTemplateId, folderTemplatesExportArgs, scanRoot, ALLOWED_PERMISSIONS, PAGE_SIZES };
