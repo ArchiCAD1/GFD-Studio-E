@@ -18,7 +18,7 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.192', date: '2026-11-18',
+    version: '2.195', date: '2026-11-18',
     items: [
       { title: 'Folder templates: learn from a job folder', text: 'Profile & preferences → Folder templates has Learn from folder…. Choose one of your old job folders and the app reads its folder names (never your files, and nothing in the folder is changed), suggests which output saves to which folder, leaves revision and date folders out, and keeps your numbering. Check the suggestions, name the template and it opens in the editor to finish.' }
     ]
