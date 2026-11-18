@@ -73,6 +73,20 @@ describe('New project: the Project folder step (F1)', () => {
     expect(choice.template.id).toBe('consultant-full');
     expect(choice.unticked.length).toBeGreaterThan(0);
   });
+  it('puts the typed project number in the suggested folder name and passes it as the seventh argument', async () => {
+    const { disk } = fakeDisk();
+    onCreate.mockClear();
+    act(() => root.render(<NewProjectWizard initialName="Villa Jumeirah" references={BUILT_IN_REFERENCES} folderParent="D:\\Projects" folderClient={client()} folderDisk={disk} onQuick={() => {}} onCreate={onCreate} onCancel={() => {}} />));
+    await flush();
+    type(field('Project number'), ' P2611 ');
+    click(document.querySelector('.home-act')!);
+    for (let i = 0; i < 4; i++) click(button('Next'));
+    expect(field('Folder name').value).toBe('P2611_Villa Jumeirah');
+    click(button('Next'));
+    click(button('Create project'));
+    expect(onCreate.mock.calls[0][6]).toBe('P2611');
+    expect((onCreate.mock.calls[0][5] as FolderChoice).name).toBe('P2611_Villa Jumeirah');
+  });
   it('Skip folders creates the project with no folder choice', async () => {
     const { disk } = fakeDisk();
     await show(disk);

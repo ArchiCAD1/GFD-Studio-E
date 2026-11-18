@@ -972,14 +972,15 @@ export default function App() {
     setStatus(`Opened ${boardId} in Sheets.`);
   }
 
-  function createProject(name: string, brief?: ProjectBrief, template?: SetupTemplate, reference?: DesignReference, formats?: Partial<Record<PanelCategory, ScheduleFormat>>, folder?: FolderChoice) {
+  function createProject(name: string, brief?: ProjectBrief, template?: SetupTemplate, reference?: DesignReference, formats?: Partial<Record<PanelCategory, ScheduleFormat>>, folder?: FolderChoice, projectNo?: string) {
     setWizard(false);
     // Your Parameters.xlsx defaults, then your profile's defaults and details, then a setup template,
     // then the authority's rule set chosen in the wizard, then the brief.
     const base0 = applyDefaults(applyParameters(newProject(name), db), prefs);
     const base1 = template ? applyTemplateSystem(base0, template) : base0;
     const base = reference ? applyReference(base1, reference) : base1;
-    const briefed = brief ? applyBrief(base, brief) : base;
+    const briefed0 = brief ? applyBrief(base, brief) : base;
+    const briefed = projectNo ? { ...briefed0, info: { ...briefed0.info, projectNo } } : briefed0;
     // The project keeps its own copy of the folder template; where the folder is stays on this computer.
     const made = folder ? { ...briefed, folder: projectFolderOf(folder.template) } : briefed;
     loadIntoApp(PANEL_CATEGORIES.reduce((p, c) => withProjectFormat(p, c.key, formats?.[c.key]), made), undefined, 'New project — not saved yet');

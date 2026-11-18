@@ -18,6 +18,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.197', date: '2026-11-18',
+    items: [
+      { title: 'Project number', text: 'A project now has its own project number. Type it on the first step of New project or in Project settings, under Submission forms. It is used in the project folder name (for example P2611_Villa Jumeirah) and in study reports whose own Project no. field is empty. Existing projects keep working: a number typed in Study reports is still used until you give the project its own.' }
+    ]
+  },
+  {
     version: '2.196', date: '2026-11-18',
     items: [
       { title: 'Design CAD: less work for dense drawings', text: 'Design CAD does less work to get a drawing with millions of line pieces ready to show, and lists and counts layers faster in drawings with thousands of them.' }

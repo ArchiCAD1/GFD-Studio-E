@@ -20,6 +20,11 @@ describe('names and scope from the project', () => {
     expect(folderVars(p)).toEqual({ ProjectShort: 'Villa Jumeirah', ProjectNo: 'P2611', Client: 'Sample LLC', Plot: '345' });
     expect(folderVars({ name: 'X' } as Project)).toEqual({ ProjectShort: 'X' });
   });
+  it('uses the project number of the project before the one typed for reports', () => {
+    const p = { name: 'Villa', info: { projectNo: ' P2700 ' }, studyReport: { projectNo: 'P2611' } } as unknown as Project;
+    expect(folderVars(p).ProjectNo).toBe('P2700');
+    expect(folderVars({ name: 'Villa', info: { projectNo: '  ' }, studyReport: { projectNo: 'P2611' } } as unknown as Project).ProjectNo).toBe('P2611');
+  });
   it('suggests the project folder name, leaving out a number that is not known', () => {
     expect(suggestedRootName(t, { ProjectNo: 'P2611', ProjectShort: 'Villa Jumeirah' })).toBe('P2611_Villa Jumeirah');
     expect(suggestedRootName(t, { ProjectShort: 'Villa: A/B.' })).toBe('Villa- A-B');
