@@ -26,7 +26,13 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
 .sel{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line-strong);border-radius:6px;padding:5px 10px;background:var(--panel);font-size:12px}
 .sel svg{width:12px;height:12px}
 .intro{margin:8px 0 6px;color:var(--tx)}
-.intro a{color:var(--acc);text-decoration:underline;margin-left:6px}
+.tl{display:flex;align-items:center;gap:10px}
+.info{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px dashed var(--new);border-radius:50%;font:italic 600 12px/1 Georgia,serif;color:var(--acc)}
+.vsep{display:inline-block;width:1px;height:20px;background:var(--line)}
+.crumb{font-size:12px;border:1.5px dashed var(--new);border-radius:6px;padding:3px 9px}
+.crumb .m{margin:0 2px}
+.row2{display:flex;align-items:center;gap:10px;margin:10px 0}
+.row2 .chip.on{outline:1.5px solid var(--mv);outline-offset:2px}
 .m{color:var(--mut)}
 .supply{margin:6px 0 12px;font-size:12px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px}
@@ -88,6 +94,12 @@ table.ls tr.total td{font-weight:600;background:#F3F7FC}
 .call{position:absolute;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--new);color:#fff;font-size:11px;font-weight:700;z-index:4;box-shadow:0 0 0 2px #fff}
 
 .below{display:flex;gap:18px;margin-top:16px;align-items:flex-start}
+.lcol{display:flex;flex-direction:column;gap:14px;width:560px;flex:none}
+.pop{font-size:12px;line-height:17px}
+.pop .t{font-size:13px;font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.pop .t .info{margin:0 3px}
+.pop p{margin:0 0 6px}
+.pop a{color:var(--acc);text-decoration:underline}
 .card{background:var(--panel);border:1px solid var(--line-strong);border-radius:8px;padding:12px 16px}
 .dlg{width:560px}
 .dlg .t{font-size:14px;font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between}
@@ -118,16 +130,35 @@ table.ls tr.total td{font-weight:600;background:#F3F7FC}
 <p class="lead">DB load schedule form only (MD forms, TCL summary and busbar riser unchanged). The ribbon keeps all its buttons; this puts the everyday "add" commands next to the grid, where you are working, and adds hand-placed ELCB / RCD, which the app cannot do today (ELCBs come only from "ELCB per 6 / 3 circuits" for the whole board).</p>
 <p class="legend"><i class="nw"></i>new <i class="mv"></i>moved back from the ribbon (kept there too) <i class="rw"></i>rows added with the new buttons</p>
 
-<h2>Proposed page (DB-GF1, Demonstration Project)</h2>
-<div class="frame" id="page">
+<h2>Today: title to board bar <span class="m" id="hToday" style="font-weight:400"></span></h2>
+<div class="frame" id="today">
   <div class="ph">
     <h3>Load distribution schedule</h3>
     <span class="sel">DB-GF1 — Villa ground floor DB <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
   </div>
-  <p class="intro" id="intro">Circuits here and on the SLD are the same data. Load per circuit = points × WATT/UNIT; MCB and wire size themselves (a size you choose by hand is kept).<a>How this page works</a></p>
+  <p class="intro" style="max-width:1100px">Enter circuits here or on the SLD — both edit the same data. Circuit references are phase + way (R1, Y1, B1, R2…; RYB = 3-phase). Load per circuit = points × WATT/UNIT (your input). Lighting circuits (LTG / fans only): min 2.5 mm², 100 mA ELCB; power circuits: min 4 mm², 30 mA ELCB — change these in Project settings. MCB and wire are sized from the load, voltage drop and earth fault; a size chosen by hand is kept.</p>
   <p class="supply m">Supply: TX-1 (1000 kVA) → MDB-1 → SMDB-GF → DB-GF1</p>
   <div class="seg"><span>TCL summary</span><span>MDB (1)</span><span>SMDB (2)</span><span class="on">DB (1)</span><span>MCC (1)</span></div>
   <div class="chips"><span class="chip on">DB-GF1</span></div>
+  <div class="lshead" id="headToday"><span><span class="m">Project</span> <b>Demonstration Project — Not for Construction</b></span><span><span class="m">DB No.</span> <b>DB-GF1</b></span><span class="m">… board bar, unchanged</span></div>
+</div>
+
+<h2>Proposed page (DB-GF1, Demonstration Project): title to board bar <span class="m" id="hNew" style="font-weight:400"></span></h2>
+<div class="frame" id="page">
+  <div class="ph">
+    <div class="tl" id="tl">
+      <h3>Load distribution schedule</h3>
+      <span class="info" id="info" title="How this page works">i</span>
+      <span class="vsep"></span>
+      <span class="crumb"><span class="m">Supply</span> TX-1 (1000 kVA) <span class="m">→</span> MDB-1 <span class="m">→</span> SMDB-GF <span class="m">→</span> <b>DB-GF1</b></span>
+    </div>
+    <span class="sel">DB-GF1 — Villa ground floor DB <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+  </div>
+  <div class="row2" id="row2">
+    <div class="seg"><span>TCL summary</span><span>MDB (1)</span><span>SMDB (2)</span><span class="on">DB (1)</span><span>MCC (1)</span></div>
+    <span class="vsep"></span>
+    <span class="chip on">DB-GF1</span>
+  </div>
   <div class="lshead" id="head">
     <span><span class="m">Project</span> <b>Demonstration Project — Not for Construction</b></span>
     <span><span class="m">DB No.</span> <b>DB-GF1</b></span>
@@ -198,16 +229,24 @@ table.ls tr.total td{font-weight:600;background:#F3F7FC}
     <hr>
     <div><span>All automatic again</span><span class="m">ELCB per 6 circuits</span></div>
   </div>
-  <span class="call" data-at="intro" data-dx="-26" data-dy="-1">1</span>
-  <span class="call" data-at="tools" data-dx="-26" data-dy="10">2</span>
-  <span class="call" data-at="elcb" data-dx="-4" data-dy="-22">3</span>
-  <span class="call" data-at="s1" data-dx="-4" data-dy="-22">4</span>
-  <span class="call" data-at="bal" data-dx="-4" data-dy="-22">5</span>
-  <span class="call" data-at="tag" data-dx="-4" data-dy="-20">6</span>
-  <span class="call" data-at="r5" data-dx="-26" data-dy="16">7</span>
+  <span class="call" data-at="tl" data-dx="-26" data-dy="4">1</span>
+  <span class="call" data-at="row2" data-dx="-26" data-dy="7">2</span>
+  <span class="call" data-at="tools" data-dx="-26" data-dy="10">3</span>
+  <span class="call" data-at="elcb" data-dx="-4" data-dy="-22">4</span>
+  <span class="call" data-at="s1" data-dx="-4" data-dy="-22">5</span>
+  <span class="call" data-at="bal" data-dx="-4" data-dy="-22">6</span>
+  <span class="call" data-at="tag" data-dx="-4" data-dy="-20">7</span>
+  <span class="call" data-at="r5" data-dx="-26" data-dy="16">8</span>
 </div>
 
 <div class="below">
+ <div class="lcol">
+  <div class="card pop" id="pop">
+    <div class="t"><span>The <span class="info" style="border-style:solid">i</span> beside the title opens: How this page works</span><span class="m">×</span></div>
+    <p>Enter circuits here or on the SLD — both edit the same data. Circuit references are phase + way (R1, Y1, B1, R2…; RYB = 3-phase). Load per circuit = points × WATT/UNIT (your input).</p>
+    <p>Lighting circuits (LTG / fans only): min 2.5 mm², 100 mA ELCB; power circuits: min 4 mm², 30 mA ELCB — <a>change these in Project settings</a>.</p>
+    <p>MCB and wire are sized from the load, voltage drop and earth fault; a size chosen by hand is kept.</p>
+  </div>
   <div class="card dlg">
     <div class="t"><span>Add 3-phase ELCB — DB-GF1</span><span class="m">×</span></div>
     <div class="row"><span class="m">Covers</span><span class="two">way <span class="in">5 <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span> to way <span class="in">5 <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span> <span class="m">RYB5 Booster pump</span></span></div>
@@ -217,16 +256,18 @@ table.ls tr.total td{font-weight:600;background:#F3F7FC}
     <p class="note">Ways not under a hand-placed ELCB keep the board's "ELCB per 6 circuits" grouping, counted over the ways that are left. The ELCB prints in the ELCB column of the PDF and Excel form like the others, and goes to the BOQ, enclosure device list and earth-fault check.</p>
     <div class="btns"><span class="chip">Cancel</span><span class="chip pri">Add ELCB</span></div>
   </div>
+ </div>
   <div class="card notes">
     <h4>What changes</h4>
     <ol>
-      <li><span class="n">1</span>The three-line intro folds to one line; "How this page works" opens the full text (lighting / power minimum wire and mA, link to Project settings).</li>
-      <li><span class="n">2</span>A row of add buttons sits right above the grid, where the "Excel keys" hint is today. The phase load stays at its right; the Excel keys move behind the "?".</li>
-      <li><span class="n">3</span><b>ELCB / RCD</b> (new): a 3-phase ELCB over chosen ways or for one 3-phase circuit, or a 1-phase RCBO in place of a circuit's MCB. Today ELCBs come only from "ELCB per" for the whole board.</li>
-      <li><span class="n">4</span><b>Spare 1-phase</b> (20 A SP) and <b>Spare 3-phase</b> (32 A TP) as two buttons, no menu to open; <b>Space</b> asks 1-phase or 3-phase. Same commands as the ribbon's Spare menu.</li>
-      <li><span class="n">5</span>Balance phases shown here too, beside the imbalance it fixes.</li>
-      <li><span class="n">6</span>The board bar says how many ELCBs were placed by hand, so the "ELCB per" setting is not misleading.</li>
-      <li><span class="n">7</span>In the grid a hand-placed ELCB has its own cell in the ELCB column (dashed here only to mark it as new); an RCBO shows in the MCB cell.</li>
+      <li><span class="n">1</span><b>One title row:</b> title, an <b>i</b> that opens "How this page works" (the full intro text and the Project settings link, left), and the supply chain. The three-line intro and the separate Supply line go.</li>
+      <li><span class="n">2</span><b>Tabs and board chips share one row</b>; the board chip row goes. When a board serves rooms, the rooms check becomes a short chip at the end of this row (full text on hover).</li>
+      <li><span class="n">3</span>A row of add buttons right above the grid, where the "Excel keys" hint is today. The phase load stays at its right; the Excel keys move behind the "?".</li>
+      <li><span class="n">4</span><b>ELCB / RCD</b> (new): a 3-phase ELCB over chosen ways or for one 3-phase circuit, or a 1-phase RCBO in place of a circuit's MCB. Today ELCBs come only from "ELCB per" for the whole board.</li>
+      <li><span class="n">5</span><b>Spare 1-phase</b> (20 A SP) and <b>Spare 3-phase</b> (32 A TP) as two buttons, no menu to open; <b>Space</b> asks 1-phase or 3-phase. Same commands as the ribbon's Spare menu.</li>
+      <li><span class="n">6</span>Balance phases shown here too, beside the imbalance it fixes.</li>
+      <li><span class="n">7</span>The board bar says how many ELCBs were placed by hand, so the "ELCB per" setting is not misleading.</li>
+      <li><span class="n">8</span>In the grid a hand-placed ELCB has its own cell in the ELCB column (dashed here only to mark it as new); an RCBO shows in the MCB cell.</li>
     </ol>
   </div>
   <div class="card notes" style="flex:0 0 520px">
@@ -235,7 +276,7 @@ table.ls tr.total td{font-weight:600;background:#F3F7FC}
       <li><b>A.</b> 3-phase ELCB: 4-pole (TP&amp;N, as the form prints today) by default, with 3-pole as a choice — or 3-pole only?</li>
       <li><b>B.</b> New rows: next free way, as today (recommended) — or after the selected row, which renumbers every way below it?</li>
       <li><b>C.</b> 1-phase RCBO in place of the MCB: wanted now, or only the 3-phase ELCB?</li>
-      <li><b>D.</b> Intro folded to one line: OK, or keep the full text?</li>
+      <li><b>D.</b> Intro text only behind the <b>i</b>: OK, or keep one short line under the title?</li>
       <li><b>E.</b> Ribbon keeps Add circuit / Spare as they are (recommended): both places run the same commands.</li>
     </ol>
   </div>
@@ -245,6 +286,10 @@ table.ls tr.total td{font-weight:600;background:#F3F7FC}
 const page = document.getElementById('page').getBoundingClientRect();
 const place = (el, x, y) => { el.style.left = (x - page.left) + 'px'; el.style.top = (y - page.top) + 'px'; };
 const e = document.getElementById('elcb').getBoundingClientRect();
+const h = (f, b) => Math.round(document.getElementById(b).getBoundingClientRect().top - document.getElementById(f).getBoundingClientRect().top);
+const ht = h('today', 'headToday'), hn = h('page', 'head');
+document.getElementById('hToday').textContent = '— ' + ht + ' px';
+document.getElementById('hNew').textContent = '— ' + hn + ' px, ' + (ht - hn) + ' px less (about ' + Math.round((ht - hn) / 25) + ' more circuit rows on screen)';
 place(document.getElementById('menu'), e.left, e.bottom + 4);
 for (const c of document.querySelectorAll('.call')) {
   const r = document.getElementById(c.dataset.at).getBoundingClientRect();
