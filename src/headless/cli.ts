@@ -23,9 +23,9 @@ const ALIASES: Record<string, string> = {
 };
 
 /** Flags that never take a value. */
-const SWITCHES = new Set(['json', 'apply', 'propose', 'export', 'write', 'show-names']);
+const SWITCHES = new Set(['json', 'apply', 'propose', 'export', 'write', 'show-names', 'full-rows']);
 
-interface Parsed { command?: string; positional: string[]; flags: Record<string, unknown>; json: boolean; folder?: string; port?: number; write: boolean; commit: boolean; showNames: boolean }
+interface Parsed { command?: string; positional: string[]; flags: Record<string, unknown>; json: boolean; folder?: string; port?: number; write: boolean; commit: boolean; showNames: boolean; fullRows: boolean }
 
 /** A flag value: a number, true / false, JSON for a list or object (e.g. --changes '[{"target":"feeder",…}]'), else text. */
 function flagValue(value: string): unknown {
@@ -37,7 +37,7 @@ function flagValue(value: string): unknown {
 }
 
 export function parseArgs(argv: string[]): Parsed {
-  const out: Parsed = { positional: [], flags: {}, json: false, write: false, commit: false, showNames: false };
+  const out: Parsed = { positional: [], flags: {}, json: false, write: false, commit: false, showNames: false, fullRows: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a.startsWith('--')) {
@@ -47,6 +47,7 @@ export function parseArgs(argv: string[]): Parsed {
         if (key === 'json') out.json = true;
         else if (key === 'write') out.write = true;
         else if (key === 'show-names') out.showNames = true;
+        else if (key === 'full-rows') out.fullRows = true;
         else out.commit = true; // --apply / --propose / --export
         continue;
       }
@@ -124,6 +125,7 @@ function help(version: string): string {
     '  (--write also offers the tools that change a project; without it both are read only)',
     `  (--tools <groups> offers the core tools and only these groups: ${TOOL_GROUPS.join(', ')}; e.g. --tools cad,export, or --tools core)`,
     '  (lvds mcp hides project names, file names, parties and addresses from the AI program; --show-names sends them, e.g. for a local model)',
+    '  (lvds mcp sends lists of records as columns and rows, which costs an AI program fewer tokens; --full-rows sends records)',
     '  lvds help <command>      Inputs of one command',
     '',
     'Options: --json (JSON output), --folder <path> (projects folder; default: the app\'s, or LVDS_PROJECTS)',
@@ -175,9 +177,9 @@ export async function main(argv: string[], version: string, io: { out: (s: strin
     try { groups = parseGroups(a.flags.tools); } catch (e) { io.err(`Error: ${(e as Error).message}`); return 2; }
   }
   // The AI program may be a cloud service: project names and client details are not sent unless --show-names.
-  if (cmd === 'mcp') { await startMcp({ ...ctx, anywhere: false, write: a.write, groups, hideNames: !a.showNames }, version); return -1; }
+  if (cmd === 'mcp') { await startMcp({ ...ctx, anywhere: false, write: a.write, groups, hideNames: !a.showNames, compactRows: !a.fullRows }, version); return -1; }
   if (cmd === 'mcp-config') {
-    io.out(JSON.stringify(mcpConfig(runtime, a.write, groups, a.showNames), null, 2));
+    io.out(JSON.stringify(mcpConfig(runtime, a.write, groups, a.showNames, a.fullRows), null, 2));
     io.err(`Paste this into the MCP settings of your AI program. It starts LV Design Studio's MCP server on this computer (${a.write ? 'read and change: change tools preview first' : 'read only; add --write to also offer the tools that change a project'}). ${a.showNames ? 'Project names and client details are sent to the AI program.' : 'Project names, parties and addresses are hidden from the AI program; add --show-names to send them (e.g. for a local model).'}`);
     return 0;
   }
