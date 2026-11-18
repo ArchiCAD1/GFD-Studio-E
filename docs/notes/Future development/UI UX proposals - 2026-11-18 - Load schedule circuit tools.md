@@ -12,9 +12,9 @@ The user sent a picture of the DB load distribution schedule (DB-GF1) and asked 
 
 - Add circuit (menu: 3-phase circuit) and Spare (menu: Space, 3-phase spare, 3-phase space) are only on the ribbon, Load schedule tab → Circuits and loads, since v2.109 (PR 535). The 3-phase and space choices sit behind the button's arrow. The page has no add buttons; the empty grid says "use Load schedule → Add circuit".
 - ELCBs come only from the board setting "ELCB per" (6 circuits, 3 circuits, none), applied to the whole board (`elcbGroups`, `src/calc/loadSchedule.ts`). There is no way to put an ELCB on chosen ways, give a 3-phase circuit its own ELCB, or fit a 1-phase RCBO. `Feeder.rcdMa` exists but the schedule does not set it.
-- The header uses four rows before the board bar: the title, a three-line intro, the Supply line, the tabs, and the board chips on a row of their own (225 px in the mockup). The user said it takes more space than needed (second picture, same day).
+- The header uses five rows before the board bar: the title, a three-line intro, the Supply line, the tabs, and the board chips on a row of their own (225 px in the mockup). The user said it takes more space than needed (second picture, same day).
 
-## Proposed (DB form only; MD forms, TCL summary and busbar riser unchanged)
+## Proposed (the header, items 1–2, on every form of this page; items 3–6 on the DB form only)
 
 1. **One title row:** title, an **i** button that opens "How this page works" (the full intro text and the Project settings link), and the supply chain. The intro paragraph and the separate Supply line go.
 2. **Tabs and board chips share one row.** When a board serves rooms, the rooms check becomes a short chip at the end of that row (full text on hover). Title to board bar: 225 px → 97 px, about 5 more circuit rows on screen.
