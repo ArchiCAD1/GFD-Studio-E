@@ -351,7 +351,9 @@ export function MleaderStyleDialog({ styles, annoMm, onSave, onClose }: {
   );
 }
 
-/** The selected style at paper size, black on white: two leaders to a landing and the words "L1-03". */
+/** The selected style at paper size, black on white: two leaders to a landing and the words "L1-03". Text size and colour
+ * are inline styles here and in DimPreview, so the app's `svg text` rule (11 px, the theme's text colour) does not
+ * replace them. */
 function MleaderPreview({ s, annoMm }: { s: CadMleaderStyle; annoMm: number }) {
   const note = [{ runs: [{ s: 'L1-03' }] }];
   const it: SketchItem = { id: 'preview', ...newMleader([0, 0], [16, -4], s.content === 'note' ? note : undefined, s, 1, '', annoMm), pts: [[16, -4], [0, 0], [0, -8]] };
@@ -362,7 +364,7 @@ function MleaderPreview({ s, annoMm }: { s: CadMleaderStyle; annoMm: number }) {
     <div className="cad-dlg-prev" aria-label="Preview">
       <svg viewBox="-3 -6 40 12" width="160" height="48" aria-hidden="true" style={{ background: 'white' }}>
         <path d={segs.map(([a, c]) => `M${P(a)}L${P(c)}`).join('') + (parts.frame ? `M${parts.frame.map(P).join('L')}Z` : '')} fill="none" stroke="black" strokeWidth="0.25" />
-        {n && b && b.lines.flatMap((line) => line.segs.map((seg) => { const at = noteSegAt(b, line, seg); return <text key={`${line.y}-${seg.x}`} x={at[0].toFixed(2)} y={(-at[1]).toFixed(2)} fontSize={(seg.h * EM_PER_CAP).toFixed(2)} fill="black">{seg.s}</text>; }))}
+        {n && b && b.lines.flatMap((line) => line.segs.map((seg) => { const at = noteSegAt(b, line, seg); return <text key={`${line.y}-${seg.x}`} x={at[0].toFixed(2)} y={(-at[1]).toFixed(2)} style={{ fontSize: +(seg.h * EM_PER_CAP).toFixed(2), fill: 'black' }}>{seg.s}</text>; }))}
       </svg>
     </div>
   );
@@ -378,7 +380,7 @@ function DimPreview({ s }: { s: CadDimStyle }) {
     <div className="cad-dlg-prev" aria-label={`Preview: ${g.label}`}>
       <svg viewBox="-6 -18 52 22" width="156" height="66" aria-hidden="true">
         <path d={g.lines.map(([a, b]) => `M${P(a)}L${P(b)}`).join('')} fill="none" stroke="currentColor" strokeWidth="0.25" />
-        <text x={x} y={y} fontSize={h * EM_PER_CAP} textAnchor="middle" fill="currentColor" transform={g.angle ? `rotate(${((-g.angle * 180) / Math.PI).toFixed(2)} ${x} ${y})` : undefined}>{g.label}</text>
+        <text x={x} y={y} style={{ fontSize: h * EM_PER_CAP, fill: 'currentColor' }} textAnchor="middle" transform={g.angle ? `rotate(${((-g.angle * 180) / Math.PI).toFixed(2)} ${x} ${y})` : undefined}>{g.label}</text>
       </svg>
     </div>
   );

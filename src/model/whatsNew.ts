@@ -24,6 +24,12 @@ export const RELEASES: Release[] = [
     ]
   },
   {
+    version: '2.202', date: '2026-11-18',
+    items: [
+      { title: 'Design CAD: symbol letters at their size', text: 'The letters in the device palette\'s symbols (F, EF, FL, C, 15 and others) drew far too large, over the buttons. They now draw at symbol size. The same fix keeps texts at their size and black in the block previews of the Blocks palette and in the Multileader and Dimension style previews.', action: 'cad', actionLabel: 'Open Design CAD' }
+    ]
+  },
+  {
     version: '2.201', date: '2026-11-18',
     items: [
       { title: 'Load schedule: ELCB and RCBO placed by hand', text: 'Add → ELCB / RCD puts a 3-phase ELCB (4-pole, or 3-pole) over chosen ways or over one 3-phase circuit, or an RCBO in place of a 1-phase circuit\'s MCB. A circuit has an ELCB or an RCBO, never both. They print in the ELCB column and count in the BOQ, the enclosure and the earth-fault check.' }
