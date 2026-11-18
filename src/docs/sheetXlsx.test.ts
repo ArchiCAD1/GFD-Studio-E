@@ -160,6 +160,26 @@ describe('Sheets — opening an Excel file', () => {
 });
 
 describe('Sheets — saving an Excel file', () => {
+  const link = { category: 'db' as const, cells: {}, firstRow: 3, rows: [], columns: { A: 'row.ref' } };
+
+  it('a linked sheet is set up to print: its paper, fitted to the page width, the heading rows on every page', () => {
+    const a3 = withCells({ ...newSheet(), name: 'A3', paper: 'A3 portrait', link }, { A1: 'Title', A2: 'Ref', A3: 'x' });
+    const wb = buildXlsx([a3, withCells({ ...newSheet(), name: 'A4', link }, { A1: 'Title', A2: 'Ref', A3: 'x' }), withCells({ ...newSheet(), name: 'Plain' }, { A1: 'x' })]);
+    const p3 = wb.getWorksheet('A3')!.pageSetup;
+    expect(p3).toMatchObject({ paperSize: 8, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:2' });
+    expect(wb.getWorksheet('A4')!.pageSetup).toMatchObject({ paperSize: 9, orientation: 'landscape' });
+    expect(wb.getWorksheet('Plain')!.pageSetup.paperSize).toBeUndefined();
+    expect(wb.getWorksheet('Plain')!.pageSetup.printTitlesRow).toBeUndefined();
+  });
+
+  it('worksheet names stay unique after the 31-character cut and by letter case', () => {
+    const long = 'A'.repeat(40);
+    const wb = buildXlsx([{ ...newSheet(), name: long }, { ...newSheet(), name: `${long}B` }, { ...newSheet(), name: 'Loads' }, { ...newSheet(), name: 'LOADS' }]);
+    const names = wb.worksheets.map((w) => w.name);
+    expect(names).toEqual(['A'.repeat(31), `${'A'.repeat(29)} 2`, 'Loads', 'LOADS 2']);
+    expect(new Set(names.map((n) => n.toLowerCase())).size).toBe(4);
+  });
+
   it('writes formulas with the app\'s results, styles and widths, and reads back the same sheet', async () => {
     let s = withCells({ ...newSheet(), name: 'Loads' }, { A1: 'Ckt', B1: 'kW', A2: 'L1', B2: '1.2', A3: 'P1', B3: '1.6', B4: '=SUM(B2:B3)', C4: '=B4/0', A5: "'0105", A6: 'TRUE' });
     s = withStyle(s, { r0: 1, c0: 1, r1: 1, c1: 2 }, { bold: true });

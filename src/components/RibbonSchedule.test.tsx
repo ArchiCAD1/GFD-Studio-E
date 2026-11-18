@@ -226,7 +226,7 @@ describe('the Load schedule tab', () => {
     click(tool('Export'));
     expect(s.onExport).toHaveBeenLastCalledWith('excel');
     click(arrow('Export'));
-    expect(items().map((b) => b.textContent)).toEqual(['Excel: this form', 'PDF: this form', 'CSV', 'Submission pack (Excel)', 'My Excel template…', 'Open in my format', 'PDF: my format', 'PDF: my format, all panels', 'Form details…']);
+    expect(items().map((b) => b.textContent)).toEqual(['Excel: this form', 'PDF: this form', 'CSV', 'Submission pack (Excel)', 'My Excel template…', 'Open in my format', 'PDF: my format', 'PDF: my format, all panels', 'Excel: my format', 'Excel: my format, all panels', 'Form details…']);
     expect(item('Submission pack (Excel)').previousElementSibling?.tagName).toBe('HR');
     for (const [label, kind] of [['Excel: this form', 'excel'], ['PDF: this form', 'pdf'], ['CSV', 'csv'], ['Submission pack (Excel)', 'pack'], ['My Excel template…', 'template']] as const) {
       if (!items().length) click(arrow('Export'));
@@ -280,6 +280,30 @@ describe('the Load schedule tab', () => {
     click(arrow('Export'));
     expect(item('PDF: my format').disabled).toBe(true);
     expect(item('PDF: my format').title).toBe('On a board\'s form');
+  });
+
+  it('Excel: my format and Excel: my format, all panels follow the PDF ones and each exports its kind', () => {
+    let s = show({ sheetFormat: false, sheetFormats: false });
+    click(arrow('Export'));
+    expect(item('Excel: my format').disabled).toBe(true);
+    expect(item('Excel: my format').title).toBe('Choose a format for this panel in Sheets → My formats first');
+    expect(item('Excel: my format, all panels').disabled).toBe(true);
+    expect(item('Excel: my format, all panels').title).toBe('Every panel that has a format of yours, one sheet each, in one Excel file');
+    click(arrow('Export'));
+    s = show({ sheetFormat: false, sheetFormats: true });
+    click(arrow('Export'));
+    expect(item('Excel: my format').disabled).toBe(true);
+    click(item('Excel: my format, all panels'));
+    expect(s.onExport).toHaveBeenLastCalledWith('myXlsxAll');
+    s = show({ sheetFormat: true, sheetFormats: true });
+    click(arrow('Export'));
+    expect(item('Excel: my format').title).toBe('This panel as an Excel file in your own format');
+    click(item('Excel: my format'));
+    expect(s.onExport).toHaveBeenLastCalledWith('myXlsx');
+    s = show({ grid: false, form: 'tx', sheetFormat: true, sheetFormats: true });
+    click(arrow('Export'));
+    expect(item('Excel: my format').disabled).toBe(true);
+    expect(item('Excel: my format').title).toBe('On a board\'s form');
   });
 
   it('Open in my format works on a panel\'s form with a format, and is off on the TCL summary', () => {

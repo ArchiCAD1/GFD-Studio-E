@@ -6,11 +6,10 @@
 use acadrust::entities::mtext_format::parse_mtext;
 use acadrust::entities::{BoundaryEdge, EntityType};
 use acadrust::types::Color;
-use acadrust::{CadDocument, DwgReader, DxfReader};
+use acadrust::CadDocument;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::f64::consts::PI;
-use std::io::Cursor;
 use wasm_bindgen::prelude::*;
 
 mod explode;
@@ -649,11 +648,7 @@ fn describe(e: &EntityType) -> ObjInfo {
 }
 
 fn read(bytes: Vec<u8>) -> Result<(CadDocument, &'static str), String> {
-    if bytes.starts_with(b"AC10") {
-        DwgReader::from_stream(Cursor::new(bytes)).read().map(|d| (d, "DWG")).map_err(|e| e.to_string())
-    } else {
-        DxfReader::from_reader(Cursor::new(bytes)).and_then(|r| r.read()).map(|d| (d, "DXF")).map_err(|e| e.to_string())
-    }
+    crate::read_document(bytes)
 }
 
 #[wasm_bindgen]
@@ -1866,7 +1861,7 @@ mod tests {
         doc.add_entity(EntityType::Insert(Insert::new("STR-GF", Vector3::new(500.0, 0.0, 0.0)))).unwrap();
         let bytes = acadrust::DxfWriter::new(&doc).write_to_vec().unwrap();
         if let Ok(path) = std::env::var("LVDS_WRITE_XREF_FIXTURE") { std::fs::write(path, &bytes).unwrap(); }
-        let back = DxfReader::from_reader(Cursor::new(bytes)).and_then(|r| r.read()).unwrap();
+        let back = read(bytes).unwrap().0;
         let x = xrefs_of(&back);
         assert_eq!(x.len(), 1);
         assert_eq!((x[0].name.as_str(), x[0].path.as_str(), x[0].overlay), ("STR-GF", "..\\Structure\\STR-GF.dxf", true));
@@ -1954,5 +1949,48 @@ mod tests {
             assert_eq!(again.as_array().unwrap().iter().map(|l| l["name"].as_str().unwrap()).collect::<Vec<_>>(), ["Layout1", "A1 Lighting"], "{what}");
             assert_eq!(again[0]["viewports"].as_array().unwrap().len(), 1, "{what}: the viewport kept");
         }
+    }
+
+    /// A small R2000 DWG of five lines and a text whose record is then damaged the way some offices' files are (the
+    /// object stream cut short: "Invalid record … Truncated DWG stream").
+    fn damaged_dwg() -> Vec<u8> {
+        use acadrust::entities::Text;
+        let mut doc = CadDocument::new();
+        doc.version = acadrust::types::DxfVersion::AC1015;
+        for i in 0..5 { doc.add_entity(EntityType::Line(Line::from_coords(0.0, i as f64, 0.0, 10.0, i as f64, 0.0))).unwrap(); }
+        let mut t = Text::new();
+        t.value = "Q".repeat(100);
+        t.height = 2.5;
+        doc.add_entity(EntityType::Text(t)).unwrap();
+        let mut bytes = acadrust::DwgWriter::write_to_vec(&doc).unwrap();
+        let at = bytes.windows(20).position(|w| w.iter().all(|&b| b == b'Q')).unwrap();
+        for b in &mut bytes[at - 20..at] { *b = 0xFF; }
+        bytes
+    }
+
+    #[test]
+    fn a_damaged_record_leaves_out_that_object_not_the_drawing() {
+        let bytes = damaged_dwg();
+        let strict = acadrust::DwgReader::from_stream(std::io::Cursor::new(bytes.clone())).read();
+        assert!(strict.unwrap_err().to_string().contains("Invalid record"), "the strict read refuses it");
+        let d = CadDoc::new(bytes.clone()).unwrap_or_else(|_| panic!("the drawing opens"));
+        assert_eq!(d.segs.len() / 4, 5, "the five lines are drawn");
+        assert!(d.texts.is_empty(), "the damaged text is left out");
+        let saved = dwg_bytes(bytes, "[]", "[]", "", "").unwrap_or_else(|_| panic!("a copy saves"));
+        assert_eq!(CadDoc::new(saved).unwrap_or_else(|_| panic!("the copy reads back")).segs.len() / 4, 5);
+    }
+
+    #[test]
+    fn a_cut_off_dxf_keeps_its_whole_objects() {
+        let ln = |x: f64| format!("0\nLINE\n8\n0\n10\n{x}\n20\n0\n11\n10\n21\n0\n");
+        let dxf = format!("0\nSECTION\n2\nENTITIES\n{}{}0\nLINE\n8\n0\n10\n", ln(0.0), ln(5.0)).into_bytes();
+        assert!(acadrust::DxfReader::from_reader(std::io::Cursor::new(dxf.clone())).and_then(|r| r.read()).is_err(), "the strict read refuses it");
+        assert_eq!(read(dxf).unwrap().0.model_space_entities().count(), 2);
+    }
+
+    #[test]
+    fn a_file_with_nothing_readable_is_still_an_error() {
+        let cut = b"0\nSECTION\n2\nENTITIES\n0\nLINE\n8\n0\n10\n".to_vec();
+        assert!(read(cut).unwrap_err().contains("Unexpected EOF"), "the strict read's message");
     }
 }
