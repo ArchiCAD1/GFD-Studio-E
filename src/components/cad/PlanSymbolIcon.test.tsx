@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import PlanSymbolIcon from './PlanSymbolIcon';
@@ -14,5 +16,16 @@ describe('PlanSymbolIcon', () => {
   it('takes a tag, and draws nothing for a symbol that does not exist', () => {
     expect(renderToStaticMarkup(<PlanSymbolIcon id="power-outlet" tag="15 A" />)).toContain('>15 A</text>');
     expect(renderToStaticMarkup(<PlanSymbolIcon id="nothing" />)).toBe('');
+  });
+  it('keeps its letters at symbol size under the app\'s svg text rule', () => {
+    // The palette showed F, EF, FL, C and 15 at 11 mm, over the buttons: the app's `svg text` font beat the attribute.
+    const rule = readFileSync('src/styles.css', 'utf8').match(/(?:^|\n)svg text\{[^}]*\}/)?.[0];
+    expect(rule).toContain('font:11px');
+    document.head.innerHTML = `<style>${rule}</style>`;
+    document.body.innerHTML = renderToStaticMarkup(<PlanSymbolIcon id="exhaust-fan" />);
+    const text = document.querySelector('text')!;
+    expect(text.textContent).toBe('EF');
+    // 1.8 mm capitals / 0.716 cap height = 2.51 mm.
+    expect(parseFloat(getComputedStyle(text).fontSize)).toBeCloseTo(2.51, 2);
   });
 });

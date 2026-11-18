@@ -17,13 +17,14 @@ export type BlocksTab = 'drawing' | 'recent' | 'library';
 
 const TABS: { id: BlocksTab; label: string }[] = [{ id: 'drawing', label: 'Current drawing' }, { id: 'recent', label: 'Recent' }, { id: 'library', label: 'Library' }];
 
-/** A block's small picture, black on white (its texts' capitals at their height). */
+/** A block's small picture, black on white (its texts' capitals at their height). The text's size, font and colour are
+ * inline styles, so the app's `svg text` rule (11 px, the theme's text colour) does not replace them. */
 export function BlockThumb({ def, defs }: { def: CadBlockDef; defs: CadBlockDef[] }) {
   const t = useMemo(() => blockThumb(def, defs), [def, defs]);
   return (
     <svg className="cad-bk-thumb" viewBox="0 0 1.3333 1" aria-hidden>
       {t.lines.map(([a, b], i) => <line key={i} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="currentColor" strokeWidth="0.015" />)}
-      {t.texts.map((x, i) => <text key={`t${i}`} x={x.at[0]} y={x.at[1]} fontSize={x.h * EM_PER_CAP} fill="currentColor" fontFamily="system-ui, sans-serif">{x.s}</text>)}
+      {t.texts.map((x, i) => <text key={`t${i}`} x={x.at[0]} y={x.at[1]} style={{ fontSize: x.h * EM_PER_CAP, fontFamily: 'system-ui, sans-serif', fill: 'currentColor' }}>{x.s}</text>)}
     </svg>
   );
 }
