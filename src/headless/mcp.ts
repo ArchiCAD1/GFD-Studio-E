@@ -4,6 +4,7 @@ import { callTool, clientLabel, offeredTools, type ToolContext } from './tools';
 import path from 'node:path';
 import type { Project } from '../types';
 import { openProject, redactPaths } from './project';
+import { ROWS_INSTRUCTIONS, compactRows } from './compact';
 import { hider, projectAlias } from './privacy';
 import { DATA_INSTRUCTIONS, cleanResult, cleanText } from './untrusted';
 
@@ -42,7 +43,7 @@ function hiding(tool: string, args: Record<string, unknown>, ctx: ToolContext): 
 export function createMcp(ctx: ToolContext, version: string): McpServer {
   const server = new McpServer(
     { name: 'lv-design-studio', title: 'LV Design Studio', version },
-    { instructions: `${ctx.write ? WRITE_INSTRUCTIONS : READ_INSTRUCTIONS}${DATA_INSTRUCTIONS}${ctx.hideNames ? HIDDEN_INSTRUCTIONS : ''}` }
+    { instructions: `${ctx.write ? WRITE_INSTRUCTIONS : READ_INSTRUCTIONS}${DATA_INSTRUCTIONS}${ctx.hideNames ? HIDDEN_INSTRUCTIONS : ''}${ctx.compactRows ? ROWS_INSTRUCTIONS : ''}` }
   );
   for (const t of offeredTools(ctx)) {
     server.registerTool(t.name, {
@@ -57,7 +58,9 @@ export function createMcp(ctx: ToolContext, version: string): McpServer {
       try {
         const result = await callTool(t, args, { ...ctx, client: clientLabel(server.server.getClientVersion()) ?? 'unnamed MCP client' });
         // Text in a result is data from project files (src/headless/untrusted.ts).
-        return { content: [{ type: 'text' as const, text: JSON.stringify(cleanResult(hide ? hide.result(result) : result)) }] };
+        const cleaned = cleanResult(hide ? hide.result(result) : result);
+        // Lists of records without their repeated names (src/headless/compact.ts).
+        return { content: [{ type: 'text' as const, text: JSON.stringify(ctx.compactRows ? compactRows(cleaned) : cleaned) }] };
       } catch (e) {
         const message = redactPaths((e as Error).message, ctx.folder);
         return { isError: true, content: [{ type: 'text' as const, text: cleanText(hide ? hide.text(message) : message) }] };
@@ -77,12 +80,12 @@ export interface Runtime { execPath: string; script: string; electron: boolean }
 
 /** What an AI program needs to start this MCP server: the "mcpServers" entry most MCP clients take.
  * `lvds mcp-config` prints it, to paste into the program's MCP settings. */
-export function mcpConfig(rt: Runtime, write: boolean, groups?: string[], showNames = false): { mcpServers: Record<string, { command: string; args: string[]; env?: Record<string, string> }> } {
+export function mcpConfig(rt: Runtime, write: boolean, groups?: string[], showNames = false, fullRows = false): { mcpServers: Record<string, { command: string; args: string[]; env?: Record<string, string> }> } {
   return {
     mcpServers: {
       'lv-design-studio': {
         command: rt.execPath,
-        args: [rt.script, 'mcp', ...(write ? ['--write'] : []), ...(groups ? ['--tools', groups.length ? groups.join(',') : 'core'] : []), ...(showNames ? ['--show-names'] : [])],
+        args: [rt.script, 'mcp', ...(write ? ['--write'] : []), ...(groups ? ['--tools', groups.length ? groups.join(',') : 'core'] : []), ...(showNames ? ['--show-names'] : []), ...(fullRows ? ['--full-rows'] : [])],
         ...(rt.electron ? { env: { ELECTRON_RUN_AS_NODE: '1' } } : {})
       }
     }

@@ -6,6 +6,7 @@ import type { LinetypeId } from './cadLayerStyle';
 import type { Edit } from './cadEdit';
 import { ellipsePoints } from './cadSketch';
 import { noteCorners } from './cadMtext';
+import { mleaderNote } from './cadMleader';
 import { outlineArea } from './cadRooms';
 
 /** Design CAD → CROP: a true crop of a block (or of drawn items), not a clip. The block's geometry is cut along a closed
@@ -475,6 +476,7 @@ function piecesOfItem(it: SketchItem): CadPiece[] {
     case 'dim': return it.pts.map((p): CadPiece => ({ ...s, kind: 'point', at: p }));
     case 'mtext': return noteCorners(it).map((p): CadPiece => ({ ...s, kind: 'point', at: p }));
     case 'point': case 'insert': case 'attdef': return [{ ...s, kind: 'point', at: it.pts[0] }];
+    case 'mleader': return it.pts.map((p): CadPiece => ({ ...s, kind: 'point', at: p }));
     // A drawn ellipse cut comes as a polyline within the chord tolerance (there is no elliptical arc item).
     case 'ellipse': return it.ax ? [{ ...s, kind: 'pline', pts: ellipsePoints(it, ELLIPSE_STEPS).map(([x, y]): V3 => [x, y, 0]), closed: true }] : [];
   }
@@ -488,14 +490,14 @@ export function cropItems(items: SketchItem[], boundary: CropBoundary, side: Cro
   const keepIn = side === 'inside', skipped: string[] = [];
   const out = items.flatMap((it): Item[] => {
     const { id: _id, kind: _k, pts: _p, closed: _c, r: _r, a0: _a0, a1: _a1, ax: _ax, ratio: _ratio, ...rest } = it;
-    if (it.kind === 'dim' || it.kind === 'mtext' || it.kind === 'point' || it.kind === 'insert' || it.kind === 'attdef' || it.hatch) {
+    if (it.kind === 'dim' || it.kind === 'mtext' || it.kind === 'mleader' || it.kind === 'point' || it.kind === 'insert' || it.kind === 'attdef' || it.hatch) {
       // A dimension, a note, a point or a block stays whole: kept when all its points (a note's box corners, an insert's
       // insertion point) are on the kept side.
-      const whole = it.kind === 'dim' || it.kind === 'mtext' || it.kind === 'point' || it.kind === 'insert' || it.kind === 'attdef', wp = it.kind === 'mtext' ? noteCorners(it) : it.pts;
+      const whole = it.kind === 'dim' || it.kind === 'mtext' || it.kind === 'mleader' || it.kind === 'point' || it.kind === 'insert' || it.kind === 'attdef', wp = it.kind === 'mtext' ? noteCorners(it) : it.kind === 'mleader' ? [...it.pts, ...(mleaderNote(it) ? noteCorners(mleaderNote(it)!) : [])] : it.pts;
       const loop = whole ? [] : it.hatch && it.kind === 'circle' ? [{ k: 'a', c: it.pts[0], r: it.r ?? 0, s: 0, w: TAU } as Curve] : plineCurves(it.pts.map(([x, y]): V3 => [x, y, 0]), !!it.hatch);
       const all = whole ? wp.every((p) => inside(edges, p, tol) === keepIn) : keptShare(loop, edges, keepIn, tol) > 1 - 1e-9;
       if (all) { const { id: _i, ...keep } = it; return [keep]; }
-      if (whole ? wp.some((p) => inside(edges, p, tol) === keepIn) : keptShare(loop, edges, keepIn, tol) > 1e-9) skipped.push(it.kind === 'dim' ? 'dimension' : it.kind === 'mtext' ? 'note' : it.kind === 'point' ? 'point' : it.kind === 'insert' ? 'block' : it.kind === 'attdef' ? 'attribute' : 'hatch');
+      if (whole ? wp.some((p) => inside(edges, p, tol) === keepIn) : keptShare(loop, edges, keepIn, tol) > 1e-9) skipped.push(it.kind === 'dim' ? 'dimension' : it.kind === 'mtext' ? 'note' : it.kind === 'mleader' ? 'multileader' : it.kind === 'point' ? 'point' : it.kind === 'insert' ? 'block' : it.kind === 'attdef' ? 'attribute' : 'hatch');
       return [];
     }
     // A drawn ellipse wholly on the kept side stays as it is.

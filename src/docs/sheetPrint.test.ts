@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import { withProjectFormat } from '../model/scheduleFormats';
-import { area, mergeArea, newSheet, withCells, withStyle, type Sheet } from '../model/sheets';
+import { area, mergeArea, newSheet, withCells, withPaper, withStyle, type Sheet } from '../model/sheets';
 import { scheduleRowKeys } from './scheduleFields';
 import { formatSheetOf, formatSheetsOf, headingRows, sheetsHtml } from './sheetPrint';
 import { linkToBoard, panelCategoryOf } from './sheetLink';
@@ -63,6 +63,35 @@ describe('sheetsHtml', () => {
     const two = sheetsHtml([small, small], 't');
     expect(two.match(/page-break-after:always/g)).toHaveLength(1);
     expect(sheetsHtml([small], 't')).not.toContain('page-break-after:always');
+  });
+});
+
+describe('the paper of a sheet', () => {
+  const plain = withCells(newSheet(), { A1: 'x' });
+  const pages = (html: string) => [...html.matchAll(/@page([^{]*)\{ size: ([^;]+); margin: 10mm; \}/g)].map((m) => [m[1].trim(), m[2]]);
+  const sections = (html: string) => [...html.matchAll(/<section([^>]*)>/g)].map((m) => /page:([\w-]+)/.exec(m[1])?.[1] ?? '');
+
+  it('is A4 landscape for a sheet that names none, as before', () => {
+    const html = sheetsHtml([plain, plain], 't');
+    expect(pages(html)).toEqual([['', 'A4 landscape']]);
+    expect(sections(html)).toEqual(['', '']);
+    expect(sheetsHtml([], 't')).toContain('@page { size: A4 landscape; margin: 10mm; }');
+  });
+  it('is the sheet\'s own paper: the page of the document, with the same margins', () => {
+    expect(pages(sheetsHtml([withPaper(plain, 'A3')], 't'))).toEqual([['', 'A3 landscape']]);
+    expect(pages(sheetsHtml([withPaper(plain, 'A4 portrait')], 't'))).toEqual([['', 'A4 portrait']]);
+    const html = sheetsHtml([withPaper(plain, 'A3 portrait'), withPaper(plain, 'A3 portrait')], 't');
+    expect(pages(html)).toEqual([['', 'A3 portrait']]);
+    expect(sections(html)).toEqual(['', '']);
+  });
+  it('gives each sheet its paper in a PDF of all panels: one page rule per other paper, named on the sheets that use it', () => {
+    const html = sheetsHtml([plain, withPaper(plain, 'A3'), plain, withPaper(plain, 'A4 portrait'), withPaper(plain, 'A3')], 't');
+    expect(pages(html)).toEqual([['', 'A4 landscape'], ['p-a3', 'A3 landscape'], ['p-a4-portrait', 'A4 portrait']]);
+    expect(sections(html)).toEqual(['', 'p-a3', '', 'p-a4-portrait', 'p-a3']);
+    expect(html.match(/page-break-after:always/g)).toHaveLength(4);
+    const a3First = sheetsHtml([withPaper(plain, 'A3'), plain], 't');
+    expect(pages(a3First)).toEqual([['', 'A3 landscape'], ['p-a4', 'A4 landscape']]);
+    expect(sections(a3First)).toEqual(['', 'p-a4']);
   });
 });
 
@@ -142,6 +171,13 @@ describe('formatSheetOf and formatSheetsOf', () => {
     expect(s.link!.added).toBeUndefined();
     expect(JSON.stringify(s.cells)).not.toMatch(/TYPED|NEW ROW/);
     expect(s.id).toBe(typed.id);
+  });
+  it('keeps the paper of the project\'s format, and of the book\'s sheet when the board has one', () => {
+    const p = withProjectFormat(sampleProject, 'db', { ...format, sheet: withPaper(dbLayout(), 'A3') });
+    expect(formatSheetOf(p, 'DB-GF1')!.paper).toBe('A3');
+    const own = { ...p, sheets: { sheets: [withPaper(linkToBoard(dbLayout(), 'DB-GF1'), 'A4 portrait')] } };
+    expect(formatSheetOf(own, 'DB-GF1')!.paper).toBe('A4 portrait');
+    expect(formatSheetOf(withProjectFormat(sampleProject, 'db', format), 'DB-GF1')).not.toHaveProperty('paper');
   });
   it('is undefined for a board with neither a sheet nor a format', () => {
     expect(formatSheetOf(sampleProject, 'DB-GF1')).toBeUndefined();

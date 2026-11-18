@@ -2,6 +2,8 @@ import type { SketchItem } from '../types';
 import { dimMeasure } from './cadSketch';
 import { parseFrame, parseJust, rejustified } from './cadText';
 import { noteAttached, noteFromText, parseAttach, plainText } from './cadMtext';
+import { withMleaderText } from './cadMleader';
+import { DIM_ARROWS } from './cadStyles';
 import { cleanTag } from './cadAttributes';
 import { hatchArea } from './cadAnnotate';
 
@@ -12,16 +14,17 @@ type Pt = [number, number];
  * what links to it (schedules, fittings, circuits by feeder) stays. Several objects take the same value each. */
 
 /** The kind a value belongs to: the Geometry section shows when all the objects are of one of these. */
-export type GeomKind = 'line' | 'xline' | 'ray' | 'pline' | 'circle' | 'arc' | 'ellipse' | 'cloud' | 'tray' | 'cable' | 'text' | 'mtext' | 'dim' | 'dimang' | 'point' | 'insert' | 'attdef';
+export type GeomKind = 'line' | 'xline' | 'ray' | 'pline' | 'circle' | 'arc' | 'ellipse' | 'cloud' | 'tray' | 'cable' | 'text' | 'mtext' | 'mleader' | 'dim' | 'dimang' | 'point' | 'insert' | 'attdef';
 export const geomKind = (it: SketchItem): GeomKind => (it.tray ? 'tray' : it.cable ? 'cable' : it.cloud ? 'cloud' : it.infinite ?? (it.dimKind === 'angular' ? 'dimang' : it.kind));
 /** What an object is, as the palette and the toolbar beside it name it. */
 export const kindLabel = (it: SketchItem) => (it.hatch ? 'Hatch' : it.tray ? 'Cable tray' : it.cable ? 'Cable route' : it.cloud ? 'Revision cloud'
   : it.infinite === 'xline' ? 'Construction line' : it.infinite === 'ray' ? 'Ray'
   : it.kind === 'dim' ? (it.dimKind ? { radius: 'Radius dimension', diameter: 'Diameter dimension', angular: 'Angular dimension' }[it.dimKind] : 'Dimension')
-  : { line: 'Line', pline: it.closed ? 'Closed polyline' : 'Polyline', circle: 'Circle', arc: 'Arc', ellipse: 'Ellipse', text: 'Text', mtext: 'Note', point: 'Point', insert: 'Block', attdef: 'Attribute' }[it.kind]); 
+  : { line: 'Line', pline: it.closed ? 'Closed polyline' : 'Polyline', circle: 'Circle', arc: 'Arc', ellipse: 'Ellipse', text: 'Text', mtext: 'Note', mleader: 'Multileader', point: 'Point', insert: 'Block', attdef: 'Attribute' }[it.kind]); 
 
 export type PropKey = 'sx' | 'sy' | 'ex' | 'ey' | 'len' | 'ang' | 'cx' | 'cy' | 'r' | 'a0' | 'a1' | 'rx' | 'ry' | 'arc' | 'vx' | 'vy' | 'closed' | 'width' | 'service'
   | 'text' | 'h' | 'rot' | 'just' | 'frame' | 'mask' | 'measured' | 'override' | 'boxw' | 'attach' | 'block' | 'bscale' | 'tag' | 'prompt'
+  | 'mlstyle' | 'mlarrow' | 'mlsize' | 'mlland' | 'mlframe' | 'mlcount'
   | 'hpattern' | 'hscale' | 'hangle' | 'hox' | 'hoy' | 'hislands' | 'hassoc' | 'harea';
 export interface PropDef { key: PropKey; label: string; unit?: 'm' | 'deg'; ro?: boolean; text?: boolean }
 
@@ -54,6 +57,7 @@ export function geometryRows(kind: GeomKind, items: SketchItem[]): PropDef[] {
 export function textRows(kind: GeomKind): PropDef[] {
   if (kind === 'text') return [T('text', 'Contents'), L('h', 'Height'), A('rot', 'Rotation'), T('just', 'Justify'), T('frame', 'Frame'), T('mask', 'Mask')];
   if (kind === 'mtext') return [T('text', 'Contents'), L('h', 'Height'), L('boxw', 'Width'), A('rot', 'Rotation'), T('attach', 'Justify')];
+  if (kind === 'mleader') return [T('text', 'Contents'), T('mlstyle', 'Style', { ro: true }), L('h', 'Text height'), T('mlarrow', 'Arrowhead'), L('mlsize', 'Arrow size'), L('mlland', 'Landing'), T('mlframe', 'Frame'), T('mlcount', 'Leaders', { ro: true })];
   if (kind === 'dim') return [L('measured', 'Measured', { ro: true }), T('override', 'Text override'), L('h', 'Text height')];
   if (kind === 'dimang') return [A('measured', 'Measured', { ro: true }), T('override', 'Text override'), L('h', 'Text height')];
   return [];
@@ -96,7 +100,13 @@ export function propValue(it: SketchItem, key: PropKey, k: number, v = 0): numbe
     case 'mask': return it.kind === 'text' ? (it.mask ? 'Yes' : 'No') : undefined;
     case 'width': return it.tray ? String(it.tray.widthMm) : undefined;
     case 'service': return it.tray?.service ?? '';
-    case 'text': return it.kind === 'mtext' ? plainText(it) : it.text ?? '';
+    case 'text': return it.kind === 'mtext' || it.kind === 'mleader' ? plainText(it) : it.text ?? '';
+    case 'mlstyle': return it.ml ? it.ml.style : undefined;
+    case 'mlarrow': return it.ml?.arrow;
+    case 'mlsize': return it.ml ? it.ml.size * k : undefined;
+    case 'mlland': return it.ml ? it.ml.land * k : undefined;
+    case 'mlframe': return it.kind === 'mleader' ? (it.ml?.frame ? 'Yes' : 'No') : undefined;
+    case 'mlcount': return it.kind === 'mleader' ? String(it.pts.length - 1) : undefined;
     case 'boxw': return it.kind === 'mtext' ? (it.w ?? 0) * k : undefined;
     case 'block': return it.kind === 'insert' ? it.block ?? '' : undefined;
     case 'tag': return it.kind === 'attdef' ? it.tag ?? '' : undefined;
@@ -171,10 +181,14 @@ export function withProp(it: SketchItem, key: PropKey, value: number | string, k
       return { ...it, tray: s ? { ...t, service: s } : t };
     }
     // A note's contents: its paragraphs as plain lines (bold and underline go; the editor keeps them).
-    case 'text': return it.kind === 'mtext' ? (String(value).trim() ? { ...it, note: noteFromText(String(value)) } : undefined) : it.kind === 'attdef' ? { ...it, text: String(value) } : it.kind === 'text' && String(value).trim() ? { ...it, text: String(value) } : undefined;
+    case 'text': return it.kind === 'mleader' ? withMleaderText(it, String(value)) : it.kind === 'mtext' ? (String(value).trim() ? { ...it, note: noteFromText(String(value)) } : undefined) : it.kind === 'attdef' ? { ...it, text: String(value) } : it.kind === 'text' && String(value).trim() ? { ...it, text: String(value) } : undefined;
+    case 'mlarrow': { const a = DIM_ARROWS.find((x) => x.id === String(value)); return a && it.ml ? { ...it, ml: { ...it.ml, arrow: a.id } } : undefined; }
+    case 'mlsize': return num && n >= 0 && it.ml ? { ...it, ml: { ...it.ml, size: u } } : undefined;
+    case 'mlland': return num && n >= 0 && it.ml ? { ...it, ml: { ...it.ml, land: u } } : undefined;
+    case 'mlframe': { if (!it.ml) return undefined; const { frame: _f, ...ml } = it.ml; return { ...it, ml: String(value) === 'Yes' ? { ...ml, frame: true } : ml }; }
     case 'tag': { const t = cleanTag(String(value)); return t && it.kind === 'attdef' ? { ...it, tag: t } : undefined; }
     case 'prompt': return it.kind === 'attdef' ? { ...it, prompt: String(value) } : undefined;
-    case 'h': return num && u > 0 && (it.kind === 'text' || it.kind === 'mtext' || it.kind === 'attdef' || it.kind === 'dim') ? { ...it, h: u } : undefined;
+    case 'h': return num && u > 0 && (it.kind === 'text' || it.kind === 'mtext' || it.kind === 'mleader' || it.kind === 'attdef' || it.kind === 'dim') ? { ...it, h: u } : undefined;
     case 'boxw': { if (!num || it.kind !== 'mtext') return undefined; const { w: _w, ...rest } = it; return u > 0 ? { ...rest, w: u } : rest; }
     case 'attach': { const j = parseAttach(String(value)); return j && it.kind === 'mtext' ? noteAttached(it, j) : undefined; }
     case 'rot': return num && (it.kind === 'text' || it.kind === 'mtext' || it.kind === 'insert' || it.kind === 'attdef') ? { ...it, rot: rad(n) } : undefined;

@@ -33,6 +33,9 @@ export interface ToolContext {
   /** MCP: project names, file names, parties and addresses are not sent to the AI program (src/headless/privacy.ts);
    * the default of `lvds mcp`, off with --show-names. */
   hideNames?: boolean;
+  /** MCP: lists of records are sent as columns and rows (src/headless/compact.ts); the default of `lvds mcp`, off
+   * with --full-rows. */
+  compactRows?: boolean;
   /** MCP: the AI client that called, from its own initialize message (clientLabel). Recorded on changes, proposals and
    * exports so the engineer can see which program made them. Absent on the command line and the local API. */
   client?: string;
