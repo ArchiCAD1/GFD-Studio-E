@@ -288,3 +288,22 @@ describe('hatches: islands, origin and what they save', () => {
     expect(c).toEqual({ layer: 'LV-SKETCH', kind: 'line', pts: [[0, 0], [4000, 0]], closed: undefined, r: undefined, a0: undefined, a1: undefined, id: 'c' });
   });
 });
+
+describe('a leader\'s arrowhead in Save DXF / DWG', () => {
+  it('is written as a solid triangle of the size and shape the canvas draws, after the leader\'s line', () => {
+    const lead: SketchItem = { id: 'L1', kind: 'line', layer: 'LV-ANNO', pts: [[0, 0], [1000, 0]], leader: true };
+    const out = shapesOut([lead], 0.001); // mm: 3 mm on paper at 1:100 is 300
+    expect(out.map((s) => s.kind)).toEqual(['line', 'hatch']);
+    const h = out[1];
+    expect(h).toMatchObject({ layer: 'LV-ANNO', solid: true, id: 'L1' });
+    const [tip, a, b] = h.loops![0];
+    expect(tip).toEqual([0, 0]);
+    expect(a[0]).toBeCloseTo(300 * Math.cos(0.3), 6); expect(a[1]).toBeCloseTo(300 * Math.sin(-0.3), 6);
+    expect(b[0]).toBeCloseTo(300 * Math.cos(0.3), 6); expect(b[1]).toBeCloseTo(300 * Math.sin(0.3), 6);
+    // A leader of several points writes its polyline and the arrow at the first.
+    const bent = shapesOut([{ ...lead, kind: 'pline', pts: [[0, 0], [1000, 500], [2000, 500]] }], 0.001);
+    expect(bent.map((s) => s.kind)).toEqual(['pline', 'hatch']);
+    // Not a leader: no arrow.
+    expect(shapesOut([{ ...lead, leader: undefined }], 0.001).map((s) => s.kind)).toEqual(['line']);
+  });
+});

@@ -14,6 +14,7 @@ const cadFile = require('./cadFile.cjs');
 const errorLog = require('./errorLog.cjs');
 const folderTemplates = require('./folderTemplates.cjs');
 const projectFolders = require('./projectFolders.cjs');
+const folderScan = require('./folderScan.cjs');
 const betaUpdate = require('./betaUpdate.cjs');
 
 // `lvds` (the command line) exports drawings and PDFs through this app with --lvds-headless-export:
@@ -439,6 +440,12 @@ handle('folderTemplates:export', async (evt, args) => {
   if (result.canceled || !result.filePath) return null;
   fs.writeFileSync(result.filePath, text, 'utf-8');
   return result.filePath;
+});
+// Learn from folder (folderScan.cjs): the user picks a job folder here; only its folder names are read.
+handle('folders:scanNames', async (evt) => {
+  const result = await dialog.showOpenDialog(ownerOf(evt), { title: 'Choose a job folder to learn from', defaultPath: app.getPath('documents'), properties: ['openDirectory'] });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return folderScan.scanNames(result.filePaths[0]);
 });
 // A project's folders (projectFolders.cjs): new empty folders only; nothing is deleted, moved or renamed.
 handle('projectFolders:chooseParent', async (evt, start) => {

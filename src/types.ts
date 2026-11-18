@@ -457,12 +457,13 @@ export type CadLayerRole = 'room' | 'room-name' | 'wall' | 'tray' | 'route' | 'f
 export interface CadLayerMap { layer: string; role: CadLayerRole }
 /** An object drawn in the CAD view, in drawing units: a line (or connected lines), polyline, circle (centre, r), arc
  * (centre, r, a0 → a1 anticlockwise, radians), text (insertion, height, rotation), note (mtext: a paragraph text in a
- * box), dimension (p1, p2, a point on the dimension line), point (pts[0], shown with the drawing's point style) or insert
- * (one of the drawing's own blocks at pts[0], turned by rot and scaled by sc; src/model/cadBlocks.ts) or attribute
- * definition (attdef: a tag whose value is asked when its block is inserted, drawn as text; its default in `text`). */
+ * box), multileader (mleader: leaders to one note), dimension (p1, p2, a point on the dimension line), point (pts[0],
+ * shown with the drawing's point style) or insert (one of the drawing's own blocks at pts[0], turned by rot and scaled
+ * by sc; src/model/cadBlocks.ts) or attribute definition (attdef: a tag whose value is asked when its block is
+ * inserted, drawn as text; its default in `text`). */
 export interface SketchItem {
   id: string;
-  kind: 'line' | 'pline' | 'circle' | 'arc' | 'text' | 'dim' | 'ellipse' | 'mtext' | 'point' | 'insert' | 'attdef';
+  kind: 'line' | 'pline' | 'circle' | 'arc' | 'text' | 'dim' | 'ellipse' | 'mtext' | 'mleader' | 'point' | 'insert' | 'attdef';
   layer: string;
   pts: [number, number][];
   /** A line whose first point is its base and second point defines its direction: infinite both ways (XLINE) or from
@@ -519,6 +520,10 @@ export interface SketchItem {
   assoc?: string[];
   /** A leader: an arrow at the first point. */
   leader?: boolean;
+  /** A multileader (kind 'mleader'): pts[0] is the start of its landing, where its leaders meet; pts[1..] are their
+   * arrowheads (each leader is straight, from its arrowhead to pts[0]). Its words are `note` (with `h` and `w`, as a
+   * note's); none: a leader without words. `ml`: the style it was drawn with and its look in drawing units. */
+  ml?: { style: string; arrow: import('./model/cadSketch').DimArrow; size: number; land: number; gap: number; frame?: true };
   /** A dimension drawn with a dimension style: its arrows, gap and extension (src/model/cadStyles.ts). */
   look?: import('./model/cadSketch').DimLook;
   /** A linear dimension: the angle of its dimension line (radians; 0 horizontal, π/2 vertical). It measures the points'
@@ -667,6 +672,7 @@ export interface Project {
   /** Design CAD text and dimension styles, and the current one of each (absent: one "Standard", as before). */
   cadTextStyles?: import('./model/cadStyles').CadStyles<import('./model/cadStyles').CadTextStyle>;
   cadDimStyles?: import('./model/cadStyles').CadStyles<import('./model/cadStyles').CadDimStyle>;
+  cadMleaderStyles?: import('./model/cadStyles').CadStyles<import('./model/cadStyles').CadMleaderStyle>;
   /** The drawing's own blocks (BLOCK), per drawing file: each a name and the drawn objects it is made of (src/model/cadBlocks.ts). */
   cadBlockDefs?: import('./model/cadBlocks').CadBlockTable[];
   /** How drawn points are shown (PTYPE): their shape and size (src/model/cadPoints.ts); left out: a dot, 5 % of the view. */

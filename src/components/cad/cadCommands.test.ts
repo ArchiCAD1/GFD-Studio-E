@@ -60,6 +60,8 @@ const ADDED: Record<string, string> = { ST: '!textStyle', STYLE: '!textStyle', D
   BS: '!bsave', BC: '!bclose', '-B': 'block', SA: '!save', EXP: '!export', OR: '!ortho', SN: '!snap', AL: 'align', ALIGNH: '!alignDevices',
   // Infinite construction geometry (2026-11-16): the conventional AutoCAD-compatible names and shortcut.
   XL: 'xline', XLINE: 'xline', RAY: 'ray',
+  // Multileaders (S12): draw, add and remove a leader, align, collect, and the style.
+  MLD: 'mleader', MLEADER: 'mleader', MLEADERADD: 'mleaderadd', MLEADERREMOVE: 'mleaderremove', MLA: 'mleaderalign', MLEADERALIGN: 'mleaderalign', MLC: 'mleadercollect', MLEADERCOLLECT: 'mleadercollect', MLS: '!mleaderStyle', MLEADERSTYLE: '!mleaderStyle',
   PLOT: '!plot', PP: '!plot', PRINT: '!plot', OP: '!options', OPTIONS: '!options', UN: '!unitsTab', UNITS: '!unitsTab',
   PR: '!properties', PROPS: '!properties', PROPERTIES: '!properties', CH: '!properties', RE: '!regen', REGEN: '!regen', REA: '!regen', REGENALL: '!regen' };
 const outcome = (c: string) => { const x = cadCommand(c); return x && ('tool' in x ? x.tool : `!${x.action}`); };

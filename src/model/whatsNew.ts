@@ -1,5 +1,8 @@
 /** What each release added, in plain words, for the What's new window shown once after an update (and from Help).
  * Add the new version at the top of RELEASES with each release batch, one line per feature. */
+import { SEEN_KEY } from './whatsNewSeen';
+
+export { markSeen } from './whatsNewSeen';
 
 export type WhatsNewAction = 'cad' | 'sheets' | 'floor-plan' | 'floor-plan-lengths' | 'floor-plan-trays' | 'floor-plan-boards';
 
@@ -15,22 +18,61 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
-    version: '2.187', date: '2026-11-17',
+    version: '2.199', date: '2026-11-18',
     items: [
       { title: 'Project folders: exports save into the right folder', text: 'When a project has a project folder on this computer, each save dialog now opens in the folder for that output: the voltage drop report in the voltage drop folder, the BOQ in the BOQ folder, transmittals in their TR folder, issued drawings in their stage and revision folder, and so on. The suggested file name follows the folder template\'s naming rule, for example P2611-E-CAL-004-B.pdf. A folder that is missing is made first. If you save somewhere else, that folder is remembered for this project and kind of output on this computer. Projects without a project folder save as before.' },
       { title: 'Project folders: a copy of the project file', text: 'Each time you save a project that has a project folder, a copy of the project file is also written into the project folder\'s Project file folder, replacing the older copy. The working file stays in the Projects folder as before. If the copy cannot be made, the status line says so once; the project itself is still saved.' }
     ]
   },
   {
-    version: '2.186', date: '2026-11-17',
+    version: '2.198', date: '2026-11-18',
     items: [
       { title: 'Project scope: fire, ELV, tender and supervision', text: 'The Scope step of the project brief has four new items: Fire alarm / Civil Defence, ELV systems, Tender stage and Site supervision. All are off by default. Ticking one switches on the matching project folders (scope:fire, scope:elv, stage:tender, service:supervision) on the Project folder step. They do not change readiness, deliverables or to-do lists, and existing projects are unchanged.' }
     ]
   },
   {
-    version: '2.185', date: '2026-11-17',
+    version: '2.197', date: '2026-11-18',
     items: [
       { title: 'Project number', text: 'A project now has its own project number. Type it on the first step of New project or in Project settings, under Submission forms. It is used in the project folder name (for example P2611_Villa Jumeirah) and in study reports whose own Project no. field is empty. Existing projects keep working: a number typed in Study reports is still used until you give the project its own.' }
+    ]
+  },
+  {
+    version: '2.196', date: '2026-11-18',
+    items: [
+      { title: 'Design CAD: less work for dense drawings', text: 'Design CAD does less work to get a drawing with millions of line pieces ready to show, and lists and counts layers faster in drawings with thousands of them.' }
+    ]
+  },
+
+  {
+    version: '2.195', date: '2026-11-18',
+    items: [
+      { title: 'Folder templates: learn from a job folder', text: 'Profile & preferences → Folder templates has Learn from folder…. Choose one of your old job folders and the app reads its folder names (never your files, and nothing in the folder is changed), suggests which output saves to which folder, leaves revision and date folders out, and keeps your numbering. Check the suggestions, name the template and it opens in the editor to finish.' }
+    ]
+  },
+  {
+    version: '2.190', date: '2026-11-18',
+    items: [
+      { title: 'Design CAD opens drawings with a damaged record', text: 'A DWG or DXF with a few records that cannot be read, such as an object another program wrote short, no longer stops with "could not be read". The drawing opens without those records; a file with nothing readable still shows the message.' }
+    ]
+  },
+  {
+    version: '2.189', date: '2026-11-17',
+    items: [
+      { title: 'Design CAD: multileader', text: 'One note with several arrows. Annotate → Leaders and tags → Multileader (MLD): click the arrowhead, then the landing, then type the words. It has its own styles (arrowhead, landing, text height, frame; MLS), Add leader and Remove leader, Align and Collect, and a style can fill in the circuit of the device at the arrowhead.', action: 'cad', actionLabel: 'Open Design CAD' },
+      { title: 'Design CAD: Annotate in four panels', text: 'The Annotate sub-tab now has Text, Dimensions, Leaders and tags (with Room tag, Tag all rooms and Keynote) and Markup (revision cloud and north arrow).' },
+      { title: 'Design CAD: leader arrowheads in Save DXF / DWG', text: 'A leader\'s arrowhead is now written to the DXF or DWG, as it shows on the screen and the plan sheets.' }
+    ]
+  },
+  {
+    version: '2.187', date: '2026-11-17',
+    items: [
+      { title: 'Excel in my format', text: 'Load schedule → Export has Excel: my format and Excel: my format, all panels: the schedule as an Excel file in your own format, filled from the project, one sheet per panel. The file opens with the paper of the format, fitted to the page width, and its heading rows repeat on every printed page.' }
+    ]
+  },
+  {
+    version: '2.185', date: '2026-11-17',
+    items: [
+      { title: 'PDF in my format: choose the paper', text: 'A schedule in your own format can print on A4 or A3, landscape or portrait. Choose it under PDF paper in Sheets → Link columns; it is saved with the format. A PDF of all panels gives each panel the paper of its format.', action: 'sheets', actionLabel: 'Open Sheets' }
     ]
   },
   {
@@ -1332,7 +1374,6 @@ export function unseenReleases(lastSeen: string | undefined, current: string, us
   return upTo.filter((r) => compareVersions(r.version, lastSeen) > 0);
 }
 
-const SEEN_KEY = 'lvds.whatsNewSeen';
 
 /** The releases this computer has not seen yet (localStorage; an app with other saved settings was used before). */
 export function pendingReleases(current: string): Release[] {
@@ -1347,6 +1388,3 @@ export function pendingReleases(current: string): Release[] {
   }
 }
 
-export function markSeen(current: string): void {
-  try { localStorage.setItem(SEEN_KEY, current); } catch { /* storage refused: shown again next time */ }
-}

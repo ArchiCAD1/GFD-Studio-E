@@ -1,5 +1,5 @@
 import { AIR_METHODS, airResultText, lightningProtection, lpsLayout, type LpsInputs, type LpsResult } from '../calc/lightningProtection';
-import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskOutlineSketch, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskResult } from '../calc/lightningRisk';
+import { lightningRisk, RISK_COMPONENTS, RISK_DAMAGE_LABEL, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskOutlineSketch, riskScope, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskResult } from '../calc/lightningRisk';
 import { CALC_DISCLAIMER, REPORT_STATUS_TEXT } from '../calc/statusText';
 import { boardsInSupplyOrder } from '../calc/summary';
 import { areaOf } from '../model/cadMeasure';
@@ -47,7 +47,6 @@ export const LPS_NOTES = [
   CALC_DISCLAIMER
 ];
 
-export const RISK_SCOPE = 'One risk component only: physical damage from a direct strike. Strikes near the building and on incoming lines are not included, so the class is a minimum.';
 const RISK_CONCEPT = 'Concept stage, for a flat rectangular roof. The risk assessment is preliminary. Not covered: separation distance, natural components, bonding details and installation detailing.';
 
 /** The risk assessment as report sections: inputs as entered, the working with its figures, and the risk for
@@ -58,6 +57,19 @@ function riskBlocks(k: RiskInputs, risk: RiskResult): LpsBlock[] {
     : risk.minimum === 'insufficient' ? 'No protection class brings the risk within the tolerable risk: further measures are needed.'
       : risk.minimum === 'none' ? 'No protection is needed by this assessment.' : `Minimum protection from this assessment: ${riskLevelLabel(risk.minimum)}.`;
   const sens = risk.sensitivityMinimum ? [`Sensitivity: with the strike density × ${n2(k.sensitivity!)} the minimum is ${risk.sensitivityMinimum === 'insufficient' ? 'more than Class I' : (risk.sensitivityMinimum === 'none' ? 'no protection' : riskLevelLabel(risk.sensitivityMinimum))}${risk.sensitivityRisk !== undefined ? ` (${riskText(risk.sensitivityRisk)} per year)` : ''}.`] : [];
+  const on = RISK_COMPONENTS.filter((c) => k.components?.[c.id]?.on), needs = (...e: string[]) => on.some((c) => e.includes(c.events));
+  const inputBlocks: LpsBlock[] = [
+    ...(on.length ? [{ key: 'risk' as const, title: 'Risk assessment — other risk components as entered', table: { headers: ['Risk component', 'Loss', 'Probability'], rows: on.map((c) => {
+      const e = k.components![c.id]!;
+      const shown = (q: { probability?: number; classProbability?: Partial<Record<(typeof RISK_LEVELS)[number], number>> } | undefined) => (e.byClass ? RISK_LEVELS.map((l) => `${riskLevelLabel(l)}: ${fac(q?.classProbability?.[l])}`).join('; ') : fac(q?.probability));
+      const lineBased = e.byLine && (c.events === 'line' || c.events === 'nearLine');
+      return [c.label, fac(e.loss), lineBased ? (k.lines ?? []).map((line, n) => `${line.name?.trim() || `Line ${n + 1}`} — ${shown(line.probabilities?.[c.id])}`).join(' | ') || NOT : shown(e)];
+    }) } }] : []),
+    ...(needs('line', 'nearLine') ? [{ key: 'risk' as const, title: 'Risk assessment — incoming lines as entered', table: {
+      headers: ['Line', 'Length (m)', 'Width, strikes on it (m)', 'Width, strikes near it (m)', 'Installation factor', 'Environment factor', 'Line type factor', 'Far-end structure area (m²)', 'Far-end location factor'],
+      rows: (k.lines ?? []).map((line, n) => [line.name?.trim() || `Line ${n + 1}`, ...[line.lengthM, line.strikeWidthM, line.nearWidthM, line.installationFactor, line.environmentFactor, line.typeFactor, line.farEndAreaM2, line.farEndLocationFactor].map((v) => (v !== undefined && Number.isFinite(v) ? n2(v) : '—'))])
+    } }] : [])
+  ];
   return [
     { key: 'risk', title: 'Risk assessment — preliminary: inputs as entered', riskSketch: k.shape !== 'area', pairs: [
       ['Thunderstorm days', val(k.thunderDays, 'days/yr')],
@@ -70,8 +82,11 @@ function riskBlocks(k: RiskInputs, risk: RiskResult): LpsBlock[] {
       ['Fire provisions factor', fac(k.fireProvisions)],
       ['Special hazard factor', fac(k.specialHazard)],
       ['Typical loss', fac(k.typicalLoss)],
-      ['Tolerable risk', k.tolerableRisk !== undefined ? `${riskText(k.tolerableRisk)} per year` : NOT]
+      ['Tolerable risk', k.tolerableRisk !== undefined ? `${riskText(k.tolerableRisk)} per year` : NOT],
+      ...(needs('near') ? [k.shape === 'area' ? ['Area for strikes near the building', val(k.nearAreaM2, 'm²')] as [string, string] : ['Distance for strikes near the building', val(k.nearReachM, 'm')] as [string, string]] : []),
+      ...(needs('near', 'line', 'nearLine') ? [['Density for near and line strikes', k.nearDensity !== undefined ? val(k.nearDensity, '/km²/yr') : 'As for the building'] as [string, string]] : [])
     ], notes: [RISK_NOTE] },
+    ...inputBlocks,
     { key: 'risk', title: 'Risk assessment — working', table: { headers: ['Step', 'Formula with values', 'Result'], rows: risk.working.map((w) => [w.step, w.formula, w.result]) } },
     { key: 'risk', title: 'Risk assessment — risk for each protection class', table: {
       headers: ['Protection', 'Damage probability (entered)', 'Risk per year', 'Against the tolerable risk'],
@@ -79,7 +94,12 @@ function riskBlocks(k: RiskInputs, risk: RiskResult): LpsBlock[] {
         const row = risk.rows[n];
         return [`${riskLevelLabel(level)}${risk.minimum === level ? ' (minimum)' : ''}`, fac(row.damageProbability), row.risk !== undefined ? riskText(row.risk) : '—', row.risk === undefined ? REPORT_STATUS_TEXT.data : row.ok ? 'OK' : 'Exceeds'];
       })
-    }, notes: [...sens, least, RISK_SCOPE] }
+    }, notes: [...sens, least, riskScope(k)] },
+    ...(on.length ? [{ key: 'risk' as const, title: 'Risk assessment — risk per year by component', table: {
+      headers: ['Risk component', ...RISK_LEVELS.map(riskLevelLabel)],
+      rows: [...[{ id: 'damage' as const, label: RISK_DAMAGE_LABEL }, ...on].map((c) => [c.label, ...risk.rows.map((row) => (row.parts?.[c.id] !== undefined ? riskText(row.parts[c.id]!) : '—'))]),
+        ['Total', ...risk.rows.map((row) => (row.risk !== undefined ? riskText(row.risk) : '—'))]]
+    } }] : [])
   ];
 }
 
@@ -157,7 +177,7 @@ export function lightningReportBlocks(project: Project, i: LpsInputs, keys: LpsS
       ]
     } },
     { key: 'checks', title: 'Checks', table: { headers: ['Status', 'Check'], rows: [...r.checks, ...(risk?.checks ?? [])].map((c) => [REPORT_STATUS_TEXT[c.status], c.text]) } },
-    { key: 'notes', title: 'Assumptions and disclaimer', notes: risk ? [...LPS_NOTES.slice(0, 2), RISK_CONCEPT, RISK_SCOPE, RISK_NOTE, ...LPS_NOTES.slice(3)] : LPS_NOTES }
+    { key: 'notes', title: 'Assumptions and disclaimer', notes: risk ? [...LPS_NOTES.slice(0, 2), RISK_CONCEPT, riskScope(k), RISK_NOTE, ...LPS_NOTES.slice(3)] : LPS_NOTES }
   ];
   return all.filter((b) => keys.includes(b.key));
 }
