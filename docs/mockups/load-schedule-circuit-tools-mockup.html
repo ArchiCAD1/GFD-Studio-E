@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Load schedule circuit tools mockup</title>
+<style>
+/* App tokens (src/theme/tokens.css), Blueprint light; page sizes from src/styles.css (.ls-head, .ls-actions, table.ls) */
+:root{--bg:#EDF3FA;--panel:#ffffff;--p2:#E4EDF6;--line:#C9D8E8;--line-strong:#A7BED6;--tx:#142D4A;--mut:#4A647F;--acc:#1D5FBF;--ok:#177336;--warn:#8a5d00;--bad:#cf222e;--new:#7a3fd1;--mv:#13806f;--r:#c0392b;--y:#9a6b00;--b:#1D5FBF}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/18px -apple-system,"Segoe UI",system-ui,sans-serif;width:1952px;padding:16px 20px 20px}
+h1{font-size:17px;margin:0 0 4px}
+h2{font-size:13px;margin:18px 0 6px;font-weight:600}
+.n{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:var(--new);color:#fff;text-align:center;font-size:11px;font-weight:700;margin-right:6px;vertical-align:1px}
+p.lead{margin:0 0 8px;color:var(--mut);max-width:1600px}
+.legend{color:var(--mut);font-size:12px;margin:0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin:0 5px 0 14px}
+.legend i.nw{border:1.5px dashed var(--new)}
+.legend i.mv{border:1.5px solid var(--mv)}
+.legend i.rw{background:rgba(122,63,209,.08);border:1px solid var(--line)}
+svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* page frame */
+.frame{border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);padding:14px 18px 16px;position:relative}
+.ph{display:flex;align-items:center;justify-content:space-between}
+.ph h3{font-size:19px;font-weight:600;margin:0}
+.sel{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line-strong);border-radius:6px;padding:5px 10px;background:var(--panel);font-size:12px}
+.sel svg{width:12px;height:12px}
+.intro{margin:8px 0 6px;color:var(--tx)}
+.intro a{color:var(--acc);text-decoration:underline;margin-left:6px}
+.m{color:var(--mut)}
+.supply{margin:6px 0 12px;font-size:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px}
+.seg span{padding:6px 12px}
+.seg span.on{background:var(--acc);color:#fff}
+.chips{margin:10px 0 10px;display:flex;gap:8px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);border-radius:6px;padding:5px 11px;font-size:12px;background:var(--panel);white-space:nowrap}
+.chip.on{border-color:var(--acc);color:var(--acc);background:#EAF1FB}
+.chip svg{width:14px;height:14px}
+.chip .dd{width:11px;height:11px;margin-left:-2px}
+.lshead{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;padding:8px 10px;margin-bottom:8px;border:1px solid var(--line);border-radius:8px;font-size:12px}
+.lshead .in{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:4px;padding:3px 7px;background:var(--p2)}
+.lshead .in svg{width:11px;height:11px}
+.lshead .tag{font-size:11px;color:var(--new);border:1px dashed var(--new);border-radius:10px;padding:1px 8px}
+
+/* new circuit tools row */
+.tools{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1.5px dashed var(--new);border-radius:8px;margin-bottom:4px;background:#FBF9FE}
+.tools .lbl{font-size:11px;color:var(--mut);margin:0 2px 0 2px;text-transform:uppercase;letter-spacing:.04em}
+.tools .sep{width:1px;height:22px;background:var(--line);margin:0 4px}
+.tools .sp{flex:1}
+.tools .chip b{font-weight:600}
+.tools .chip.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.tools .chip.mv{outline:1.5px solid var(--mv);outline-offset:1px}
+.tools .chip.open{border-color:var(--acc);box-shadow:0 0 0 2px rgba(29,95,191,.18)}
+.tools .ph-load{font-size:12px;white-space:nowrap}
+.ph-r{color:var(--r)}.ph-y{color:var(--y)}.ph-b{color:var(--b)}.ph-ryb{color:var(--tx)}
+.warn{color:var(--warn)}
+.keys{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--line-strong);border-radius:50%;font-size:11px;color:var(--mut)}
+.hint{font-size:11px;color:var(--mut);margin:0 0 8px 8px}
+
+/* grid */
+.gridwrap{position:relative}
+table.ls{border-collapse:collapse;font-size:12px;width:100%}
+table.ls th,table.ls td{padding:3px 5px;text-align:center;border:1px solid var(--line);white-space:nowrap}
+table.ls th{font-weight:600;background:var(--panel)}
+table.ls .shade{background:#F3F7FC}
+table.ls tr.watt td{background:#F7FAFD}
+table.ls td.elcb{font-size:11px;line-height:15px;background:#F7FAFD}
+table.ls td.elcb b{font-size:12px}
+table.ls td.room{text-align:left}
+table.ls td.rk{text-align:left;color:var(--mut)}
+table.ls tr.alt td{background:#FAFCFE}
+table.ls tr.nw td{background:rgba(122,63,209,.06)}
+table.ls td.elcb.hand{border:1.5px dashed var(--new);background:rgba(122,63,209,.07)}
+table.ls td.ok{color:var(--ok)}
+table.ls tr.spare td{color:var(--mut)}
+table.ls tr.total td{font-weight:600;background:#F3F7FC}
+.cat{display:inline-block;font-size:9px;line-height:12px;padding:0 3px;border-radius:3px;margin-left:4px;vertical-align:1px;border:1px solid var(--line-strong);color:var(--mut)}
+.rcbo{display:inline-block;font-size:10px;line-height:13px;padding:0 4px;border:1px dashed var(--new);border-radius:3px;color:var(--new);margin-left:3px}
+
+/* popover + dialog */
+.menu{position:absolute;background:var(--panel);border:1px solid var(--line-strong);border-radius:8px;box-shadow:0 8px 24px rgba(20,45,74,.18);padding:4px;z-index:3;font-size:12px;white-space:nowrap;width:420px}
+.menu div{padding:6px 10px;border-radius:5px;display:flex;justify-content:space-between;gap:12px}
+.menu div .m{font-size:11px}
+.menu div.hi{background:#EAF1FB}
+.menu div.off{color:#9AAABB}
+.menu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.menu .hd{font-size:11px;color:var(--mut);padding:4px 10px 2px;display:block}
+.call{position:absolute;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--new);color:#fff;font-size:11px;font-weight:700;z-index:4;box-shadow:0 0 0 2px #fff}
+
+.below{display:flex;gap:18px;margin-top:16px;align-items:flex-start}
+.card{background:var(--panel);border:1px solid var(--line-strong);border-radius:8px;padding:12px 16px}
+.dlg{width:560px}
+.dlg .t{font-size:14px;font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between}
+.dlg .row{display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;margin-bottom:8px;font-size:12px}
+.dlg .in{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line-strong);border-radius:4px;padding:4px 8px;background:var(--panel)}
+.dlg .in svg{width:11px;height:11px}
+.dlg .two{display:flex;gap:8px;align-items:center}
+.dlg .two .in{width:70px}
+.dlg .note{font-size:11px;color:var(--mut);margin:6px 0 10px;line-height:16px}
+.dlg .btns{display:flex;gap:8px;justify-content:flex-end}
+.dlg .btns .chip.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.radio{display:flex;gap:16px}
+.radio span{display:inline-flex;align-items:center;gap:6px}
+.radio i{display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--line-strong)}
+.radio i.on{border:4px solid var(--acc)}
+.notes{flex:1;font-size:12px}
+.notes ol{margin:4px 0 0 0;padding-left:0;list-style:none}
+.notes li{margin:0 0 8px;padding-left:28px;position:relative}
+.notes li .n{position:absolute;left:0;top:0}
+.notes h4{margin:0 0 4px;font-size:13px}
+.q{margin-top:12px}
+.q li{padding-left:0}
+.q li b{color:var(--new)}
+</style>
+</head>
+<body>
+<h1>Load distribution schedule — page header and circuit tools (proposal, 2026-11-18)</h1>
+<p class="lead">DB load schedule form only (MD forms, TCL summary and busbar riser unchanged). The ribbon keeps all its buttons; this puts the everyday "add" commands next to the grid, where you are working, and adds hand-placed ELCB / RCD, which the app cannot do today (ELCBs come only from "ELCB per 6 / 3 circuits" for the whole board).</p>
+<p class="legend"><i class="nw"></i>new <i class="mv"></i>moved back from the ribbon (kept there too) <i class="rw"></i>rows added with the new buttons</p>
+
+<h2>Proposed page (DB-GF1, Demonstration Project)</h2>
+<div class="frame" id="page">
+  <div class="ph">
+    <h3>Load distribution schedule</h3>
+    <span class="sel">DB-GF1 — Villa ground floor DB <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+  </div>
+  <p class="intro" id="intro">Circuits here and on the SLD are the same data. Load per circuit = points × WATT/UNIT; MCB and wire size themselves (a size you choose by hand is kept).<a>How this page works</a></p>
+  <p class="supply m">Supply: TX-1 (1000 kVA) → MDB-1 → SMDB-GF → DB-GF1</p>
+  <div class="seg"><span>TCL summary</span><span>MDB (1)</span><span>SMDB (2)</span><span class="on">DB (1)</span><span>MCC (1)</span></div>
+  <div class="chips"><span class="chip on">DB-GF1</span></div>
+  <div class="lshead" id="head">
+    <span><span class="m">Project</span> <b>Demonstration Project — Not for Construction</b></span>
+    <span><span class="m">DB No.</span> <b>DB-GF1</b></span>
+    <span><span class="m">Fed from</span> <b>SMDB-GF</b></span>
+    <span><span class="m">Location</span> <span class="in" style="width:160px">Villa GF – store room</span></span>
+    <span><span class="m">Incomer</span> <b>100 A TP&amp;N</b></span>
+    <span><span class="m">ELCB per</span> <span class="in">6 circuits (2 ways) <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span> <span class="tag" id="tag">+ 2 placed by hand</span></span>
+    <span><span class="m">Sensitivity</span> <span class="in">Auto (lighting 100 / power 30 mA) <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span></span>
+  </div>
+
+  <div class="tools" id="tools">
+    <span class="lbl">Add</span>
+    <span class="chip pri" id="c1"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg><b>1-phase circuit</b></span>
+    <span class="chip" id="c3"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg><b>3-phase circuit</b></span>
+    <span class="sep"></span>
+    <span class="chip open" id="elcb"><svg viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><path d="M6 6.5h4M6 9.5h4"/></svg><b>ELCB / RCD</b><svg class="dd" viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+    <span class="sep"></span>
+    <span class="chip" id="s1"><svg viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke-dasharray="2 2"/></svg><b>Spare 1-phase</b></span>
+    <span class="chip" id="s3"><svg viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="1.5" stroke-dasharray="2 2"/></svg><b>Spare 3-phase</b></span>
+    <span class="chip" id="sp"><svg viewBox="0 0 16 16"><path d="M3 5V3h2M11 3h2v2M13 11v2h-2M5 13H3v-2"/></svg><b>Space</b><svg class="dd" viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+    <span class="sep"></span>
+    <span class="chip mv" id="bal"><svg viewBox="0 0 16 16"><path d="M8 2.5v11M4 13.5h8M3 5.5h10M3 5.5 1.5 9h3L3 5.5ZM13 5.5 11.5 9h3L13 5.5Z"/></svg><b>Balance phases</b></span>
+    <span class="sp"></span>
+    <span class="ph-load">Phase load (W): <b class="ph-r">R 9,493</b> · <b class="ph-y">Y 6,313</b> · <b class="ph-b">B 6,433</b> · imbalance <b class="warn">43%</b></span>
+    <span class="keys" title="Excel keys">?</span>
+  </div>
+  <p class="hint">New rows go in the next free way (R5 → Y5 → B5 → R6 …); a 3-phase circuit or spare takes a whole way. Double-click a row to edit it; Excel keys: paste · fill down (⌘D) · copy — behind the ? at the right.</p>
+
+  <div class="gridwrap" id="grid">
+  <table class="ls">
+    <thead>
+      <tr><th rowspan="2">ELCB</th><th rowspan="2">Sl.</th><th rowspan="2">Cir No.</th><th rowspan="2">MCB (A)</th><th rowspan="2">CCT wire mm²</th><th rowspan="2">ECC mm²</th><th rowspan="2">Room / area</th>
+        <th colspan="5">Connected loads / points</th><th colspan="3" class="shade">Load per circuit (W)</th><th rowspan="2">Length (m)<br><span class="m" style="font-weight:400">calc only</span></th><th rowspan="2">Check</th><th rowspan="2">Remarks</th></tr>
+      <tr><th>LTG</th><th>FAN</th><th>13A S/O</th><th>AC</th><th>W.H</th><th class="shade">R</th><th class="shade">Y</th><th class="shade">B</th></tr>
+      <tr class="watt"><td colspan="7" style="text-align:left"><b>WATT / UNIT</b></td><td>20</td><td>60</td><td>200</td><td>3000</td><td>3000</td><td colspan="3" class="shade"></td><td colspan="3"></td></tr>
+    </thead>
+    <tbody>
+      <tr><td class="elcb" rowspan="6"><b>ELCB-1</b><br>25 A 100 mA 4P<br><span class="m">lighting</span></td><td>1</td><td><b class="ph-r">R1</b><span class="cat">L</span></td><td>10</td><td>2.5</td><td>2.5</td><td class="room">Living</td><td>12</td><td></td><td></td><td></td><td></td><td class="shade">240</td><td class="shade"></td><td class="shade"></td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr><td>2</td><td><b class="ph-y">Y1</b><span class="cat">L</span></td><td>10</td><td>2.5</td><td>2.5</td><td class="room">Kitchen</td><td>10</td><td></td><td></td><td></td><td></td><td class="shade"></td><td class="shade">200</td><td class="shade"></td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr><td>3</td><td><b class="ph-b">B1</b><span class="cat">L</span></td><td>10</td><td>2.5</td><td>2.5</td><td class="room">Bedroom 1</td><td>8</td><td>1</td><td></td><td></td><td></td><td class="shade"></td><td class="shade"></td><td class="shade">220</td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr><td>4</td><td><b class="ph-r">R2</b><span class="cat">L</span></td><td>10</td><td>2.5</td><td>2.5</td><td class="room">Bedroom 2</td><td>8</td><td>1</td><td></td><td></td><td></td><td class="shade">220</td><td class="shade"></td><td class="shade"></td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr><td>5</td><td><b class="ph-y">Y2</b><span class="cat">L</span></td><td>10</td><td>2.5</td><td>2.5</td><td class="room">Majlis</td><td>14</td><td></td><td></td><td></td><td></td><td class="shade"></td><td class="shade">280</td><td class="shade"></td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr><td>6</td><td><b class="ph-b">B2</b><span class="cat">L</span></td><td>10</td><td>2.5</td><td>2.5</td><td class="room">External</td><td>9</td><td></td><td></td><td></td><td></td><td class="shade"></td><td class="shade"></td><td class="shade">180</td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr class="alt"><td class="elcb" rowspan="6"><b>ELCB-2</b><br>25 A 30 mA 4P<br><span class="m">power</span></td><td>7</td><td><b class="ph-r">R3</b><span class="cat">P</span></td><td>20</td><td>4</td><td>4</td><td class="room">Living</td><td></td><td></td><td>6</td><td></td><td></td><td class="shade">1,200</td><td class="shade"></td><td class="shade"></td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr class="alt"><td>8</td><td><b class="ph-y">Y3</b><span class="cat">P</span></td><td>20</td><td>4</td><td>4</td><td class="room">Kitchen</td><td></td><td></td><td>5</td><td></td><td></td><td class="shade"></td><td class="shade">1,000</td><td class="shade"></td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr class="alt"><td>9</td><td><b class="ph-b">B3</b><span class="cat">P</span></td><td>20</td><td>4</td><td>4</td><td class="room">Bedrooms</td><td></td><td></td><td>6</td><td></td><td></td><td class="shade"></td><td class="shade"></td><td class="shade">1,200</td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr class="alt"><td>10</td><td><b class="ph-r">R4</b><span class="cat">P</span></td><td>20</td><td>4</td><td>4</td><td class="room">Living</td><td></td><td></td><td></td><td>1</td><td></td><td class="shade">3,000</td><td class="shade"></td><td class="shade"></td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr class="alt"><td>11</td><td><b class="ph-y">Y4</b><span class="cat">P</span></td><td>20</td><td>4</td><td>4</td><td class="room">Majlis</td><td></td><td></td><td></td><td>1</td><td></td><td class="shade"></td><td class="shade">3,000</td><td class="shade"></td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr class="alt"><td>12</td><td><b class="ph-b">B4</b><span class="cat">P</span></td><td>20</td><td>4</td><td>4</td><td class="room">Kitchen</td><td></td><td></td><td></td><td></td><td>1</td><td class="shade"></td><td class="shade"></td><td class="shade">3,000</td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr class="nw" id="r5"><td class="elcb hand"><b>ELCB-3</b><br>25 A 30 mA 4P<br><span style="color:var(--new)">by hand · this circuit</span></td><td>13</td><td><b class="ph-ryb">RYB5</b><span class="cat">P</span></td><td>16</td><td>4</td><td>4</td><td class="room">Pump room</td><td></td><td></td><td></td><td></td><td></td><td class="shade">1,833</td><td class="shade">1,833</td><td class="shade">1,833</td><td>25</td><td class="ok">OK</td><td class="rk">Booster pump 5.5 kW</td></tr>
+      <tr class="nw" id="r6"><td class="elcb hand"><span style="color:var(--new)">own RCBO</span><br><span class="m">in place of the MCB</span></td><td>14</td><td><b class="ph-r">R6</b><span class="cat">P</span></td><td>20 <span class="rcbo">RCBO 30 mA</span></td><td>4</td><td>4</td><td class="room">Bedroom 1</td><td></td><td></td><td></td><td>1</td><td></td><td class="shade">3,000</td><td class="shade"></td><td class="shade"></td><td>20</td><td class="ok">OK</td><td class="rk"></td></tr>
+      <tr class="nw spare alt"><td class="elcb" rowspan="3"><b>ELCB-4</b><br>25 A 30 mA 4P<br><span class="m">power</span></td><td>15</td><td><b class="ph-y">Y6</b></td><td>20</td><td></td><td></td><td class="room"><b>Spare</b></td><td></td><td></td><td></td><td></td><td></td><td class="shade"></td><td class="shade"></td><td class="shade"></td><td></td><td></td><td class="rk">1-phase spare</td></tr>
+      <tr class="nw spare alt"><td>16</td><td><b class="ph-b">B6</b></td><td><span class="m">—</span></td><td></td><td></td><td class="room"><b>Space</b></td><td></td><td></td><td></td><td></td><td></td><td class="shade"></td><td class="shade"></td><td class="shade"></td><td></td><td></td><td class="rk">1-phase space</td></tr>
+      <tr class="nw spare alt" id="r7"><td>17</td><td><b class="ph-ryb">RYB7</b></td><td>32</td><td></td><td></td><td class="room"><b>Spare</b></td><td></td><td></td><td></td><td></td><td></td><td class="shade"></td><td class="shade"></td><td class="shade"></td><td></td><td></td><td class="rk">3-phase spare (TP)</td></tr>
+      <tr class="total"><td colspan="12" style="text-align:right">TOTAL (W)</td><td class="shade">9,493</td><td class="shade">6,313</td><td class="shade">6,433</td><td colspan="3"></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="menu" id="menu">
+    <span class="hd">Earth leakage protection placed by hand</span>
+    <div class="hi"><span>3-phase ELCB (4P, TP&amp;N) over ways…</span><span class="m">picks the ways</span></div>
+    <div><span>3-phase ELCB for RYB5 only</span><span class="m">selected 3-phase circuit</span></div>
+    <div class="off"><span>1-phase RCBO for the selected circuit</span><span class="m">select a 1-phase row</span></div>
+    <hr>
+    <div><span>Edit ELCB-3…</span><span class="m">rating, mA, ways</span></div>
+    <div><span>Remove ELCB-3</span><span class="m">ways go back to automatic</span></div>
+    <hr>
+    <div><span>All automatic again</span><span class="m">ELCB per 6 circuits</span></div>
+  </div>
+  <span class="call" data-at="intro" data-dx="-26" data-dy="-1">1</span>
+  <span class="call" data-at="tools" data-dx="-26" data-dy="10">2</span>
+  <span class="call" data-at="elcb" data-dx="-4" data-dy="-22">3</span>
+  <span class="call" data-at="s1" data-dx="-4" data-dy="-22">4</span>
+  <span class="call" data-at="bal" data-dx="-4" data-dy="-22">5</span>
+  <span class="call" data-at="tag" data-dx="-4" data-dy="-20">6</span>
+  <span class="call" data-at="r5" data-dx="-26" data-dy="16">7</span>
+</div>
+
+<div class="below">
+  <div class="card dlg">
+    <div class="t"><span>Add 3-phase ELCB — DB-GF1</span><span class="m">×</span></div>
+    <div class="row"><span class="m">Covers</span><span class="two">way <span class="in">5 <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span> to way <span class="in">5 <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span> <span class="m">RYB5 Booster pump</span></span></div>
+    <div class="row"><span class="m">Poles</span><span class="radio"><span><i class="on"></i>4P (TP&amp;N)</span><span><i></i>3P (no neutral)</span></span></div>
+    <div class="row"><span class="m">Rating</span><span class="in">Auto — 25 A (9.3 A per phase) <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span></div>
+    <div class="row"><span class="m">Sensitivity</span><span class="in">Auto — 30 mA (power circuit) <svg viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span></div>
+    <p class="note">Ways not under a hand-placed ELCB keep the board's "ELCB per 6 circuits" grouping, counted over the ways that are left. The ELCB prints in the ELCB column of the PDF and Excel form like the others, and goes to the BOQ, enclosure device list and earth-fault check.</p>
+    <div class="btns"><span class="chip">Cancel</span><span class="chip pri">Add ELCB</span></div>
+  </div>
+  <div class="card notes">
+    <h4>What changes</h4>
+    <ol>
+      <li><span class="n">1</span>The three-line intro folds to one line; "How this page works" opens the full text (lighting / power minimum wire and mA, link to Project settings).</li>
+      <li><span class="n">2</span>A row of add buttons sits right above the grid, where the "Excel keys" hint is today. The phase load stays at its right; the Excel keys move behind the "?".</li>
+      <li><span class="n">3</span><b>ELCB / RCD</b> (new): a 3-phase ELCB over chosen ways or for one 3-phase circuit, or a 1-phase RCBO in place of a circuit's MCB. Today ELCBs come only from "ELCB per" for the whole board.</li>
+      <li><span class="n">4</span><b>Spare 1-phase</b> (20 A SP) and <b>Spare 3-phase</b> (32 A TP) as two buttons, no menu to open; <b>Space</b> asks 1-phase or 3-phase. Same commands as the ribbon's Spare menu.</li>
+      <li><span class="n">5</span>Balance phases shown here too, beside the imbalance it fixes.</li>
+      <li><span class="n">6</span>The board bar says how many ELCBs were placed by hand, so the "ELCB per" setting is not misleading.</li>
+      <li><span class="n">7</span>In the grid a hand-placed ELCB has its own cell in the ELCB column (dashed here only to mark it as new); an RCBO shows in the MCB cell.</li>
+    </ol>
+  </div>
+  <div class="card notes" style="flex:0 0 520px">
+    <h4>Decisions for you</h4>
+    <ol class="q">
+      <li><b>A.</b> 3-phase ELCB: 4-pole (TP&amp;N, as the form prints today) by default, with 3-pole as a choice — or 3-pole only?</li>
+      <li><b>B.</b> New rows: next free way, as today (recommended) — or after the selected row, which renumbers every way below it?</li>
+      <li><b>C.</b> 1-phase RCBO in place of the MCB: wanted now, or only the 3-phase ELCB?</li>
+      <li><b>D.</b> Intro folded to one line: OK, or keep the full text?</li>
+      <li><b>E.</b> Ribbon keeps Add circuit / Spare as they are (recommended): both places run the same commands.</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+const page = document.getElementById('page').getBoundingClientRect();
+const place = (el, x, y) => { el.style.left = (x - page.left) + 'px'; el.style.top = (y - page.top) + 'px'; };
+const e = document.getElementById('elcb').getBoundingClientRect();
+place(document.getElementById('menu'), e.left, e.bottom + 4);
+for (const c of document.querySelectorAll('.call')) {
+  const r = document.getElementById(c.dataset.at).getBoundingClientRect();
+  place(c, r.left + +c.dataset.dx, r.top + +c.dataset.dy);
+}
+document.head.appendChild(document.createElement('style')).textContent = '@page{size:1952px ' + (Math.ceil(document.documentElement.scrollHeight) + 4) + 'px;margin:0}';
+</script>
+</body>
+</html>
