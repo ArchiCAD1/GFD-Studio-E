@@ -15,6 +15,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.188', date: '2026-11-18',
+    items: [
+      { title: 'Folder templates: learn from a job folder', text: 'Profile & preferences → Folder templates has Learn from folder…. Choose one of your old job folders and the app reads its folder names (never your files, and nothing in the folder is changed), suggests which output saves to which folder, leaves revision and date folders out, and keeps your numbering. Check the suggestions, name the template and it opens in the editor to finish.' }
+    ]
+  },
+  {
     version: '2.184', date: '2026-11-17',
     items: [
       { title: 'Design CAD: boards drawn by their kind', text: 'A board placed on a plan is now drawn with its SLD pattern: a diagonal for a DB, half filled for an SMDB, a cross for an emergency board, a double frame for a main board, and so on, with its tag beside it. Plan sheets print the same symbols and their legend lists each kind shown. Saved DXF and DWG files keep the filled parts solid.', action: 'cad', actionLabel: 'Open Design CAD' },

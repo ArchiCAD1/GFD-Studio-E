@@ -11,6 +11,7 @@ import {
 } from '../model/folderTemplates';
 import { allTemplates, defaultTemplateId, saveTemplate, templatesClient, type TemplatesClient, type TemplatesState } from '../model/folderTemplatesClient';
 import { ask } from './ConfirmDialog';
+import FolderLearnWizard from './FolderLearnWizard';
 import { NamingTab, RolesTab } from './FolderTemplateTabs';
 import { namingIssues } from '../model/fileNaming';
 
@@ -69,7 +70,9 @@ export default function FolderTemplatesPanel({ client: given, onEditing }: {
   const [search, setSearch] = useState('');
   const [note, setNote] = useState('');
   const [editing, setEditingRaw] = useState<FolderTemplate | null>(null);
+  const [learning, setLearningRaw] = useState(false);
   const setEditing = (t: FolderTemplate | null) => { setEditingRaw(t); onEditing?.(!!t); };
+  const setLearning = (on: boolean) => { setLearningRaw(on); onEditing?.(on); };
 
   useEffect(() => {
     let live = true;
@@ -83,6 +86,30 @@ export default function FolderTemplatesPanel({ client: given, onEditing }: {
   const run = async (fn: () => Promise<TemplatesState | null | undefined>, done?: string) => {
     try { const s = await fn(); if (s) setState(s); setNote(done ?? ''); } catch (e) { setNote(message(e)); }
   };
+
+  if (learning && client.scanFolder) {
+    return (
+      <FolderLearnWizard
+        scanFolder={client.scanFolder}
+        newId={newTemplateId}
+        naming={blankTemplate().naming}
+        takenNames={all.map((t) => t.name)}
+        onCancel={() => setLearning(false)}
+        onDone={async (t, makeDefault) => {
+          // A name from disk the checks still refuse opens in the editor unsaved, with the checks shown.
+          if (validateTemplate(t).some((i) => i.level === 'error')) {
+            setLearningRaw(false); setEditing(t);
+            return;
+          }
+          let s = await saveTemplate(client, t);
+          if (makeDefault) s = await client.setDefault(t.id);
+          setState(s); setSelId(t.id); setLearningRaw(false);
+          setEditing(s.templates.find((x) => x.id === t.id) ?? t);
+          setNote(`Saved “${t.name}”.`);
+        }}
+      />
+    );
+  }
 
   if (editing) {
     return (
@@ -122,6 +149,7 @@ export default function FolderTemplatesPanel({ client: given, onEditing }: {
           <div className="ft-actions">
             <button type="button" className="chip" onClick={() => setEditing(blankTemplate())}>+ New</button>
             <button type="button" className="chip" onClick={() => setEditing(duplicateTemplate(sel, all.map((t) => t.name)))}>Duplicate</button>
+            {client.scanFolder && <button type="button" className="chip" onClick={() => { setNote(''); setLearning(true); }}>Learn from folder…</button>}
             {client.import && <button type="button" className="chip" onClick={() => run(async () => { const r = await client.import!(); if (r) setNote(`${r.added} template${r.added === 1 ? '' : 's'} added.`); return r; })}>Import…</button>}
           </div>
         </div>
