@@ -3,7 +3,7 @@ import { form4SizeText } from './form4';
 import { BOARD_KINDS, POINT_TYPES } from '../types';
 import { PLAN_SYMBOLS } from '../model/planSymbols';
 import { cableTypeOf } from '../model/cableTypes';
-import { breakerTypeOf, cpcOf } from './earthing';
+import { breakerTypeOf, cpcOf, rcdOf } from './earthing';
 import { lightningBoqLines } from './lightningProtection';
 import { spareBreaker, spareWaysOf } from '../model/spareWays';
 import { runsOf } from './electrical';
@@ -14,7 +14,7 @@ import { matchDevice, type DeviceKind } from '../model/enclosureLibrary';
 import { scheduleGroupOf } from '../model/scheduleGroups';
 import { mainBoards, txTag } from '../model/transformers';
 import { sizeRoute, trayPlanOf, trayQuantities } from './cableTray';
-import { elcbGroups, normalizeLoadItems, pointLabel, scheduleCircuits } from './loadSchedule';
+import { elcbGroups, isRcbo, isScheduleCircuit, normalizeLoadItems, pointLabel, rcbosOf, scheduleCircuits } from './loadSchedule';
 import { atsOf, changeoverBreakers, incomersOf } from '../model/changeover';
 import { luminaireSchedule } from '../model/luminaireSchedule';
 import { sizePv } from './solar';
@@ -135,11 +135,12 @@ export function buildBom(project: Pick<Project, 'boards' | 'feeders'> & Partial<
     const inc = p.feeders.find((f) => f.feedsBoardId === b.id);
     const threePhase = !!inc && inc.cores >= 3 || circuits.some((c) => c.cores !== 2 || c.phase === 'RYB') || new Set(circuits.map((c) => c.phase)).size > 1;
     for (const group of elcbGroups(p, b)) {
-      const poles = threePhase ? 'TP+N' : 'SP+N';
+      const poles = group.byHand?.poles === 3 ? 'TP' : threePhase ? 'TP+N' : 'SP+N';
       add('B', `rccb:${group.sensitivityMa}:${poles}:${group.ratingA}`, `RCCB / ELCB ${group.sensitivityMa} mA, ${poles}, ${group.ratingA} A${brandRef('RCCB', poles, group.ratingA)}`, 'no', 1, b.id,
         { quantitySource: 'Load schedule ELCB groups' });
       group.circuits.forEach((c) => groupedRcdCircuits.add(c.id));
     }
+    rcbosOf(p, b).forEach((r) => groupedRcdCircuits.add(r.circuit.id));
     // Instruments, PMU and SPD are counted per incomer: two on a mains / generator changeover.
     const incomers = incomersOf(b);
     if (b.spd) add('B', `spd:${b.spd}`, `Surge protection device, Type ${b.spd === 'T1+2' ? '1+2' : b.spd.slice(1)}, 4P, with backup fuse / MCB`, 'no', incomers, b.id);
@@ -222,9 +223,15 @@ export function buildBom(project: Pick<Project, 'boards' | 'feeders'> & Partial<
   // Outgoing ways: breakers, earth leakage, meters, isolators, equipment (existing ways are already installed)
   for (const f of p.feeders) {
     if (f.existing) continue;
-    const bi = breakerItem(f);
-    add('B', bi.key, bi.description, 'no', 1, f.boardId);
     const poles = polesOf(f);
+    if (isScheduleCircuit(f) && isRcbo(f)) {
+      // An RCBO is the circuit's breaker and its earth leakage protection in one: no MCB, no RCCB share.
+      const ma = rcdOf(p, f);
+      add('B', `rcbo:${ma}:SP+N:${f.breakerRatingA}`, `RCBO ${f.breakerRatingA} A, ${ma} mA, SP+N${brandRef('RCBO', 'SP+N', f.breakerRatingA)}`, 'no', 1, f.boardId);
+    } else {
+      const bi = breakerItem(f);
+      add('B', bi.key, bi.description, 'no', 1, f.boardId);
+    }
     if (f.rcdMa && !groupedRcdCircuits.has(f.id)) add('B', `rcd:${f.rcdMa}:${poles}:${f.breakerRatingA}`, `Earth leakage protection ${f.rcdMa} mA, ${poles}, ${f.breakerRatingA} A`, 'no', 1, f.boardId);
     if (f.kwhMeter) add('C', `kwh:${f.kwhMeter}`, f.kwhMeter === 'CT' ? 'kWh meter, CT operated, with CTs and test block' : `kWh meter, direct ${f.kwhMeter === '1-PH' ? '1-phase' : '3-phase'}`, 'no', 1, f.boardId);
     if (f.localIsolator) add('B', `iso:${f.breakerRatingA}:${poles}`, `Local isolator ${f.breakerRatingA} A ${poles}, weatherproof enclosure`, 'no', 1, f.boardId);

@@ -5,7 +5,7 @@ import { revisionStamp } from '../model/revisions';
 import { spareLabel, spareRef } from '../model/spareWays';
 import { POINT_TYPES, type Project } from '../types';
 import { fmtDate } from '../util/format';
-import { incomerCableText, incomerLabel, loadScheduleRows, remarksText } from './loadScheduleDoc';
+import { elcbColumn, elcbText, incomerCableText, incomerLabel, loadScheduleRows, remarksText } from './loadScheduleDoc';
 
 /** The values of a DB's load schedule, by placeholder key: the fields of the Excel template (xlsxTemplate.ts) and of a
  * linked sheet (sheetLink.ts). No ExcelJS here, so the Sheets page can use it without loading the Excel library. */
@@ -76,12 +76,10 @@ export function templateData(project: Project, boardId: string, at = new Date())
     fields[`wattUnit.${t.value}`] = columns.some((c) => c.value === t.value) ? wattUnitText(project, board, t.value) : '';
     fields[`label.${t.value}`] = columns.find((c) => c.value === t.value)?.label ?? t.label;
   }
-  const firstOfGroup = new Set<number>();
-  const seen = new Set<number>();
-  entries.forEach((e, i) => { if (e.group && !seen.has(e.group.index)) { seen.add(e.group.index); firstOfGroup.add(i); } });
+  const cells = elcbColumn(entries);
   const rows = entries.map((e, i): Fields => {
-    const elcb = e.group ? `ELCB-${e.group.index} ${e.group.label}` : '';
-    const common = { 'row.sl': e.sl, 'row.elcb': firstOfGroup.has(i) ? elcb : '', 'row.elcbGroup': elcb };
+    const elcb = elcbText(e);
+    const common = { 'row.sl': e.sl, 'row.elcb': cells[i] ? elcb : '', 'row.elcbGroup': elcb };
     const points = Object.fromEntries(POINT_TYPES.map((t) => [`row.points.${t.value}`, e.type === 'circuit' ? e.row.f.points?.[t.value] || '' : '']));
     if (e.type === 'spare') {
       const sp = e.spare;

@@ -1,7 +1,7 @@
 import { boardOf, feedersOn, withNetwork } from './network';
 import { cpcOf, defaultCpcMm2, getCable } from './cableTable';
 import { DEFAULT_TRANSFORMER_XR, gridImpedance, gridSourceOf, rOperatingOhmPerKm, runsOf, transformerImpedance, zMagnitude, type Impedance, type Status } from './electrical';
-import { elcbGroups, isScheduleCircuit } from './loadSchedule';
+import { elcbGroups, isScheduleCircuit, rcbosOf } from './loadSchedule';
 import type { BreakerType, Feeder, Project } from '../types';
 import { fmtFixed } from '../util/format';
 
@@ -248,6 +248,7 @@ export function rcdOf(project: Project, f: Feeder): number | undefined {
   if (!m) {
     m = new Map();
     for (const b of project.boards) for (const g of elcbGroups(project, b)) for (const c of g.circuits) m.set(c.id, g.sensitivityMa);
+    for (const b of project.boards) for (const r of rcbosOf(project, b)) m.set(r.circuit.id, r.sensitivityMa);
     elcbCache.set(project, m);
   }
   return m.get(f.id);

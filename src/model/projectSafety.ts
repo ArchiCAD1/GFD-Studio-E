@@ -77,6 +77,12 @@ export function unsafeReason(raw: Record<string, unknown>): string | undefined {
     if (b.upstreamId !== undefined && b.upstreamId !== null && typeof b.upstreamId !== 'string') return `panel ${b.id}: "upstreamId" is not text`;
     const r = numbers(b, BOARD_NUM, `panel ${b.id}`);
     if (r) return r;
+    if (b.elcbs !== undefined) {
+      if (!Array.isArray(b.elcbs)) return `panel ${b.id}: the ELCBs placed by hand are not a list`;
+      for (const e of b.elcbs) {
+        if (!isObj(e) || typeof e.id !== 'string' || !Number.isInteger(e.fromWay) || !Number.isInteger(e.toWay) || !okNum(e.ratingA) || !okNum(e.sensitivityMa) || ![undefined, 3, 4].includes(e.poles as number | undefined)) return `panel ${b.id}: an ELCB placed by hand is not valid`;
+      }
+    }
   }
   for (const f of raw.feeders as Record<string, unknown>[]) {
     if ((f.id as string).length > LIMITS.idChars) return `circuit ID ${(f.id as string).slice(0, 40)}… is too long`;

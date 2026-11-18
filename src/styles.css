@@ -1851,6 +1851,8 @@ svg .ph-tag.click{cursor:pointer}svg .ph-tag.click:hover rect{fill:color-mix(in 
 .earth-embedded .earth-ws{padding:var(--space-2) 0 0}
 /* Load schedule — double-click circuit edit dialog */
 .modal.circuit-edit{max-width:640px}
+.elcb-dialog fieldset{border:0;padding:0;margin:0;min-width:0;display:flex;flex-wrap:wrap;gap:var(--space-1) var(--space-4)}
+.elcb-dialog legend{padding:0;margin-bottom:var(--space-1);font-size:var(--fs-sm);color:var(--mut)}
 .circuit-edit fieldset{border:1px solid var(--line);border-radius:var(--radius-md,6px);padding:var(--space-2) var(--space-3) var(--space-3);margin:0;display:flex;flex-direction:column;gap:var(--space-2)}
 .circuit-edit legend{font-size:var(--fs-sm);color:var(--mut);padding:0 var(--space-1)}
 .ce-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--space-2) var(--space-3)}

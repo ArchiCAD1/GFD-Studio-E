@@ -1,4 +1,5 @@
 import type { Feeder, StarterType } from '../types';
+import { isRcbo } from '../calc/loadSchedule';
 import { isMotor, starterInfo, starterOf } from '../calc/motor';
 
 /** Boxed devices drawn on a feeder in the SLD: the motor starter and the earth leakage device. */
@@ -34,6 +35,7 @@ export function sldDevices(f: Feeder): SldDevices {
   if (m) {
     const ma = m[2] ? Number(m[2]) : f.rcdMa;
     out.elcb = { label: m[1].toUpperCase() === 'ELR' ? 'ELR' : m[1].toUpperCase(), ma };
-  } else if (f.rcdMa) out.elcb = { label: 'ELCB', ma: f.rcdMa };
+  } else if (isRcbo(f)) out.elcb = { label: 'RCBO', ma: f.rcdMa };
+  else if (f.rcdMa) out.elcb = { label: 'ELCB', ma: f.rcdMa };
   return out;
 }

@@ -3,15 +3,15 @@ import { panelCategoryOf } from '../../docs/sheetLink';
 import { projectFormat } from '../../model/scheduleFormats';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supplyChain } from '../../model/transformers';
-import { Keyboard, ListPlus, Scale, Square, SquareDashed, Trash2, X } from 'lucide-react';
+import { Keyboard, ListPlus, Scale, ShieldCheck, Square, SquareDashed, Trash2, X } from 'lucide-react';
 import type { Board, Phase, PointType, Project } from '../../types';
 import { cables } from '../../calc/cableTable';
 import { defaultCpcMm2 } from '../../calc/earthing';
 import { breakerRatings } from '../../calc/sizing';
-import { itemizedTypes, loadItemsText, missingWatts, pointColumns, pointLabel, pointWattsFor, isScheduleCircuit } from '../../calc/loadSchedule';
+import { itemizedTypes, loadItemsText, missingWatts, pointColumns, pointLabel, pointWattsFor, isScheduleCircuit, rcbosOf } from '../../calc/loadSchedule';
 import { settingsOf } from '../../types';
 import { loadsForColumn, type Database } from '../../database/database';
-import { buildLoadScheduleHtml, loadScheduleCsv, loadScheduleRows } from '../../docs/loadScheduleDoc';
+import { buildLoadScheduleHtml, elcbColumn, loadScheduleCsv, loadScheduleRows } from '../../docs/loadScheduleDoc';
 import { addCircuit, balancePhases, circuitRef, deleteCircuit, duplicateCircuit, fixCircuit, refreshBoard, updateCircuit, type CircuitPatch } from '../../model/schedule';
 import { isFail, isProblem, nextProblemBoard, problemRows, rowFixes, rowReasons, type ScheduleRow, type ScheduleFix } from '../../docs/scheduleCheck';
 import { saveBinary, saveCsv, savePdf, safeFileName } from '../../util/files';
@@ -31,6 +31,8 @@ import RiserFormView from './RiserFormView';
 import { SCHEDULE_GROUPS, scheduleBoardOrder, scheduleGroupOf, scheduleGroups, type ScheduleGroup, incompleteSchedules } from '../../model/scheduleGroups';
 import MenuButton from '../MenuButton';
 import CircuitEditDialog from './CircuitEditDialog';
+import ElcbDialog, { type ElcbTarget, type ElcbValues } from './ElcbDialog';
+import { addBoardElcb, allAutomatic, removeBoardElcb, setRcbo, updateBoardElcb } from '../../model/elcbs';
 import TemplateExportDialog from './TemplateExportDialog';
 import { addSpareWay, deleteSpareWay, spareLabel, spareRef, updateSpareWay } from '../../model/spareWays';
 import { fmtFixed, txt } from '../../util/format';
@@ -231,6 +233,55 @@ export default function LoadScheduleView({
       onStatus(e instanceof Error ? e.message : String(e));
     }
   };
+  // ELCBs placed by hand and RCBOs (Add → ELCB / RCD): the dialog, and what the menu does to the selected circuit.
+  const [elcbDlg, setElcbDlg] = useState<ElcbTarget | null>(null);
+  const elcbCells = useMemo(() => elcbColumn(data.entries), [data]);
+  const handCount = (board.elcbs?.length ?? 0) + data.rows.filter((r) => r.rcbo).length;
+  const underHand = activeRow?.group?.byHand;
+  const placeRcbo = () => {
+    if (!activeRow) return;
+    try {
+      const next = setRcbo(project, activeRow.f.id, true);
+      onChange(next, { step: true });
+      const r = rcbosOf(next, next.boards.find((b) => b.id === board.id)!).find((x) => x.circuit.id === activeRow.f.id)!;
+      onStatus(`${activeRow.ref}: RCBO ${r.ratingA} A ${r.sensitivityMa} mA in place of the MCB${activeRow.group ? `; it leaves ELCB-${activeRow.group.index}` : ''}`);
+    } catch (e) {
+      onStatus(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const saveElcb = (target: ElcbTarget, v: ElcbValues): string | undefined => {
+    try {
+      if (target.kind === 'rcbo') {
+        onChange(setRcbo(project, target.feederId, true, v.sensitivityMa), { step: true });
+        const f = project.feeders.find((x) => x.id === target.feederId);
+        onStatus(`${f ? circuitRef(f) : ''}: RCBO earth leakage ${v.sensitivityMa ? `${v.sensitivityMa} mA` : 'Auto'}`);
+        return undefined;
+      }
+      const body = { fromWay: v.fromWay, toWay: v.toWay, poles: v.poles === 3 ? 3 as const : undefined, ratingA: v.ratingA, sensitivityMa: v.sensitivityMa };
+      const r = target.id ? updateBoardElcb(project, board.id, target.id, body) : addBoardElcb(project, board.id, body);
+      onChange(r.project, { step: true });
+      onStatus(r.message);
+      return undefined;
+    } catch (e) {
+      return e instanceof Error ? e.message : String(e);
+    }
+  };
+  const removeHand = () => {
+    if (!underHand) return;
+    onChange(removeBoardElcb(project, board.id, underHand.id), { step: true });
+    onStatus(`ELCB-${activeRow!.group!.index} removed: its ways go back to automatic`);
+  };
+  const removeRcbo = () => {
+    if (!activeRow?.rcbo) return;
+    onChange(setRcbo(project, activeRow.f.id, false), { step: true });
+    onStatus(`RCBO-${activeRow.rcbo.index} removed: ${activeRow.ref} has its MCB again and is back on the ELCB`);
+  };
+  const resetAutomatic = async () => {
+    if (await ask(`Remove the ${handCount} ELCB / RCBO placed by hand on ${board.id}? Its ELCBs go back to the “ELCB per” grouping and RCBO circuits get their MCB again.`)) {
+      onChange(allAutomatic(project, board.id), { step: true });
+      onStatus(`${board.id}: ELCBs back to automatic`);
+    }
+  };
   const removeCircuit = async (r: { f: { id: string }; ref: string }) => {
     if (await ask(`Delete circuit ${r.ref}?`)) onChange(deleteCircuit(project, r.f.id));
   };
@@ -374,6 +425,7 @@ export default function LoadScheduleView({
                 <option value={0}>No ELCB</option>
               </select>
             </label>
+            {handCount > 0 && <span className="m">+ {handCount} placed by hand</span>}
             <label><span className="m">Sensitivity</span>
               <select value={board.elcbSensitivityMa ?? ''} onChange={(e) => setBoard({ elcbSensitivityMa: e.target.value === '' ? undefined : +e.target.value })}>
                 <option value="">Auto (lighting {settings.elcbLightingMa} / power {settings.elcbPowerMa} mA)</option>
@@ -391,6 +443,37 @@ export default function LoadScheduleView({
             <span className="m ls-add-lbl">Add</span>
             <button className="chip primary" title={`Add a circuit in the next free way of ${board.id}`} onClick={() => add()}><ListPlus size={15} /> 1-phase circuit</button>
             <button className="chip" title={`Add a 3-phase circuit (RYB) to ${board.id}`} onClick={() => add('RYB')}><ListPlus size={15} /> 3-phase circuit</button>
+            <span className="ls-sep" aria-hidden />
+            <MenuButton label={<><ShieldCheck size={15} /> ELCB / RCD</>} title="Earth leakage protection placed by hand: a 3-phase ELCB over ways, or a 1-phase RCBO in place of a circuit's MCB">
+              {(close) => (
+                <>
+                  <div className="mp-h">Earth leakage protection placed by hand</div>
+                  <button title="An ELCB over whole ways (R, Y and B of each way)" onClick={() => { close(); setElcbDlg({ kind: 'elcb', from: activeRow?.f.way ?? 1, to: activeRow?.f.way ?? 1 }); }}>3-phase ELCB (4P, TP&amp;N) over ways…</button>
+                  {activeRow && activeRow.f.phase === 'RYB' && !underHand
+                    ? <button title="An ELCB over the way of this 3-phase circuit" onClick={() => { close(); setElcbDlg({ kind: 'elcb', from: activeRow.f.way!, to: activeRow.f.way! }); }}>3-phase ELCB for {activeRow.ref} only</button>
+                    : <button disabled title="Select a 3-phase circuit (not under an ELCB placed by hand) first">3-phase ELCB for the selected 3-phase circuit</button>}
+                  {activeRow && activeRow.f.phase !== 'RYB' && !activeRow.rcbo
+                    ? <button title="The circuit's breaker becomes an RCBO (MCB and earth leakage in one); it leaves the ELCB of its ways" onClick={() => { close(); placeRcbo(); }}>1-phase RCBO for {activeRow.ref}</button>
+                    : <button disabled title="Select a 1-phase circuit that is not an RCBO yet first">1-phase RCBO for the selected circuit</button>}
+                  {underHand && activeRow?.group && (
+                    <>
+                      <hr />
+                      <button onClick={() => { close(); setElcbDlg({ kind: 'elcb', id: underHand.id, from: underHand.fromWay, to: underHand.toWay }); }}>Edit ELCB-{activeRow.group.index}…</button>
+                      <button onClick={() => { close(); removeHand(); }}>Remove ELCB-{activeRow.group.index}</button>
+                    </>
+                  )}
+                  {activeRow?.rcbo && (
+                    <>
+                      <hr />
+                      <button onClick={() => { close(); setElcbDlg({ kind: 'rcbo', feederId: activeRow.f.id }); }}>Edit RCBO-{activeRow.rcbo.index}…</button>
+                      <button onClick={() => { close(); removeRcbo(); }}>Remove RCBO-{activeRow.rcbo.index}</button>
+                    </>
+                  )}
+                  <hr />
+                  <button disabled={!handCount} title={handCount ? undefined : 'Nothing is placed by hand on this DB'} onClick={() => { close(); void resetAutomatic(); }}>All automatic again</button>
+                </>
+              )}
+            </MenuButton>
             <span className="ls-sep" aria-hidden />
             <button className="chip" title="A 1-phase way with a breaker fitted and nothing connected" onClick={() => addSpare('spare')}><SquareDashed size={15} /> Spare 1-phase</button>
             <button className="chip" title="A 3-phase way with a breaker fitted and nothing connected" onClick={() => addSpare('spare', 'three')}><SquareDashed size={15} /> Spare 3-phase</button>
@@ -475,13 +558,18 @@ export default function LoadScheduleView({
                   )}
                   {data.entries.map((e, i) => {
                     const g = e.group;
-                    const first = g && data.entries.findIndex((x) => x.group === g) === i;
-                    const elcbTd = first ? (
-                      <td rowSpan={data.entries.filter((x) => x.group === g).length} className={`elcb ${g.category === 'mixed' ? 'warn' : ''}`}
-                        title={g.category === 'mixed' ? 'Lighting and power share this ELCB — use Load schedule → Balance phases to separate them' : undefined}>
-                        ELCB-{g.index}<br />{g.label}<br /><span className="m">{g.category === 'mixed' ? 'mixed!' : g.category}</span>
+                    const c = elcbCells[i];
+                    const cg = c?.group;
+                    const mixed = !!cg && cg.category === 'mixed' && !cg.byHand;
+                    const handWays = cg?.byHand ? (cg.circuits.length === 1 ? 'this circuit' : cg.ways.length === 1 ? `way ${cg.ways[0]}` : `ways ${cg.ways[0]}–${cg.ways[cg.ways.length - 1]}`) : '';
+                    const elcbTd = !c ? null : c.rcbo ? (
+                      <td className="elcb">RCBO-{c.rcbo.index}<br />{c.rcbo.label}<br /><span className="m">by hand · this circuit</span></td>
+                    ) : cg ? (
+                      <td rowSpan={c.span} className={`elcb ${mixed ? 'warn' : ''}`}
+                        title={mixed ? 'Lighting and power share this ELCB — use Load schedule → Balance phases to separate them' : undefined}>
+                        ELCB-{cg.index}<br />{cg.label}<br /><span className="m">{cg.byHand ? `by hand · ${handWays}` : mixed ? 'mixed!' : cg.category}</span>
                       </td>
-                    ) : !g ? <td /> : null;
+                    ) : <td />;
                     if (e.type === 'spare') {
                       const sp = e.spare;
                       return (
@@ -569,6 +657,7 @@ export default function LoadScheduleView({
               </table>
             </div>
           )}
+          {elcbDlg && <ElcbDialog project={project} board={board} target={elcbDlg} onSave={(v) => saveElcb(elcbDlg, v)} onClose={() => setElcbDlg(null)} />}
           {templateOpen && <TemplateExportDialog project={project} boardId={board.id} onStatus={onStatus} onClose={() => setTemplateOpen(false)} />}
           {editRow && (
             <CircuitEditDialog project={project} board={board} feeder={editRow.f} circuitRef={editRow.ref} columns={columns} library={db.loads} focus={editing!.focus}

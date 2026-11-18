@@ -2,7 +2,7 @@ import { boardOf, feedersOn, memoized } from './network';
 import { recordedPQ } from '../model/existing';
 import { switchedOnBoard } from './capSwitching';
 import { hasRules, resolveRule, type RuleContext } from '../model/designRules';
-import { DEFAULT_POINT_WATTS, LIGHTING_POINTS, POINT_TYPES, pointTemplateOf, settingsOf, type Board, type CircuitLoadItem, type Feeder, type LoadType, type Phase, type PointType, type Project } from '../types';
+import { DEFAULT_POINT_WATTS, LIGHTING_POINTS, POINT_TYPES, pointTemplateOf, settingsOf, type Board, type BoardElcb, type CircuitLoadItem, type Feeder, type LoadType, type Phase, type PointType, type Project } from '../types';
 
 export const SINGLE_PHASES: ('R' | 'Y' | 'B')[] = ['R', 'Y', 'B'];
 const PHASE_ORDER: Record<Phase, number> = { R: 0, Y: 1, B: 2, RYB: 3 };
@@ -280,6 +280,34 @@ export function nextFreeSlot(project: Project, boardId: string, phase?: Phase): 
   throw new Error('No free way');
 }
 
+/** A circuit whose breaker is an RCBO (MCB + earth leakage in one): single-phase circuits only. */
+export const isRcbo = (f: Feeder) => !!f.rcbo && f.phase !== 'RYB';
+
+/** The ELCB sections of a DB over ways 1…lastWay, numbered 1, 2, … in way order: a hand-placed ELCB is one section over its
+ * ways; the ways between them are cut into automatic sections of "ELCB per" ÷ 3 ways (none when the board has no ELCBs). */
+export function elcbSections(board: Board, lastWay: number): { index: number; ways: number[]; elcb?: BoardElcb }[] {
+  const hand = [...(board.elcbs ?? [])].sort((a, b) => a.fromWay - b.fromWay);
+  const per = (board.elcbGroupSize ?? 6) / 3;
+  const last = Math.max(lastWay, ...hand.map((h) => h.toWay));
+  const out: { index: number; ways: number[]; elcb?: BoardElcb }[] = [];
+  const span = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+  let way = 1;
+  while (way <= last) {
+    const h = hand.find((x) => x.fromWay <= way && way <= x.toWay);
+    if (h) {
+      out.push({ index: out.length + 1, ways: span(way, h.toWay), elcb: h });
+      way = h.toWay + 1;
+    } else if (!per) way++;
+    else {
+      const next = hand.find((x) => x.fromWay > way);
+      const end = next ? Math.min(way + per - 1, next.fromWay - 1) : way + per - 1;
+      out.push({ index: out.length + 1, ways: span(way, end) });
+      way = end + 1;
+    }
+  }
+  return out;
+}
+
 export interface ElcbGroup {
   index: number; // 1-based
   ways: number[];
@@ -289,61 +317,69 @@ export interface ElcbGroup {
   maxPhaseA: number;
   ratingA: number;
   sensitivityMa: number;
+  poles: 3 | 4;
+  byHand?: BoardElcb;
   label: string; // e.g. "40 A 30 mA 4P"
+}
+
+/** IΔn for earth leakage protection over the given circuits: the board's override, else with ELCB rules the most sensitive
+ * value any circuit needs, else the project setting (100 mA for lighting, 30 mA otherwise). No circuits: the power setting. */
+function sensitivityFor(project: Project, board: Board, cs: Feeder[], category: CircuitCategory | 'mixed'): number {
+  const s = settingsOf(project);
+  const bySetting = (c: CircuitCategory) => (c === 'lighting' ? s.elcbLightingMa : s.elcbPowerMa);
+  if (board.elcbSensitivityMa !== undefined) return board.elcbSensitivityMa;
+  if (cs.length && hasRules(project.designRules, 'elcbMa')) return Math.min(...cs.map((f) => resolveRule(project.designRules, 'elcbMa', ruleContext(f))?.value ?? bySetting(circuitCategory(f))));
+  return bySetting(category === 'lighting' ? 'lighting' : 'power');
 }
 
 /** ELCB (RCCB) groups: by default one 4-pole ELCB per 6 circuits (two
  * ways); 3 gives one per way; 0 means no ELCBs. Rated for the group's most
  * loaded phase, and 100 mA for an all-lighting group / 30 mA otherwise
- * (project settings), unless the board overrides either. */
+ * (project settings), unless the board overrides either. ELCBs placed by hand
+ * (Board.elcbs) are groups of their own, with their own pole count, rating and
+ * mA when set; RCBO circuits are not in any group. */
 export function elcbGroups(project: Project, board: Board): ElcbGroup[] {
-  const size = board.elcbGroupSize ?? 6;
-  if (!size) return [];
-  const waysPerGroup = size / 3;
-  const circuits = scheduleCircuits(project, board.id);
-  const byGroup = new Map<number, Feeder[]>();
-  for (const f of circuits) {
-    const g = Math.floor((f.way! - 1) / waysPerGroup) + 1;
-    byGroup.set(g, [...(byGroup.get(g) ?? []), f]);
-  }
+  const all = scheduleCircuits(project, board.id);
+  const circuits = all.filter((f) => !isRcbo(f));
+  const lastWay = Math.max(0, ...all.map((f) => f.way!), ...(board.spareWays ?? []).map((sp) => sp.way ?? 0));
   const u0 = project.voltageV / Math.sqrt(3);
-  return [...byGroup.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([index, cs]) => {
-      const phaseKw: PhaseKw = { R: 0, Y: 0, B: 0 };
-      const phaseKvar: PhaseKw = { R: 0, Y: 0, B: 0 };
-      for (const f of cs) {
-        const kw = f.loadKw * f.demandFactor;
-        const pf = Math.min(Math.max(f.powerFactor, 0.01), 1);
-        const kvar = kw * Math.tan(Math.acos(pf));
-        if (f.phase === 'RYB') SINGLE_PHASES.forEach((p) => { phaseKw[p] += kw / 3; phaseKvar[p] += kvar / 3; });
-        else {
-          const phase = f.phase as 'R' | 'Y' | 'B';
-          phaseKw[phase] += kw;
-          phaseKvar[phase] += kvar;
-        }
+  const groups: ElcbGroup[] = [];
+  for (const sec of elcbSections(board, lastWay)) {
+    const cs = circuits.filter((f) => sec.ways.includes(f.way!));
+    if (!cs.length && !sec.elcb) continue;
+    const phaseKw: PhaseKw = { R: 0, Y: 0, B: 0 };
+    const phaseKvar: PhaseKw = { R: 0, Y: 0, B: 0 };
+    for (const f of cs) {
+      const kw = f.loadKw * f.demandFactor;
+      const pf = Math.min(Math.max(f.powerFactor, 0.01), 1);
+      const kvar = kw * Math.tan(Math.acos(pf));
+      if (f.phase === 'RYB') SINGLE_PHASES.forEach((p) => { phaseKw[p] += kw / 3; phaseKvar[p] += kvar / 3; });
+      else {
+        const phase = f.phase as 'R' | 'Y' | 'B';
+        phaseKw[phase] += kw;
+        phaseKvar[phase] += kvar;
       }
-      const maxPhaseA = Math.max(...SINGLE_PHASES.map((p) => Math.hypot(phaseKw[p], phaseKvar[p]) * 1000 / u0));
-      const ratingA = board.elcbRatingA ?? STANDARD_ELCB_A.find((r) => r >= maxPhaseA) ?? STANDARD_ELCB_A[STANDARD_ELCB_A.length - 1];
-      const cats = new Set(cs.map(circuitCategory));
-      const category: ElcbGroup['category'] = cats.size === 1 ? [...cats][0] : 'mixed';
-      const s = settingsOf(project);
-      const bySetting = (c: CircuitCategory) => (c === 'lighting' ? s.elcbLightingMa : s.elcbPowerMa);
-      // With ELCB rules, the most sensitive value any circuit in the group needs.
-      const sensitivityMa = board.elcbSensitivityMa ?? (hasRules(project.designRules, 'elcbMa')
-        ? Math.min(...cs.map((f) => resolveRule(project.designRules, 'elcbMa', ruleContext(f))?.value ?? bySetting(circuitCategory(f))))
-        : bySetting(category === 'lighting' ? 'lighting' : 'power'));
-      const first = (index - 1) * waysPerGroup + 1;
-      return {
-        index,
-        ways: Array.from({ length: waysPerGroup }, (_, i) => first + i),
-        circuits: cs,
-        category,
-        phaseKw,
-        maxPhaseA,
-        ratingA,
-        sensitivityMa,
-        label: `${ratingA} A ${sensitivityMa} mA 4P`
-      };
-    });
+    }
+    const maxPhaseA = Math.max(...SINGLE_PHASES.map((p) => Math.hypot(phaseKw[p], phaseKvar[p]) * 1000 / u0));
+    const ratingA = sec.elcb?.ratingA ?? board.elcbRatingA ?? STANDARD_ELCB_A.find((r) => r >= maxPhaseA) ?? STANDARD_ELCB_A[STANDARD_ELCB_A.length - 1];
+    const cats = new Set(cs.map(circuitCategory));
+    const category: ElcbGroup['category'] = !cs.length ? 'power' : cats.size === 1 ? [...cats][0] : 'mixed';
+    // With ELCB rules, the most sensitive value any circuit in the group needs.
+    const sensitivityMa = sec.elcb?.sensitivityMa ?? sensitivityFor(project, board, cs, category);
+    const poles = sec.elcb?.poles ?? 4;
+    groups.push({ index: sec.index, ways: sec.ways, circuits: cs, category, phaseKw, maxPhaseA, ratingA, sensitivityMa, poles, byHand: sec.elcb, label: `${ratingA} A ${sensitivityMa} mA ${poles}P` });
+  }
+  return groups;
+}
+
+export interface Rcbo { index: number; circuit: Feeder; ratingA: number; sensitivityMa: number; label: string }
+
+/** The board's RCBO circuits in way order (then R, Y, B), numbered RCBO-1, 2, …: rated as the circuit's breaker, IΔn
+ * as chosen (rcdMa) else as an ELCB over that circuit would be. Printed as 2P (1P+N). */
+export function rcbosOf(project: Project, board: Board): Rcbo[] {
+  return scheduleCircuits(project, board.id).filter(isRcbo).map((f, i) => {
+    const ratingA = f.breakerRatingA;
+    const sensitivityMa = f.rcdMa ?? sensitivityFor(project, board, [f], circuitCategory(f));
+    return { index: i + 1, circuit: f, ratingA, sensitivityMa, label: `${ratingA} A ${sensitivityMa} mA 2P` };
+  });
 }

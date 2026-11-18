@@ -18,6 +18,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.201', date: '2026-11-18',
+    items: [
+      { title: 'Load schedule: ELCB and RCBO placed by hand', text: 'Add → ELCB / RCD puts a 3-phase ELCB (4-pole, or 3-pole) over chosen ways or over one 3-phase circuit, or an RCBO in place of a 1-phase circuit\'s MCB. A circuit has an ELCB or an RCBO, never both. They print in the ELCB column and count in the BOQ, the enclosure and the earth-fault check.' }
+    ]
+  },
+  {
     version: '2.200', date: '2026-11-18',
     items: [
       { title: 'Load schedule: a shorter page header', text: 'The Load schedule page header now takes two rows instead of five. The help text is behind the i beside the title, the supply chain (for example TX-1 → MDB-1 → SMDB-GF → DB-GF1) sits on the title row, and the schedule tabs and board buttons share one row. A board\'s rooms check is a short chip at the end of that row, with the full text when you point at it. More circuit rows fit on the screen.' },

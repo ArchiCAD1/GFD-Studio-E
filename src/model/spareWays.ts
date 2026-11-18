@@ -87,9 +87,12 @@ export function deleteSpareWay(project: Project, boardId: string, id: string): S
 export function reslotSpares(project: Project, boardId: string): Project {
   const board = project.boards.find((b) => b.id === boardId);
   if (!board || !isDbBoard(board) || !board.spareWays?.length) return project;
-  const old = [...dbSpares(board), ...spareWaysOf(board).filter((s) => !s.way)];
-  let p = withSpares(project, boardId, []);
-  const placed: SpareWay[] = [];
+  // Spares under an ELCB placed by hand keep their slot.
+  const under = (s: SpareWay) => !!s.way && !!board.elcbs?.some((h) => h.fromWay <= s.way! && s.way! <= h.toWay);
+  const all = [...dbSpares(board), ...spareWaysOf(board).filter((s) => !s.way)];
+  const old = all.filter((s) => !under(s));
+  const placed: SpareWay[] = all.filter(under);
+  let p = withSpares(project, boardId, placed);
   for (const s of old) {
     const slot = nextFreeSlot(p, boardId, s.phase === 'RYB' ? 'RYB' : undefined);
     placed.push({ ...s, phase: slot.phase, way: slot.way });
