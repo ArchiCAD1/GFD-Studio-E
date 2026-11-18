@@ -40,7 +40,7 @@ const sk = (label: string, edit: SketchEdit, value?: string, key?: string, more:
 /** A list whose entries are the values of one edit; the current one is marked. */
 const choice = (label: string, edit: SketchEdit, values: readonly { id: string; label: string }[], now?: string, icon?: CtxIcon, lv?: boolean): CtxItem =>
   ({ label, ...(icon ? { icon } : {}), ...(lv ? { lv } : {}), sub: values.map((v) => sk(v.label, edit, v.id, undefined, v.id === now ? { now: true, off: true } : {})) });
-const ICON_OF: Record<string, CtxIcon> = { line: 'line', pline: 'pline', circle: 'circle', arc: 'arc', ellipse: 'ellipse', text: 'text', mtext: 'mtext', dim: 'dim', insert: 'insert', point: 'point', attdef: 'text' };
+const ICON_OF: Record<string, CtxIcon> = { line: 'line', pline: 'pline', circle: 'circle', arc: 'arc', ellipse: 'ellipse', text: 'text', mtext: 'mtext', mleader: 'mtext', dim: 'dim', insert: 'insert', point: 'point', attdef: 'text' };
 /** The kind's icon in the header. */
 const iconOf = (it: SketchItem): CtxIcon => (it.tray ? 'tray' : it.cable ? 'route' : it.hatch ? 'hatch' : it.cloud ? 'cloud' : it.infinite ? 'line' : ICON_OF[it.kind] ?? 'line');
 
@@ -97,6 +97,9 @@ function kindTools(s: DrawnMenuState, it: SketchItem): CtxEntry[] {
         choice('Frame', 'txframe', TEXT_FRAMES, it.frame ?? 'none'), sk('Background mask', 'txmask', undefined, undefined, { on: !!it.mask }), ...tail(addSel(), mkBlock())]);
     case 'mtext':
       return list('Note tools', [sk('Edit text', 'edtext', undefined, 'ED', { icon: 'edtext' }), sk('Width…', 'ntwidth'), choice('Justify', 'ntjust', NOTE_ATTACHES, attachOf(it)), sk('Find and replace…', 'find', undefined, 'FIND', { icon: 'find' }), ...tail(addSel(), mkBlock())]);
+    case 'mleader':
+      return list('Multileader tools', [sk('Edit text', 'edtext', undefined, 'ED', { icon: 'edtext' }), { label: 'Add leader', cmd: 'MLEADERADD' }, { label: 'Remove leader', cmd: 'MLEADERREMOVE' },
+        { label: 'Align…', cmd: 'MLA', key: 'MLA' }, { label: 'Collect…', cmd: 'MLC', key: 'MLC' }, sk('Find and replace…', 'find', undefined, 'FIND', { icon: 'find' }), ...tail(addSel(), mkBlock())]);
     case 'dim':
       return list('Dimension tools', [sk('Edit text', 'edtext', undefined, 'ED', { icon: 'edtext' }), ...(it.text ? [sk('Remove text override', 'dimreset')] : []),
         ...(s.dimStyles.length ? [choice('Dimension style', 'dimstyle', s.dimStyles.map((n) => ({ id: n, label: n })))] : []),

@@ -3,6 +3,7 @@ import { atOrigin, defOf, placedLines } from './cadHatch';
 import { followBoundaries, hatchOutlinePts } from './cadHatchAssoc';
 import { MASK_LAYER, textBox, textCorners, textFrameOf, textWidth } from './cadText';
 import { noteCorners, noteHit, toDxfMtext } from './cadMtext';
+import { mleaderNote, mleaderParts, mleaderSegments } from './cadMleader';
 import { pdsizeOf, type PointStyle } from './cadPoints';
 import { attdefAsText, attributePlacements, expandInsert, type CadBlockDef } from './cadBlocks';
 import { colourOut } from './cadColours';
@@ -262,7 +263,7 @@ export const dimMeasure = (it: Pick<SketchItem, 'pts' | 'dir' | 'dimKind'>): num
     : Math.abs((it.pts[1][0] - it.pts[0][0]) * Math.cos(it.dir) + (it.pts[1][1] - it.pts[0][1]) * Math.sin(it.dir));
 
 /** The lines of one arrowhead with its tip at d, pointing out along dir (at2 steps along and across the line). */
-function arrowLines(kind: DimArrow, d: Pt, dir: number, size: number, at2: (d: Pt, a: number, b: number) => Pt): [Pt, Pt][] {
+export function arrowLines(kind: DimArrow, d: Pt, dir: number, size: number, at2: (d: Pt, a: number, b: number) => Pt): [Pt, Pt][] {
   const out: [Pt, Pt][] = [];
   const circle = (r: number) => {
     const k = 12;
@@ -503,6 +504,8 @@ export function segmentsOf(it: SketchItem, metresPerUnit = 0.001, defs: CadBlock
   else if (it.kind === 'circle') arc(it.pts[0], it.r ?? 0, 0, 2 * Math.PI);
   else if (it.kind === 'arc') arc(it.pts[0], it.r ?? 0, it.a0 ?? 0, it.a1 ?? 0);
   else if (it.kind === 'dim') { const d = dimOf(it, metresPerUnit); out.push(...d.lines); for (const a of d.arcs) arc(a.c, a.r, a.a0, a.a1); }
+  // A multileader: its legs, landing, arrowheads and frame (its words are drawn as a note's).
+  else if (it.kind === 'mleader') out.push(...mleaderSegments(it));
   else if (it.kind === 'text' && it.frame) { const f = textFrameOf(it); if (f?.circle) arc(f.circle.c, f.circle.r, 0, 2 * Math.PI); else if (f?.pts) poly(f.pts, true); }
   for (const h of it.holes ?? []) poly(h, true);
   return out;
@@ -577,6 +580,8 @@ export function snapPoints(items: SketchItem[], defs: CadBlockDef[] = []): { x: 
     // A note: its anchor, and the corners of its box.
     else if (it.kind === 'mtext') out.push({ x: it.pts[0][0], y: it.pts[0][1], kind: 16 }, ...noteCorners(it).map((q) => ({ x: q[0], y: q[1], kind: 1 })));
     else if (it.kind === 'dim') out.push({ x: it.pts[0][0], y: it.pts[0][1], kind: 1 }, { x: it.pts[1][0], y: it.pts[1][1], kind: 1 });
+    // A multileader: its arrowheads, the start of its landing and the landing's end.
+    else if (it.kind === 'mleader') { const l = mleaderParts(it).landing; out.push(...it.pts.map((q) => ({ x: q[0], y: q[1], kind: 1 })), ...(l ? [{ x: l[1][0], y: l[1][1], kind: 1 }] : [])); }
     // A hatch's islands: their corners.
     for (const h of it.holes ?? []) h.forEach((q) => out.push({ x: q[0], y: q[1], kind: 1 }));
   }
@@ -601,6 +606,8 @@ export function itemAt(items: SketchItem[], at: Pt, tol: number, defs: CadBlockD
       const px = x * Math.cos(a) - y * Math.sin(a), py = x * Math.sin(a) + y * Math.cos(a);
       d = px >= -tol && px <= w + tol && py >= -tol && py <= h + tol ? 0 : Infinity;
     } else if (it.kind === 'mtext') d = noteHit(it, at, tol) ? 0 : Infinity;
+    // A multileader: its words by their box, else its lines.
+    else if (it.kind === 'mleader') { const n = mleaderNote(it); d = n && noteHit(n, at, tol) ? 0 : segmentsOf(it).reduce((m, [a, b]) => Math.min(m, segDist(at, a, b)), Infinity); }
     else if (it.kind === 'point') d = dist(at, it.pts[0]);
     else if (it.kind === 'insert') d = itemAt(expandInsert(it, defs), at, tol, defs) ? 0 : Infinity;
     // An attribute definition on the drawing: by the box of its tag.
@@ -619,6 +626,12 @@ export function shapesOut(items: SketchItem[], metresPerUnit: number, defs: CadB
   // Tray fittings are written as their labels at the joint ("Tee 300 × 150").
   const fittingTexts = fittings.map((f): ShapeOut => ({ layer: TRAY_LAYER, kind: 'text', pts: [[f.at[0] + 120 * unitsPerMm, f.at[1] + 120 * unitsPerMm]], text: fittingLabel(f), h: 100 * unitsPerMm, rot: 0 }));
   const one = (it: SketchItem): ShapeOut[] => {
+    // A leader's arrowhead as a solid triangle, the size and shape the canvas draws (3 mm on paper at 1:100).
+    if (it.leader && it.pts.length > 1) {
+      const { leader: _l, ...line } = it, [a, b] = it.pts, ang = Math.atan2(a[1] - b[1], a[0] - b[0]), hd = 3 * 100 * unitsPerMm;
+      const tip = (t: number): Pt => [a[0] - hd * Math.cos(ang + t), a[1] - hd * Math.sin(ang + t)];
+      return [...one(line), { layer: it.layer, kind: 'hatch', pts: [], loops: [[a, tip(-0.3), tip(0.3)]], solid: true }];
+    }
     if (it.kind === 'dim') {
       const d = dimOf(it, metresPerUnit);
       // A dimension of a style is written as measured now (in its unit and decimals) unless typed over; one drawn
@@ -652,6 +665,12 @@ export function shapesOut(items: SketchItem[], metresPerUnit: number, defs: CadB
     if (it.kind === 'attdef') return [attdefOut(it)];
     // A note as an MTEXT: its words with their codes, the box's width and attachment.
     if (it.kind === 'mtext') return [{ layer: it.layer, kind: 'mtext', pts: it.pts, text: toDxfMtext(it.note ?? []), h: it.h, rot: it.rot, just: it.just ?? 'TL', w: it.w ?? 0, lsp: it.lsp ?? 1 }];
+    // A multileader: its lines, and its words as one MTEXT.
+    if (it.kind === 'mleader') {
+      const n = mleaderNote(it);
+      return [...mleaderSegments(it).map(([a, b]): ShapeOut => ({ layer: it.layer, kind: 'line', pts: [a, b] })),
+        ...(n ? [{ layer: it.layer, kind: 'mtext' as const, pts: n.pts, text: toDxfMtext(n.note ?? []), h: n.h, rot: 0, just: n.just ?? 'ML', w: n.w ?? 0, lsp: 1 }] : [])];
+    }
     if (it.kind === 'text') {
       // Its mask (a solid hatch on LV-MASK, written before it so it lies under), the text, then its frame.
       const f = textFrameOf(it);

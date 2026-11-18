@@ -169,7 +169,8 @@ import { onDemand } from './util/onDemand';
 import { currentRevision, revisionStamp } from './model/revisions';
 import { useSheetUi } from './components/sld/sheetUi';
 import type { OutputDialog } from './components/docs/outputHost';
-import { markSeen, pendingReleases, RELEASES, type Release, type WhatsNewAction } from './model/whatsNew';
+import type { Release, WhatsNewAction } from './model/whatsNew';
+import { markSeen, mayHaveUnseen } from './model/whatsNewSeen';
 import { fmtTime } from './util/format';
 import type { CadShow } from './components/cad/cadObjectMenus';
 type DiagramMode = 'system' | 'board' | 'earthing' | 'riser';
@@ -340,7 +341,16 @@ export default function App() {
     try { const v = await chooseDrawing(); if (v) { cadS.open(v); setStatus(`${v.file} opened`); } } catch (e) { setStatus(e instanceof Error ? e.message : String(e)); }
   };
   // What's new: the releases this computer has not seen yet, shown once after an update; Help opens it again.
-  const [whatsNew, setWhatsNew] = useState<Release[]>(() => pendingReleases(__APP_VERSION__));
+  // The release list is a long text that is rarely needed: it is read only when this version was not seen yet,
+  // or when What's new is opened.
+  const [whatsNew, setWhatsNew] = useState<Release[]>([]);
+  useEffect(() => {
+    if (!mayHaveUnseen(__APP_VERSION__)) return;
+    let gone = false;
+    void import('./model/whatsNew').then((m) => { if (!gone) setWhatsNew(m.pendingReleases(__APP_VERSION__)); }).catch(() => undefined);
+    return () => { gone = true; };
+  }, []);
+  const showLatestRelease = () => void import('./model/whatsNew').then((m) => setWhatsNew(m.RELEASES.slice(0, 1))).catch(() => undefined);
   const closeWhatsNew = () => { markSeen(__APP_VERSION__); setWhatsNew([]); };
   // Design CAD → Output: the dialog open, and the sheet Plot acts on (the open sheet, or the layout's on its paper).
   const [outputDlg, setOutputDlg] = useState<OutputDialog | null>(null);
@@ -1093,7 +1103,7 @@ export default function App() {
     cmd('Design CAD…', () => setView('cad'), undefined, 'floor plan open DWG DXF architect plan CAD drawing measure');
     cmd('Open drawing in Design CAD…', () => void openCad(), undefined, 'CAD DWG DXF open drawing model space layers snap');
     cmd('New drawing in Design CAD', () => cadDo((x) => x.newDrawing()), undefined, 'CAD DWG DXF new blank drawing NEW QNEW');
-    cmd('What\'s new…', () => setWhatsNew(RELEASES.slice(0, 1)), undefined, 'release notes update changes new features version');
+    cmd('What\'s new…', showLatestRelease, undefined, 'release notes update changes new features version');
     cmd('Cable routes in Design CAD…', () => cadTool('cable'), undefined, 'Floor plan DWG DXF route measure length cable lengths');
     cmd('Board locations in Design CAD…', () => { cadS.setDevice('db'); cadTool('dev'); }, undefined, 'Floor plan DWG DXF room level position place board');
     cmd('Cable trays in Design CAD…', () => cadTool('tray'), undefined, 'Floor plan DWG DXF cable tray route length fittings');
@@ -1713,7 +1723,7 @@ export default function App() {
                 void openDrawing(r.file, new TextEncoder().encode(r.dxf)).then((v) => { cadS.open(v); setView('cad'); setStatus(`${r.template.name} open in Design CAD: draw on it, then TBSAVE (or Save as template on the Properties palette)`); })
                   .catch((e: unknown) => setStatus(e instanceof Error ? e.message : String(e)));
               }} />}
-            {view === 'help' && <HelpView project={project} run={run} stale={staleKeys} saved={!!currentFile && !dirty} onGo={(v) => (v === 'settings' ? setShowSettings(true) : setView(v))} onWhatsNew={() => setWhatsNew(RELEASES.slice(0, 1))} />}
+            {view === 'help' && <HelpView project={project} run={run} stale={staleKeys} saved={!!currentFile && !dirty} onGo={(v) => (v === 'settings' ? setShowSettings(true) : setView(v))} onWhatsNew={showLatestRelease} />}
             {view === 'dashboard' && (
               <ProjectDashboard
                 project={project}

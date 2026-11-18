@@ -8,7 +8,7 @@ pub mod doc;
 
 use acadrust::entities::mtext_format::parse_mtext;
 use acadrust::entities::{BoundaryEdge, BoundaryPath, EntityCommon, EntityType};
-use acadrust::{CadDocument, DwgReader, DxfReader};
+use acadrust::{CadDocument, DwgReadOptions, DwgReader, DxfReader, DxfReaderConfiguration};
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::io::Cursor;
@@ -89,16 +89,34 @@ fn item(e: &EntityType) -> Option<Item> {
     })
 }
 
-/// Reads a DWG (starts with "AC10") or DXF drawing.
-pub fn read(bytes: Vec<u8>) -> Result<Drawing, String> {
-    let dwg = bytes.starts_with(b"AC10");
-    let doc: CadDocument = if dwg {
-        DwgReader::from_stream(Cursor::new(bytes)).read().map_err(|e| e.to_string())?
+/// Reads a DWG (starts with "AC10") or DXF drawing. A file with a few records that do not read (an object of another
+/// program's class written short, say) is read again leniently: those records are left out, not the whole drawing. A
+/// file the lenient read also refuses, or reads as nothing drawn, is an error, with the first read's message.
+pub fn read_document(bytes: Vec<u8>) -> Result<(CadDocument, &'static str), String> {
+    let drawn = |d: CadDocument| if d.entity_count() > 0 { Some(d) } else { None };
+    if bytes.starts_with(b"AC10") {
+        match DwgReader::from_stream(Cursor::new(&bytes[..])).read() {
+            Ok(d) => Ok((d, "DWG")),
+            Err(e) => DwgReader::from_stream_with_options(Cursor::new(bytes), DwgReadOptions::failsafe()).read().ok().and_then(drawn)
+                .map(|d| (d, "DWG")).ok_or_else(|| e.to_string()),
+        }
     } else {
-        DxfReader::from_reader(Cursor::new(bytes)).and_then(|r| r.read()).map_err(|e| e.to_string())?
-    };
+        match DxfReader::from_reader(Cursor::new(bytes.clone())).and_then(|r| r.read()) {
+            Ok(d) => Ok((d, "DXF")),
+            Err(e) => {
+                let lenient = DxfReaderConfiguration { failsafe: true, ..DxfReaderConfiguration::default() };
+                DxfReader::from_reader(Cursor::new(bytes)).and_then(|r| r.with_configuration(lenient).read()).ok().and_then(drawn)
+                    .map(|d| (d, "DXF")).ok_or_else(|| e.to_string())
+            }
+        }
+    }
+}
+
+/// Reads a DWG or DXF drawing (see `read_document`).
+pub fn read(bytes: Vec<u8>) -> Result<Drawing, String> {
+    let (doc, format) = read_document(bytes)?;
     Ok(Drawing {
-        format: if dwg { "DWG" } else { "DXF" },
+        format,
         units: doc.header.insertion_units,
         entities: doc.model_space_entities().filter_map(item).collect(),
     })
