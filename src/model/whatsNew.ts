@@ -18,6 +18,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.203', date: '2026-11-18',
+    items: [
+      { title: 'SLD: kWh meter clear of the cable text', text: 'A kWh meter on a way now has its own row inside the panel, like the ELCB, so it no longer sits on the cable text. On a way with both, the meter is under the ELCB. The meter is drawn a little larger, so "kWh" fits its box. The same applies in the DXF / DWG export.' }
+    ]
+  },
+  {
     version: '2.202', date: '2026-11-18',
     items: [
       { title: 'Design CAD: symbol letters at their size', text: 'The letters in the device palette\'s symbols (F, EF, FL, C, 15 and others) drew far too large, over the buttons. They now draw at symbol size. The same fix keeps texts at their size and black in the block previews of the Blocks palette and in the Multileader and Dimension style previews.', action: 'cad', actionLabel: 'Open Design CAD' }

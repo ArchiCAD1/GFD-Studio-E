@@ -91,6 +91,40 @@ describe.each([['dewa', ELCB_ROW.dewa], ['standard', ELCB_ROW.standard]] as cons
   });
 });
 
+describe.each([['dewa', ELCB_ROW.dewa], ['standard', ELCB_ROW.standard]] as const)('kWh meter on the System diagram (%s style)', (style, row) => {
+  const sym = (g: Element, id: string) => g.querySelector(`[data-sym="${id}"]`)!;
+
+  it('draws the meter in its own row, above the cable text that moved down a row', () => {
+    const metered = drawn({ rcdMa: 0, kwhMeter: 'CT' }, style), without = drawn({ rcdMa: 0 }, style);
+    const g = metered.way(ELCB), x = num(lineOf(g), 'x1'), busY = num(lineOf(g), 'y1');
+    const kwh = sym(g, 'kwh'), box = kwh.querySelector('rect')!;
+    expect([num(kwh, 'data-sym-y'), num(kwh, 'data-sym-s')]).toEqual([busY + 62, 0.75]);
+    expect(num(sym(g, 'ct'), 'data-sym-y')).toBe(busY + 62);
+    // The word fits its box (7.5 px "kWh" is about 15 wide) and the CT label is clear of it.
+    expect(num(box, 'width')).toBeGreaterThanOrEqual(20);
+    expect(num(textOf(g, 'CT')!, 'x')).toBeGreaterThan(num(box, 'x') + num(box, 'width'));
+    expect(num(box, 'x')).toBeGreaterThan(x);
+    for (const id of [ELCB, PLAIN]) expect(num(cableText(metered.way(id)), 'y') - num(cableText(without.way(id)), 'y')).toBe(row);
+    expect(num(box, 'y') + num(box, 'height')).toBeLessThan(num(cableText(g), 'y') - 9); // a text height clear
+    if (style === 'dewa') {
+      const frame = [...metered.host.querySelectorAll('.panel-frame')].find((f) => f.querySelector('title')?.textContent?.startsWith('SMDB-FF'))!.querySelector('rect.frame-ln')!;
+      expect(num(box, 'y') + num(box, 'height')).toBeLessThan(num(frame, 'y') + num(frame, 'height')); // inside the panel, above the gland
+    }
+  });
+
+  it('puts the meter a row below the ELCB unit on the same way', () => {
+    const both = drawn({ rcdMa: 30, kwhMeter: '3-PH' }, style), unit = drawn({ rcdMa: 30 }, style);
+    const g = both.way(ELCB), busY = num(lineOf(g), 'y1');
+    expect(num(sym(g, 'kwh'), 'data-sym-y')).toBe(busY + 62 + row);
+    // Clear of the ELCB box above it and a text height above the cable text.
+    const elcbBox = [...g.querySelectorAll('rect.sym')].find((r) => num(r, 'width') === 34)!, meterBox = sym(g, 'kwh').querySelector('rect')!;
+    expect(num(meterBox, 'y')).toBeGreaterThan(num(elcbBox, 'y') + num(elcbBox, 'height'));
+    expect(num(meterBox, 'y') + num(meterBox, 'height')).toBeLessThan(num(cableText(g), 'y') - 9);
+    expect(g.querySelector('[data-sym="ct"]')).toBeNull();
+    expect(num(cableText(g), 'y') - num(cableText(unit.way(ELCB)), 'y')).toBe(row);
+  });
+});
+
 describe('simple icons mode', () => {
   it('keeps the plain box at y + 18 and the boxed ELCB beside the breaker', () => {
     const { way } = drawn({ rcdMa: 30 }, 'dewa', 'simple');

@@ -17,7 +17,7 @@ import { boardSummary, loadTypeOf } from '../calc/summary';
 import { failReasons, quickFixes } from '../calc/quickFix';
 import { boardLocation } from '../model/levels';
 import { boardPhaseKw } from '../calc/loadSchedule';
-import { DEWA_EXTRA_Y, LEAF_W, layoutSystem } from '../diagram/layout';
+import { DEWA_EXTRA_Y, ELCB_ROW, LEAF_W, layoutSystem } from '../diagram/layout';
 import { panelSummary } from '../docs/mdSheet';
 import { cpcOf } from '../calc/cableTable';
 import LoadIcon from './LoadIcon';
@@ -1321,8 +1321,7 @@ export default function SystemDiagram({
           const endY = n.childBoardId ? (headOf.get(n.childBoardId) ?? y + layout.levelH) - 58 : y + 76 + ex;
           const tagY = dewa ? 16 : 0; // DEWA: cable text takes two lines
           const cadSlot = cadSlots.get(f.id) ?? LEAF_W;
-          const cadCableDx = f.kwhMeter && !n.childBoardId ? (f.kwhMeter === 'CT' ? 50 : 35) : 0;
-          const cadCableWidth = Math.max(1, cadSlot - (cableRefs ? 26 : 12) - 7 - cadCableDx);
+          const cadCableWidth = Math.max(1, cadSlot - (cableRefs ? 26 : 12) - 7);
           const cadDeviceWidth = Math.max(1, cadSlot - 26);
           const cable = cableLines(project, f, cableRefs);
           return (
@@ -1363,7 +1362,6 @@ export default function SystemDiagram({
                 y={y + (dewa ? 60 : 52) + ex}
                 data-dxf-max-width={cadCableWidth}
                 data-dxf-dy={dewa ? 3 : 0}
-                data-dxf-dx={cadCableDx}
                 onPointerDown={(e) => onPatchFeeder && e.stopPropagation()}
                 onClick={(e) => {
                   if (!onPatchFeeder || tool === 'pan') return;
@@ -1381,11 +1379,11 @@ export default function SystemDiagram({
                 <g className="cable-ref"><title>{`Cable ${r.ref}: ${r.text}`}</title>
                   <circle cx={n.x - 13} cy={y + (dewa ? 66 : 49) + ex} r="7.5" className="cable-ref-c" />
                   <text x={n.x - 13} y={y + (dewa ? 69 : 52) + ex} textAnchor="middle" className="cable-ref-t">{r.ref}</text>
-                  <text x={n.x + 7} y={y + (dewa ? 68 : 63) + ex} className="acc-t" style={{ fontSize: 8 }} data-dxf-max-width={cadCableWidth} data-dxf-dy={dewa ? 3 : 0} data-dxf-dx={cadCableDx}>{cable[1]}</text>
+                  <text x={n.x + 7} y={y + (dewa ? 68 : 63) + ex} className="acc-t" style={{ fontSize: 8 }} data-dxf-max-width={cadCableWidth} data-dxf-dy={dewa ? 3 : 0}>{cable[1]}</text>
                 </g>); })()}
-              {dewa && !cableRefs && <text className="acc-t" style={{ fontSize: 9 }} x={n.x + 7} y={y + 70 + ex} data-dxf-max-width={cadCableWidth} data-dxf-dy={3} data-dxf-dx={cadCableDx}>{cable[1]}</text>}
+              {dewa && !cableRefs && <text className="acc-t" style={{ fontSize: 9 }} x={n.x + 7} y={y + 70 + ex} data-dxf-max-width={cadCableWidth} data-dxf-dy={3}>{cable[1]}</text>}
               {/* Accessories on the feeder, top to bottom: earth leakage (its
-                  rating goes with the breaker's), metering on the right below
+                  rating goes with the breaker's), metering on the right above
                   the cable text, local isolator just above the load. */}
               {(() => {
                 // Boxed devices on the feeder, to the left of the line (the cable text is on the right).
@@ -1449,15 +1447,17 @@ export default function SystemDiagram({
                 </g>
               )}
               {f.kwhMeter && (() => {
-                // Sub-board incomers: below their result labels.
-                const my = n.childBoardId ? y + 128 + tagY + ex : y + 62 + ex;
+                // In its own row above the cable text, under an ELCB unit's row if the way has one (deviceRows);
+                // sub-board incomers: below their result labels.
+                const my = n.childBoardId ? y + 128 + tagY + ex : y + 62 + (unit ? ELCB_ROW[dewa ? 'dewa' : 'standard'] : 0);
                 return (
                 <g className="acc">
                   <title>{f.kwhMeter === 'CT' ? 'CT-operated kWh meter' : `${f.kwhMeter} direct kWh meter`}</title>
-                  {f.kwhMeter === 'CT' && <Sym id="ct" x={n.x} y={my} s={SYM_SCALE.device} />}
-                  <line x1={n.x + (f.kwhMeter === 'CT' ? 7 : 0)} y1={my} x2={n.x + 10} y2={my} className="ln" style={f.kwhMeter === 'CT' ? { strokeDasharray: '2 1.5' } : undefined} />
-                  <Sym id="kwh" x={n.x + 17} y={my} s={SYM_SCALE.device} />
-                  {f.kwhMeter === 'CT' && <text x={n.x + 27} y={my + 3} className="acc-t">CT</text>}
+                  {/* At the ELCB unit's scale, so the word fits its box. */}
+                  {f.kwhMeter === 'CT' && <Sym id="ct" x={n.x} y={my} s={SYM_SCALE.switch} />}
+                  <line x1={n.x + (f.kwhMeter === 'CT' ? 10.5 : 0)} y1={my} x2={n.x + 13} y2={my} className="ln" style={f.kwhMeter === 'CT' ? { strokeDasharray: '2 1.5' } : undefined} />
+                  <Sym id="kwh" x={n.x + 23.5} y={my} s={SYM_SCALE.switch} />
+                  {f.kwhMeter === 'CT' && <text x={n.x + 37} y={my + 3} className="acc-t">CT</text>}
                 </g>
                 );
               })()}

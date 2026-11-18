@@ -149,14 +149,18 @@ describe('SVG to CAD export geometry', () => {
       // Gland bottom is +51; text cap top is baseline-height in SVG y.
       expect(height - cable.y - cable.height).toBeGreaterThan(busY + 53);
       if (i === 1) {
-        expect(cable.x).toBe(x + 57); // beyond both kWh box and CT label
-        const length = converted.find((t) => /25m/.test(t.text))!;
-        expect(length.x).toBe(x + 57);
+        // The CT meter has its own row under the ELCB unit, above the cable text, which stays where it is on screen.
+        expect(cable.x).toBe(x + 7);
+        expect(converted.find((t) => /25m/.test(t.text))!.x).toBe(x + 7);
+        const sym = (id: string) => Array.from(g.getElementsByTagName('g')).find((e) => e.getAttribute('data-sym') === id)!;
+        const meterY = Number(sym('kwh').getAttribute('data-sym-y'));
+        expect(meterY).toBeGreaterThan(Number(sym('cbct').getAttribute('data-sym-y')));
+        expect(meterY + 12).toBeLessThan(height - cable.y - cable.height); // the kWh box's foot clears the cable text
       }
     });
-    // Metadata leaves live/printable SVG baselines unchanged (the board's ELCB row, one way having an ELCB unit, sits above the cable text).
+    // Metadata leaves live/printable SVG baselines unchanged (the board's two device rows, one way having an ELCB unit and a CT meter, sit above the cable text).
     const first = Array.from(groups[0].getElementsByTagName('text')).find((t) => /4C/.test(t.textContent ?? ''))!;
-    expect(Number(first.getAttribute('y'))).toBe(Number(groups[0].getElementsByTagName('line')[0].getAttribute('y1')) + 60 + ELCB_ROW.dewa);
+    expect(Number(first.getAttribute('y'))).toBe(Number(groups[0].getElementsByTagName('line')[0].getAttribute('y1')) + 60 + 2 * ELCB_ROW.dewa);
   });
 
   it.each(['A4', 'A3', 'A2', 'A1'] as const)('scales busbar widths and fitted text together on %s sheets', (size) => {
