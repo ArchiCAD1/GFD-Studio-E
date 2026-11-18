@@ -1,7 +1,7 @@
 import { cellAt, cellName, colName } from '../calc/sheetFormula';
 import { boardsInSupplyOrder } from '../calc/summary';
 import { projectFormat } from '../model/scheduleFormats';
-import { DEFAULT_WIDTH, edgesOf, mergeAt, sheetValues, shown, type Sheet } from '../model/sheets';
+import { DEFAULT_WIDTH, edgesOf, mergeAt, sheetValues, shown, type Sheet, type SheetPaper } from '../model/sheets';
 import type { Project } from '../types';
 import { discardPending, fillLinked, panelCategoryOf, sheetFromFormat } from './sheetLink';
 
@@ -93,12 +93,23 @@ function sheetTable(sheet: Sheet): string {
   return (head.top > 1 ? table(`<tbody>${trs(1, head.top - 1, true)}</tbody>`) : '') + table(`<thead>${trs(head.top, head.bottom)}</thead><tbody>${trs(head.bottom + 1, rows)}</tbody>`);
 }
 
-/** A print-ready black-and-white document: one page section per sheet, only its used part, fitted to the page width; a sheet that
- * runs over a page has its heading rows again on each page. `title` is only the document's title. */
+/** The CSS page size of each paper, and the name of its page rule in a document that has more than one paper. */
+const PAGE_SIZE: Record<SheetPaper, string> = { A4: 'A4 landscape', 'A4 portrait': 'A4 portrait', A3: 'A3 landscape', 'A3 portrait': 'A3 portrait' };
+const pageName = (paper: SheetPaper) => `p-${paper.toLowerCase().replace(' ', '-')}`;
+
+/** A print-ready black-and-white document: one page section per sheet, only its used part, fitted to the page width, on the sheet's
+ * own paper (A4 landscape when it names none); a sheet that runs over a page has its heading rows again on each page. `title` is only
+ * the document's title. */
 export function sheetsHtml(sheets: Sheet[], title: string): string {
-  const sections = sheets.map((s, i) => `<section${i < sheets.length - 1 ? ' style="page-break-after:always;break-after:page"' : ''}>${sheetTable(s)}</section>`).join('');
+  const paperOf = (s: Sheet): SheetPaper => s.paper ?? 'A4', first = sheets[0] ? paperOf(sheets[0]) : 'A4';
+  // The first sheet's paper is the document's page; a sheet on another paper names a page rule of its own.
+  const others = [...new Set(sheets.map(paperOf))].filter((p) => p !== first);
+  const sections = sheets.map((s, i) => {
+    const css = [...(paperOf(s) !== first ? [`page:${pageName(paperOf(s))}`] : []), ...(i < sheets.length - 1 ? ['page-break-after:always;break-after:page'] : [])];
+    return `<section${css.length ? ` style="${css.join(';')}"` : ''}>${sheetTable(s)}</section>`;
+  }).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-    @page { size: A4 landscape; margin: 10mm; }
+    @page { size: ${PAGE_SIZE[first]}; margin: 10mm; }${others.map((p) => `\n    @page ${pageName(p)} { size: ${PAGE_SIZE[p]}; margin: 10mm; }`).join('')}
     body { font: 8pt Arial, Helvetica, sans-serif; color: #000; background: #fff; margin: 0; }
     table { table-layout: fixed; width: 100%; border-collapse: collapse; }
     td { height: 14pt; padding: 0 2pt; vertical-align: middle; white-space: nowrap; overflow: hidden; border: 0; }

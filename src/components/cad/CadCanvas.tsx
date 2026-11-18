@@ -8,6 +8,7 @@ import { textBaseAt, textCorners } from '../../model/cadText';
 import { SYMBOL_R_MM } from '../../model/cadAnnotate';
 import { symbolBox, symbolGeom } from '../../model/planSymbols';
 import { noteBox } from '../../model/cadMtext';
+import { mleaderNote } from '../../model/cadMleader';
 import { POINT_STYLE_DEFAULT, pointMark, pointRadius, type PointStyle } from '../../model/cadPoints';
 import { attdefAsText, expandAll, type CadBlockDef } from '../../model/cadBlocks';
 import type { PlanCells, PlanCover } from '../elv/elvOverlay';
@@ -571,7 +572,9 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
       ctx.save(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.textBaseline = 'alphabetic';
       try { drawWords(it); } finally { ctx.restore(); }
     };
-    const drawWords = (it: SketchItem) => {
+    const drawWords = (it: SketchItem): void => {
+      // A multileader's words are drawn as a note's.
+      if (it.kind === 'mleader') { const n = mleaderNote(it); if (n) drawWords(n); return; }
       if (it.kind === 'mtext') {
         // A note: its lines from the top left of its box, each piece in its weight, underlined ones with a rule; the box
         // outlined while it is picked. Too small to read: a faint bar where each piece is.
