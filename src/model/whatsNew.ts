@@ -1,5 +1,8 @@
 /** What each release added, in plain words, for the What's new window shown once after an update (and from Help).
  * Add the new version at the top of RELEASES with each release batch, one line per feature. */
+import { SEEN_KEY } from './whatsNewSeen';
+
+export { markSeen } from './whatsNewSeen';
 
 export type WhatsNewAction = 'cad' | 'sheets' | 'floor-plan' | 'floor-plan-lengths' | 'floor-plan-trays' | 'floor-plan-boards';
 
@@ -1333,7 +1336,6 @@ export function unseenReleases(lastSeen: string | undefined, current: string, us
   return upTo.filter((r) => compareVersions(r.version, lastSeen) > 0);
 }
 
-const SEEN_KEY = 'lvds.whatsNewSeen';
 
 /** The releases this computer has not seen yet (localStorage; an app with other saved settings was used before). */
 export function pendingReleases(current: string): Release[] {
@@ -1348,6 +1350,3 @@ export function pendingReleases(current: string): Release[] {
   }
 }
 
-export function markSeen(current: string): void {
-  try { localStorage.setItem(SEEN_KEY, current); } catch { /* storage refused: shown again next time */ }
-}
