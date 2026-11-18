@@ -247,6 +247,7 @@ export interface Feeder {
    * treated as sockets (the stricter case). The load type alone never makes it 'fixed'. */
   circuitPurpose?: 'sockets' | 'fixed';
   rcdMa?: number; // earth leakage protection (RCD / ELCB / RCBO) on this feeder, IΔn in mA
+  rcbo?: boolean; // DB circuit: the breaker is an RCBO instead of an MCB; it leaves the ELCB of its ways (IΔn = rcdMa, else Auto); 1-phase only
   localIsolator?: boolean; // isolator at the equipment end (e.g. AC unit, pump)
   capSteps?: number; // capacitor bank: number of steps
   detunedPct?: number; // capacitor bank: detuning reactor, % (e.g. 7)
@@ -448,7 +449,12 @@ export interface Board {
   elcbGroupSize?: 0 | 3 | 6; // circuits per ELCB: 3 = one per way, 6 = one per two ways, 0 = none
   elcbRatingA?: number; // override; default from the group's load
   elcbSensitivityMa?: number; // override; default by circuit type (lighting 100 mA, power 30 mA)
+  /** ELCBs placed by hand over whole ways; the board's "ELCB per" grouping covers the ways between them. */
+  elcbs?: BoardElcb[];
 }
+
+/** An ELCB (RCCB) placed by hand over whole ways of a DB (R, Y and B of each way). */
+export interface BoardElcb { id: string; fromWay: number; toWay: number; poles?: 3 | 4; ratingA?: number; sensitivityMa?: number }
 
 /** One CAD block name → the library item (Loads.xlsx reference) it is, and how many it counts as (twin socket: 2). */
 export interface CadBlockMap { block: string; reference: string; per?: number }

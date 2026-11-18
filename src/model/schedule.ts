@@ -1,6 +1,6 @@
-import { circuitCategory, circuitRef, circuitWatts, dominantLoadType, minWireMm2, nextFreeSlot, normalizeLoadItems, pointsWithItems, scheduleCircuits, SINGLE_PHASES } from '../calc/loadSchedule';
+import { circuitCategory, circuitRef, circuitWatts, dominantLoadType, elcbSections, minWireMm2, nextFreeSlot, normalizeLoadItems, pointsWithItems, scheduleCircuits, SINGLE_PHASES } from '../calc/loadSchedule';
 import { applyRecommendation, recommend } from '../calc/sizing';
-import type { Feeder, Phase, Project } from '../types';
+import type { Board, Feeder, Phase, Project } from '../types';
 import { reslotSpares } from './spareWays';
 
 /** Feeder id for a schedule circuit: board + circuit reference, e.g. DB-GF1-R3. */
@@ -107,18 +107,33 @@ export function refreshBoard(project: Project, boardId: string): Project {
  *    lighting (100 mA) and power (30 mA) — spare slots are left if needed;
  *  - within a section, largest circuit first onto the lightest phase (phase
  *    totals carry over between sections, so the whole DB balances);
+ *  - circuits under an ELCB placed by hand stay where they are (their load counts first) and the others fill the ways
+ *    that are left, each section starting on the next automatic ELCB section;
  *  - 3-phase circuits are power and take whole ways at the start of the
  *    power section.
  * Circuit ids are renamed to match their new references. Spares and spaces
  * then take the free slots after the circuits. */
 export function balancePhases(project: Project, boardId: string): Project {
   const board = project.boards.find((b) => b.id === boardId);
-  const waysPerGroup = Math.max(1, (board?.elcbGroupSize ?? 6) / 3);
-  const circuits = scheduleCircuits(project, boardId);
+  const hand = board?.elcbs ?? [];
+  const covered = (w: number) => hand.some((h) => h.fromWay <= w && w <= h.toWay);
+  const all = scheduleCircuits(project, boardId);
+  const circuits = all.filter((f) => !covered(f.way!));
   const kw = (f: Feeder) => f.loadKw * f.demandFactor;
   const load = { R: 0, Y: 0, B: 0 };
+  for (const f of all.filter((x) => covered(x.way!))) {
+    if (f.phase === 'RYB') SINGLE_PHASES.forEach((p) => (load[p] += kw(f) / 3));
+    else load[f.phase as 'R' | 'Y' | 'B'] += kw(f);
+  }
+  // The ways circuits may take (not under a hand ELCB), and where each automatic ELCB section starts in that list.
+  const limit = Math.max(0, ...hand.map((h) => h.toWay)) + circuits.length + 6;
+  const freeWays: number[] = [];
+  for (let w = 1; w <= limit; w++) if (!covered(w)) freeWays.push(w);
+  const per = (board?.elcbGroupSize ?? 6) / 3;
+  const starts = per && board ? elcbSections(board as Board, limit).filter((s) => !s.elcb).map((s) => freeWays.indexOf(s.ways[0])) : freeWays.map((_, i) => i);
+  const nextStart = (pos: number) => starts.find((s) => s >= pos) ?? pos;
   const renamed = new Map<string, Feeder>();
-  let startWay = 1;
+  let cur = 0;
 
   for (const cat of ['lighting', 'power'] as const) {
     const inCat = circuits.filter((f) => circuitCategory(f) === cat);
@@ -126,7 +141,7 @@ export function balancePhases(project: Project, boardId: string): Project {
     const three = inCat.filter((f) => f.phase === 'RYB');
     const single = inCat.filter((f) => f.phase !== 'RYB').sort((a, b) => kw(b) - kw(a));
     three.forEach((f, i) => {
-      renamed.set(f.id, { ...f, phase: 'RYB', way: startWay + i });
+      renamed.set(f.id, { ...f, phase: 'RYB', way: freeWays[cur + i] });
       SINGLE_PHASES.forEach((p) => (load[p] += kw(f) / 3));
     });
     const byPhase: Record<'R' | 'Y' | 'B', Feeder[]> = { R: [], Y: [], B: [] };
@@ -136,10 +151,10 @@ export function balancePhases(project: Project, boardId: string): Project {
       load[p] += kw(f);
       byPhase[p].push(f);
     }
-    const first = startWay + three.length;
-    for (const p of SINGLE_PHASES) byPhase[p].forEach((f, i) => renamed.set(f.id, { ...f, phase: p, way: first + i }));
+    const first = cur + three.length;
+    for (const p of SINGLE_PHASES) byPhase[p].forEach((f, i) => renamed.set(f.id, { ...f, phase: p, way: freeWays[first + i] }));
     const used = three.length + Math.max(...SINGLE_PHASES.map((p) => byPhase[p].length));
-    startWay += Math.ceil(used / waysPerGroup) * waysPerGroup; // next section starts on an ELCB boundary
+    cur = nextStart(cur + used); // next section starts on an ELCB boundary
   }
 
   const feeders = project.feeders.map((f) => {

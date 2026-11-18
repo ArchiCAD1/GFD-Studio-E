@@ -1,7 +1,7 @@
 import { STATUS_TEXT } from '../calc/statusText';
 import { cables } from '../calc/cableTable';
 import { cpcOf } from '../calc/earthing';
-import { itemizedTypes, normalizeLoadItems, pointColumns, pointWattsFor, SINGLE_PHASES } from '../calc/loadSchedule';
+import { elcbSections, isRcbo, itemizedTypes, normalizeLoadItems, pointColumns, pointWattsFor, SINGLE_PHASES } from '../calc/loadSchedule';
 import { breakerRatings } from '../calc/sizing';
 import { addCircuit, refreshBoard, updateCircuit, type CircuitPatch } from '../model/schedule';
 import type { Board, Feeder, Phase, PointType, Project, SpareWay } from '../types';
@@ -97,7 +97,7 @@ export function buildDbSheet(project: Project, boardId: string): DbSheet {
     const list = sparesByWay.get(way);
     if (list) list.push(spare); else sparesByWay.set(way, [spare]);
   }
-  const lastWay = Math.max(circuitRows.reduce((m, r) => Math.max(m, r.f.way!), 0), ...spares.map((s) => s.way!));
+  const lastWay = Math.max(circuitRows.reduce((m, r) => Math.max(m, r.f.way!), 0), ...spares.map((s) => s.way!), ...(board.elcbs ?? []).map((h) => h.toWay));
   const waysPerElcb = Math.max(1, (board.elcbGroupSize || 6) / 3);
   const ways = Math.max(waysPerElcb, Math.ceil((lastWay + 1) / waysPerElcb) * waysPerElcb);
   const rows: SheetRow[] = [{ type: 'watts' }];
@@ -177,7 +177,31 @@ export function buildDbSheet(project: Project, boardId: string): DbSheet {
   const merges: Record<string, [number, number]> = { [`${colName(at('incomer'))}${first + 1}`]: [1, count] };
 
   // One ELCB cell per section (all rows of its ways), labelled when it has circuits.
-  if (board.elcbGroupSize) {
+  const handPlaced = !!board.elcbs?.length || circuitRows.some((r) => r.rcbo);
+  if (handPlaced) {
+    // ELCBs placed by hand and RCBOs: a row's cell is its RCBO, else the section holding its way; rows of one cell merge.
+    const sections = elcbSections(board, ways);
+    const wayOf = (row: SheetRow) => (row.type === 'circuit' ? row.feeder.way! : row.type === 'slot' ? row.way : row.type === 'spare' ? row.spare.way! : 0);
+    const keyOf = (row: SheetRow): string => {
+      if (row.type === 'circuit' && isRcbo(row.feeder)) return `rcbo:${row.feeder.id}`;
+      const sec = sections.find((s) => s.ways.includes(wayOf(row)));
+      return sec ? `elcb:${sec.index}` : '';
+    };
+    const labelOf = (key: string): string => {
+      const r = circuitRows.find((x) => `rcbo:${x.f.id}` === key)?.rcbo;
+      if (r) return `RCBO-${r.index} ${r.label}`;
+      const g = key.startsWith('elcb:') ? elcbs.find((x) => x.index === Number(key.slice(5))) : undefined;
+      return g ? `ELCB-${g.index} ${g.label}` : '';
+    };
+    for (let y = first; y < rows.length;) {
+      const key = keyOf(rows[y]);
+      let end = y + 1;
+      while (end < rows.length && keyOf(rows[end]) === key) end++;
+      data[y][at('elcb')] = labelOf(key);
+      if (end - y > 1) merges[`${colName(at('elcb'))}${y + 1}`] = [1, end - y];
+      y = end;
+    }
+  } else if (board.elcbGroupSize) {
     const ysByGroup = new Map<number, number[]>();
     rows.forEach((row, y) => {
       const way = row.type === 'circuit' ? row.feeder.way! : row.type === 'slot' ? row.way : row.type === 'spare' ? row.spare.way! : 0;

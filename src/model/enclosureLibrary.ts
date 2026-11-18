@@ -1,7 +1,7 @@
 import type { Project } from '../types';
 import { BUILTIN_CATALOGUES, type EnclosureCatalogue } from '../calc/enclosure';
 import { breakerTypeOf } from '../calc/earthing';
-import { elcbGroups, scheduleCircuits } from '../calc/loadSchedule';
+import { elcbGroups, isRcbo, scheduleCircuits } from '../calc/loadSchedule';
 import { spareBreaker, spareWaysOf } from './spareWays';
 import { BRAND_DEVICES } from '../data/brandDevices';
 import { pushLibrary } from '../database/librarySync';
@@ -136,7 +136,7 @@ export function neededDevices(project: Project, boardId: string, devices: Device
   const groups = elcbGroups(project, board);
   const inGroup = new Set(groups.flatMap((g) => g.circuits.map((c) => c.id)));
   for (const f of circuits.length ? circuits : project.feeders.filter((x) => x.boardId === boardId)) {
-    const own = !!f.rcdMa && !inGroup.has(f.id);
+    const own = (isRcbo(f) || !!f.rcdMa) && !inGroup.has(f.id);
     const t = breakerTypeOf(f);
     list.push({ kind: own ? 'RCBO' : t === 'MCCB' || t === 'ACB' ? 'MCCB' : 'MCB', poles: f.cores === 2 ? 1 : 3, ratingA: f.breakerRatingA, what: own ? 'Circuit with RCBO' : 'Circuit breaker' });
   }
@@ -147,7 +147,7 @@ export function neededDevices(project: Project, boardId: string, devices: Device
   }
   // An ELCB group covers ways across R, Y and B, so on a three-phase board its RCCB is 4-pole.
   const threePhase = (inc ? inc.cores >= 3 : false) || circuits.some((c) => c.cores !== 2 || c.phase === 'RYB') || new Set(circuits.map((c) => c.phase)).size > 1;
-  for (const g of groups) list.push({ kind: 'RCCB', poles: threePhase || g.circuits.some((c) => c.cores !== 2) ? 4 : 2, ratingA: g.ratingA, what: `ELCB group ${g.index} (${g.sensitivityMa} mA)` });
+  for (const g of groups) list.push({ kind: 'RCCB', poles: g.byHand ? g.poles : threePhase || g.circuits.some((c) => c.cores !== 2) ? 4 : 2, ratingA: g.ratingA, what: `ELCB group ${g.index} (${g.sensitivityMa} mA)` });
   const grouped = new Map<string, NeededDevice>();
   for (const d of list) {
     const key = `${d.kind} ${d.poles}P ${d.ratingA}A`;

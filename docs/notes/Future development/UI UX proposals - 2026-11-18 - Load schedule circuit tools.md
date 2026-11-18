@@ -1,6 +1,6 @@
 # UI UX proposal – Load schedule circuit tools and ELCB / RCD (2026-11-18)
 
-Status: **approved on 2026-11-18** with A, B, D, E as below; C (the 1-phase RCBO) was explained and waits for the user's word. Step 1 is being built.
+Status: **approved on 2026-11-18**, all decisions answered (below). Step 1 in PR 685 (v2.200); step 2 built as v2.201.
 
 Mockup: `docs/mockups/load-schedule-circuit-tools-mockup.html` (image: `load-schedule-circuit-tools-mockup.png`).
 
@@ -27,11 +27,11 @@ The user sent a picture of the DB load distribution schedule (DB-GF1) and asked 
 
 - **A.** 3-phase ELCB: 4-pole (TP&N, as the form prints today) by default with 3-pole as a choice, or 3-pole only? **Answer: 4-pole default, 3-pole as a choice.**
 - **B.** New rows in the next free way, as today (recommended), or after the selected row (renumbers every way below it)? **Answer: next free way.**
-- **C.** 1-phase RCBO in place of the MCB: now, or only the 3-phase ELCB first? **Explained; waiting.**
+- **C.** 1-phase RCBO in place of the MCB: now, or only the 3-phase ELCB first? **Answer: now, in step 2 with the 3-phase ELCB.** Rule from the user: a circuit has an ELCB or an RCBO, never both. An RCBO circuit leaves the ELCB of its ways, and an ELCB placed over its way skips it; the BOQ and enclosure count one RCBO and no MCB.
 - **D.** Intro text only behind the **i**: OK, or keep one short line under the title? **Answer: keep it behind the i; the text is not needed on the page.**
 - **E.** Ribbon keeps Add circuit / Spare as they are (recommended). **Answer: keep.**
 
 ## Suggested build steps (after approval)
 
 1. Compact header and page add buttons (items 1–3): screen only, the commands already exist. The other forms (MD, TCL summary, riser) use the same `Page` header, so they get the i too unless you say otherwise.
-2. Hand-placed ELCB / RCBO (items 4–6): `Board.elcbs` (ways, poles, rating, mA) and the RCBO on the feeder; `elcbGroups` takes them first; ELCB column, PDF, Excel form, BOQ, enclosure and earthing follow; tests for the grouping, ratings and exports.
+2. Hand-placed ELCB / RCBO (items 4–6). Balance phases keeps the circuits under an ELCB placed by hand in their ways and balances the others around them: `Board.elcbs` (ways, poles, rating, mA) and the RCBO on the feeder; `elcbGroups` takes them first; ELCB column, PDF, Excel form, BOQ, enclosure and earthing follow; tests for the grouping, ratings and exports.
