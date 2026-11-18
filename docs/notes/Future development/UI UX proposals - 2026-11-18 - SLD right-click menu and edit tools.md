@@ -1,6 +1,6 @@
 # UI UX proposal – SLD right-click menus and edit tools (2026-11-18)
 
-Status: **proposal, waiting for the user's answers** (Decisions at the end). Nothing is built.
+Status: **approved 2026-11-18 with the five recommended answers** ("Yes, go ahead"): steps 1–4 in order; Shift+drag draws the window and a plain drag keeps panning; Move (M) of a board is done at once with Ctrl+Z; Undo and Redo only on the empty-drawing menu; the "len?" mark shows on the SLD (screen only). Being built, one PR per step.
 
 On 2026-11-18 the user asked which edit tools could be added on the SLD drawing, such as a right-click menu with Move and other operations, and asked for a mockup. The SLD ribbon proposal had listed "a right-click menu on the SLD" as a later idea.
 
