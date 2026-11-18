@@ -41,6 +41,10 @@ import { CO_GEN_REACH, ChangeoverIncomers } from '../diagram/ChangeoverSym';
 import { atsLines, atsOf, changeoverBreakers, isInterlocked } from '../model/changeover';
 import { isFitClick, KEY_STEP, PAN_STEP, useSpaceHeld, viewKey, wheelAction, ZoomChip } from './drawingView';
 import { gridLabel, rmuLabel, rmuRatings } from '../calc/hvSupply';
+import CadMenu from './cad/CadMenu';
+import type { CtxItem } from './cad/cadContextMenu';
+import { sldAction, type sldMenu, type SldTarget } from '../model/sldMenu';
+import { renameProblems } from '../model/renamePanels';
 
 interface Tag {
   text: string;
@@ -318,7 +322,9 @@ export default function SystemDiagram({
   resizable = false,
   fullScreen = false,
   onToggleFullScreen,
-  onDrawing
+  onDrawing,
+  menuFor,
+  onMenu
 }: {
   project: Project;
   /** The project the results were calculated for (the last run). */
@@ -389,6 +395,9 @@ export default function SystemDiagram({
   onToggleFullScreen?: () => void;
   /** Change the drawing settings (symbol style, legend): shows their buttons. */
   onDrawing?: (patch: Partial<DrawingInfo>) => void;
+  /** The right-click menus (sldMenu.ts): what to show for a target, and a picked row. Without them, no menu. */
+  menuFor?: (t: SldTarget, view: { grid: GridStyle; detail: 'auto' | 'all' }) => ReturnType<typeof sldMenu>;
+  onMenu?: (t: SldTarget, action: string, value?: string) => void;
 }) {
   const iec = (project.drawing?.symbols ?? 'iec') === 'iec';
   // DEWA submission style: panel frames, summary boxes (LOC, TCL, DF, MDL), DEWA wording.
@@ -573,11 +582,11 @@ export default function SystemDiagram({
   const [grid, setGrid] = useState<GridStyle>(() => {
     try { const g = localStorage.getItem('sld.grid'); return g === 'dots' || g === 'off' ? g : 'lines'; } catch { return 'lines'; }
   });
-  const nextGrid = () => {
-    const g: GridStyle = grid === 'lines' ? 'dots' : grid === 'dots' ? 'off' : 'lines';
+  const chooseGrid = (g: GridStyle) => {
     setGrid(g);
     try { localStorage.setItem('sld.grid', g); } catch { /* preference only */ }
   };
+  const nextGrid = () => chooseGrid(grid === 'lines' ? 'dots' : grid === 'dots' ? 'off' : 'lines');
   const [height, setHeight] = useState<number | undefined>(() => {
     try { const h = Number(localStorage.getItem('sld.height')); return h >= 300 ? h : undefined; } catch { return undefined; }
   });
@@ -645,6 +654,7 @@ export default function SystemDiagram({
   // Text detail: 'all' (the default) shows every label at every zoom, 'auto' follows the zoom (remembered).
   const [detail, setDetail] = useState<'auto' | 'all'>(() => { try { return localStorage.getItem('lvds.sldDetail') === 'auto' ? 'auto' : 'all'; } catch { return 'all'; } });
   const toggleDetail = () => setDetail((d) => { const v = d === 'auto' ? 'all' : 'auto'; try { localStorage.setItem('lvds.sldDetail', v); } catch { /* ignore */ } return v; });
+  const chooseDetail = (v: 'auto' | 'all') => { setDetail(v); try { localStorage.setItem('lvds.sldDetail', v); } catch { /* ignore */ } };
   const lodAt = (px: number) => (!lod || detail === 'all' ? '' : px < 0.55 ? ' lod-far' : px < 0.8 ? ' lod-mid' : '');
   const lodFont = (px: number) => `${Math.min(22, 10 / px).toFixed(1)}px`;
   const lodLevel = lodAt(pxPerUnit);
@@ -769,6 +779,7 @@ export default function SystemDiagram({
   const space = useSpaceHeld(); // Space + drag pans, even over a board
   const [moving, setMoving] = useState<{ label: string; x: number; y: number } | null>(null);
   const [cableEdit, setCableEdit] = useState<{ id: string; x: number; y: number; size: string; cores: string; length: string; runs: string; type: string } | null>(null);
+  const editCable = (f: Feeder, x: number, y: number) => setCableEdit({ id: f.id, x, y, size: String(f.cableCsaMm2), cores: String(f.cores), length: String(f.lengthM), runs: String(runsOf(f)), type: f.cableType ?? '' });
   const lengthOk = (v: string) => /^\d*\.?\d+$/.test(v.trim().replace(',', '.')) && Number(v.trim().replace(',', '.')) > 0;
   const saveCable = () => {
     if (!cableEdit || !onPatchFeeder || !lengthOk(cableEdit.length)) return;
@@ -782,6 +793,7 @@ export default function SystemDiagram({
     pick.current = { item, label, px: e.clientX, py: e.clientY };
   };
   function onPointerDown(e: React.PointerEvent) {
+    if (e.button === 2) return; // a right-click opens the menu: no pan, no pick
     drag.current = { px: e.clientX, py: e.clientY, vb: view.current, moved: false };
   }
   function onPointerMove(e: React.PointerEvent) {
@@ -912,6 +924,72 @@ export default function SystemDiagram({
     onDropItem(item, a.target);
   }
 
+  // Right-click menus (sldMenu.ts): at the pointer, or by Shift+F10 at the selection. Esc, a click elsewhere, the wheel or
+  // leaving the window closes it.
+  const [menu, setMenu] = useState<{ t: SldTarget; x: number; y: number } | null>(null);
+  const [renaming, setRenaming] = useState<{ from: string; to: string; x: number; y: number } | null>(null);
+  const menuData = menu && menuFor ? menuFor(menu.t, { grid, detail }) : null;
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const away = (e: Event) => { if (!(e.target as Element | null)?.closest?.('.cad-menu')) close(); };
+    window.addEventListener('pointerdown', away, true);
+    window.addEventListener('wheel', away, { capture: true, passive: true });
+    window.addEventListener('blur', close);
+    return () => { window.removeEventListener('pointerdown', away, true); window.removeEventListener('wheel', away, true); window.removeEventListener('blur', close); };
+  }, [menu]);
+  const openMenu = (t: SldTarget, clientX: number, clientY: number) => {
+    const r = rootRef.current?.getBoundingClientRect();
+    if (!r) return;
+    setCard(null);
+    setRenaming(null);
+    setMenu({ t, x: clientX - r.left, y: clientY - r.top });
+  };
+  /** What a right-click landed on: a bus coupler, a transformer, a load (an incomer is its board), a board, or the empty drawing. */
+  function onContextMenu(e: React.MouseEvent) {
+    if (armed && onDropItem) { e.preventDefault(); setArmedItem(null); return; }
+    if (!menuFor) return;
+    e.preventDefault();
+    const hit = (e.target as Element).closest('g.tie, g.tx, g.fd, g.bd');
+    const id = hit?.getAttribute('data-lv-id')?.split(':').slice(1).join(':');
+    let t: SldTarget = { kind: 'canvas' };
+    if (hit?.classList.contains('tie') && hit.getAttribute('data-tie')) t = { kind: 'tie', id: hit.getAttribute('data-tie')! };
+    else if (hit?.classList.contains('tx') && id) { t = { kind: 'supply', boardId: id }; onSelectBoard(id); }
+    else if (hit?.classList.contains('fd') && id) {
+      const f = project.feeders.find((x) => x.id === id);
+      if (f?.feedsBoardId) { t = { kind: 'board', id: f.feedsBoardId }; onSelectBoard(f.feedsBoardId); } else if (f) { t = { kind: 'feeder', id }; onSelectFeeder(id); }
+    } else if (hit?.classList.contains('bd') && id) { t = { kind: 'board', id }; onSelectBoard(id); }
+    openMenu(t, e.clientX, e.clientY);
+  }
+  /** What is selected, as a menu target (a board's incomer is the board). */
+  function selectedTarget(): SldTarget | null {
+    const f = selectedFeederId ? project.feeders.find((x) => x.id === selectedFeederId) : undefined;
+    if (f) return f.feedsBoardId ? { kind: 'board', id: f.feedsBoardId } : { kind: 'feeder', id: f.id };
+    return selectedBoardId ? { kind: 'board', id: selectedBoardId } : null;
+  }
+  /** Shift+F10 / the menu key: the menu of the selection, at its centre (else the drawing's). */
+  function openMenuAtSelection() {
+    const t = selectedTarget() ?? { kind: 'canvas' as const };
+    const el = t.kind === 'board' ? svgRef.current?.querySelector(`g.bd[data-lv-id="board:${t.id}"]`) : t.kind === 'feeder' ? svgRef.current?.querySelector(`g.fd[data-lv-id="feeder:${t.id}"]`) : null;
+    const b = (el ?? svgRef.current)?.getBoundingClientRect();
+    if (b) openMenu(t, b.left + b.width / 2, b.top + b.height / 2);
+  }
+  /** A picked row: the drawing's own view actions here, everything else to the page. */
+  function pickMenu(x: CtxItem) {
+    const m = menu;
+    if (!m) return;
+    setMenu(null);
+    const [a, v] = sldAction(x);
+    if (a === 'fit') setVb(full);
+    else if (a === 'grid' && (v === 'lines' || v === 'dots' || v === 'off')) chooseGrid(v);
+    else if (a === 'text' && (v === 'auto' || v === 'all')) chooseDetail(v);
+    else if (a === 'editcable' && m.t.kind === 'feeder') { const f = project.feeders.find((q) => q.id === (m.t as { id: string }).id); if (f) editCable(f, m.x, m.y); }
+    else if (a === 'rename' && m.t.kind === 'board') setRenaming({ from: m.t.id, to: m.t.id, x: m.x, y: m.y });
+    else onMenu?.(m.t, a, v);
+  }
+  const renameProblemsNow = renaming ? renameProblems(project, [{ from: renaming.from, to: renaming.to.trim() }]) : [];
+  const renameOk = !!renaming && renaming.to.trim() !== renaming.from && !renameProblemsNow.length;
+
   const click = (fn: () => void) => () => {
     if (!drag.current?.moved && tool !== 'pan') fn();
   };
@@ -924,8 +1002,17 @@ export default function SystemDiagram({
       data-doc-id="sld-canvas"
       className={`sysdiag ${tool === 'pan' ? 'pan' : ''}${armed && onDropItem ? ' armed' : ''}${dropCls('canvas')}${stale ? ' stale' : ''}${lodLevel}`}
       tabIndex={0}
-      aria-label="Single line diagram. Plus and minus zoom, F or 0 fits, arrow keys pan, G changes the grid."
+      aria-label="Single line diagram. Plus and minus zoom, F or 0 fits, arrow keys pan, G changes the grid, Shift+F10 opens the menu."
       onKeyDown={(e) => {
+        if (menuFor && !menu && !(e.target as HTMLElement).closest('input,select,textarea,button,[contenteditable="true"]')) {
+          const sel = selectedTarget();
+          if ((e.shiftKey && e.key === 'F10') || e.key === 'ContextMenu') { e.preventDefault(); openMenuAtSelection(); return; }
+          if (sel && onMenu && !e.shiftKey) {
+            if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); onMenu(sel, 'zoom'); return; }
+            if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); onMenu(sel, 'order', e.key === 'ArrowLeft' ? 'left' : 'right'); return; }
+            if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); onMenu(sel, 'duplicate'); return; }
+          }
+        }
         // Keyboard zoom and pan while the drawing (or a board or circuit on it) has focus; not in text boxes or buttons.
         if (e.ctrlKey || e.metaKey || e.altKey || (e.target as HTMLElement).closest('input,select,textarea,button,[contenteditable="true"]')) return;
         const k = viewKey(e);
@@ -982,6 +1069,7 @@ export default function SystemDiagram({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onContextMenu={onContextMenu}
         onMouseDown={(e) => { if (e.button === 1) e.preventDefault(); }}
         onAuxClick={(e) => { if (isFitClick(e)) setVb(full); }}
         onPointerLeave={(e) => { onPointerUp(e); if (armed) { setHover(null); setInsertAt(null); } }}
@@ -1264,7 +1352,7 @@ export default function SystemDiagram({
           const run = scenario?.outage?.tie?.id === t.id ? scenario.outage.tie : undefined;
           const shut = !!run || !!t.closed;
           return (
-            <g key={t.id} className={`tie${run ? ' closed' : ''}`} onClick={click(() => onEditTie?.(t.id))}>
+            <g key={t.id} className={`tie${run ? ' closed' : ''}`} data-tie={t.id} onClick={click(() => onEditTie?.(t.id))}>
               <title>{`${t.id}: bus coupler ${t.ratingA} A, ${run ? 'closed' : t.closed ? 'normally closed — transformers in parallel' : 'normally open'} — click to change or remove`}</title>
               <line x1={x1} y1={y} x2={mx - 9} y2={y} className="tie-ln" data-dxf-layer="BUSBAR" />
               <line x1={mx + 9} y1={y} x2={x2} y2={y} className="tie-ln" data-dxf-layer="BUSBAR" />
@@ -1367,7 +1455,7 @@ export default function SystemDiagram({
                   if (!onPatchFeeder || tool === 'pan') return;
                   e.stopPropagation();
                   const r = svgRef.current!.parentElement!.getBoundingClientRect();
-                  setCableEdit({ id: f.id, x: e.clientX - r.left, y: e.clientY - r.top, size: String(f.cableCsaMm2), cores: String(f.cores), length: String(f.lengthM), runs: String(runsOf(f)), type: f.cableType ?? '' });
+                  editCable(f, e.clientX - r.left, e.clientY - r.top);
                 }}
               >
                 {onPatchFeeder && <title>Click to change the cable</title>}
@@ -1951,7 +2039,7 @@ export default function SystemDiagram({
         </div>
       )}
       {moving && <div className="move-ghost" style={{ left: moving.x + 14, top: moving.y + 10 }}>Move {moving.label}{hover ? '' : ' — drop on a busbar or feeder'}</div>}
-      {card && !moving && !cableEdit && (() => {
+      {card && !moving && !cableEdit && !menu && (() => {
         const W = 270;
         const host = svgRef.current?.parentElement?.getBoundingClientRect();
         const left = Math.max(4, Math.min(card.x + 16, (host?.width ?? 800) - W - 4));
@@ -2003,6 +2091,25 @@ export default function SystemDiagram({
           </div>
         );
       })()}
+      {menu && menuData && <CadMenu left={menu.x + 4} top={menu.y + 4} head={menuData.head} items={menuData.items} label={menuData.label} onPick={pickMenu} onClose={() => setMenu(null)} />}
+      {renaming && (
+        <form
+          className="cable-edit"
+          style={{ left: renaming.x, top: renaming.y + 8 }}
+          onSubmit={(e) => { e.preventDefault(); if (renameOk) { onMenu?.({ kind: 'board', id: renaming.from }, 'rename', renaming.to.trim()); setRenaming(null); } }}
+          onKeyDown={(e) => e.key === 'Escape' && setRenaming(null)}
+        >
+          <b>Rename {renaming.from}</b>
+          <label>New name
+            <input autoFocus value={renaming.to} aria-invalid={renameProblemsNow.length > 0} onChange={(e) => setRenaming({ ...renaming, to: e.target.value })} onFocus={(e) => e.target.select()} />
+          </label>
+          {renameProblemsNow.map((m) => <div key={m} className="m">{m}</div>)}
+          <div className="cable-edit-actions">
+            <button type="button" className="chip" onClick={() => setRenaming(null)}>Cancel</button>
+            <button type="submit" className="chip primary" disabled={!renameOk}>Apply</button>
+          </div>
+        </form>
+      )}
       {cableEdit && (
         <form
           className="cable-edit"
