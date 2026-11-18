@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CadObject, CadView } from '../engines/cad/cadEngine';
-import { outlinePoints, planOfView } from './cadViewPlan';
+import { layerStatsOf, outlinePoints, planOfView } from './cadViewPlan';
 
 // A square (4 segments) and a hatch with an island: its second loop is left out. Segments are relative to the origin.
 const segs = new Float32Array([0, 0, 4, 0, 4, 0, 4, 3, 4, 3, 0, 3, 0, 3, 0, 0, /* hatch */ 10, 0, 12, 0, 12, 0, 12, 2, 12, 2, 10, 0, 11, 1, 11.5, 1, 11.5, 1, 11, 1]);
@@ -25,5 +25,18 @@ describe('a Design CAD drawing as a plan', () => {
       { name: 'A-ROOM-NAME', curves: 0, texts: 1, outlines: 0, hatches: 0, blocks: 0 },
       { name: 'A-HATCH', curves: 5, texts: 0, outlines: 0, hatches: 1, blocks: 0 }
     ]);
+  });
+
+  it('counts what each of thousands of layers holds', () => {
+    const layers = Array.from({ length: 2000 }, (_, i) => ({ name: `L${i}`, rgb: 0, on: true, count: i % 3 }));
+    const texts = Array.from({ length: 20000 }, (_, i) => ({ x: 0, y: 0, h: 1, rot: 0, s: 'T', layer: (i * 7) % 2000, rgb: 0, align: 0 }));
+    const closed = Array.from({ length: 30000 }, (_, i) => obj(i, i % 4 ? 'Polyline' : 'Hatch', (i * 13) % 2000, 0, 4));
+    const big = { ...view, info: { ...view.info, layers, texts }, outlines: () => closed } as unknown as CadView;
+    const stats = layerStatsOf(big);
+    const want = layers.map((l, i) => ({
+      name: l.name, curves: l.count, texts: texts.filter((t) => t.layer === i).length,
+      outlines: closed.filter((o) => o.layer === i && o.kind !== 'Hatch').length, hatches: closed.filter((o) => o.layer === i && o.kind === 'Hatch').length, blocks: 0
+    })).filter((l) => l.curves + l.texts > 0);
+    expect(stats).toEqual(want);
   });
 });

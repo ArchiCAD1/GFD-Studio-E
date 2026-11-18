@@ -18,6 +18,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.196', date: '2026-11-18',
+    items: [
+      { title: 'Design CAD: less work for dense drawings', text: 'Design CAD does less work to get a drawing with millions of line pieces ready to show, and lists and counts layers faster in drawings with thousands of them.' }
+    ]
+  },
+
+  {
     version: '2.195', date: '2026-11-18',
     items: [
       { title: 'Folder templates: learn from a job folder', text: 'Profile & preferences → Folder templates has Learn from folder…. Choose one of your old job folders and the app reads its folder names (never your files, and nothing in the folder is changed), suggests which output saves to which folder, leaves revision and date folders out, and keeps your numbering. Check the suggestions, name the template and it opens in the editor to finish.' }

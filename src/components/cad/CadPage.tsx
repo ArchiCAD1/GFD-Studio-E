@@ -708,6 +708,8 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** The drawing's own blocks, and the architect's block names (which a new block cannot take). */
   const defs = useMemo(() => (view ? blockDefsOf(project, view.file) : []), [project, view]);
   const archBlockNames = useMemo(() => (view ? [...new Set(view.blocks().map((b) => b.block))] : []), [view]);
+  /** The drawing's layers that hold texts (listed even without lines), found once rather than per layer each render. */
+  const textLayers = useMemo(() => new Set(view?.info.texts.map((t) => t.layer)), [view]);
   const hitAt = (items: SketchItem[], at: Pt, tol: number) => itemAt(items, at, tol, defs);
   // Snaps come from what shows: objects on layers that are off or frozen are not snapped to (locked ones are).
   const shown = useMemo(() => shownBy(objHide, view?.file), [objHide, view]);
@@ -4898,7 +4900,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
                 <i style={{ background: 'var(--cad-dev)' }} />Devices placed in the app<span className="m">{cad.showDevices ? 'on' : 'off'}</span>
               </button>
             )}
-            {view?.info.layers.map((l, i) => l.count > 0 || view.info.texts.some((t) => t.layer === i) ? (
+            {view?.info.layers.map((l, i) => l.count > 0 || textLayers.has(i) ? (
               <button key={l.name} className={`cad-lyr${archOn[i] ? '' : ' off'}`} aria-pressed={!!archOn[i]} title={`${fmtUpTo(l.count, 0)} lines`} onClick={() => layerChange(applyLayerPatch(project, view.file, [{ name: l.name, group: 'arch', drawingOn: l.on }], { on: !archOn[i] }), `Layer ${l.name} ${archOn[i] ? 'off' : 'on'}`)}>
                 <i style={{ background: hex(l.rgb) }} />{l.name}<span className="m">{archOn[i] ? 'on' : 'off'}</span>
               </button>

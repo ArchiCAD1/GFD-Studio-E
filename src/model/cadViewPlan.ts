@@ -30,13 +30,15 @@ export function objectPath(view: CadView, o: CadObject): Pt[] {
   return pts;
 }
 
-/** What each layer of the drawing holds (only layers that hold something). */
+/** What each layer of the drawing holds (only layers that hold something). Counted in one pass over the texts and
+ * closed objects, not one per layer: a drawing can have thousands of layers. */
 export function layerStatsOf(view: CadView): CadLayerStats[] {
-  const closed = view.outlines();
-  return view.info.layers.map((l, i) => ({
-    name: l.name, curves: l.count, texts: view.info.texts.filter((t) => t.layer === i).length,
-    outlines: closed.filter((o) => o.layer === i && o.kind !== 'Hatch').length, hatches: closed.filter((o) => o.layer === i && o.kind === 'Hatch').length, blocks: 0
-  })).filter((l) => l.curves + l.texts > 0);
+  const n = view.info.layers.length;
+  const texts = new Array<number>(n).fill(0), outlines = new Array<number>(n).fill(0), hatches = new Array<number>(n).fill(0);
+  for (const t of view.info.texts) if (t.layer < n) texts[t.layer] += 1;
+  for (const o of view.outlines()) if (o.layer < n) (o.kind === 'Hatch' ? hatches : outlines)[o.layer] += 1;
+  return view.info.layers.map((l, i) => ({ name: l.name, curves: l.count, texts: texts[i], outlines: outlines[i], hatches: hatches[i], blocks: 0 }))
+    .filter((l) => l.curves + l.texts > 0);
 }
 
 /** The drawing as a plan: outlines on shown layers, texts, layer stats; `units` is the INSUNITS code to read it in. */
