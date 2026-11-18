@@ -27,6 +27,8 @@ export interface Sheet {
   source?: string;
   /** The panel of the project the sheet is linked to. */
   link?: SheetLink;
+  /** The paper its PDF is printed on (Load schedule → Export → PDF: my format); A4 landscape when not set. */
+  paper?: SheetPaper;
 }
 /** A sheet linked to one panel of the project; docs/sheetLink.ts fills it. Field keys are those of docs/scheduleFields. */
 export interface SheetLink {
@@ -48,6 +50,14 @@ export interface SheetLink {
   added?: Record<string, string>[];
 }
 export interface SheetBook { sheets: Sheet[] }
+/** The papers the PDF of a sheet can be printed on, by the names the app shows. */
+export const SHEET_PAPERS = [{ key: 'A4', label: 'A4 landscape' }, { key: 'A4 portrait', label: 'A4 portrait' }, { key: 'A3', label: 'A3 landscape' }, { key: 'A3 portrait', label: 'A3 portrait' }] as const;
+export type SheetPaper = (typeof SHEET_PAPERS)[number]['key'];
+/** The sheet on another paper. A4 landscape, the paper of a sheet that names none, is not kept. */
+export function withPaper(sheet: Sheet, paper: SheetPaper): Sheet {
+  const { paper: _p, ...rest } = sheet;
+  return paper === 'A4' ? rest : { ...rest, paper };
+}
 export interface Area { r0: number; c0: number; r1: number; c1: number }
 
 export const DEFAULT_ROWS = 40, DEFAULT_COLS = 12, DEFAULT_WIDTH = 96, MAX_ROWS = 2000, MAX_COLS = 60;

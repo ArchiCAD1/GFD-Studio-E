@@ -181,3 +181,58 @@ describe('Lightning protection study — parts with their own height', () => {
   });
 });
 
+describe('Lightning protection study — other risk components', () => {
+  it('ticks a component, takes its loss and probability and an incoming line, and shows the risk by component', () => {
+    let last: Project | undefined;
+    const render = (p: Project) => act(() => root.render(<LightningStudy project={p} onChange={(x) => { last = x; render(x); }} />));
+    const box = (label: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+    const type = (label: string, value: string) => act(() => { const el = box(label); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, value); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });
+    const risk = { shape: 'rectangle' as const, thunderDays: 40, strikeRatio: 1, locationFactor: 1, fireRisk: 0.02, fireProvisions: 0.5, specialHazard: 1, typicalLoss: 0.5, tolerableRisk: 1e-5, damageProbability: { none: 1, IV: 0.2, III: 0.1, II: 0.05, I: 0.02 } };
+    render({ ...sampleProject, lightning: { lengthM: 35, widthM: 26, heightM: 8.5, method: 'mesh', risk } });
+    expect(text()).toContain('One risk component only');
+    expect(text()).not.toContain('Incoming line');
+    const line = 'Physical damage — strike on an incoming line';
+    act(() => box(`Count — ${line}`).click());
+    expect(last!.lightning!.risk!.components).toEqual({ damageLine: { on: true } });
+    expect(text()).toContain('incoming lines');
+    act(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Add incoming line')!.click());
+    ([['Length of line 1', '1000'], ['Width for strikes on line 1', '40'], ['Installation factor of line 1', '0.5'], ['Environment factor of line 1', '0.5'], ['Line type factor of line 1', '1'],
+      [`Loss — ${line}`, '0.005'], [`Probability — ${line}`, '0.01']] as const).forEach(([label, value]) => type(label, value));
+    expect(last!.lightning!.risk).toMatchObject({ lines: [{ lengthM: 1000, strikeWidthM: 40, typeFactor: 1 }], components: { damageLine: { on: true, loss: 0.005, probability: 0.01 } } });
+    expect(text()).toContain('Risk per year by component');
+    expect(text()).toContain('8.06 × 10⁻⁶');
+    expect(text()).toContain('Class II (minimum)');
+    expect(text()).toContain('2 risk components');
+    expect(text()).toContain('Risk components included: physical damage — strike on the building; physical damage — strike on an incoming line.');
+
+    act(() => box(`Probability by class — ${line}`).click());
+    expect(text()).toContain('DATA REQUIRED');
+    type(`Probability — ${line} — No protection`, '1');
+    expect(last!.lightning!.risk!.components!.damageLine).toMatchObject({ byClass: true, classProbability: { none: 1 } });
+    act(() => document.querySelector<HTMLButtonElement>('button[aria-label="Remove line 1"]')!.click());
+    expect(last!.lightning!.risk!.lines).toEqual([]);
+  });
+});
+
+describe('Lightning protection study — a probability for each line', () => {
+  it('"By line" moves the probability to a row for each line', () => {
+    let last: Project | undefined;
+    const render = (p: Project) => act(() => root.render(<LightningStudy project={p} onChange={(x) => { last = x; render(x); }} />));
+    const box = (label: string) => document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+    const type = (label: string, value: string) => act(() => { const el = box(label); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, value); el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })); });
+    const name = 'Physical damage — strike on an incoming line', line = { lengthM: 1000, strikeWidthM: 40, installationFactor: 0.5, environmentFactor: 0.5, typeFactor: 1 };
+    render({ ...sampleProject, lightning: { lengthM: 35, widthM: 26, heightM: 8.5, method: 'mesh', risk: { shape: 'rectangle', thunderDays: 40, strikeRatio: 1, locationFactor: 1, fireRisk: 0.02, fireProvisions: 0.5, specialHazard: 1, typicalLoss: 0.5,
+      tolerableRisk: 1e-5, damageProbability: { none: 1, IV: 0.2, III: 0.1, II: 0.05, I: 0.02 }, lines: [{ ...line, name: 'Power' }, { ...line, lengthM: 500 }], components: { damageLine: { on: true, loss: 0.005, probability: 0.05 } } } } });
+    expect(text()).toContain('More than Class I');
+    expect(box(`Probability by line — Injury by touch and step voltage — strike on the building`)).toBeNull();
+    act(() => box(`Probability by line — ${name}`).click());
+    expect(text()).toContain('For each line, below');
+    expect(text()).toContain('probability — physical damage — strike on an incoming line — Power');
+    type(`Probability — ${name} — line 1`, '0.01');
+    type(`Probability — ${name} — line 2`, '0.05');
+    expect(last!.lightning!.risk!.lines!.map((x) => x.probabilities)).toEqual([{ damageLine: { probability: 0.01 } }, { damageLine: { probability: 0.05 } }]);
+    expect(text()).toContain('Class I (minimum)');
+    expect(text()).toContain('7 × 10⁻⁶');
+  });
+});
+

@@ -64,6 +64,9 @@ declare global {
         import: () => Promise<(FolderTemplatesState & { added: number }) | null>;
         /** Shows a save dialog; the saved path, or null when cancelled. */
         export: (templates: import('./model/folderTemplates').FolderTemplate[], defaultName?: string) => Promise<string | null>;
+        /** Learn from folder: a folder dialog, then that folder's folder names (no file names); null when cancelled.
+         * Missing in older desktop builds. */
+        scanNames?: () => Promise<import('./model/folderLearn').FolderScan | null>;
       };
       /** A project's folders on disk (electron/projectFolders.cjs): only new, empty folders are made.
        * Missing in older desktop builds. */

@@ -29,16 +29,14 @@ import { registerHtml } from '../../src/docs/drawingRegister';
 import { buildTransmittalHtml } from '../../src/docs/submissionReport';
 import { issueAsSubmission } from '../../src/model/submissions';
 import { addCircuit } from '../../src/model/schedule';
-import { area, mergeArea, newSheet, withCells, withStyle, type Sheet } from '../../src/model/sheets';
+import { area, mergeArea, newSheet, withCells, withPaper, withStyle, type Sheet } from '../../src/model/sheets';
 import { fillLinked, linkToBoard } from '../../src/docs/sheetLink';
 import { sheetsHtml } from '../../src/docs/sheetPrint';
 import type { Project } from '../../src/types';
 
-/** A DB schedule in an office's own format (Load schedule → Export → PDF: my format), with enough circuits to run over a page:
+/** A DB schedule in an office's own format (Load schedule → Export → PDF: my format), filled from the project:
  * a title, the panel's values, two heading rows with merged cells, one row per circuit and a total. */
-function myFormatHtml(project: Project, boardId: string): string {
-  let p = project;
-  for (let i = 0; i < 36; i++) p = addCircuit(p, boardId).project;
+function myFormatSheet(p: Project, boardId: string): Sheet {
   const at = (r: number, c: number) => ({ r, c });
   let s: Sheet = withCells(newSheet(), {
     A1: 'ACME ELECTRICAL CONSULTANTS', A2: 'LOAD DISTRIBUTION SCHEDULE', A3: 'PANEL: ', E3: 'FED FROM: ',
@@ -51,7 +49,18 @@ function myFormatHtml(project: Project, boardId: string): string {
   s = withStyle(s, area(at(4, 1), at(5, 8)), { bold: true, align: 'center', fill: true, border: 'trbl' });
   s = withStyle(s, area(at(6, 1), at(7, 8)), { border: 'trbl' });
   s = { ...s, widths: { A: 56, B: 260, C: 64, D: 72, E: 72, F: 72, G: 72, H: 200 }, link: { category: 'db', firstRow: 6, rows: [], cells: { A3: { field: 'board.id', before: 'PANEL: ' }, E3: { field: 'board.fedFrom', before: 'FED FROM: ' } }, columns: { A: 'row.ref', B: 'row.room', C: 'row.mcb', D: 'row.wire', E: 'row.R', F: 'row.Y', G: 'row.B', H: 'row.remarks' } } };
-  return sheetsHtml([fillLinked(p, linkToBoard(s, boardId), new Date('2026-10-15T10:00:00Z'))], 'Schedule in my format');
+  return fillLinked(p, linkToBoard(s, boardId), new Date('2026-10-15T10:00:00Z'));
+}
+/** That schedule with enough circuits to run over a page. */
+function myFormatHtml(project: Project, boardId: string): string {
+  let p = project;
+  for (let i = 0; i < 36; i++) p = addCircuit(p, boardId).project;
+  return sheetsHtml([myFormatSheet(p, boardId)], 'Schedule in my format');
+}
+/** That schedule three times in one PDF, each on a paper of its own: A4 landscape (none named), A3 landscape and A4 portrait. */
+function myFormatPapersHtml(project: Project, boardId: string): string {
+  const s = myFormatSheet(project, boardId);
+  return sheetsHtml([s, withPaper(s, 'A3'), withPaper(s, 'A4 portrait')], 'Schedules in my format, by paper');
 }
 
 export function printDocs(project = sampleProject): Record<string, string> {
@@ -79,6 +88,7 @@ export function printDocs(project = sampleProject): Record<string, string> {
     'cable-tray': buildTrayReportHtml(p, plan, sizeAll(p, plan)),
     'db-load-schedule': buildLoadScheduleHtml(p, board.id),
     'schedule-my-format': myFormatHtml(p, board.id),
+    'schedule-my-format-papers': myFormatPapersHtml(p, board.id),
     'md-workbook': workbookHtml(p, buildFormWorkbook(p), 'MD'),
     'cable-schedule': scheduleHtml(p, cableSchedule(p), 'Cable schedule'),
     'dm-d-013': buildDmFormHtml(p, [{ id: 'a', name: 'SS-1', type: 'conventional', transformers: 2 }]),

@@ -205,3 +205,53 @@ describe('lightning risk assessment report — parts with their own height', () 
     expect(html.match(/#[0-9a-f]{3,6}/gi)!.every((c) => /^#(000|fff|444|f2f2f2)$/i.test(c))).toBe(true);
   });
 });
+
+describe('lightning risk assessment report — other risk components', () => {
+  const risk: RiskInputs = { shape: 'rectangle', thunderDays: 40, strikeRatio: 1, locationFactor: 1, fireRisk: 0.02, fireProvisions: 0.5, specialHazard: 1, typicalLoss: 0.5, tolerableRisk: 1e-5,
+    damageProbability: { none: 1, IV: 0.2, III: 0.1, II: 0.05, I: 0.02 }, nearReachM: 500,
+    lines: [{ name: 'Power', lengthM: 1000, strikeWidthM: 40, nearWidthM: 4000, installationFactor: 0.5, environmentFactor: 0.5, typeFactor: 1 }],
+    components: { touchBuilding: { on: true, loss: 1e-4, byClass: true, classProbability: { none: 1, IV: 0.2, III: 0.1, II: 0.05, I: 0.02 } }, damageLine: { on: true, loss: 0.005, probability: 0.01 }, systemsNear: { loss: 1 } } };
+  const villa: LpsInputs = { ...lightning, lengthM: 35, widthM: 26, heightM: 8.5, risk };
+  const p: Project = { ...sampleProject, lightning: villa };
+
+  it('lists the components and the lines as entered, and the risk by component with its total', () => {
+    const blocks = lightningReportBlocks(p, villa, ['risk']);
+    expect(blocks.map((b) => b.title.replace('Risk assessment — ', ''))).toEqual(['preliminary: inputs as entered', 'other risk components as entered', 'incoming lines as entered', 'working', 'risk for each protection class', 'risk per year by component']);
+    expect(blocks[1].table!.rows).toEqual([
+      ['Injury by touch and step voltage — strike on the building', '1 × 10⁻⁴', 'No protection: 1; Class IV: 0.2; Class III: 0.1; Class II: 0.05; Class I: 0.02'],
+      ['Physical damage — strike on an incoming line', '0.005', '0.01']]);
+    expect(blocks[2].table!.rows).toEqual([['Power', '1,000', '40', '4,000', '0.5', '0.5', '1', '—', '—']]);
+    expect(new Map(blocks[0].pairs).get('Density for near and line strikes')).toBe('As for the building');
+    expect(new Map(blocks[0].pairs).has('Distance for strikes near the building')).toBe(false);
+    // Class II: 6.06 × 10⁻⁶ + 1.21 × 10⁻⁷ + 0.04 × 0.01 × 0.005 = 2 × 10⁻⁶.
+    expect(blocks[5].table!.rows.map((r) => [r[0], r[4]])).toEqual([['Physical damage — strike on the building', '6.06 × 10⁻⁶'], ['Injury by touch and step voltage — strike on the building', '1.21 × 10⁻⁷'],
+      ['Physical damage — strike on an incoming line', '2 × 10⁻⁶'], ['Total', '8.19 × 10⁻⁶']]);
+    expect(blocks[4].table!.rows[3]).toEqual(['Class II (minimum)', '0.05', '8.19 × 10⁻⁶', 'OK']);
+    expect(blocks[4].notes![blocks[4].notes!.length - 1]).toContain('Risk components included: physical damage — strike on the building; injury by touch and step voltage');
+    expect(JSON.stringify(blocks)).not.toMatch(/IEC|NFC|62305/);
+  });
+
+  it('workbook: the other components come from the app, the total and the verdict stay live', async () => {
+    const back = new ExcelJS.Workbook();
+    await back.xlsx.load(await buildLightningWorkbook(p).xlsx.writeBuffer());
+    const ws = back.getWorksheet('Risk assessment')!;
+    const row = (label: string) => { let out: ExcelJS.Row | undefined; ws.eachRow((r) => { if (r.getCell(1).value === label && !out) out = r; }); return out!; };
+    const two = row('Class II');
+    expect((two.getCell(2).value as ExcelJS.CellFormulaValue).result).toBeCloseTo(6.0638e-6, 9);
+    expect(two.getCell(3).value as number).toBeCloseTo(1.2128e-7 + 2e-6, 10);
+    expect(two.getCell(4).value).toMatchObject({ formula: expect.stringContaining('+'), result: expect.closeTo(8.185e-6, 8) });
+    expect(two.getCell(5).value).toMatchObject({ result: 'OK' });
+    expect(row('Class III').getCell(5).value).toMatchObject({ result: 'Exceeds' });
+    expect(row('Minimum protection').getCell(2).value).toMatchObject({ result: 'Class II', formula: expect.stringContaining('$E$') });
+  });
+});
+
+describe('lightning risk assessment report — a probability for each line', () => {
+  it('shows each line\'s own probability beside the component', () => {
+    const line = { lengthM: 1000, strikeWidthM: 40, installationFactor: 0.5, environmentFactor: 0.5, typeFactor: 1 };
+    const study: LpsInputs = { ...lightning, lengthM: 35, widthM: 26, heightM: 8.5, risk: { shape: 'rectangle', thunderDays: 40, strikeRatio: 1, locationFactor: 1,
+      lines: [{ ...line, name: 'Power', probabilities: { damageLine: { probability: 0.01 } } }, { ...line, lengthM: 500 }], components: { damageLine: { on: true, loss: 0.005, byLine: true } } } };
+    const blocks = lightningReportBlocks({ ...sampleProject, lightning: study }, study, ['risk']);
+    expect(blocks[1].table!.rows).toEqual([['Physical damage — strike on an incoming line', '0.005', 'Power — 0.01 | Line 2 — Not entered']]);
+  });
+});

@@ -43,3 +43,15 @@ describe('lightning risk factor presets', () => {
     expect(loadRiskPresets()).toEqual(list);
   });
 });
+
+describe('lightning risk factor presets — other risk components', () => {
+  it('a preset keeps which components are counted with their loss and probability, and the near distance, not the lines', () => {
+    const k: RiskInputs = { ...villa, nearReachM: 500, nearDensity: 2, lines: [{ lengthM: 1000 }], components: { touchBuilding: { on: true, loss: 1e-4, byClass: true, classProbability: { II: 0.05 } } } };
+    const factors = riskFactorsOf(k);
+    expect(factors).toMatchObject({ nearReachM: 500, components: { touchBuilding: { on: true, loss: 1e-4, byClass: true, classProbability: { II: 0.05 } } } });
+    expect(factors).not.toHaveProperty('lines');
+    expect(factors).not.toHaveProperty('nearDensity');
+    factors.components!.touchBuilding!.classProbability!.II = 9;
+    expect(k.components!.touchBuilding!.classProbability!.II).toBe(0.05);
+  });
+});

@@ -8,7 +8,7 @@ import { BringToFront, Frame, LayoutTemplate, Printer, Crop, Plus, ChevronRight,
 import { ListFilter, PenTool, FileCog, PaintBucket, MessageSquareText, Tag, Navigation, Layers2, PaintRoller, BoxSelect, Paintbrush, Scissors, FlipHorizontal2, Scaling, StretchHorizontal, CornerUpRight, Unlink2, Link2, Paperclip, Ungroup, Grid2x2, Rows2, CirclePlus, Move, Slash, Spline, RectangleHorizontal, Circle, Rainbow, RotateCw, Eraser, MoveHorizontal, Layers, MousePointerClick, PenLine, Type, Ruler, Maximize, Grid3x3, Copy, CircleDashed, ListChecks, Palette, ZoomIn, ZoomOut, Columns2, FileCode, BookImage, ALargeSmall, Plug, Tags, Workflow, Lightbulb, DoorOpen , SquareScissors } from 'lucide-react';
 import { ClipboardList, Package, Dot, Divide, Target, Pentagon, ArrowRightToLine, TriangleRight, Hexagon, CaseSensitive, LandPlot, ScanSearch, Expand, SlidersHorizontal, DraftingCompass } from 'lucide-react';
 import { VP_ARRANGEMENTS, VP_SCALES } from '../model/planViewports';
-import { FileJson, LayoutPanelLeft, Maximize2, Square } from 'lucide-react';
+import { FileJson, LayoutPanelLeft, Maximize2, Square, AlignStartVertical } from 'lucide-react';
 import { ArrowDownToLine, ArrowLeftRight, Check, ChevronLeft, ClipboardPaste, CopyPlus, ListPlus, LocateFixed, Scan, SquareDashed } from 'lucide-react';
 import type { CadExport, CadRibbonInfo, CadTool } from './cad/cadState';
 import { ColourPicker } from './cad/ColourPicker';
@@ -148,7 +148,7 @@ export interface RibbonActions {
     canBalance: boolean; imbalancePct?: number; onBalance: () => void;
     onCopy: () => void; onPaste: () => void;
     exporting: boolean;
-    onExport: (kind: 'excel' | 'pdf' | 'csv' | 'pack' | 'template' | 'myPdf' | 'myPdfAll') => void;
+    onExport: (kind: 'excel' | 'pdf' | 'csv' | 'pack' | 'template' | 'myPdf' | 'myPdfAll' | 'myXlsx' | 'myXlsxAll') => void;
     /** The board on screen has a sheet linked to it, or the project has a format for its panel category: Export → Open in my format works. */
     sheetFormat: boolean; onOpenSheet: () => void;
     /** The project has a panel with a format of the user's (a sheet linked to a board, or a format for a category): Export → PDF: my format, all panels works. */
@@ -225,12 +225,14 @@ export interface RibbonActions {
  * Sheet) and the engineering and sheet-set panels. */
 const G = {
   draw: 0, modify: 1, annotate: 2, blocks: 3, layers: 4, props: 5, measure: 6, markup: 7, onPanels: 8, sheet: 9,
-  rooms: 10, cables: 11, devices: 12, editDevices: 13, wiring: 14, reference: 15, sheetSet: 16, layouts: 17, viewports: 18, plot: 19, publish: 20, export: 21
+  rooms: 10, cables: 11, devices: 12, editDevices: 13, wiring: 14, reference: 15, sheetSet: 16, layouts: 17, viewports: 18, plot: 19, publish: 20, export: 21,
+  dims: 22, leaders: 23, drawnMarkup: 24
 } as const;
 /** Stable IDs kept in Preferences for the user's Design CAD panel order. New panels append to an older saved order. */
 export const CAD_PANEL_IDS = [
   'draw', 'modify', 'annotate', 'blocks', 'layers', 'properties', 'measure', 'markup', 'on-panels', 'sheet',
-  'rooms', 'cables', 'devices', 'edit-devices', 'wiring', 'reference', 'sheet-set', 'layout', 'viewports', 'plot', 'publish', 'export'
+  'rooms', 'cables', 'devices', 'edit-devices', 'wiring', 'reference', 'sheet-set', 'layout', 'viewports', 'plot', 'publish', 'export',
+  'dimensions', 'leaders', 'drawn-markup'
 ] as const;
 const CAD_PANEL_SET = new Set<string>(CAD_PANEL_IDS);
 const panelId = (group: number): string => CAD_PANEL_IDS[group] ?? `panel-${group}`;
@@ -273,14 +275,14 @@ export interface CadTab { id: string; label: string; groups: number[]; sheet?: n
 export const CAD_TABS: Record<'named' | 'labels', CadTab[]> = {
   named: [
     { id: 'drafting', label: 'LVCAD', groups: [G.draw, G.modify, G.blocks, G.layers, G.props, G.measure], paper: [G.draw, G.modify, G.layers, G.props, G.measure], sheet: [], smallNamed: true },
-    { id: 'annotate', label: 'Annotate', groups: [G.annotate], paper: [G.markup], sheet: [], smallNamed: true },
+    { id: 'annotate', label: 'Annotate', groups: [G.annotate, G.dims, G.leaders, G.drawnMarkup], paper: [G.markup], sheet: [], smallNamed: true },
     { id: 'elec', label: 'Electrical, ELV & sheets', groups: [G.rooms, G.cables, G.devices, G.editDevices, G.wiring, G.reference, G.sheetSet],
       sheet: [G.markup, G.onPanels, G.sheet, G.sheetSet] },
     { id: 'output', label: 'Output', groups: [G.layouts, G.plot, G.publish, G.export], layout: [G.viewports], sheet: [G.plot, G.publish, G.export], smallNamed: true }
   ],
   labels: [
     { id: 'drafting', label: 'LVCAD', groups: [G.draw, G.modify, G.blocks], paper: [G.draw, G.modify], sheet: [] },
-    { id: 'annotate', label: 'Annotate', groups: [G.annotate], paper: [G.markup], sheet: [G.markup, G.onPanels] },
+    { id: 'annotate', label: 'Annotate', groups: [G.annotate, G.dims, G.leaders, G.drawnMarkup], paper: [G.markup], sheet: [G.markup, G.onPanels] },
     { id: 'layers', label: 'Layers & properties', groups: [G.layers, G.props, G.measure], sheet: [] },
     { id: 'elec', label: 'Electrical & ELV', groups: [G.rooms, G.cables, G.devices, G.editDevices, G.wiring], sheet: [] },
     { id: 'sheets', label: 'Sheets', groups: [G.reference, G.sheetSet], sheet: [G.sheet, G.sheetSet] },
@@ -291,9 +293,9 @@ export const CAD_TABS: Record<'named' | 'labels', CadTab[]> = {
 const SHEET_VIEWS: MainView[] = ['drawings', 'drawing-register'];
 /** The panel a tool is on, so the ribbon shows the tool in use (a typed command moves it there). */
 const GROUP_OF: Partial<Record<CadTool, number>> = {
-  point: G.draw, divide: G.draw, measure: G.draw, line: G.draw, pline: G.draw, rect: G.draw, circle: G.draw, arc: G.draw, hatch: G.draw, hatchedit: G.draw, boundary: G.draw, polygon: G.draw, ellipse: G.draw, circle2p: G.draw, circle3p: G.draw, circled: G.draw, arcsce: G.draw, revcloud: G.annotate,
+  point: G.draw, divide: G.draw, measure: G.draw, line: G.draw, pline: G.draw, rect: G.draw, circle: G.draw, arc: G.draw, hatch: G.draw, hatchedit: G.draw, boundary: G.draw, polygon: G.draw, ellipse: G.draw, circle2p: G.draw, circle3p: G.draw, circled: G.draw, arcsce: G.draw, revcloud: G.drawnMarkup,
   move: G.modify, copy: G.modify, rotate: G.modify, mirror: G.modify, scale: G.modify, stretch: G.modify, trim: G.modify, extend: G.modify, offset: G.modify, fillet: G.modify, chamfer: G.modify, break: G.modify, join: G.modify, explode: G.modify, array: G.modify,
-  text: G.annotate, mtext: G.annotate, draworder: G.modify, texttofront: G.modify, block: G.blocks, blockpick: G.blocks, insert: G.blocks, attedit: G.blocks, attpick: G.blocks, dim: G.annotate, dimlin: G.annotate, dimcont: G.annotate, dimbase: G.annotate, leader: G.annotate, rtag: G.annotate, north: G.annotate, keynote: G.annotate,
+  text: G.annotate, mtext: G.annotate, draworder: G.modify, texttofront: G.modify, block: G.blocks, blockpick: G.blocks, insert: G.blocks, attedit: G.blocks, attpick: G.blocks, dim: G.dims, dimlin: G.dims, dimcont: G.dims, dimbase: G.dims, dimrad: G.dims, dimdia: G.dims, dimang: G.dims, leader: G.leaders, mleader: G.leaders, mleaderadd: G.leaders, mleaderremove: G.leaders, mleaderalign: G.leaders, mleadercollect: G.leaders, rtag: G.leaders, rtall: G.leaders, north: G.drawnMarkup, keynote: G.leaders,
   tcount: G.annotate, tjust: G.annotate, th: G.annotate, talign: G.annotate, tcase: G.annotate, tframe: G.annotate, tmask: G.annotate, tcopy: G.annotate, matchprop: G.props, dist: G.measure, area: G.measure,
   xattach: G.reference, xclip: G.reference, crop: G.reference, room: G.rooms, trace: G.rooms, name: G.rooms, tray: G.cables, cable: G.cables, link: G.cables,
   dev: G.devices, fill: G.devices, lux: G.devices, em: G.devices, arl: G.editDevices, match: G.editDevices, wire: G.wiring
@@ -311,6 +313,8 @@ const TEXT_TOOLS: [CadTool, string, string][] = [
   ['tmask', 'Mask (TMASK)', 'A paper-colour mask under the texts picked'],
   ['tcopy', 'Copy words (TCOPY)', 'Give the texts picked the words of another text']
 ];
+/** The tools under Multileader's arrow, shown in use while any of them runs. */
+const ML_FORMS: CadTool[] = ['mleader', 'leader', 'mleaderadd', 'mleaderremove', 'mleaderalign', 'mleadercollect'];
 /** The sub-tabs of v2.053 and v2.054, kept on this computer: the panel each stands for now. */
 const OLD_SUB: Record<string, number> = { draw: G.draw, modify: G.modify, annotate: G.annotate, insert: G.reference, layers: G.layers, view: G.draw, page: G.sheetSet, tools: G.measure };
 const SUB_KEY = 'lvds.cadSub';
@@ -341,8 +345,8 @@ export const CAPTIONS: Record<RibbonTab, string[]> = {
   concept: ['Load', 'Supply', 'Stage'],
   schematic: ['History', 'Distribution', 'Main systems', 'ELV', 'Stage'],
   detailed: ['Run', 'Calculate', 'Stage'],
-  cad: ['Draw', 'Modify', 'Annotate', 'Blocks', 'Layers', 'Properties', 'Measure and view', 'Markup', 'On panels', 'Sheet',
-    'Rooms', 'Cables and boards', 'Devices', 'Edit devices', 'Wiring', 'Reference', 'Sheet set', 'Layout', 'Layout viewports', 'Plot', 'Publish', 'Export'],
+  cad: ['Draw', 'Modify', 'Text', 'Blocks', 'Layers', 'Properties', 'Measure and view', 'Markup', 'On panels', 'Sheet',
+    'Rooms', 'Cables and boards', 'Devices', 'Edit devices', 'Wiring', 'Reference', 'Sheet set', 'Layout', 'Layout viewports', 'Plot', 'Publish', 'Export', 'Dimensions', 'Leaders and tags', 'Markup'],
   sheets: [],
   spec: [],
   reports: ['Schedules', 'Drawings and reports'],
@@ -782,6 +786,8 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
           { label: 'Open in my format', title: !ls || !(ls.grid || lsMd) ? 'On a board\'s form' : ls.sheetFormat ? 'This panel as a sheet in your own format, in Sheets' : 'Choose a format for this panel in Sheets → My formats first', onClick: () => ls?.onOpenSheet(), disabled: !ls || !(ls.grid || lsMd) || !ls.sheetFormat },
           { label: 'PDF: my format', title: !ls || !(ls.grid || lsMd) ? 'On a board\'s form' : ls.sheetFormat ? 'This panel as a PDF in your own format' : 'Choose a format for this panel in Sheets → My formats first', onClick: () => ls?.onExport('myPdf'), disabled: !ls || !(ls.grid || lsMd) || !ls.sheetFormat },
           { label: 'PDF: my format, all panels', title: 'Every panel that has a format of yours, one page each, in one PDF', onClick: () => ls?.onExport('myPdfAll'), disabled: !ls || !ls.sheetFormats },
+          { label: 'Excel: my format', title: !ls || !(ls.grid || lsMd) ? 'On a board\'s form' : ls.sheetFormat ? 'This panel as an Excel file in your own format' : 'Choose a format for this panel in Sheets → My formats first', onClick: () => ls?.onExport('myXlsx'), disabled: !ls || !(ls.grid || lsMd) || !ls.sheetFormat },
+          { label: 'Excel: my format, all panels', title: 'Every panel that has a format of yours, one sheet each, in one Excel file', onClick: () => ls?.onExport('myXlsxAll'), disabled: !ls || !ls.sheetFormats },
           { label: 'Form details…', title: lsMd || lsTx ? 'Project, area, owner, plot, consultant and contractor on the authority forms' : 'On a panel\'s form or the TCL summary', onClick: () => ls?.onFormDetails(), disabled: !lsMd && !lsTx, sep: true }
         ] }
     ]
@@ -916,27 +922,12 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
           { label: 'Under object', title: 'The objects picked just under the object clicked next (DR U)', onClick: () => a.cad?.onCommand?.('DRAWORDER U') },
           { label: 'Text to front (TEXTTOFRONT)', title: 'Texts, dimensions or leaders over everything else', onClick: () => a.cad?.onCommand?.('TEXTTOFRONT') }] }
       ],
-      // Annotate: Text (numbered text and the text tools under the arrow), Dimension (its forms under the arrow) and
-      // Leader, then Room tag, Keynote, North arrow, Revision cloud, Text style and Dimension style. On a layout's paper the
-      // markup takes its place.
+      // Annotate, as four panels: Text (numbered text and the text tools under the arrow, Text style); Dimensions and Leaders and
+      // tags and Markup are after Export in the list, drawn on the same sub-tab. On a layout's paper the markup takes its place.
       [
         { ...cadTool('text', 'Text', Type, 'Text (T): click where it goes, type it on the command line, Enter. The arrow: numbered text and the text tools'),
           active: TEXT_TOOLS.some(([k]) => a.cad?.tool === k), menu: TEXT_TOOLS.map(([k, label, title], i) => ({ label, title, onClick: () => a.cad?.onTool(k), sep: i === 3 })) },
-        { ...cadTool('dim', 'Dimension', MoveHorizontal, 'Dimension (DIM): two points, then where the dimension line goes; it shows the length in the unit of its dimension style'), menu: [
-          { label: 'Aligned (DIM)', title: 'Two points, then where the dimension line goes', onClick: () => a.cad?.onTool('dim') },
-          { label: 'Linear (DLI)', title: 'Two points, then where the dimension line goes: horizontal above or below them, vertical beside them', onClick: () => a.cad?.onTool('dimlin') },
-          { label: 'Continue (DCO)', title: 'From the last dimension\'s second point: click each next point; the dimensions run in one line', onClick: () => a.cad?.onTool('dimcont') },
-          { label: 'Baseline (DBA)', title: 'From the last dimension\'s first point: click each next point; each dimension one step further out', onClick: () => a.cad?.onTool('dimbase') },
-          { label: 'Radius (DRA)', title: 'Click an arc or circle, then where the text goes', onClick: () => a.cad?.onTool('dimrad') },
-          { label: 'Diameter (DDI)', title: 'Click an arc or circle, then where the text goes', onClick: () => a.cad?.onTool('dimdia') },
-          { label: 'Angular (DAN)', title: 'Two lines (or an arc, or a vertex and two points), then where the arc goes', onClick: () => a.cad?.onTool('dimang') }] },
-        cadTool('leader', 'Leader', MessageSquareText, 'Leader (LE): click the arrow point, then the text point (more points bend it), type the text, Enter'),
-        sm(cadTool('rtag', 'Room tag', Tag, 'Room tag (RT): click inside a room: its name and area')),
-        sm(cadTool('keynote', 'Keynote', Hexagon, 'Keynote (KN): a numbered hexagon keynote with a line in the legend')),
-        sm(cadTool('north', 'North arrow', Navigation, 'North arrow (NORTH): click where it goes')),
-        sm(cadTool('revcloud', 'Revision cloud', Cloud, 'Revision cloud (REVCLOUD): two corners, or P and the points round the change; arcs 15 mm long on paper, or type a length')),
-        sm(cadCmd('Text style', CaseSensitive, 'ST', 'Text style (ST): named text styles with their height on paper; new text takes the current one', 'STYLE')),
-        sm(cadCmd('Dim style', SlidersHorizontal, 'D', 'Dimension style (D): the arrows, sizes, unit and decimals of new dimensions', 'DIMSTYLE'))
+        sm(cadCmd('Text style', CaseSensitive, 'ST', 'Text style (ST): named text styles with their height on paper; new text takes the current one', 'STYLE'))
       ],
       // Blocks (S9 of the 2D gap plan): the drawing's own blocks. Create first; Insert and the palette come with S10.
       [
@@ -1094,6 +1085,41 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
         { label: 'DXF', icon: FileCode, title: onSheet ? 'This sheet as DXF (R12, editable layers)' : inModel ? 'Save the drawing as DXF: the version and what goes in (SAVEAS)' : noDrawing, onClick: () => onSheet ? act().exportAs('dxf') : a.cad?.onSaveAs?.(), disabled: onSheet ? false : !inModel || !a.cad?.onSaveAs },
         { label: 'DWG', icon: FileDown, title: onSheet ? 'This sheet as DWG (2018 format)' : inModel ? 'Save the drawing as DWG: the version and what goes in (SAVEAS)' : noDrawing, onClick: () => onSheet ? act().exportAs('dwg') : a.cad?.onSaveDwg?.(), disabled: onSheet ? false : !inModel || !a.cad?.onSaveDwg },
         { label: 'Register', icon: FileSpreadsheet, title: 'The sheet register as an Excel workbook', onClick: () => a.output?.onRegister(), disabled: !a.output }
+      ],
+      // Dimensions (v2.189, with Text, Leaders and tags and Markup, on the Annotate sub-tab): Dimension and its forms, Dim style.
+      [
+        { ...cadTool('dim', 'Dimension', MoveHorizontal, 'Dimension (DIM): two points, then where the dimension line goes; it shows the length in the unit of its dimension style'), menu: [
+          { label: 'Aligned (DIM)', title: 'Two points, then where the dimension line goes', onClick: () => a.cad?.onTool('dim') },
+          { label: 'Linear (DLI)', title: 'Two points, then where the dimension line goes: horizontal above or below them, vertical beside them', onClick: () => a.cad?.onTool('dimlin') },
+          { label: 'Continue (DCO)', title: 'From the last dimension\'s second point: click each next point; the dimensions run in one line', onClick: () => a.cad?.onTool('dimcont') },
+          { label: 'Baseline (DBA)', title: 'From the last dimension\'s first point: click each next point; each dimension one step further out', onClick: () => a.cad?.onTool('dimbase') },
+          { label: 'Radius (DRA)', title: 'Click an arc or circle, then where the text goes', onClick: () => a.cad?.onTool('dimrad') },
+          { label: 'Diameter (DDI)', title: 'Click an arc or circle, then where the text goes', onClick: () => a.cad?.onTool('dimdia') },
+          { label: 'Angular (DAN)', title: 'Two lines (or an arc, or a vertex and two points), then where the arc goes', onClick: () => a.cad?.onTool('dimang') }] },
+        sm(cadCmd('Dim style', SlidersHorizontal, 'D', 'Dimension style (D): the arrows, sizes, unit and decimals of new dimensions', 'DIMSTYLE'))
+      ],
+      // Leaders and tags: Multileader (its forms under the arrow), its style list with Add leader and Align under it, then
+      // Room tag, Tag all rooms and Keynote.
+      [
+        { ...cadTool('mleader', 'Multileader', MessageSquareText, 'Multileader (MLD): click the arrowhead, then the landing, then type the words; several leaders can share one note. The arrow: Leader, Add, Remove, Align, Collect and the styles', 'MLD'),
+          active: ML_FORMS.some((k) => a.cad?.tool === k), menu: [
+            { label: 'Multileader (MLD)', title: 'Arrowhead, landing, then the words', onClick: () => a.cad?.onTool('mleader') },
+            { label: 'Leader (LE)', title: 'One arrow and a line, with the text typed at its end', onClick: () => a.cad?.onTool('leader') },
+            { label: 'Add leader (MLEADERADD)', title: 'Another arrowhead for a multileader', onClick: () => a.cad?.onTool('mleaderadd'), sep: true },
+            { label: 'Remove leader (MLEADERREMOVE)', title: 'Take one leader off a multileader; one always stays', onClick: () => a.cad?.onTool('mleaderremove') },
+            { label: 'Align (MLA)', title: 'Line up the landings of the multileaders picked', onClick: () => a.cad?.onTool('mleaderalign') },
+            { label: 'Collect (MLC)', title: 'Make the multileaders picked one, with all their arrowheads', onClick: () => a.cad?.onTool('mleadercollect') },
+            { label: 'Multileader style… (MLS)', title: 'The multileader styles: arrowhead, landing, text height, frame, circuit fill-in', onClick: () => a.cad?.onCommand?.('MLEADERSTYLE'), sep: true }] },
+        sm(cadTool('mleaderadd', 'Add leader', Plus, 'Add leader (MLEADERADD): pick a multileader, then click each arrowhead to add', 'MLEADERADD')),
+        sm(cadTool('mleaderalign', 'Align', AlignStartVertical, 'Align (MLA): pick multileaders, Enter, the one to align to, then a direction (Enter: vertical)')),
+        sm(cadTool('rtag', 'Room tag', Tag, 'Room tag (RT): click inside a room: its name and area')),
+        sm(cadTool('rtall', 'Tag all rooms', Tags, 'Tag all rooms (RTALL): every room of the level with no tag yet, or all of them')),
+        sm(cadTool('keynote', 'Keynote', Hexagon, 'Keynote (KN): a numbered hexagon keynote with a line in the legend'))
+      ],
+      // Markup: Revision cloud and North arrow.
+      [
+        sm(cadTool('revcloud', 'Revision cloud', Cloud, 'Revision cloud (REVCLOUD): two corners, or P and the points round the change; arcs 15 mm long on paper, or type a length')),
+        sm(cadTool('north', 'North arrow', Navigation, 'North arrow (NORTH): click where it goes'))
       ]
     ],
     reports: [
@@ -1288,6 +1314,27 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
       )}
     </>
   );
+  // Leaders and tags: the multileader styles, the current one at the head of the list.
+  const mls = info?.mleaderStyles;
+  const mleaderList = (
+    <>
+      <button type="button" className="ribbon-layer" aria-haspopup="menu" aria-expanded={splitOpen === 'mls:list'} disabled={!mls} onClick={listAt('mls:list')}
+        {...(cadNamed ? tipAttrs('Multileader style', `Multileader style (CMLEADERSTYLE) · ${mls?.current ?? 'no drawing'}`, 'New multileaders take it; the list makes another current')
+          : { title: 'The current multileader style: new multileaders take it', 'aria-label': 'Multileader style' })}>
+        <span className="nm">{mls?.current ?? 'No drawing'}</span>
+        <ChevronDown size={10} strokeWidth={1.8} aria-hidden />
+      </button>
+      {splitOpen === 'mls:list' && mls && (
+        <div className="ribbon-split-menu ribbon-layer-menu" role="menu" aria-label="Multileader styles" style={{ left: splitAt.x, top: splitAt.y }} onMouseDown={(e) => e.stopPropagation()}>
+          {mls.names.map((n) => (
+            <button key={n} role="menuitemradio" aria-checked={n === mls.current} title={`Make ${n} the current multileader style`} onClick={() => { setSplitOpen(null); a.cad?.onCommand?.(`CMLEADERSTYLE ${n}`); }}><span>{n}</span></button>
+          ))}
+          <hr />
+          <button role="menuitem" onClick={() => { setSplitOpen(null); a.cad?.onCommand?.('MLEADERSTYLE'); }}>Multileader style… (MLS)</button>
+        </div>
+      )}
+    </>
+  );
   // Properties: the colour, linetype and lineweight of the drawn objects picked, or of new objects while none is.
   const pv = info?.props;
   const target = info?.picked ? `the ${info.picked} object${info.picked === 1 ? '' : 's'} picked` : 'new objects';
@@ -1317,6 +1364,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
    * and a button beside its caption that shows its palette. */
   const PANEL: Partial<Record<number, { head?: React.ReactNode; under?: number; side?: React.ReactNode; launch?: { name: string; head: string; text: string; on?: boolean; onClick: () => void } }>> = {
     [G.layers]: { head: layerList, under: 6 },
+    [G.leaders]: { head: mleaderList, under: 2 },
     [G.props]: { side: propLists, launch: { name: 'Properties palette', head: 'Properties palette (Ctrl+1)', text: 'The layer, colour, linetype and shape of the objects picked, docked on the right', on: a.cad?.propsOn, onClick: () => a.cad?.onProps?.() } }
   };
 

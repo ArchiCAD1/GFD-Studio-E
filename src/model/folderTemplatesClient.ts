@@ -4,6 +4,7 @@
 
 import { BUILT_IN_TEMPLATES, DEFAULT_TEMPLATE_ID } from './folderTemplateBuiltins';
 import { namingIssues } from './fileNaming';
+import { scanHandle, type DirHandle, type FolderScan } from './folderLearn';
 import { isFolderTemplate, validateTemplate, type FolderTemplate } from './folderTemplates';
 
 export interface TemplatesState { templates: FolderTemplate[]; defaultId: string | null; skipped: number; error?: string }
@@ -18,6 +19,9 @@ export interface TemplatesClient {
   /** Desktop only: a file dialog. */
   import?: () => Promise<(TemplatesState & { added: number }) | null>;
   export?: (templates: FolderTemplate[], defaultName?: string) => Promise<string | null>;
+  /** Learn from folder: asks for a folder and reads its folder names only; null when cancelled. Missing
+   * where folders cannot be read (older desktop builds, browsers without a folder picker). */
+  scanFolder?: () => Promise<FolderScan | null>;
 }
 
 const KEY = 'lvds.folderTemplates';
@@ -55,10 +59,30 @@ export function webTemplatesClient(storage: Store | undefined = typeof localStor
   };
 }
 
+type Picker = (opts?: { mode?: 'read'; id?: string }) => Promise<DirHandle>;
+
+/** The browser's folder picker (File System Access API), read for folder names only; undefined where the
+ * browser has none. A cancelled picker is null. */
+export function webFolderScan(w: { showDirectoryPicker?: Picker } | undefined = typeof window === 'undefined' ? undefined : (window as unknown as { showDirectoryPicker?: Picker })): TemplatesClient['scanFolder'] {
+  const pick = w?.showDirectoryPicker;
+  if (typeof pick !== 'function') return undefined;
+  return async () => {
+    let dir: DirHandle;
+    try { dir = await pick.call(w, { mode: 'read', id: 'lvds-learn-folder' }); } catch (e) { if ((e as { name?: string })?.name === 'AbortError') return null; throw e; }
+    return scanHandle(dir);
+  };
+}
+
 /** The desktop app's store when its bridge has one, else the browser's. */
 export function templatesClient(): TemplatesClient {
   const bridge = typeof window === 'undefined' ? undefined : window.lvds?.folderTemplates;
-  return bridge ?? webTemplatesClient();
+  if (bridge) {
+    const { scanNames, ...rest } = bridge;
+    return scanNames ? { ...rest, scanFolder: scanNames } : rest;
+  }
+  const web = webTemplatesClient();
+  const scanFolder = webFolderScan();
+  return scanFolder ? { ...web, scanFolder } : web;
 }
 
 /** Saves a template after the editor's checks: refused (with the reasons) while it has errors. */

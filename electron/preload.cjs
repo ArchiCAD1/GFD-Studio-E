@@ -53,7 +53,8 @@ contextBridge.exposeInMainWorld('lvds', {
     delete: (id) => ipcRenderer.invoke('folderTemplates:delete', id),
     setDefault: (id) => ipcRenderer.invoke('folderTemplates:setDefault', id),
     import: () => ipcRenderer.invoke('folderTemplates:import'),
-    export: (templates, defaultName) => ipcRenderer.invoke('folderTemplates:export', { templates, defaultName })
+    export: (templates, defaultName) => ipcRenderer.invoke('folderTemplates:export', { templates, defaultName }),
+    scanNames: () => ipcRenderer.invoke('folders:scanNames')
   },
   projectFolders: {
     chooseParent: (start) => ipcRenderer.invoke('projectFolders:chooseParent', start),
