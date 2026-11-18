@@ -18,6 +18,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.190', date: '2026-11-18',
+    items: [
+      { title: 'Design CAD opens drawings with a damaged record', text: 'A DWG or DXF with a few records that cannot be read, such as an object another program wrote short, no longer stops with "could not be read". The drawing opens without those records; a file with nothing readable still shows the message.' }
+    ]
+  },
+  {
     version: '2.189', date: '2026-11-17',
     items: [
       { title: 'Design CAD: multileader', text: 'One note with several arrows. Annotate → Leaders and tags → Multileader (MLD): click the arrowhead, then the landing, then type the words. It has its own styles (arrowhead, landing, text height, frame; MLS), Add leader and Remove leader, Align and Collect, and a style can fill in the circuit of the device at the arrowhead.', action: 'cad', actionLabel: 'Open Design CAD' },
