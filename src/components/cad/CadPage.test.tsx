@@ -5493,3 +5493,244 @@ describe('Objects of an opened drawing edit like drawn ones (taken over on the f
     expect(items().map((x) => [x.kind, x.layer])).toEqual([['line', to]]);
   });
 });
+
+describe('CAD 2D gap plan: MLEADER, a multileader (several leaders, one note)', () => {
+  const last = () => state.history[state.history.length - 1];
+  const X = 200000, F = 'sample-villa-gf.dxf';
+  const editor = () => document.querySelector('.cad-ntedit') as HTMLDivElement | null;
+  const words = () => document.querySelector('[aria-label="Note text"]') as HTMLDivElement | null;
+  /** The drawn items, their points rounded to the millimetre (a click goes through the screen and back). */
+  const items = () => sketchOf(project, F).map((it) => ({ ...it, pts: it.pts.map(([x, y]): [number, number] => [Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000]) }));
+  const keyWords = (key: string, more: KeyboardEventInit = {}) => act(() => { words()!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...more })); });
+  const typeWords = (lines: string[]) => act(() => {
+    const el = words()!;
+    el.replaceChildren();
+    for (const l of lines) { const d = document.createElement('div'); d.appendChild(document.createTextNode(l)); el.appendChild(d); }
+  });
+  const dblClickAt = async (x: number, y: number) => {
+    const [sx, sy] = screenOf(x, y);
+    await act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('dblclick', { clientX: sx, clientY: sy, button: 0, bubbles: true })); });
+  };
+  const ml = (id: string, land: [number, number], tips: [number, number][], text: string): SketchItem => ({
+    id, kind: 'mleader', layer: 'LV-ANNO', pts: [land, ...tips], h: 250, note: [{ runs: [{ s: text }] }], ml: { style: 'Standard', arrow: 'filled', size: 300, land: 250, gap: 100 }
+  });
+  const M1 = ml('M1', [X + 2000, 7000], [[X, 7000]], 'L1-01'), M2 = ml('M2', [X + 2600, 5000], [[X + 400, 4600]], 'L1-02'), M3 = ml('M3', [X + 3400, 3000], [[X + 800, 3200]], 'L1-03');
+  const start: Project = { ...villa, cadSketch: [{ file: F, items: [M1, M2, M3] }] };
+  const open = async (p: Project = start) => { act(() => root.render(<Host start={p} />)); await flush(); project = p; act(() => state.toggle('osnap')); };
+  const text = (it: SketchItem) => (it.note ?? []).map((q) => q.runs.map((r) => r.s).join('')).join('\n');
+
+  it('MLD: the arrowhead, the landing, then the note editor; Ctrl/⌘+Enter draws it in one undo step, Esc draws nothing; Esc again ends', async () => {
+    await open({ ...villa });
+    await command('mld');
+    expect(last()).toBe('Command: MLEADER  Specify leader arrowhead location:');
+    await clickAt(X, 7000);
+    expect(last()).toBe('MLEADER  Specify leader landing location:');
+    await clickAt(X + 2000, 7500);
+    expect(editor()).not.toBeNull();
+    expect(last()).toBe('MTEXT  Type the note (Enter starts a new line); Ctrl/⌘+Enter or OK keeps it, Esc cancels:');
+    await typeWords(['DB-L1-01/L3']);
+    await keyWords('Enter', { metaKey: true });
+    expect(editor()).toBeNull();
+    expect(items()).toEqual([{
+      id: 'S1', kind: 'mleader', layer: 'LV-ANNO', pts: [[X + 2000, 7500], [X, 7000]], h: 250, note: [{ runs: [{ s: 'DB-L1-01/L3' }] }],
+      ml: { style: 'Standard', arrow: 'filled', size: 300, land: 250, gap: 100 }
+    }]);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][1]).toBe('MLEADER  Multileader · ⌘Z to undo');
+    expect(state.tool).toBe('mleader');
+    expect(last()).toBe('MLEADER  Specify leader arrowhead location:'); // the next one
+    // Esc in the editor: nothing drawn.
+    await clickAt(X, 4000);
+    await clickAt(X + 2000, 4000);
+    expect(editor()).not.toBeNull();
+    await keyWords('Escape');
+    expect(editor()).toBeNull();
+    expect(state.history.slice(-2)[0]).toBe('*Cancel*');
+    expect(items()).toHaveLength(1);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    expect(state.tool).toBe('none');
+  });
+
+  it('MLS: the style dialog saves a style, CMLEADERSTYLE (the ribbon\'s list) sets the current one; a style with no content draws at the landing click', async () => {
+    await open({ ...villa });
+    await command('mls');
+    expect(document.querySelector('[role="dialog"][aria-label="Multileader style"]')).not.toBeNull();
+    await act(async () => { button('New').click(); });
+    await act(async () => { [...document.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((b) => b.textContent === 'Content')!.click(); });
+    await act(async () => {
+      const el = document.querySelector('[aria-label="Content"]') as HTMLSelectElement;
+      el.value = 'none'; el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await act(async () => { button('Set current').click(); });
+    await act(async () => { (document.querySelector('.cad-dlg-ft .p') as HTMLButtonElement).click(); });
+    expect(project.cadMleaderStyles).toEqual({ styles: [{ name: 'Style 1', arrow: 'filled', arrowMm: 3, landing: true, landingMm: 2.5, content: 'none', textMm: 0, gapMm: 1, frame: false, circuit: false }], current: 'Style 1' });
+    expect(last()).toBe('MLEADERSTYLE  2 multileader styles, current "Style 1" · ⌘Z to undo');
+    expect(state.ribbonInfo?.mleaderStyles).toEqual({ names: ['Standard', 'Style 1'], current: 'Style 1' });
+    // Content None: made at the landing click, no editor.
+    await command('mld');
+    await clickAt(X, 7000);
+    await clickAt(X + 2000, 7000);
+    expect(editor()).toBeNull();
+    expect(items()).toHaveLength(1);
+    expect(items()[0]).toMatchObject({ kind: 'mleader', pts: [[X + 2000, 7000], [X, 7000]], ml: { style: 'Style 1' } });
+    expect(items()[0].note).toBeUndefined();
+    // The ribbon's list.
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
+    await command('CMLEADERSTYLE Standard');
+    expect(last()).toBe('CMLEADERSTYLE  Current multileader style: Standard · ⌘Z to undo');
+    expect(state.ribbonInfo?.mleaderStyles?.current).toBe('Standard');
+    await command('CMLEADERSTYLE Nope');
+    expect(last()).toBe('CMLEADERSTYLE  There is no multileader style Nope. MLS opens the styles.');
+  });
+
+  it('a style with the circuit fill-in starts the words with the board and circuit of the device at the arrowhead', async () => {
+    const gf = { building: 'V', level: 'GF' };
+    const withDevice = placeLvPoint({ ...villa, cadMleaderStyles: { styles: [{ name: 'Circuit', arrow: 'filled', arrowMm: 3, landing: true, landingMm: 2.5, content: 'note', textMm: 0, gapMm: 1, frame: false, circuit: true }], current: 'Circuit' } }, gf, 'ltg', 'DB-GF1-Y1', 6, 4).project;
+    await open(withDevice);
+    await command('mld');
+    await clickAt(6000, 4000);
+    await clickAt(8000, 5000);
+    expect(editor()).not.toBeNull();
+    expect(words()!.textContent).toBe('DB-GF1/Y1');
+    await keyWords('Escape');
+    // Away from any device: empty.
+    await command('mld');
+    await clickAt(X, 7000);
+    await clickAt(X + 2000, 7000);
+    expect(words()!.textContent).toBe('');
+    await keyWords('Escape');
+  });
+
+  it('MLEADERADD: with none selected it asks for one, then each click adds a leader (one undo step each); Enter ends', async () => {
+    await open();
+    await command('mleaderadd');
+    expect(last()).toBe('Command: MLEADERADD  Select a multileader:');
+    await clickAt(X + 1000, 7000);
+    expect(last()).toBe('MLEADERADD  Specify leader arrowhead location:');
+    await clickAt(X + 200, 8000);
+    expect(items()[0].pts).toEqual([[X + 2000, 7000], [X, 7000], [X + 200, 8000]]);
+    expect(onChange.mock.calls[0][1]).toBe('MLEADERADD  Leader added · ⌘Z to undo');
+    await clickAt(X + 400, 6000);
+    expect(items()[0].pts).toHaveLength(4);
+    expect(onChange).toHaveBeenCalledTimes(2);
+    await command('');
+    expect(state.tool).toBe('none');
+    // With one selected first, it goes straight to the arrowhead.
+    act(() => state.setSelected('sk:M2'));
+    await command('mleaderadd');
+    expect(last()).toBe('MLEADERADD  Specify leader arrowhead location:');
+  });
+
+  it('MLEADERREMOVE: a click removes the nearest leader; the last one stays', async () => {
+    const three = { ...M1, pts: [[X + 2000, 7000], [X, 7000], [X, 8500], [X + 200, 5500]] as [number, number][] };
+    await open({ ...villa, cadSketch: [{ file: F, items: [three] }] });
+    await command('mleaderremove');
+    expect(last()).toBe('Command: MLEADERREMOVE  Select a multileader:');
+    await clickAt(X + 1000, 7000);
+    expect(last()).toBe('MLEADERREMOVE  Specify leaders to remove:');
+    await clickAt(X + 1000, 7800); // nearest the leader up to (X, 8500)
+    expect(items()[0].pts).toEqual([[X + 2000, 7000], [X, 7000], [X + 200, 5500]]);
+    expect(onChange.mock.calls[0][1]).toBe('MLEADERREMOVE  Leader removed · ⌘Z to undo');
+    await clickAt(X + 1000, 6200);
+    expect(items()[0].pts).toEqual([[X + 2000, 7000], [X, 7000]]);
+    await clickAt(X + 1000, 7000);
+    expect(last()).toBe('MLEADERREMOVE  A multileader keeps at least one leader.');
+    expect(items()[0].pts).toHaveLength(2);
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('MLA: pick multileaders, Enter, the one to align to, a direction (Enter: vertical); one undo step', async () => {
+    await open();
+    await command('mla');
+    expect(last()).toBe('Command: MLEADERALIGN  Select multileaders:');
+    await clickAt(X + 1600, 5000);
+    await clickAt(X + 2600, 3000);
+    await command('');
+    expect(last()).toBe('MLEADERALIGN  Select multileader to align to:');
+    await clickAt(X + 1000, 7000);
+    expect(last()).toBe('MLEADERALIGN  Specify direction <vertical>:');
+    await command('');
+    expect(onChange.mock.calls[0][1]).toBe('MLEADERALIGN  2 multileaders aligned · ⌘Z to undo');
+    expect(items().map((it) => it.pts[0])).toEqual([[X + 2000, 7000], [X + 2000, 5000], [X + 2000, 3000]]);
+    expect(items().map((it) => it.pts[1])).toEqual([[X, 7000], [X + 400, 4600], [X + 800, 3200]]); // the arrowheads stay
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(state.tool).toBe('none');
+  });
+
+  it('MLA with a direction clicked lines them up along it', async () => {
+    await open();
+    await command('mla');
+    await clickAt(X + 1600, 5000);
+    await command('');
+    await clickAt(X + 1000, 7000);
+    await clickAt(X + 3000, 8000); // 45° up from the landing at (X + 2000, 7000)
+    const [x, y] = items()[1].pts[0];
+    expect(x - (X + 2000)).toBeCloseTo(y - 7000, 0);
+    expect([Math.round(x), Math.round(y)]).toEqual([X + 1300, 6300]);
+  });
+
+  it('MLC: pick two or more, Enter, [Vertical/Horizontal], a click for the landing; one multileader with every arrowhead, the others erased', async () => {
+    await open();
+    await command('mlc');
+    expect(last()).toBe('Command: MLEADERCOLLECT  Select multileaders:');
+    await clickAt(X + 1000, 7000);
+    await command('');
+    expect(last()).toBe('MLEADERCOLLECT  Pick at least two multileaders.');
+    await clickAt(X + 1600, 5000);
+    await command('');
+    expect(last()).toBe('MLEADERCOLLECT  Specify collected multileader location or [Vertical/Horizontal] <Vertical>:');
+    await command('h');
+    expect(last()).toBe('MLEADERCOLLECT  Horizontal. MLEADERCOLLECT  Specify collected multileader location or [Vertical/Horizontal] <Vertical>:');
+    await clickAt(X + 5000, 6000);
+    expect(onChange.mock.calls[0][1]).toBe('MLEADERCOLLECT  2 multileaders collected · ⌘Z to undo');
+    expect(items().map((it) => it.id)).toEqual(['M3', 'S1']);
+    expect(items()[1].pts).toEqual([[X + 5000, 6000], [X, 7000], [X + 400, 4600]]);
+    expect(text(items()[1])).toBe('L1-01, L1-02');
+    expect(items()[1].ml).toEqual(M1.ml);
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('a double-click opens the words; OK keeps new ones in the multileader, Esc leaves it; ED opens them too', async () => {
+    await open();
+    await dblClickAt(X + 1000, 7000);
+    expect(editor()).not.toBeNull();
+    expect(words()!.textContent).toBe('L1-01');
+    expect(state.selected).toBe('sk:M1');
+    await keyWords('Escape');
+    expect(editor()).toBeNull();
+    expect(items()[0]).toEqual(M1);
+    expect(onChange).toHaveBeenCalledTimes(0);
+    await dblClickAt(X + 1000, 7000);
+    await typeWords(['L2-07', 'spare']);
+    await keyWords('Enter', { metaKey: true });
+    expect(items()[0]).toEqual({ ...M1, note: [{ runs: [{ s: 'L2-07' }] }, { runs: [{ s: 'spare' }] }] });
+    expect(onChange.mock.calls[0][1]).toBe('MLEADER  Multileader words changed · ⌘Z to undo');
+    await command('ed');
+    await clickAt(X + 3000, 3000);
+    expect(words()!.textContent).toBe('L1-03');
+    await keyWords('Escape');
+  });
+
+  it('right-click: Multileader tools with Edit text, Add leader, Remove leader, Align… and Collect…; Add leader skips the selecting', async () => {
+    await open();
+    const [sx, sy] = screenOf(X + 1000, 7000);
+    await act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); });
+    expect(menuRows('[aria-label="Edit drawn objects"]')).toContain('Multileader tools');
+    expect(menuRows('[aria-label="Multileader tools"]')).toEqual([]);
+    await chooseMenu('Multileader tools');
+    const rows = [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].map((b) => rowLabel(b));
+    expect(rows).toEqual(expect.arrayContaining(['Edit text', 'Add leader', 'Remove leader', 'Align…', 'Collect…', 'Find and replace…', 'Add selected', 'Make block…']));
+    await chooseMenu('Add leader');
+    expect(state.tool).toBe('mleaderadd');
+    expect(last()).toBe('MLEADERADD  Specify leader arrowhead location:');
+  });
+
+  it('FIND and replace take the words of a multileader', async () => {
+    await open();
+    await command('find');
+    await command('L1-0');
+    await command('K9-');
+    expect(items().map(text)).toEqual(['K9-1', 'K9-2', 'K9-3']);
+  });
+});

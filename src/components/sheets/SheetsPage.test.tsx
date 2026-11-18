@@ -730,6 +730,22 @@ describe('Sheets page — My formats', () => {
     expect(changes).toBe(2);
   });
 
+  it('PDF paper is A4 landscape until another is chosen; the choice is kept on the sheet and saved with the format', () => {
+    linkIt();
+    const paper = () => aside('Link columns')!.querySelector<HTMLSelectElement>('select[aria-label="PDF paper"]')!;
+    expect(paper().value).toBe('A4');
+    expect([...paper().options].map((o) => o.textContent)).toEqual(['A4 landscape', 'A4 portrait', 'A3 landscape', 'A3 portrait']);
+    expect(last.sheets!.sheets[0]).not.toHaveProperty('paper');
+    choose('Link columns', 'PDF paper', 'A3');
+    expect(last.sheets!.sheets[0].paper).toBe('A3');
+    expect(paper().value).toBe('A3');
+    nameRow('Office DB');
+    act(() => btn('Link columns', 'Save', true).click());
+    expect(loadFormats()[0].sheet.paper).toBe('A3');
+    choose('Link columns', 'PDF paper', 'A4');
+    expect(last.sheets!.sheets[0]).not.toHaveProperty('paper');
+  });
+
   it('My formats lists a saved format, and Add sheet adds a tab on the chosen board', () => {
     seed('Office DB');
     linkIt();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateSheet } from '../calc/sheetFormula';
-import { adjustFormula, allBordered, allStyled, area, areaCells, deleteCols, deleteRows, edgesOf, fillDownEdits, insertCols, insertRows, masterOf, mergeArea, mergeAt, newSheet, pasteEdits, rawRows, sheetNameError, shown, shownRows, sumFormula, unmergeArea, withCells, withNextWidth, withStyle, type Sheet, type SheetLink } from './sheets';
+import { adjustFormula, allBordered, allStyled, area, areaCells, deleteCols, deleteRows, edgesOf, fillDownEdits, insertCols, insertRows, masterOf, mergeArea, mergeAt, newSheet, pasteEdits, rawRows, sheetNameError, shown, shownRows, sumFormula, unmergeArea, withCells, withNextWidth, withPaper, withStyle, type Sheet, type SheetLink } from './sheets';
 
 const sheet = (cells: Record<string, string>): Sheet => withCells(newSheet(), cells);
 const schedule = sheet({ A1: 'Ckt', F1: 'Load (W)', G1: 'Qty', H1: 'Total (kW)', A2: 'L1', F2: '60', G2: '20', H2: '=F2*G2/1000', A3: 'L2', F3: '40', G3: '15', H3: '=F3*G3/1000', A4: 'P1', F4: '200', G4: '8', H4: '=F4*G4/1000', H5: '=SUM(H2:H4)' });
@@ -315,5 +315,16 @@ describe('sheets — a linked sheet follows inserted and deleted rows and column
     const s = linked(['a']);
     expect(withCells(s, { F1: 'y' }).link).toBe(s.link);
     expect(withStyle(s, area({ r: 1, c: 1 }, { r: 1, c: 1 }), { bold: true }).link).toBe(s.link);
+  });
+});
+
+describe('sheets — the paper of the PDF', () => {
+  it('is kept on the sheet; A4 landscape, the paper of a sheet that names none, is not', () => {
+    const s = sheet({ A1: 'x' }), a3 = withPaper(s, 'A3');
+    expect(a3).toEqual({ ...s, paper: 'A3' });
+    expect(withPaper(a3, 'A3 portrait').paper).toBe('A3 portrait');
+    expect(withPaper(a3, 'A4')).toEqual(s);
+    expect(withPaper(s, 'A4')).not.toHaveProperty('paper');
+    expect(s).not.toHaveProperty('paper');
   });
 });

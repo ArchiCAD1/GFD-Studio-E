@@ -59,7 +59,7 @@ export function findReplace(items: readonly SketchItem[], find: string, repl: st
     const before = n;
     let next: SketchItem = it;
     if ((it.kind === 'text' || it.kind === 'attdef' || it.kind === 'dim') && it.text) next = { ...it, text: swap(it.text) };
-    else if (it.kind === 'mtext' && it.note) next = { ...it, note: it.note.map((p) => ({ ...p, runs: p.runs.map((r) => ({ ...r, s: swap(r.s) })) })) };
+    else if ((it.kind === 'mtext' || it.kind === 'mleader') && it.note) next = { ...it, note: it.note.map((p) => ({ ...p, runs: p.runs.map((r) => ({ ...r, s: swap(r.s) })) })) };
     else if (it.kind === 'mtext' && it.text) next = { ...it, text: swap(it.text) };
     else if (it.kind === 'insert' && it.attrs) next = { ...it, attrs: Object.fromEntries(Object.entries(it.attrs).map(([k, v]) => [k, swap(v)])) };
     if (n > before) changed.push(next);

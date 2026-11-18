@@ -4,7 +4,7 @@ import { cellAt, cellName, colName } from '../../calc/sheetFormula';
 import { asTemplate, linkBoards, linkFields, linkFromPlaceholders, linkLabel, linkNeeds, linkToBoard, ownRows, pushTarget, removeLink, setFirstRow, setLinkCell, setLinkColumn, sheetsForBoards, startLink, suggestLink, templateOf } from '../../docs/sheetLink';
 import { pushRows } from '../../docs/sheetPush';
 import { formatNameError, loadFormats, saveFormats, withFormat } from '../../model/scheduleFormats';
-import { mergeAt, type Sheet, type SheetLink } from '../../model/sheets';
+import { mergeAt, SHEET_PAPERS, withPaper, type Sheet, type SheetLink, type SheetPaper } from '../../model/sheets';
 import type { Project } from '../../types';
 import { ask } from '../ConfirmDialog';
 import { PANEL_CSS } from './panelCss';
@@ -142,6 +142,10 @@ export default function LinkPanel({ project, sheet, sheets, active, onSheet, onP
       </div>
       <p style={{ color: ready ? 'var(--ok)' : 'var(--mut)' }}>{ready ? 'Ready — this sheet can build boards, circuits and the SLD.' : 'Not ready — link what is marked above.'}</p>
       {link.boardId && own === 0 && <button type="button" className="shl-btn shl-go" disabled={!others.length} onClick={() => onAddSheets(sheetsForBoards(sheets, sheet, others.map((b) => b.id)))}>Add a sheet for every other {panel ? 'panel' : 'DB'} ({others.length})</button>}
+      <label className="shl-row" title="The paper of this sheet's PDF: Load schedule → Export → PDF: my format. Saved with the format."><span>PDF paper</span>
+        <select aria-label="PDF paper" value={sheet.paper ?? 'A4'} onChange={(e) => onSheet(withPaper(sheet, e.target.value as SheetPaper))}>
+          {SHEET_PAPERS.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+        </select></label>
       {naming === null
         ? <button type="button" className="shl-btn" onClick={() => setNaming(loadFormats().find((f) => f.name === sheet.name)?.name ?? sheet.source?.replace(/\.[^.]*$/, '') ?? sheet.name)}>Save as my format…</button>
         : <div className="shl-row">
