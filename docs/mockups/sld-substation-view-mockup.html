@@ -143,12 +143,105 @@ table.t tr:last-child td{border-bottom:0}
 .box ol{margin:0;padding-left:20px}
 .box li{margin:0 0 6px}
 .rec{color:var(--ok);font-weight:600}
+
+/* section 0: where each part goes */
+.tabs{display:flex;align-items:center;gap:4px;padding:6px 14px 0;background:var(--panel)}
+.tabs span{display:inline-flex;align-items:center;min-height:30px;padding:0 14px;border-radius:6px 6px 0 0;color:var(--mut);font-size:12.5px}
+.tabs span.on{background:var(--acc);color:#fff;font-weight:600}
+.tabs span.sep{min-height:0;width:1px;height:18px;padding:0;margin:0 6px;background:var(--line)}
+.sh{display:flex;align-items:center;gap:10px;padding:7px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.stabs{display:inline-flex;border:1px solid var(--line-strong);border-radius:6px;overflow:visible;font-size:12px;position:relative}
+.stabs span{padding:4px 12px;white-space:nowrap;position:relative}
+.stabs span.on{background:var(--acc);color:#fff;font-weight:600;border-radius:5px}
+.sp{flex:1}
+.bdg{position:absolute;top:-9px;right:-9px;z-index:5}
+.bdg i.n{margin:0}
+.insp{width:230px;flex:none;border-left:1px solid var(--line);background:var(--panel);padding:10px 12px;font-size:12px;line-height:18px;color:var(--mut)}
+.insp b{color:var(--tx)}
+.mini{border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);overflow:hidden;position:relative}
+.mini .tt{font-size:12px;font-weight:600;padding:7px 12px;background:var(--p2);border-bottom:1px solid var(--line)}
+.mini .tt .m{font-weight:400;color:var(--mut)}
+.mini .bd{padding:10px 12px;font-size:12px;line-height:18px}
+.mini .ptabs{display:flex;gap:4px;padding:6px 10px 0;border-bottom:1px solid var(--line);font-size:11.5px}
+.mini .ptabs span{padding:3px 10px;border-radius:5px 5px 0 0;color:var(--mut)}
+.mini .ptabs span.on{background:var(--acc);color:#fff;font-weight:600}
+.subc{border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin:0 0 8px;color:var(--mut)}
+.subc b{color:var(--tx)}
+.subc.new{border:1.5px dashed var(--new);color:var(--tx)}
+.chips2{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip2{display:inline-flex;align-items:center;border:1px solid var(--line-strong);border-radius:6px;padding:4px 10px;background:#fff;font-size:12px;white-space:nowrap;position:relative}
+.chip2.new{border:1.5px dashed var(--new);color:var(--tx);font-weight:600}
+.keys0{display:grid;grid-template-columns:1fr 1fr;gap:6px 30px;font-size:12.5px;line-height:19px;margin:10px 2px 0}
+.keys0 div{display:flex;gap:8px;align-items:flex-start}
+.keys0 i.n{flex:none;margin-top:1px}
 </style>
 </head>
 <body>
 <h1>SLD — show and draw it by substation, RMU and transformer (proposal mockup, 2026-11-18)</h1>
 <p class="lead">Example project: five substations, six RMUs, seven transformers, and one board on an authority LV supply (MDB-8). Each main board already names its RMU and its substation in Panels → Transformers; today the SLD draws neither the substation nor the RMU's ways, and always shows the whole network. Sheets print in black and white; the screen views tint the 11 kV lines as the app does today. All ratings are example values.</p>
 <p class="legend"><i></i>new or changed <i class="k"></i>numbered point in the text</p>
+
+<h2>0 · Where each part goes <span class="hm">no new tab: the SLD page keeps its four tabs (System diagram, Board, Earthing, Riser); the numbers point to sections 2–6</span></h2>
+<div class="frame" style="overflow:visible">
+  <div class="tabs"><span>Project</span><span class="sep"></span><span>Load schedule</span><span class="on">SLD</span><span>Design CAD</span><span>Sheets</span><span>Specification</span><span class="sep"></span><span>Stages</span><span class="sep"></span><span>Documents</span><span>BOM / Cost</span><span>Standards</span></div>
+  <div class="rb" id="ribbon0"></div>
+  <div class="sh">
+    <span class="stabs"><span class="on">System diagram<span class="bdg"><i class="n">1</i></span></span><span>Board: MDB-1</span><span>Earthing</span><span>Riser</span></span>
+    <span class="btn">+ Add</span><span class="sp"></span><span class="pc">Normal supply</span><span class="pc">Calculations up to date</span>
+  </div>
+  <div class="ws" style="height:530px">
+    <div class="tree" style="width:230px;position:relative">
+      <div class="th"><b>Panels</b><span class="seg nw" style="position:relative;overflow:visible"><span>Boards</span><span class="on">Substations</span><span class="bdg" style="top:-14px;right:-14px"><i class="n">3</i></span></span></div>
+      <div id="tree0"></div>
+    </div>
+    <div class="cv">
+      <div class="chip nw"><span>Showing <b>SS-1</b> <span class="m">· Conventional · Ground floor</span></span><span>2 transformers · 25 boards</span><span class="nb">◀</span><span class="nb">▶</span><span class="all">Show all</span></div>
+      <div id="fig0" style="position:absolute;left:0;top:44px"></div>
+    </div>
+    <div class="insp"><b>Properties</b><br>TX-1 · 1000 kVA<br>Substation SS-1 · RMU-1 (T1)<br><span style="font-size:11px">Right-click a transformer, an RMU or a substation frame on the drawing: Show … only, Substation, RMU, Configuration (section 5).</span></div>
+  </div>
+</div>
+<div class="row" style="gap:20px;margin-top:14px;align-items:stretch">
+  <div class="mini" style="width:700px;flex:none">
+    <div class="tt">Panels → Transformers <span class="m">· opened from SLD ribbon → Supply → HV supply and RMUs…, as today</span></div>
+    <div class="ptabs"><span>Quick create</span><span class="on">Transformers</span><span>Panel list</span><span>Naming</span><span>Typical floors</span><span>Repeat group</span><span>Templates</span></div>
+    <div class="bd">
+      <div class="subc"><b>Create transformers</b> · number, sizes, substation, RMU option (as today)</div>
+      <div class="subc"><b>HV supply and RMUs</b> · grid source, RMU configuration and ratings (as today)</div>
+      <div class="subc new" style="position:relative"><b>Substations</b> · new card: one row per substation in ring order: type, location, RMUs, transformers, owner<span class="bdg"><i class="n">4</i></span></div>
+      <div class="subc"><b>Transformer loading table</b> · its RMU column takes the limit from the RMU's tee-offs</div>
+    </div>
+  </div>
+  <div class="mini" style="width:640px;flex:none">
+    <div class="tt">Design CAD → Sheets <span class="m">· where every submission sheet is made since v2.4</span></div>
+    <div class="bd">
+      <p style="margin:0 0 8px"><b>Make the sheets automatically</b></p>
+      <div class="chips2"><span class="chip2">Split by panels</span><span class="m">max 10</span><span class="chip2">One sheet per MDB</span><span class="chip2">Overview + one per SMDB</span><span class="chip2 new">One sheet per substation<span class="bdg"><i class="n">5</i></span></span></div>
+      <p class="note" style="margin:10px 0 0">The new button makes the HV overview sheet (ring, substations, RMUs, transformers, with RMU and transformer schedules) and then one sheet per substation (section 6).</p>
+    </div>
+  </div>
+  <div class="mini" style="flex:1">
+    <div class="tt">Not changed</div>
+    <div class="bd">The Board, Earthing and Riser tabs, the Load schedule and Design CAD's Plan and Draw stay as they are. The earthing schematic already groups its pits by substation.</div>
+  </div>
+</div>
+<div class="keys0">
+  <div><i class="n">1</i><span><b>SLD → System diagram</b> (the first tab, as today): the drawing itself shows the 11 kV ring, the RMUs with their ways and the substation frames (section 2).</span></div>
+  <div><i class="n">2</i><span><b>SLD ribbon → View → Show</b>, beside Fit: whole network, a substation, an RMU or a transformer; the chip on the drawing steps ◀ ▶ (sections 3–4).</span></div>
+  <div><i class="n">3</i><span><b>Panel tree</b> on the left of the SLD page: a Group switch, Boards (today) or Substations (section 3).</span></div>
+  <div><i class="n">4</i><span><b>Panels → Transformers → Substations</b> card; and right-click on the drawing (section 5).</span></div>
+  <div><i class="n">5</i><span><b>Design CAD → Sheets → Make the sheets automatically → One sheet per substation</b> (section 6).</span></div>
+</div>
+<div class="row" style="gap:20px;margin-top:14px;align-items:stretch">
+  <div class="box" style="width:1150px;flex:none"><h4>Decision 8 · an HV-only view</h4>
+    <p style="margin:0 0 6px">For a big project it helps to see only the HV side: the ring, the substations, the RMUs and the transformers, with each main board as a name (like sheet E-SLD-001).</p>
+    <ol style="margin:0">
+      <li><b>HV overview as the second row of the Show menu</b>, on the System diagram tab <span class="rec">(recommended)</span>: no new tab; double-click a substation frame there to show that substation.</li>
+      <li><b>A fifth tab "HV supply"</b> after Riser, drawing only the HV side; clicking a substation opens it on the System diagram tab.</li>
+    </ol>
+  </div>
+  <div class="box" style="flex:1" id="d8"></div>
+</div>
 
 <h2>1 · Today <span class="hm">every transformer, and the meter cabinet too, hangs from one 11 kV line under one utility symbol</span></h2>
 <div class="frame pad"><div class="row">
@@ -274,12 +367,12 @@ table.t tr:last-child td{border-bottom:0}
   <p class="note" style="flex:1;margin:0;line-height:19px">Right-click on the SLD. A transformer moves to another substation or RMU; the RMU list shows the free tee-offs. An RMU gets its configuration and its normally open ring switch (R1, R2 or none). "HV supply and RMUs…" opens the existing card for the ratings. New optional fields: <code>Rmu.substation</code> (an RMU with no transformer yet) and <code>Rmu.normallyOpen</code>.</p>
 </div>
 
-<h2>6 · Sheets — one sheet per substation <span class="hm">Drawings → automatic sets</span></h2>
+<h2>6 · Sheets — one sheet per substation <span class="hm">Design CAD → Sheets → Make the sheets automatically</span></h2>
 <div class="frame pad"><div class="row" style="gap:22px">
   <div class="sets">
     <div class="set"><b>One sheet per MDB</b><span class="m">Each main board with everything it feeds; an overview when there are several. Now also draws the transformer's RMU, other ways as stubs.</span></div>
-    <div class="set"><b>One sheet per SMDB</b><span class="m">Main boards and sub-mains, then a sheet per SMDB / MCC.</span></div>
-    <div class="set"><b>Sheets of n panels</b><span class="m">For authority submissions, e.g. 10 panels per sheet.</span></div>
+    <div class="set"><b>Overview + one per SMDB</b><span class="m">Main boards and sub-mains, then a sheet per SMDB / MCC.</span></div>
+    <div class="set"><b>Split by panels</b><span class="m">For authority submissions, e.g. 10 panels per sheet.</span></div>
     <div class="set on nw"><b>One sheet per substation</b><span class="m">An HV overview (ring, substations, RMUs, transformers), then each substation with its main boards and everything they feed. A bus coupler between two main boards stays on their sheet (a per-MDB sheet drops it today).</span></div>
     <table class="t" style="margin-top:6px" id="sheet-list"></table>
   </div>
@@ -289,7 +382,7 @@ table.t tr:last-child td{border-bottom:0}
   </div>
 </div></div>
 
-<h2>7 · Decisions and steps</h2>
+<h2>7 · Decisions and steps <span class="hm">decisions 1–7 approved 2026-11-18 with the recommended answers; decision 8 in section 0</span></h2>
 <div class="row" style="gap:20px">
   <div class="box" style="width:1150px;flex:none"><h4>Decisions</h4><ol>
     <li><b>Substation frame</b> — around the RMU(s) and transformers <span class="rec">(recommended)</span>, or down to the main board's incomer.</li>
@@ -299,6 +392,7 @@ table.t tr:last-child td{border-bottom:0}
     <li><b>Panel tree</b> — add the Group switch, Boards stays the default <span class="rec">(recommended)</span>, or leave the tree as it is.</li>
     <li><b>Substation details</b> — one record shared with the DM-D-013 Substation area page <span class="rec">(recommended)</span>, or a separate list.</li>
     <li><b>Order</b> — steps 1 → 5 <span class="rec">(recommended)</span>, or Show first.</li>
+    <li><b>HV-only view</b> (open, section 0) — an HV overview row in the Show menu <span class="rec">(recommended)</span>, or a fifth SLD tab "HV supply".</li>
   </ol></div>
   <div class="box" style="flex:1"><h4>Steps (one PR each, with tests)</h4><ol>
     <li>The supply arrangement on the SLD (section 2), plus two fixes: the RMU limit from its tee-offs, and Substation area → Fill from project by substation name (today one substation per RMU, so SS-3 becomes two).</li>
@@ -536,6 +630,58 @@ function auth(x8, Y, lv, sheet) {
   return s + sw(x8, Y.yM, Y.yM + 34, { kind: 'cb' }) + ln(x8, Y.yM + 34, x8, Y.yM + 40) + bsym(x8, Y.yM + 40, 'DB') + tx_(x8, Y.yM + 72, 'DB-GH1', 'm', 'middle');
 }
 const svg = (w, h, body, scr) =>`<svg class="sld${scr ? ' scr' : ''}" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`;
+
+
+// ---------------- 0 · where each part goes ----------------
+(function where() {
+  const I = {
+    run: '<path d="M6 3l14 9-14 9z"/>',
+    check: '<path d="M3 5h2M3 12h2M3 19h2M8 5h13M8 12h13M8 19h13"/>',
+    tx: '<circle cx="12" cy="8" r="5"/><circle cx="12" cy="15" r="5"/>',
+    dev: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+    show: '<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3M12 12V8"/>',
+    fit: '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>',
+    exp: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M12 18v-6M9 15l3 3 3-3"/>',
+    dn: '<path d="m6 9 6 6 6-6"/>'
+  };
+  const ic = (k, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24">${I[k]}</svg>`;
+  const big = (k, label, sub, cls = '', arrow = true, badge = '') => `<div class="big ${cls}">${ic(k)}<span class="lb">${label}${arrow ? ic('dn', 'xs') : ''}</span>${sub ? `<span class="sub">${sub}</span>` : ''}${badge ? `<span class="bdg"><i class="n">${badge}</i></span>` : ''}</div>`;
+  document.getElementById('ribbon0').innerHTML =
+    `<div class="grp"><div class="btns">${big('run', 'Run', '', '', false)}${big('check', 'Check', '', '', false)}</div><div class="cap">Run and check</div></div>`
+    + `<div class="fade">Canvas · Boards</div>`
+    + `<div class="grp"><div class="btns">${big('tx', 'Supply', '')}${big('dev', 'Devices', '')}</div><div class="cap">Equipment</div></div>`
+    + `<div class="fade">Selection · Results · Copy and undo</div>`
+    + `<div class="grp"><div class="btns">${big('show', 'Show', 'SS-1', 'nw', true, '2')}${big('fit', 'Fit', '', '', false)}</div><div class="cap">View</div></div>`
+    + `<div class="grp"><div class="btns">${big('exp', 'Export', '')}</div><div class="cap">Output</div></div>`;
+  let h = '';
+  SUBS.forEach((ss, i) => {
+    const open = i === 0;
+    h += `<div class="tn${i ? ' grp1' : ''}"><span class="ch">${open ? CD : CR}</span><span class="g">${ss.id}</span><span class="m">${ssTx(ss).length} TX · ${ssBoards(ss)}</span></div>`;
+    if (!open) return;
+    for (const r of ss.rmus) {
+      h += `<div class="tn" style="padding-left:24px"><span class="ch">${CD}</span>${r.id}<span class="m">${r.cfg}</span></div>`;
+      for (const t of r.tx.filter(Boolean)) h += `<div class="tn" style="padding-left:38px"><span class="ch">${CR}</span>${TX[t].mdb}<span class="bd">${t} · ${TX[t].kva} kVA</span><span class="dot"></span></div>`;
+    }
+  });
+  h += `<div class="tn grp1"><span class="ch">${CR}</span><span class="g">Authority supply</span><span class="m">1 · ${boardsUnder('MDB-8')}</span></div>`;
+  document.getElementById('tree0').innerHTML = h;
+  const n = network([SUBS[0]], 0, { yr: 74, gapTx: 760, gapSs: 0, lv: 'deep', scr: true, padL: 300, lead: 70, left: { x: 18, text: ['from DEWA 11 kV · 350 MVA', 'primary S/S, feeder F12'] }, right: { x: 1640, text: ['to RMU-2 · SS-2'] } });
+  const cv = document.getElementById('fig0').parentElement.getBoundingClientRect();
+  const k = Math.min(cv.width / 1660, (cv.height - 52) / 560);
+  document.getElementById('fig0').innerHTML = svg(Math.round(1660 * k), Math.round(560 * k), `<g transform="scale(${k.toFixed(4)})">${n.s}</g>`, true);
+  // decision 8: the two ways
+  document.getElementById('d8').innerHTML = `<h4>The two ways, as they would look</h4>
+    <div style="display:flex;gap:18px;align-items:flex-start">
+      <div><div class="note" style="margin:0 0 4px"><b>1 ·</b> Show menu</div>
+        <div class="menu" style="position:relative;width:250px">
+          <div class="it">Whole network</div>
+          <div class="it on nw"><span class="tk">✓</span>HV overview<span class="c">ring + substations</span></div><hr>
+          <div class="it"><b>SS-1</b><span class="c">2 TX</span></div><div class="it"><b>SS-2</b><span class="c">1 TX</span></div><div class="it m">…</div>
+        </div></div>
+      <div><div class="note" style="margin:0 0 4px"><b>2 ·</b> SLD page tabs</div>
+        <span class="stabs"><span class="on">System diagram</span><span>Board: MDB-1</span><span>Earthing</span><span>Riser</span><span class="nw" style="outline-offset:-2px">HV supply</span></span></div>
+    </div>`;
+})();
 
 // ---------------- 1 · today ----------------
 (function today() {
