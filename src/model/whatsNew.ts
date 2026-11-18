@@ -18,6 +18,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.203', date: '2026-11-18',
+    items: [
+      { title: 'SLD: kWh meter clear of the cable text', text: 'A kWh meter on a way now has its own row inside the panel, like the ELCB, so it no longer sits on the cable text. On a way with both, the meter is under the ELCB. The meter is drawn a little larger, so "kWh" fits its box. The same applies in the DXF / DWG export.' }
+    ]
+  },
+  {
     version: '2.201', date: '2026-11-18',
     items: [
       { title: 'Load schedule: ELCB and RCBO placed by hand', text: 'Add → ELCB / RCD puts a 3-phase ELCB (4-pole, or 3-pole) over chosen ways or over one 3-phase circuit, or an RCBO in place of a 1-phase circuit\'s MCB. A circuit has an ELCB or an RCBO, never both. They print in the ELCB column and count in the BOQ, the enclosure and the earth-fault check.' }
