@@ -245,3 +245,13 @@ describe('lightning risk assessment report — other risk components', () => {
     expect(row('Minimum protection').getCell(2).value).toMatchObject({ result: 'Class II', formula: expect.stringContaining('$E$') });
   });
 });
+
+describe('lightning risk assessment report — a probability for each line', () => {
+  it('shows each line\'s own probability beside the component', () => {
+    const line = { lengthM: 1000, strikeWidthM: 40, installationFactor: 0.5, environmentFactor: 0.5, typeFactor: 1 };
+    const study: LpsInputs = { ...lightning, lengthM: 35, widthM: 26, heightM: 8.5, risk: { shape: 'rectangle', thunderDays: 40, strikeRatio: 1, locationFactor: 1,
+      lines: [{ ...line, name: 'Power', probabilities: { damageLine: { probability: 0.01 } } }, { ...line, lengthM: 500 }], components: { damageLine: { on: true, loss: 0.005, byLine: true } } } };
+    const blocks = lightningReportBlocks({ ...sampleProject, lightning: study }, study, ['risk']);
+    expect(blocks[1].table!.rows).toEqual([['Physical damage — strike on an incoming line', '0.005', 'Power — 0.01 | Line 2 — Not entered']]);
+  });
+});

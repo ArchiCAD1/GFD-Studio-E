@@ -274,3 +274,42 @@ describe('lightning risk — the other risk components', () => {
   });
 });
 
+describe('lightning risk — a probability for each incoming line', () => {
+  const power: RiskLine = { name: 'Power', lengthM: 1000, strikeWidthM: 40, nearWidthM: 4000, installationFactor: 0.5, environmentFactor: 0.5, typeFactor: 1 };
+  const telecom: RiskLine = { ...power, name: 'Telecom', lengthM: 500 };
+
+  it('each line\'s strikes take that line\'s probability; one shared value has to be the worst', () => {
+    const lines = [{ ...power, probabilities: { damageLine: { probability: 0.01 } } }, { ...telecom, probabilities: { damageLine: { probability: 0.05 } } }];
+    const r = lightningRisk({ ...base, lines, components: { damageLine: { on: true, loss: 0.005, byLine: true } } });
+    // Power 0.04 × 0.01 × 0.005 = 2 × 10⁻⁶; Telecom 0.02 × 0.05 × 0.005 = 5 × 10⁻⁶.
+    expect(r.rows[0].parts!.damageLine).toBeCloseTo(7e-6, 12);
+    expect(r.rows[4].risk).toBeCloseTo(2.4255e-6 + 7e-6, 10);
+    expect(r).toMatchObject({ minimum: 'I', missing: [] });
+    expect(lightningRisk({ ...base, lines, components: { damageLine: { on: true, loss: 0.005, probability: 0.05 } } }).minimum).toBe('insufficient');
+  });
+
+  it('by line and by class together', () => {
+    const lines = [{ ...power, probabilities: { damageLine: { classProbability: { none: 1, IV: 0.05, III: 0.05, II: 0.01, I: 0.01 } } } },
+      { ...telecom, probabilities: { damageLine: { classProbability: { none: 1, IV: 0.1, III: 0.1, II: 0.02, I: 0.02 } } } }];
+    const r = lightningRisk({ ...base, lines, components: { damageLine: { on: true, loss: 0.005, byLine: true, byClass: true } } });
+    // Class II: 0.04 × 0.01 × 0.005 + 0.02 × 0.02 × 0.005 = 4 × 10⁻⁶, with 6.064 × 10⁻⁶ just over the tolerable risk.
+    expect(r.rows[3].parts!.damageLine).toBeCloseTo(4e-6, 12);
+    expect(r.rows[3].ok).toBe(false);
+    expect(r.minimum).toBe('I');
+  });
+
+  it('a line with no probability is named; by line means nothing for a strike on the building', () => {
+    const lines = [{ ...power, probabilities: { systemsNearLine: { probability: 0.1 } } }, { ...telecom, name: undefined }];
+    const k: RiskInputs = { ...base, lines, components: { systemsNearLine: { on: true, loss: 1e-6, byLine: true } } };
+    expect(lightningRisk(k).missing).toEqual(['probability — failure of internal systems — strike near an incoming line — line 2']);
+    const byClass = lightningRisk({ ...k, components: { systemsNearLine: { on: true, loss: 1e-6, byLine: true, byClass: true } } });
+    expect(byClass.missing).toEqual(['probability — failure of internal systems — strike near an incoming line — Power — no protection', 'probability — failure of internal systems — strike near an incoming line — line 2 — no protection']);
+    expect(lightningRisk({ ...base, components: { touchBuilding: { on: true, loss: 1e-4, probability: 1, byLine: true } } }).rows[0].parts!.touchBuilding).toBeCloseTo(2.4255e-6, 10);
+  });
+
+  it('the scope says one probability for all lines only when a line component shares one', () => {
+    expect(riskScope({ ...base, components: { damageLine: { on: true } } })).toContain('One zone, and one probability for each line component whatever the number of lines.');
+    expect(riskScope({ ...base, components: { damageLine: { on: true, byLine: true } } })).toMatch(/One zone\.$/);
+    expect(riskScope({ ...base, components: { touchBuilding: { on: true } } })).toMatch(/One zone\.$/);
+  });
+});

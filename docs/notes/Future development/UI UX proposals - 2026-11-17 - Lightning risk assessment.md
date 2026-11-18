@@ -41,8 +41,9 @@ A preliminary risk assessment at the top of the lightning protection study. It w
 
 7. **The other risk components** — on the risk assessment card, a table of the seven components that can be added to physical damage from a strike on the building: injury and failure of internal systems for a strike on the building, failure of internal systems for a strike near it, and injury, physical damage and failure of internal systems for strikes on and near incoming lines. The engineer ticks the ones that apply and enters the loss and the probability of each — one value, or one for each protection class. Strikes near the building need a distance (or an area, with an entered collection area); lines get a table (length, the widths that collect strikes on and near the line, three factors, and an optional far-end structure). The class table then judges the total, and a table shows the risk by component. The report lists the components and lines as entered and the risk by component; in the workbook the other components are figures from the app and the total and verdict stay live. Presets keep the components and the near distance, not the lines. The owner asked for this ("complete all", 2026-11-17) without a mockup. (Done.)
 
+8. **A probability for each line** — a line component can be marked "By line": its probability is then entered on each incoming line (one value, or one for each class), in a table under the lines, and each line's strikes take that line's probability. Chosen by the owner on 2026-11-17. (Done.)
+
 ## Later
 
 - More than one zone in a building.
-- A probability for each line, where the lines differ (now one probability for each component: enter the governing value).
 - The other kinds of loss (service to the public, cultural heritage, economic value); this is loss of human life only.

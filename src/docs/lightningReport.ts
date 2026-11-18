@@ -61,7 +61,9 @@ function riskBlocks(k: RiskInputs, risk: RiskResult): LpsBlock[] {
   const inputBlocks: LpsBlock[] = [
     ...(on.length ? [{ key: 'risk' as const, title: 'Risk assessment — other risk components as entered', table: { headers: ['Risk component', 'Loss', 'Probability'], rows: on.map((c) => {
       const e = k.components![c.id]!;
-      return [c.label, fac(e.loss), e.byClass ? RISK_LEVELS.map((l) => `${riskLevelLabel(l)}: ${fac(e.classProbability?.[l])}`).join('; ') : fac(e.probability)];
+      const shown = (q: { probability?: number; classProbability?: Partial<Record<(typeof RISK_LEVELS)[number], number>> } | undefined) => (e.byClass ? RISK_LEVELS.map((l) => `${riskLevelLabel(l)}: ${fac(q?.classProbability?.[l])}`).join('; ') : fac(q?.probability));
+      const lineBased = e.byLine && (c.events === 'line' || c.events === 'nearLine');
+      return [c.label, fac(e.loss), lineBased ? (k.lines ?? []).map((line, n) => `${line.name?.trim() || `Line ${n + 1}`} — ${shown(line.probabilities?.[c.id])}`).join(' | ') || NOT : shown(e)];
     }) } }] : []),
     ...(needs('line', 'nearLine') ? [{ key: 'risk' as const, title: 'Risk assessment — incoming lines as entered', table: {
       headers: ['Line', 'Length (m)', 'Width, strikes on it (m)', 'Width, strikes near it (m)', 'Installation factor', 'Environment factor', 'Line type factor', 'Far-end structure area (m²)', 'Far-end location factor'],
