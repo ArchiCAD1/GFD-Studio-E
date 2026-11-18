@@ -33,7 +33,7 @@ export function under(items: SketchItem[], ids: string[], refIds: string[]): Ske
 export type TextKind = 'text' | 'dims' | 'leaders' | 'all';
 /** Whether an object is one TEXTTOFRONT brings up: texts and notes, dimensions, leaders (their line and arrow), or all. */
 export const isTextLike = (it: SketchItem, which: TextKind): boolean =>
-  (which === 'text' || which === 'all') && (it.kind === 'text' || it.kind === 'mtext') || (which === 'dims' || which === 'all') && it.kind === 'dim' || (which === 'leaders' || which === 'all') && !!it.leader;
+  (which === 'text' || which === 'all') && (it.kind === 'text' || it.kind === 'mtext') || (which === 'dims' || which === 'all') && it.kind === 'dim' || (which === 'leaders' || which === 'all') && (!!it.leader || it.kind === 'mleader');
 /** TEXTTOFRONT: the texts, dimensions or leaders (or all three) over everything else, in their order. */
 export function textToFront(items: SketchItem[], which: TextKind = 'all'): SketchItem[] {
   return toFront(items, items.filter((it) => isTextLike(it, which)).map((it) => it.id));

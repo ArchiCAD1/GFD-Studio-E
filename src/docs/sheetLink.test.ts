@@ -420,6 +420,13 @@ describe('templateOf and sheetFromFormat', () => {
     expect(sheetFromFormat(t, [], undefined, 'My copy')).toMatchObject({ name: 'My copy' });
     expect(sheetFromFormat(t, [], undefined, 'My copy').link).not.toHaveProperty('boardId');
   });
+  it('a format keeps the paper of its sheet, and so does every sheet made from it', () => {
+    const t = templateOf({ ...filled(), paper: 'A3 portrait' })!;
+    expect(t.paper).toBe('A3 portrait');
+    expect(sheetFromFormat(t, [], 'DB-GF1').paper).toBe('A3 portrait');
+    expect(sheetsForBoards([], { ...linkToBoard(layout(), 'DB-GF1'), paper: 'A3' }, ['DB-A', 'DB-B']).map((m) => m.paper)).toEqual(['A3', 'A3']);
+    expect(templateOf(filled())).not.toHaveProperty('paper');
+  });
 });
 
 describe('boardSheet', () => {
