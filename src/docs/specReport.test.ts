@@ -1,6 +1,7 @@
 import { Packer } from 'docx';
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
+import { issueRevision, withMarks } from '../model/specRevisions';
 import { addDetail, specView, starterSpec, withInfo, withSetup, type SpecDoc } from '../model/specDoc';
 import type { Project } from '../types';
 import { CATALOGUE, unavailable } from '../components/docs/exportCatalogue';
@@ -205,6 +206,64 @@ describe('specification — tables and pictures in the output', () => {
     expect(Object.keys(zip.files).filter((f) => /^word\/media\/.+/.test(f)).length).toBe(1);
     // 50 % of the text width less the clause indent: (210 − 18 − 16) mm = 9978 twips, less 850, at 15 twips a pixel: 304 pixels wide, 101 high (120 × 40 kept in proportion).
     expect(xml).toMatch(/<wp:extent cx="2895600" cy="962025"\/>/);
+  });
+});
+
+describe('specification — its own revisions in the output', () => {
+  const first: SpecDoc = { title: 'Spec', setup: { cover: { on: false }, contents: { on: false } }, sections: [{ id: 'S1', title: 'Boards', included: true, clauses: [
+    { id: 'C1', kind: 'clause', text: 'Unchanged.' }, { id: 'C2', kind: 'clause', text: 'Old wording.' }, { id: 'C3', kind: 'clause', text: 'Gone <later>.' },
+    { id: 'C4', kind: 'table', text: 'Boards', table: { rows: [['MDB', '1600']] } }] }] };
+  const a = issueRevision(first, { id: 'A', description: 'For tender', by: 'PS' }, new Date('2026-10-01T08:00:00Z'));
+  const s = a.sections[0];
+  const b = issueRevision({ ...a, sections: [{ ...s, title: 'Main boards', clauses: [s.clauses[0], { ...s.clauses[1], text: 'New wording.' }, { ...s.clauses[3], table: { rows: [['MDB', '2000']] } }, { id: 'C5', kind: 'clause', text: 'Added.' }] }] },
+    { id: 'B', description: 'Revised' }, new Date('2026-11-17T08:00:00Z'));
+
+  it('PDF: by default a changed line is highlighted and carries the revision mark; unchanged lines carry nothing', () => {
+    const html = buildSpecHtml(sampleProject, b);
+    expect(html).toContain('<div class="cl "><span>1.1</span><span>Unchanged.</span></div>');
+    expect(html).toMatch(/<div class="cl {2}chg"><span><svg class="rv"[^>]*>.*?>B<\/text><\/svg>1\.2<\/span><span>New wording\.<\/span><\/div>/);
+    expect(html).toMatch(/<h2 class="chg"><svg class="rv".*?<\/svg>1 Main boards<\/h2>/);
+    expect(html).toMatch(/<figure class="blk chg"><figcaption><svg class="rv".*?<\/svg>Table 1 — Boards<\/figcaption>/);
+    expect(html).not.toContain('Gone');
+    expect(html).not.toContain('Changes in revision');
+    expect(html).toContain(' · REV B · ');
+    expect(html.match(/#[0-9a-f]{3,6}\b/gi)!.every((c) => /^#000$/i.test(c))).toBe(true);
+  });
+
+  it('PDF: the cloud, the deleted words and the change list page are there when asked; marks can be turned off', () => {
+    const all = buildSpecHtml(sampleProject, withMarks(b, { cloud: true, deleted: true, list: true, highlight: false }));
+    expect(all).toContain('<div class="cl  cld"><span><svg class="rv"');
+    expect(all).toMatch(/<div class="cl del"><span><svg class="rv".*?<\/svg><\/span><span><s>Gone &lt;later&gt;\.<\/s><\/span><\/div>/);
+    expect(all).toContain('<h2>Changes in revision B</h2><div class="meta">Compared with revision A.</div><table class="rev"><tr><th>Clause</th><th>Change</th><th>Text</th></tr><tr><td>1</td><td>Title changed</td><td>1 Main boards</td></tr><tr><td>1.2</td><td>Changed</td><td>New wording.</td></tr><tr><td>after 1.2</td><td>Deleted</td><td>Gone &lt;later&gt;.</td></tr>');
+    const none = buildSpecHtml(sampleProject, withMarks(b, { highlight: false, triangle: false }));
+    expect(none).not.toContain('class="rv"');
+    expect(none).not.toMatch(/class="[^"]*\bchg\b/);
+  });
+
+  it('the first revision, and a document with none, print with no marks', () => {
+    for (const d of [first, a]) { const html = buildSpecHtml(sampleProject, withMarks(d, { cloud: true, list: true })); expect(html).not.toContain('class="rv"'); expect(html).not.toContain('Changes in revision'); }
+  });
+
+  it('the cover revision table is the specification\'s own', () => {
+    const html = buildSpecHtml(sampleProject, { ...b, setup: {} });
+    expect(html).toContain('<tr><td>A</td>');
+    expect(html).toContain('<td>For tender</td><td>PS</td></tr><tr><td>B</td>');
+  });
+
+  it('Word: shading and the revision mark on a changed line, a box for the cloud, struck text and the change list', async () => {
+    const JSZip = (await import('jszip')).default;
+    const xml = async (d: SpecDoc) => (await JSZip.loadAsync(await Packer.toBuffer(buildSpecDocx(sampleProject, d)))).file('word/document.xml')!.async('string');
+    const plain = await xml(b);
+    expect(plain).toMatch(/<w:shd [^>]*w:fill="D9D9D9"[^>]*\/>(?:(?!<\/w:p>)[\s\S])*New wording\./);
+    expect(plain).toContain('△B');
+    expect(plain).not.toContain('<w:strike/>');
+    expect(plain).not.toContain('<w:pBdr>');
+    const all = await xml(withMarks(b, { cloud: true, deleted: true, list: true }));
+    expect(all).toMatch(/<w:pBdr>(?:(?!<\/w:p>)[\s\S])*New wording\./);
+    expect(all).toMatch(/<w:strike\/>(?:(?!<\/w:p>)[\s\S])*Gone &lt;later&gt;\./);
+    expect(all).toContain('Changes in revision B');
+    expect(all).toContain('Compared with revision A.');
+    expect(await xml(a)).not.toContain('△');
   });
 });
 
