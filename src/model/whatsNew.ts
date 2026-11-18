@@ -18,6 +18,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.198', date: '2026-11-18',
+    items: [
+      { title: 'Project scope: fire, ELV, tender and supervision', text: 'The Scope step of the project brief has four new items: Fire alarm / Civil Defence, ELV systems, Tender stage and Site supervision. All are off by default. Ticking one switches on the matching project folders (scope:fire, scope:elv, stage:tender, service:supervision) on the Project folder step. They do not change readiness, deliverables or to-do lists, and existing projects are unchanged.' }
+    ]
+  },
+  {
     version: '2.197', date: '2026-11-18',
     items: [
       { title: 'Project number', text: 'A project now has its own project number. Type it on the first step of New project or in Project settings, under Submission forms. It is used in the project folder name (for example P2611_Villa Jumeirah) and in study reports whose own Project no. field is empty. Existing projects keep working: a number typed in Study reports is still used until you give the project its own.' }

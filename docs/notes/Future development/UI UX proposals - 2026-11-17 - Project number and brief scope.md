@@ -2,7 +2,7 @@
 
 Approved by the owner in chat on 17 Nov 2026.
 
-Both changes come from decisions 2 and 3 in `Project folders - open decisions - 2026-11-17.md`.
+Part P2 is stacked on part P1 (PR 1 adds the note, PR 2 builds the scope items). Both changes come from decisions 2 and 3 in `Project folders - open decisions - 2026-11-17.md`.
 
 ## P1. Project number field
 

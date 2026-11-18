@@ -3,7 +3,7 @@ import { REPORT_STATUS_TEXT } from '../calc/statusText';
 import { systemSummary } from '../calc/summary';
 import { sizeGeneratorByBoards, sizeTransformers, txGenPlanOf } from '../calc/txGen';
 import { assess, COOL_SYSTEMS, DHW_SYSTEMS, rowArea, rowPct, type LoadAssessment } from '../calc/loadAssessment';
-import { SCOPE_ITEMS } from '../model/brief';
+import { OPTIONAL_SCOPE, SCOPE_ITEMS } from '../model/brief';
 import { referenceSourceOf, type RefKey } from '../model/designReference';
 import { STUDY_DEFAULTS, settingsOf, type Project, type StudyReportKind } from '../types';
 import { fig, fmtDate } from '../util/format';
@@ -140,7 +140,7 @@ export function buildDesignBasis(project: Project, studies: { key: StudyReportKi
     ? {
       defined: true,
       included: SCOPE_ITEMS.filter((s) => brief.scope.includes(s.id)).map((s) => `${s.label} — ${s.hint}`),
-      excluded: SCOPE_ITEMS.filter((s) => !brief.scope.includes(s.id)).map((s) => s.label),
+      excluded: SCOPE_ITEMS.filter((s) => !brief.scope.includes(s.id) && !OPTIONAL_SCOPE.includes(s.id)).map((s) => s.label),
       boundaries: boundaries(project)
     }
     : { defined: false, included: [], excluded: [], boundaries: boundaries(project) };

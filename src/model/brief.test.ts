@@ -3,7 +3,7 @@ import { newProject } from '../types';
 import { sampleProject } from '../data/sampleProject';
 import { buildDashboard } from '../calc/dashboard';
 import { projectReadiness } from '../calc/projectReadiness';
-import { applyBrief, defaultScope, deliverableCatalog, deliverableProgress, inScope, newBrief, withRole, withScope } from './brief';
+import { applyBrief, defaultScope, deliverableCatalog, deliverableProgress, inScope, newBrief, OPTIONAL_SCOPE, SCOPE_ITEMS, withRole, withScope } from './brief';
 
 describe('project brief', () => {
   it('starts each role with its own scope, deliverables and the right parties', () => {
@@ -52,6 +52,16 @@ describe('project brief', () => {
     expect(next.boq?.projectType).toBe('fit-out');
     expect(next.brief?.role).toBe('contractor');
     expect(applyBrief(p, newBrief('consultant')).boq).toBeUndefined();
+  });
+
+  it('the four newer scope items are listed, default to off, and leave deliverables and design basis as they were', () => {
+    expect(SCOPE_ITEMS.filter((s) => OPTIONAL_SCOPE.includes(s.id)).map((s) => [s.id, s.label])).toEqual([['fire', 'Fire alarm / Civil Defence'], ['elv', 'ELV systems'], ['tender', 'Tender stage'], ['supervision', 'Site supervision']]);
+    for (const role of ['consultant', 'contractor'] as const) {
+      expect(defaultScope(role).some((id) => OPTIONAL_SCOPE.includes(id))).toBe(false);
+      expect(newBrief(role).scope.some((id) => OPTIONAL_SCOPE.includes(id))).toBe(false);
+      const base = deliverableCatalog(role, defaultScope(role), 'DEWA');
+      expect(deliverableCatalog(role, [...defaultScope(role), ...OPTIONAL_SCOPE], 'DEWA')).toEqual(base);
+    }
   });
 
   it('everything is in scope without a brief; with one only what was chosen', () => {
