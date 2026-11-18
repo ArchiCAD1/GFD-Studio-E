@@ -3,12 +3,13 @@ import { pushLibrary } from '../database/librarySync';
 
 /** The engineer's own factor sets for the lightning risk assessment, kept on this computer and reused in any
  * project. A preset holds the factors only: the strike point ratio, the location and loss factors, the tolerable
- * risk, the damage probability of each class and the sensitivity multiplier. The site and the building (the
+ * risk, the damage probability of each class, the sensitivity multiplier, the other risk components (which are
+ * counted, their loss and probability) and the distance for strikes near the building. The site and the building (the
  * thunderstorm days or strike density, the shape and the roof outline) stay with the project. No preset is built
  * in: the app has no values of a standard. */
 
 export const RISK_PRESETS_KEY = 'lvds.lightningRiskPresets';
-const FACTORS = ['strikeRatio', 'locationFactor', 'fireRisk', 'fireProvisions', 'specialHazard', 'typicalLoss', 'tolerableRisk', 'damageProbability', 'sensitivity'] as const;
+const FACTORS = ['strikeRatio', 'locationFactor', 'fireRisk', 'fireProvisions', 'specialHazard', 'typicalLoss', 'tolerableRisk', 'damageProbability', 'sensitivity', 'components', 'nearReachM'] as const;
 export type RiskFactors = Pick<RiskInputs, (typeof FACTORS)[number]>;
 export interface RiskPreset { id: string; name: string; savedAt: string; factors: RiskFactors }
 
@@ -29,7 +30,7 @@ export function saveRiskPresets(list: RiskPreset[]): boolean {
 /** The factors of a risk assessment, without what belongs to the site and the building. */
 export function riskFactorsOf(k: RiskInputs): RiskFactors {
   const out: RiskFactors = {};
-  for (const key of FACTORS) if (k[key] !== undefined) Object.assign(out, { [key]: key === 'damageProbability' ? { ...k.damageProbability } : k[key] });
+  for (const key of FACTORS) if (k[key] !== undefined) Object.assign(out, { [key]: typeof k[key] === 'object' ? JSON.parse(JSON.stringify(k[key])) : k[key] });
   return out;
 }
 

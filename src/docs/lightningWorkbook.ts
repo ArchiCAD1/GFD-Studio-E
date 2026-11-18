@@ -2,8 +2,8 @@ import ExcelJS from 'exceljs';
 import { AIR_METHODS, lightningProtection, type LpsInputs } from '../calc/lightningProtection';
 import { revisionStamp } from '../model/revisions';
 import type { Project } from '../types';
-import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskStarted, studyRiskInputs } from '../calc/lightningRisk';
-import { LPS_NOTES, RISK_SCOPE } from './lightningReport';
+import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskScope, riskStarted, studyRiskInputs } from '../calc/lightningRisk';
+import { LPS_NOTES } from './lightningReport';
 
 // Kept apart from lightningReport.ts so ExcelJS loads only when the workbook is exported.
 /** The lightning protection calculation as an Excel workbook with live formulas: change a value on the Inputs
@@ -140,19 +140,28 @@ function addRiskSheet(wb: ExcelJS.Workbook, project: Project, i: LpsInputs) {
   const loss = line('Loss from physical damage', `IF(${blank('fire', 'provisions', 'hazard', 'loss')},"${dr}",${c('fire')}*${c('provisions')}*${c('hazard')}*${c('loss')})`, risk.loss, '', 'fire risk × fire provisions × special hazard × typical loss');
   line('Largest damage probability allowed', guard(`IF(${c('tolerable')}="",NA(),${c('tolerable')}/(${strikes}*${loss}))`), risk.maxDamageProbability, '', 'tolerable risk ÷ (strikes × loss)');
   ws.addRow([]);
-  ws.addRow(['Protection', 'Risk per year', 'Against the tolerable risk']).font = { bold: true };
+  // With other risk components counted, their figure for each level comes from the app (not a live formula) and
+  // the verdict is on the total.
+  const others = risk.included.length > 0;
+  ws.addRow(others ? ['Protection', 'Physical damage, strike on the building', 'Other components (from the app)', 'Total risk per year', 'Against the tolerable risk'] : ['Protection', 'Risk per year', 'Against the tolerable risk']).font = { bold: true };
   at += 2;
   const verdicts = RISK_LEVELS.map((l, n) => {
-    const p = `$B$${RK.p0 + n}`, row = risk.rows[n], r = at + 1;
-    ws.addRow([riskLevelLabel(l), { formula: guard(`IF(OR(${p}="",${c('tolerable')}=""),NA(),${strikes}*${p}*${loss})`), result: row.risk ?? dr },
-      { formula: `IF(ISNUMBER($B$${r}),IF($B$${r}<=${c('tolerable')},"OK","Exceeds"),"${dr}")`, result: row.risk === undefined ? dr : row.ok ? 'OK' : 'Exceeds' }]);
+    const p = `$B$${RK.p0 + n}`, row = risk.rows[n], r = at + 1, verdict = row.risk === undefined ? dr : row.ok ? 'OK' : 'Exceeds';
+    const damage = { formula: guard(`IF(OR(${p}="",${c('tolerable')}=""),NA(),${strikes}*${p}*${loss})`), result: (others ? row.parts?.damage : row.risk) ?? dr };
+    const check = (cell: string) => ({ formula: `IF(ISNUMBER(${cell}),IF(${cell}<=${c('tolerable')},"OK","Exceeds"),"${dr}")`, result: verdict });
     at += 1;
-    return `$C$${r}`;
+    if (!others) {
+      ws.addRow([riskLevelLabel(l), damage, check(`$B$${r}`)]);
+      return `$C$${r}`;
+    }
+    const rest = risk.included.map((id) => row.parts?.[id]), sum = rest.every((v) => v !== undefined) ? rest.reduce((a, b) => a! + b!, 0)! : dr;
+    ws.addRow([riskLevelLabel(l), damage, sum, { formula: `IF(AND(ISNUMBER($B$${r}),ISNUMBER($C$${r})),$B$${r}+$C$${r},"${dr}")`, result: row.risk ?? dr }, check(`$D$${r}`)]);
+    return `$E$${r}`;
   });
   // The first level that passes; a level before it with no figure leaves the minimum unknown.
   const least = verdicts.reduceRight((rest, cell, n) => `IF(${cell}="OK","${riskLevelLabel(RISK_LEVELS[n])}",IF(${cell}="${dr}","${dr}",${rest}))`, '"More than Class I"');
   ws.addRow([]);
   ws.addRow(['Minimum protection', { formula: least, result: !risk.minimum ? dr : risk.minimum === 'insufficient' ? 'More than Class I' : riskLevelLabel(risk.minimum) }]).font = { bold: true };
   ws.addRow([]);
-  for (const t of [RISK_NOTE, RISK_SCOPE]) ws.addRow([t]).getCell(1).alignment = { wrapText: true, vertical: 'top' };
+  for (const t of [RISK_NOTE, riskScope(k)]) ws.addRow([t]).getCell(1).alignment = { wrapText: true, vertical: 'top' };
 }
