@@ -623,14 +623,15 @@ export function applyMove(project: Project, m: MoveItem, target: DropTarget): Dr
   }
   const before = target.type === 'feeder' ? project.feeders.find((x) => x.id === target.feederId)! : undefined;
   const toBoard = before ? before.boardId : (target as { boardId: string }).boardId;
-  const moved: Feeder = { ...f, boardId: toBoard };
+  const changedBus = toBoard !== f.boardId;
+  const flagged = changedBus && !!f.feedsBoardId;
+  const moved: Feeder = { ...f, boardId: toBoard, ...(flagged ? { lengthToCheck: true } : {}) };
   const rest = project.feeders.filter((x) => x.id !== f.id);
   const at = before ? rest.findIndex((x) => x.id === before.id) : rest.length;
   let feeders = [...rest.slice(0, at), moved, ...rest.slice(at)];
   let boards = project.boards;
   if (f.feedsBoardId) boards = boards.map((b) => (b.id === f.feedsBoardId ? { ...b, upstreamId: toBoard } : b));
   let p: Project = { ...project, feeders, boards };
-  const changedBus = toBoard !== f.boardId;
   if (changedBus && !f.feedsBoardId) {
     const r = applyRecommendation(moved, recommend(p, moved, 'fix'));
     feeders = feeders.map((x) => (x.id === moved.id ? r : x));
@@ -641,6 +642,6 @@ export function applyMove(project: Project, m: MoveItem, target: DropTarget): Dr
   return {
     project: p,
     select: f.feedsBoardId ? { type: 'board', id: f.feedsBoardId } : { type: 'feeder', id: f.id },
-    message: changedBus ? `Moved ${what} from ${f.boardId} to ${toBoard}${before ? `, ${where}` : ''}` : `Moved ${what} ${where}`
+    message: `${changedBus ? `Moved ${what} from ${f.boardId} to ${toBoard}${before ? `, ${where}` : ''}` : `Moved ${what} ${where}`}${flagged ? ' — check the incomer cable length' : ''}`
   };
 }

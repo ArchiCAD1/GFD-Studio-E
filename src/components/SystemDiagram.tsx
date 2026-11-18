@@ -1,4 +1,4 @@
-import { Grid3x3, Grip, Maximize2, Minimize2, Scan, Square, ZoomIn, ZoomOut } from 'lucide-react';
+import { Grid3x3, Grip, Maximize2, Minimize2, Scan, Square, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { withNetwork } from '../calc/network';
 import { txTag } from '../model/transformers';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore, type CSSProperties, type RefObject } from 'react';
@@ -45,6 +45,8 @@ import CadMenu from './cad/CadMenu';
 import type { CtxItem } from './cad/cadContextMenu';
 import { sldAction, type sldMenu, type SldTarget } from '../model/sldMenu';
 import { renameProblems } from '../model/renamePanels';
+import { moveBlocked } from '../model/moveBoard';
+import { moveBlockedReason } from '../model/sldMenuEdit';
 
 interface Tag {
   text: string;
@@ -324,7 +326,9 @@ export default function SystemDiagram({
   onToggleFullScreen,
   onDrawing,
   menuFor,
-  onMenu
+  onMenu,
+  onStatus,
+  lengthChecks = false
 }: {
   project: Project;
   /** The project the results were calculated for (the last run). */
@@ -398,10 +402,26 @@ export default function SystemDiagram({
   /** The right-click menus (sldMenu.ts): what to show for a target, and a picked row. Without them, no menu. */
   menuFor?: (t: SldTarget, view: { grid: GridStyle; detail: 'auto' | 'all' }) => ReturnType<typeof sldMenu>;
   onMenu?: (t: SldTarget, action: string, value?: string) => void;
+  /** The status line: the Move tool's hint and its cancel. */
+  onStatus?: (text: string) => void;
+  /** Mark an incomer moved to another source with "len?" (its cable length is still to be checked): the design view only. */
+  lengthChecks?: boolean;
 }) {
   const iec = (project.drawing?.symbols ?? 'iec') === 'iec';
   // DEWA submission style: panel frames, summary boxes (LOC, TCL, DF, MDL), DEWA wording.
   const dewa = project.drawing?.sldStyle !== 'standard'; // on unless switched off
+  /** The "len?" mark of an incomer moved to another source (screen only, the Panels tree's mark): one more row under
+   * the way's result values, where it has room (after the cable text it ran into the next way). */
+  const lenMark = (x: number, y: number, centred: boolean) => {
+    const w = textWidth('len?', 10, true) + 6, x0 = centred ? x - w / 2 : x;
+    return (
+      <g className="len-check">
+        <title>Moved to another source — check the incomer cable length</title>
+        <rect x={x0} y={y - 10} width={w} height={13} rx="4" />
+        <text x={x0 + 3} y={y}>len?</text>
+      </g>
+    );
+  };
   const feederTags = (id: string): Tag[] => {
     // Earth fault loop colouring: Zs against its limit on every feeder.
     const e = earthing?.get(id);
@@ -778,6 +798,10 @@ export default function SystemDiagram({
   const pick = useRef<{ item: MoveItem; label: string; px: number; py: number } | null>(null);
   const space = useSpaceHeld(); // Space + drag pans, even over a board
   const [moving, setMoving] = useState<{ label: string; x: number; y: number } | null>(null);
+  // The Move tool (menu or M): pick the new place with a click; its label follows the pointer.
+  const [moveTool, setMoveTool] = useState<{ item: MoveItem; label: string } | null>(null);
+  const [moveAt, setMoveAt] = useState<{ x: number; y: number; why?: string } | null>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
   const [cableEdit, setCableEdit] = useState<{ id: string; x: number; y: number; size: string; cores: string; length: string; runs: string; type: string } | null>(null);
   const editCable = (f: Feeder, x: number, y: number) => setCableEdit({ id: f.id, x, y, size: String(f.cableCsaMm2), cores: String(f.cores), length: String(f.lengthM), runs: String(runsOf(f)), type: f.cableType ?? '' });
   const lengthOk = (v: string) => /^\d*\.?\d+$/.test(v.trim().replace(',', '.')) && Number(v.trim().replace(',', '.')) > 0;
@@ -789,7 +813,7 @@ export default function SystemDiagram({
     setCableEdit(null);
   };
   const startPick = (item: MoveItem, label: string) => (e: React.PointerEvent) => {
-    if (!onMoveItem || tool === 'pan' || e.button !== 0 || space.current) return;
+    if (!onMoveItem || moveTool || tool === 'pan' || e.button !== 0 || space.current) return;
     pick.current = { item, label, px: e.clientX, py: e.clientY };
   };
   function onPointerDown(e: React.PointerEvent) {
@@ -812,7 +836,16 @@ export default function SystemDiagram({
       setMoving({ label: pk.label, x: e.clientX - r.left, y: e.clientY - r.top });
       return;
     }
+    if (moveTool && svg) {
+      const t = dropTargetAt(e.clientX, e.clientY);
+      const ok = !!t && canMove(project, moveTool.item, t.target);
+      const key = ok ? t!.key : null;
+      if (key !== hover) setHover(key);
+      const r = svg.parentElement!.getBoundingClientRect();
+      setMoveAt({ x: e.clientX - r.left, y: e.clientY - r.top, why: t && !ok ? moveBlockedReason(project, moveTool.item, t.target) : undefined });
+    }
     const d = drag.current;
+    if (!d && moveTool) return;
     if (!d && armed && onDropItem) {
       armHover(armed, e.clientX, e.clientY);
       return;
@@ -924,6 +957,48 @@ export default function SystemDiagram({
     onDropItem(item, a.target);
   }
 
+  function endMove(cancelled = false) {
+    setMoveTool(null);
+    setMoveAt(null);
+    setHover(null);
+    if (cancelled) onStatus?.('Move cancelled');
+  }
+  /** Starts the Move tool on a board or a load (not a main board: it has no incomer). */
+  function startMove(t: SldTarget | null | undefined) {
+    if (!onMoveItem || !t || (t.kind !== 'board' && t.kind !== 'feeder')) return;
+    const item: MoveItem = { kind: t.kind === 'board' ? 'board' : 'feeder', id: t.id };
+    if (item.kind === 'board' && !project.boards.find((b) => b.id === item.id)?.upstreamId) { onStatus?.('A main board has no incomer to move'); return; }
+    const f = item.kind === 'feeder' ? project.feeders.find((x) => x.id === item.id) : undefined;
+    if (item.kind === 'feeder' && !f) return;
+    setArmedItem(null);
+    setCard(null);
+    setMenu(null);
+    setMoveList(null);
+    setMoveTool({ item, label: item.kind === 'board' ? item.id : f!.name || item.id });
+    onStatus?.(item.kind === 'board'
+      ? `Click a busbar to supply ${item.id} from it, or a load to place it before that one. Esc or a right-click cancels.`
+      : `Click a busbar to put ${item.id} on it, or a load to place it before that one. Esc or a right-click cancels.`);
+    rootRef.current?.focus();
+  }
+  function clickMove(e: React.MouseEvent) {
+    if (!moveTool || drag.current?.moved) return;
+    e.stopPropagation(); // choosing a place, not selecting what is under the pointer
+    const t = dropTargetAt(e.clientX, e.clientY);
+    if (!t || !canMove(project, moveTool.item, t.target)) return;
+    const item = moveTool.item;
+    endMove();
+    onMoveItem?.(item, t.target);
+  }
+  // Supply from… / Move to board…: the Panels tree's list of boards, at the menu's point.
+  const [moveList, setMoveList] = useState<{ item: MoveItem; x: number; y: number } | null>(null);
+  const [moveQ, setMoveQ] = useState('');
+  useEffect(() => {
+    if (!moveList) return;
+    const away = (e: Event) => { if (!(e.target as Element | null)?.closest?.('.tree-move')) setMoveList(null); };
+    window.addEventListener('pointerdown', away, true);
+    return () => window.removeEventListener('pointerdown', away, true);
+  }, [moveList]);
+
   // Right-click menus (sldMenu.ts): at the pointer, or by Shift+F10 at the selection. Esc, a click elsewhere, the wheel or
   // leaving the window closes it.
   const [menu, setMenu] = useState<{ t: SldTarget; x: number; y: number } | null>(null);
@@ -947,6 +1022,7 @@ export default function SystemDiagram({
   };
   /** What a right-click landed on: a bus coupler, a transformer, a load (an incomer is its board), a board, or the empty drawing. */
   function onContextMenu(e: React.MouseEvent) {
+    if (moveTool) { e.preventDefault(); endMove(true); return; }
     if (armed && onDropItem) { e.preventDefault(); setArmedItem(null); return; }
     if (!menuFor) return;
     e.preventDefault();
@@ -984,6 +1060,8 @@ export default function SystemDiagram({
     else if (a === 'grid' && (v === 'lines' || v === 'dots' || v === 'off')) chooseGrid(v);
     else if (a === 'text' && (v === 'auto' || v === 'all')) chooseDetail(v);
     else if (a === 'editcable' && m.t.kind === 'feeder') { const f = project.feeders.find((q) => q.id === (m.t as { id: string }).id); if (f) editCable(f, m.x, m.y); }
+    else if (a === 'move') startMove(m.t);
+    else if ((a === 'supplyfrom' && m.t.kind === 'board') || (a === 'moveto' && m.t.kind === 'feeder')) { setMoveQ(''); setMoveList({ item: { kind: m.t.kind === 'board' ? 'board' : 'feeder', id: m.t.id }, x: m.x, y: m.y }); }
     else if (a === 'rename' && m.t.kind === 'board') setRenaming({ from: m.t.id, to: m.t.id, x: m.x, y: m.y });
     else onMenu?.(m.t, a, v);
   }
@@ -1004,6 +1082,7 @@ export default function SystemDiagram({
       tabIndex={0}
       aria-label="Single line diagram. Plus and minus zoom, F or 0 fits, arrow keys pan, G changes the grid, Shift+F10 opens the menu."
       onKeyDown={(e) => {
+        if (moveTool && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); endMove(true); return; }
         if (menuFor && !menu && !(e.target as HTMLElement).closest('input,select,textarea,button,[contenteditable="true"]')) {
           const sel = selectedTarget();
           if ((e.shiftKey && e.key === 'F10') || e.key === 'ContextMenu') { e.preventDefault(); openMenuAtSelection(); return; }
@@ -1011,6 +1090,7 @@ export default function SystemDiagram({
             if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); onMenu(sel, 'zoom'); return; }
             if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); onMenu(sel, 'order', e.key === 'ArrowLeft' ? 'left' : 'right'); return; }
             if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); onMenu(sel, 'duplicate'); return; }
+            if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'm' || e.key === 'M')) { e.preventDefault(); startMove(sel); return; }
           }
         }
         // Keyboard zoom and pan while the drawing (or a board or circuit on it) has focus; not in text boxes or buttons.
@@ -1072,8 +1152,8 @@ export default function SystemDiagram({
         onContextMenu={onContextMenu}
         onMouseDown={(e) => { if (e.button === 1) e.preventDefault(); }}
         onAuxClick={(e) => { if (isFitClick(e)) setVb(full); }}
-        onPointerLeave={(e) => { onPointerUp(e); if (armed) { setHover(null); setInsertAt(null); } }}
-        onClickCapture={placeArmed}
+        onPointerLeave={(e) => { onPointerUp(e); if (armed) { setHover(null); setInsertAt(null); } if (moveTool) { setMoveAt(null); setHover(null); } }}
+        onClickCapture={(e) => (moveTool ? clickMove(e) : placeArmed(e))}
         {...dnd({ type: 'canvas' }, 'canvas')}
         onDragLeave={(e) => { if (!svgRef.current?.contains(e.relatedTarget as Node)) { setHover(null); setInsertAt(null); } }}
       >
@@ -1596,6 +1676,7 @@ export default function SystemDiagram({
                   {feederTags(f.id).map((t, i) => (
                     <text key={t.text} x={n.x} y={y + 177 + ex + (panelPlace ? 13 : 0) + i * 13} textAnchor="middle" className={`res ${t.cls}`}>{t.text}</text>
                   ))}
+                  {lengthChecks && f.lengthToCheck && lenMark(n.x, y + 177 + ex + (panelPlace ? 13 : 0) + feederTags(f.id).length * 13, true)}
                   <circle cx={n.x + (panel && sym ? 30 : 22)} cy={y + 78 + ex} r="4" className="status-dot" style={{ fill: `var(--${status})` }} />
                 </>
                 );
@@ -1604,6 +1685,7 @@ export default function SystemDiagram({
                 feederTags(f.id).map((t, i) => (
                   <text key={t.text} x={n.x + 7} y={y + 72 + tagY + ex + i * 13} className={`res ${t.cls}`}>{t.text}</text>
                 ))}
+              {n.childBoardId && lengthChecks && f.lengthToCheck && lenMark(n.x + 7, y + 72 + tagY + ex + feederTags(f.id).length * 13, false)}
               {sel && <rect x={n.x - 60} y={y + 8} width="120" height={n.childBoardId ? 50 : 160 + ex} rx="8" className="sel-ring" />}
             </g>
           );
@@ -2039,7 +2121,13 @@ export default function SystemDiagram({
         </div>
       )}
       {moving && <div className="move-ghost" style={{ left: moving.x + 14, top: moving.y + 10 }}>Move {moving.label}{hover ? '' : ' — drop on a busbar or feeder'}</div>}
-      {card && !moving && !cableEdit && !menu && (() => {
+      {moveTool && moveAt && (
+        <>
+          <div ref={ghostRef} className="move-ghost" style={{ left: moveAt.x + 14, top: moveAt.y + 10 }}>Move {moveTool.label}</div>
+          {moveAt.why && <div className="move-why" style={{ left: moveAt.x + 14, top: moveAt.y + 10 + (ghostRef.current?.offsetHeight || 22) + 2 }}>{moveAt.why}</div>}
+        </>
+      )}
+      {card && !moving && !moveTool && !cableEdit && !menu && (() => {
         const W = 270;
         const host = svgRef.current?.parentElement?.getBoundingClientRect();
         const left = Math.max(4, Math.min(card.x + 16, (host?.width ?? 800) - W - 4));
@@ -2092,6 +2180,28 @@ export default function SystemDiagram({
         );
       })()}
       {menu && menuData && <CadMenu left={menu.x + 4} top={menu.y + 4} head={menuData.head} items={menuData.items} label={menuData.label} onPick={pickMenu} onClose={() => setMenu(null)} />}
+      {moveList && (() => {
+        const { item } = moveList;
+        const host = rootRef.current?.getBoundingClientRect();
+        const left = Math.max(8, Math.min(moveList.x, (host?.width ?? 800) - 300 - 8));
+        const top = Math.max(8, Math.min(moveList.y, (host?.height ?? 600) - 340));
+        const own = item.kind === 'feeder' ? project.feeders.find((x) => x.id === item.id)?.boardId : undefined;
+        const q = moveQ.trim().toLowerCase();
+        const close = () => setMoveList(null);
+        return (
+          <div className="tree-move" role="dialog" aria-label={item.kind === 'board' ? `Supply ${item.id} from` : `Move ${item.id} to`} style={{ left, top, right: 'auto', width: 300 }} onMouseDown={(e) => e.stopPropagation()}>
+            <div className="tree-menu-h">{item.kind === 'board' ? `Supply ${item.id} from…` : `Move ${item.id} to…`} <span className="sp" /><button className="icon-btn" title="Close" aria-label="Close" onClick={close}><X size={14} aria-hidden /></button></div>
+            <input autoFocus type="search" placeholder="Find a board…" value={moveQ} onChange={(e) => setMoveQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } }} />
+            <div className="tree-move-list">
+              {project.boards.filter((t) => `${t.id} ${t.name}`.toLowerCase().includes(q)).map((t) => {
+                const why = item.kind === 'board' ? moveBlocked(project, item.id, t.id) : t.id === own ? `${item.id} is already on ${t.id}` : undefined;
+                const note = why ? (item.kind === 'feeder' ? 'current board' : why.includes('already') ? 'current source' : why.includes('loop') ? 'below it' : '') : t.name !== t.id ? t.name : '';
+                return <button key={t.id} disabled={!!why} title={why ?? (item.kind === 'board' ? `Supply ${item.id} from ${t.id}` : `Move ${item.id} to ${t.id}`)} onClick={() => { close(); onMoveItem?.(item, { type: 'bus', boardId: t.id }); }}><b>{t.id}</b> <span className="m">{note}</span></button>;
+              })}
+            </div>
+          </div>
+        );
+      })()}
       {renaming && (
         <form
           className="cable-edit"
