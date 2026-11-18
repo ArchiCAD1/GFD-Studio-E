@@ -1,12 +1,21 @@
 /** Numbers and dates for the screen and for documents: thousands separators, '—' when there is no value. */
 
+// One formatter for each number of decimals, made once. `v.toLocaleString('en-US', {…})` makes a new one at every
+// call, and a drawing or a report formats tens of thousands of numbers.
+const upTo = new Map<number, Intl.NumberFormat>(), fixed = new Map<number, Intl.NumberFormat>();
+function formatter(kept: Map<number, Intl.NumberFormat>, d: number, min: number): Intl.NumberFormat {
+  let f = kept.get(d);
+  if (!f) { f = new Intl.NumberFormat('en-US', { maximumFractionDigits: d, minimumFractionDigits: min }); kept.set(d, f); }
+  return f;
+}
+
 /** Up to `d` decimals, trailing zeros dropped (12.5, 3). */
 export const fmtUpTo = (v: number | undefined, d = 2) =>
-  v === undefined || !Number.isFinite(v) ? '—' : v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: 0 });
+  v === undefined || !Number.isFinite(v) ? '—' : formatter(upTo, d, 0).format(v);
 
 /** Exactly `d` decimals (1,250, 0.85). */
 export const fmtFixed = (v: number | undefined, d = 0) =>
-  v === undefined || !Number.isFinite(v) ? '—' : v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+  v === undefined || !Number.isFinite(v) ? '—' : formatter(fixed, d, d).format(v);
 
 /** A calculated value in a document: prints with its format (20,558.80) and, in Excel, stays a real number shown with `numFmt`. */
 export class Figure {

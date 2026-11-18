@@ -111,3 +111,17 @@ describe('dates and times', () => {
     spy.mockRestore();
   });
 });
+
+describe('one formatter for each number of decimals', () => {
+  it('prints exactly what toLocaleString prints, for every kind of value', () => {
+    const values = [0, -0, 0.004, 0.005, 0.015, 1.005, 2.5, 3.14159, 12.5, 999.995, 1000, 1250, 20558.8, 1234567.891, -3.456, -1250.5, 1e-7, 1e21, 123456789012];
+    for (const d of [0, 1, 2, 3, 4]) {
+      for (const v of values) {
+        expect(fmtFixed(v, d), `fmtFixed(${v}, ${d})`).toBe(v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
+        expect(fmtUpTo(v, d), `fmtUpTo(${v}, ${d})`).toBe(v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: 0 }));
+      }
+    }
+    expect([fmtFixed(undefined), fmtFixed(NaN, 2), fmtFixed(Infinity), fmtUpTo(undefined), fmtUpTo(NaN), fmtUpTo(-Infinity)]).toEqual(['—', '—', '—', '—', '—', '—']);
+    expect([fmtFixed(1250), fmtFixed(0.85, 2), fmtUpTo(12.5), fmtUpTo(3)]).toEqual(['1,250', '0.85', '12.5', '3']);
+  });
+});
