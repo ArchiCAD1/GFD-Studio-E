@@ -212,6 +212,19 @@ describe('Load schedule page and the ribbon', () => {
     expect(spareWaysOf(board()).map((s) => `${s.kind}:${s.phase === 'RYB'}`)).toEqual(['spare:false', 'spare:true', 'space:false', 'space:true']);
   });
 
+  it('converts a DB spare back to a circuit in the same way', async () => {
+    mount();
+    act(() => published!.onAddSpare('spare', 'three'));
+    const board = latest.boards.find((b) => b.id === BOARD)!;
+    const way = spareWaysOf(board)[0];
+    const button = document.querySelector<HTMLButtonElement>(`button[aria-label="Convert spare ${way.phase}${way.way} to circuit"]`)!;
+    await act(async () => { button.click(); await Promise.resolve(); await Promise.resolve(); });
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining(`Convert spare ${way.phase}${way.way} to a circuit?`));
+    expect(spareWaysOf(latest.boards.find((b) => b.id === BOARD)!)).toHaveLength(0);
+    expect(circuits().find((f) => f.phase === way.phase && f.way === way.way)).toMatchObject({ loadKw: 0, breakerRatingA: way.ratingA });
+    expect(document.querySelector('.circuit-edit')).not.toBeNull();
+  });
+
   it('Balance phases on the page balances like the ribbon one', () => {
     mount();
     const before = latest;
@@ -582,6 +595,20 @@ describe('the ribbon\'s tools on the connected load & MD form', () => {
     await act(async () => { published!.onDeleteRow(); await Promise.resolve(); });
     expect(window.confirm).toHaveBeenCalledWith(`Delete this spare from ${MDB}?`);
     expect(spareWaysOf(latest.boards.find((b) => b.id === MDB)!)).toHaveLength(0);
+  });
+
+  it('converts a panel space to a zero-load outgoing circuit', async () => {
+    shown = MDB;
+    mount();
+    const before = feedersOf().length;
+    act(() => published!.onAddSpare('space', 'one'));
+    const button = document.querySelector<HTMLButtonElement>('button[aria-label="Convert space to circuit"]')!;
+    await act(async () => { button.click(); await Promise.resolve(); await Promise.resolve(); });
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining(`Convert this space to an outgoing circuit on ${MDB}?`));
+    expect(spareWaysOf(latest.boards.find((b) => b.id === MDB)!)).toHaveLength(0);
+    const added = feedersOf().find((f) => !sampleProject.feeders.some((x) => x.id === f.id))!;
+    expect(feedersOf()).toHaveLength(before + 1);
+    expect(added).toMatchObject({ loadKw: 0, cores: 2, breakerRatingA: 32, manualSize: true });
   });
 
   it('fills down, copies and pastes on the form\'s grid, and opens the form details', async () => {
