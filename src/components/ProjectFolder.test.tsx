@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NewProjectWizard } from './BriefEditor';
 import { ProjectFolderCard } from './ProjectFolder';
-import { folderZip, splitPath, type FolderChoice, type FolderDisk } from './projectFolderActions';
+import { copyProjectFileToFolder, folderZip, splitPath, type FolderChoice, type FolderDisk } from './projectFolderActions';
 import { builtInTemplate } from '../model/folderTemplateBuiltins';
 import { webTemplatesClient } from '../model/folderTemplatesClient';
 import { rememberedFolder, rememberFolder } from '../model/projectFolderPlan';
@@ -183,5 +183,30 @@ describe('helpers', () => {
     const dirs = Object.values(zip.files).filter((f) => f.dir).map((f) => f.name).sort();
     expect(dirs).toEqual(['P1_Villa/', 'P1_Villa/01_Admin/', 'P1_Villa/03_Calcs/', 'P1_Villa/03_Calcs/VD/']);
     expect(Object.values(zip.files).filter((f) => !f.dir)).toEqual([]);
+  });
+});
+
+describe('a copy of the project file in the project folder on save (decision 1, option B)', () => {
+  const folder = { templateId: 'consultant-full', version: 1, template: builtInTemplate('consultant-full')! };
+  const p = { id: 'copy1', name: 'Villa', studyReport: { projectNo: 'P2611' }, folder } as unknown as Project;
+  const diskWith = (saveCopy: FolderDisk['saveCopy']) => ({ chooseParent: vi.fn(), create: vi.fn(), status: vi.fn(), open: vi.fn(), saveCopy }) as unknown as FolderDisk;
+  afterEach(() => { rememberFolder('copy1', undefined); });
+
+  it('writes the copy into the projectFile folder, named as the project file', async () => {
+    rememberFolder('copy1', { root: '/jobs/P2611_Villa', unticked: [] });
+    const saveCopy = vi.fn(async () => ({ file: 'x' }));
+    expect(await copyProjectFileToFolder(p, 'villa-copy1.lvds', diskWith(saveCopy))).toBeUndefined();
+    expect(saveCopy).toHaveBeenCalledWith({ root: '/jobs/P2611_Villa', relDir: '03_Project_File', fileName: 'villa-copy1.lvds', sourceFile: 'villa-copy1.lvds' });
+  });
+  it('does nothing without a project folder on this computer', async () => {
+    const saveCopy = vi.fn(async () => ({ file: 'x' }));
+    expect(await copyProjectFileToFolder(p, 'villa-copy1.lvds', diskWith(saveCopy))).toBeUndefined();
+    expect(saveCopy).not.toHaveBeenCalled();
+  });
+  it('reports a failed copy once, without failing the save', async () => {
+    rememberFolder('copy1', { root: '/jobs/P2611_Villa', unticked: [] });
+    const saveCopy = vi.fn(async () => { throw new Error("Error invoking remote method 'projectFolders:saveCopy': Error: The project folder is not on this computer."); });
+    expect(await copyProjectFileToFolder(p, 'villa-copy1.lvds', diskWith(saveCopy))).toBe('The copy in the project folder was not saved: The project folder is not on this computer.');
+    expect(await copyProjectFileToFolder(p, 'villa-copy1.lvds', diskWith(saveCopy))).toBeUndefined();
   });
 });

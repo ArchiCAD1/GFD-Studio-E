@@ -160,7 +160,7 @@ function DbSizing({ project, boardId, tabs, onChange, onStatus }: Props & { tabs
     <h2>Other candidates</h2><table><thead><tr><th>Size</th><th>Usable</th><th>Left</th><th>Result</th></tr></thead><tbody>${shown.filter((c) => c.result !== 'not-listed').map((c) => `<tr><td>${esc(c.config.ref)}</td><td>${c.usable}</td><td>${c.spareAfter}</td><td>${esc(RESULT[c.result])}</td></tr>`).join('')}</tbody></table>
     <p class="warn">Preliminary space fit by module count. Depth, wiring access, busbars, device compatibility and temperature rise (IEC TR 60890) are separate checks${chosen.result === 'confirm' ? '; the supplier must confirm which allowance case governs' : ''}. Supplier review pending.</p>
     </body></html>`;
-    const m = await savePdf(`${safeFileName(`${project.name} ${panel} enclosure`)}.pdf`, html, { pageSize: 'A4' });
+    const m = await savePdf(`${safeFileName(`${project.name} ${panel} enclosure`)}.pdf`, html, { pageSize: 'A4' }, { output: 'enclosureReport', project });
     if (m) onStatus(m);
   }
 

@@ -32,7 +32,7 @@ export default function ElvSchedules({ project, estimate, stamp, onChange, onSta
     try {
       const { elvWorkbook } = await import('../../elv/workbook');
       const wb = await elvWorkbook(project, tables, stamp);
-      const m = await saveBinary(`${safeFileName(project.name)} - ELV schedules.xlsx`, new Uint8Array(await wb.xlsx.writeBuffer()), 'Excel workbook', 'xlsx', XLSX);
+      const m = await saveBinary(`${safeFileName(project.name)} - ELV schedules.xlsx`, new Uint8Array(await wb.xlsx.writeBuffer()), 'Excel workbook', 'xlsx', XLSX, { output: 'elvSchedules', project });
       if (m) onStatus(m);
     } catch (e) { onStatus(e instanceof Error ? e.message : String(e)); }
   };
@@ -40,7 +40,7 @@ export default function ElvSchedules({ project, estimate, stamp, onChange, onSta
     try {
       const { elvSchedulesHtml } = await import('../../elv/pdf');
       const m = await savePdf(`${safeFileName(project.name)} - ELV schedules.pdf`, elvSchedulesHtml(project, tables, stamp),
-        { pageSize: 'A4', landscape: true, frame: { headerLeft: project.name, headerRight: stamp ?? '', footerLeft: 'ELV schedules' } });
+        { pageSize: 'A4', landscape: true, frame: { headerLeft: project.name, headerRight: stamp ?? '', footerLeft: 'ELV schedules' } }, { output: 'elvSchedules', project });
       if (m) onStatus(m);
     } catch (e) { onStatus(e instanceof Error ? e.message : String(e)); }
   };
@@ -63,9 +63,9 @@ export default function ElvSchedules({ project, estimate, stamp, onChange, onSta
         const doc = await PDFDocument.create();
         for (const b of parts) { const src = await PDFDocument.load(b); for (const pg of await doc.copyPages(src, src.getPageIndices())) doc.addPage(pg); }
         doc.setTitle(`${project.name} — ELV plan sheets`);
-        m = await saveBinary(`${name}.pdf`, await doc.save(), 'PDF', 'pdf', 'application/pdf');
+        m = await saveBinary(`${name}.pdf`, await doc.save(), 'PDF', 'pdf', 'application/pdf', { output: 'drawingPdf', project });
       } else {
-        m = await savePdf(`${name}.pdf`, planSheetHtml(project, levels[0], 0, levels.length), { pageSize: 'A3', landscape: true });
+        m = await savePdf(`${name}.pdf`, planSheetHtml(project, levels[0], 0, levels.length), { pageSize: 'A3', landscape: true }, { output: 'drawingPdf', project });
         if (m && levels.length > 1) m += ' (first level only — the desktop app saves every level in one PDF)';
       }
       if (m) onStatus(m);
@@ -79,11 +79,11 @@ export default function ElvSchedules({ project, estimate, stamp, onChange, onSta
       if (!levels.length) { onStatus('No ELV devices placed on the floor plans yet: place them in Design CAD first.'); return; }
       const files = levels.map((lv) => ({ name: `${safeFileName(`${project.name} ELV ${lv.name}`)}.dxf`, data: planDxf(project, lv) }));
       let m: string | null;
-      if (files.length === 1) m = await saveText(files[0].name, files[0].data, 'DXF drawing (R12)', 'dxf');
+      if (files.length === 1) m = await saveText(files[0].name, files[0].data, 'DXF drawing (R12)', 'dxf', { output: 'drawingCad', project });
       else {
         const zip = new (await import('jszip')).default();
         files.forEach((f) => zip.file(f.name, f.data));
-        m = await saveBinary(`${safeFileName(project.name)} - ELV DXF.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip');
+        m = await saveBinary(`${safeFileName(project.name)} - ELV DXF.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip', { output: 'drawingCad', project });
       }
       const units = [...new Set(levels.map((lv) => levelUnits(project, lv)))].join(' / ');
       if (m) onStatus(`${m} — in ${units}, the plan's units, on its origin`);

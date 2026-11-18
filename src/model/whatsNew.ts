@@ -18,6 +18,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.199', date: '2026-11-18',
+    items: [
+      { title: 'Project folders: exports save into the right folder', text: 'When a project has a project folder on this computer, each save dialog now opens in the folder for that output: the voltage drop report in the voltage drop folder, the BOQ in the BOQ folder, transmittals in their TR folder, issued drawings in their stage and revision folder, and so on. The suggested file name follows the folder template\'s naming rule, for example P2611-E-CAL-004-B.pdf. A folder that is missing is made first. If you save somewhere else, that folder is remembered for this project and kind of output on this computer. Projects without a project folder save as before.' },
+      { title: 'Project folders: a copy of the project file', text: 'Each time you save a project that has a project folder, a copy of the project file is also written into the project folder\'s Project file folder, replacing the older copy. The working file stays in the Projects folder as before. If the copy cannot be made, the status line says so once; the project itself is still saved.' }
+    ]
+  },
+  {
     version: '2.198', date: '2026-11-18',
     items: [
       { title: 'Project scope: fire, ELV, tender and supervision', text: 'The Scope step of the project brief has four new items: Fire alarm / Civil Defence, ELV systems, Tender stage and Site supervision. All are off by default. Ticking one switches on the matching project folders (scope:fire, scope:elv, stage:tender, service:supervision) on the Project folder step. They do not change readiness, deliverables or to-do lists, and existing projects are unchanged.' }

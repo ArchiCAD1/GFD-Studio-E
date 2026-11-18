@@ -1,3 +1,7 @@
+import type { Project } from '../types';
+import { choiceAfterSave, outputRole, saveTarget, type OutputKey, type SaveValues } from '../model/outputRoles';
+import { rememberChoice, rememberedChoice, rememberedFolder } from '../model/projectFolderPlan';
+
 const hasBridge = () => typeof window !== 'undefined' && !!window.lvds?.files;
 
 export const safeFileName = (s: string) => s.replace(/[^a-z0-9]+/gi, '-').replace(/(^-|-$)/g, '') || 'export';
@@ -32,37 +36,83 @@ function browserDownload(name: string, content: BlobPart, type: string) {
   URL.revokeObjectURL(url);
 }
 
+/** What a save is: its output key (model/outputRoles.ts), the project, and values the caller knows for the
+ * file name (revision, board, sequence). With a project folder on this computer the save dialog opens in the
+ * output's folder with a name from the naming rule (spec F2); otherwise as before. */
+export interface SaveContext { output: OutputKey; project?: Pick<Project, 'id' | 'name' | 'info' | 'studyReport' | 'stage' | 'revisions' | 'folder'> | null; values?: SaveValues }
+
+interface Place { name: string; defaultDir?: string; after: (saved: string | null | undefined) => void }
+
+/** Makes a missing folder inside the project folder (new, empty folders only); false when it cannot be there. */
+async function ensureFolder(root: string, rel: string): Promise<boolean> {
+  const disk = typeof window !== 'undefined' ? window.lvds?.projectFolders : undefined;
+  if (!disk) return false;
+  try {
+    const st = await disk.status(root, [rel]);
+    if (!st.exists) return false; // the project folder itself is not there: never made again from here
+    if (st.present.includes(rel)) return true;
+    return (await disk.create(root, [rel])).failed.length === 0;
+  } catch { return false; }
+}
+
+/** The starting folder and file name for a save, and what to remember once the user chose where it went. */
+export async function placeFor(defaultName: string, ext: string, ctx: SaveContext | undefined, web = !hasBridge()): Promise<Place> {
+  const plain: Place = { name: defaultName, after: () => undefined };
+  const p = ctx?.project;
+  if (!ctx || !p?.folder) return plain;
+  try {
+    const role = outputRole(ctx.output).role;
+    const remembered = web ? undefined : rememberedFolder(p.id);
+    const choice = role && !web ? rememberedChoice(p.id, role) : undefined;
+    const t = saveTarget({ project: p, output: ctx.output, defaultName, ext, values: ctx.values, remembered, choice, web });
+    const dir = t.dir && t.root && t.relDir ? ((await ensureFolder(t.root, t.relDir)) ? t.dir : undefined) : t.dir;
+    return {
+      name: t.name,
+      ...(dir ? { defaultDir: dir } : {}),
+      after: (saved) => {
+        if (!saved || !t.role) return;
+        const c = choiceAfterSave(t, saved);
+        if (c !== undefined) rememberChoice(p.id, t.role, c);
+      }
+    };
+  } catch { return plain; }
+}
+
 /** Saves text through the desktop save dialog, or downloads it in a plain
  * browser. Resolves to a short status message, or null if cancelled. */
-export async function saveText(defaultName: string, content: string, filterName: string, ext: string): Promise<string | null> {
+export async function saveText(defaultName: string, content: string, filterName: string, ext: string, ctx?: SaveContext): Promise<string | null> {
+  const place = await placeFor(defaultName, ext, ctx);
   if (!hasBridge()) {
-    browserDownload(defaultName, content, 'text/plain;charset=utf-8');
-    return `Downloaded ${defaultName}`;
+    browserDownload(place.name, content, 'text/plain;charset=utf-8');
+    return `Downloaded ${place.name}`;
   }
-  const saved = await window.lvds.files.saveText({ defaultName, content, filterName, extensions: [ext] });
+  const saved = await window.lvds.files.saveText({ defaultName: place.name, content, filterName, extensions: [ext], ...(place.defaultDir ? { defaultDir: place.defaultDir } : {}) });
+  place.after(saved);
   return saved ? `Saved ${saved.split(/[\\/]/).pop()}` : null;
 }
 
 /** Saves binary content (e.g. an .xlsx workbook) through the desktop save
  * dialog, or downloads it in a plain browser. */
-export async function saveBinary(defaultName: string, bytes: Uint8Array, filterName: string, ext: string, mime: string): Promise<string | null> {
-  return (await saveBinaryAt(defaultName, bytes, filterName, ext, mime))?.message ?? null;
+export async function saveBinary(defaultName: string, bytes: Uint8Array, filterName: string, ext: string, mime: string, ctx?: SaveContext): Promise<string | null> {
+  return (await saveBinaryAt(defaultName, bytes, filterName, ext, mime, ctx))?.message ?? null;
 }
 /** As saveBinary, with where it went: the path chosen (desktop), or none (a browser download); null when cancelled. */
-export async function saveBinaryAt(defaultName: string, bytes: Uint8Array, filterName: string, ext: string, mime: string): Promise<{ message: string; path?: string; name: string } | null> {
+export async function saveBinaryAt(defaultName: string, bytes: Uint8Array, filterName: string, ext: string, mime: string, ctx?: SaveContext): Promise<{ message: string; path?: string; name: string } | null> {
   const save = typeof window !== 'undefined' ? window.lvds?.files?.saveBinary : undefined;
+  const place = await placeFor(defaultName, ext, ctx, !save);
   if (!save) {
-    browserDownload(defaultName, bytes as BlobPart, mime);
-    return { message: `Downloaded ${defaultName}`, name: defaultName };
+    browserDownload(place.name, bytes as BlobPart, mime);
+    return { message: `Downloaded ${place.name}`, name: place.name };
   }
-  const saved = await save({ defaultName, bytes, filterName, extensions: [ext] });
+  const saved = await save({ defaultName: place.name, bytes, filterName, extensions: [ext], ...(place.defaultDir ? { defaultDir: place.defaultDir } : {}) });
+  place.after(saved);
   if (!saved) return null;
-  const name = saved.split(/[\\/]/).pop() ?? defaultName;
+  const name = saved.split(/[\\/]/).pop() ?? place.name;
   return { message: `Saved ${name}`, path: saved, name };
 }
 
-export const saveCsv = (baseName: string, headers: string[], rows: unknown[][]) =>
-  saveText(`${safeFileName(baseName)}.csv`, toCsv(headers, rows), 'CSV (Excel)', 'csv');
+export const saveCsv = (baseName: string, headers: string[], rows: unknown[][], ctx?: SaveContext) =>
+  saveText(`${safeFileName(baseName)}.csv`, toCsv(headers, rows), 'CSV (Excel)', 'csv', ctx);
 
 type Bookmarks = { title: string; page: number }[];
 export type PdfPage = { pageSize?: 'A4' | 'A3' | 'A3 portrait' | 'A2' | 'A1'; landscape?: boolean; cssPages?: boolean; frame?: { headerLeft: string; headerRight: string; footerLeft: string };
@@ -135,10 +185,12 @@ function printInFrame(html: string): string {
 
 /** Renders a self-contained HTML document to PDF. In the desktop app this
  * uses Electron's printToPDF; in a browser it opens the print dialog. */
-export async function savePdf(defaultName: string, html: string, page?: PdfPage): Promise<string | null> {
+export async function savePdf(defaultName: string, html: string, page?: PdfPage, ctx?: SaveContext): Promise<string | null> {
   if (!hasBridge()) return printInFrame(pdfPageSetup(html, page).html);
   const bytes = await renderPdf(html, page, defaultName.replace(/[.]pdf$/i, ''));
-  if (bytes) return saveBinary(defaultName, bytes, 'PDF', 'pdf', 'application/pdf');
-  const saved = await window.lvds.files.savePdf({ defaultName, html, ...page });
+  if (bytes) return saveBinary(defaultName, bytes, 'PDF', 'pdf', 'application/pdf', ctx);
+  const place = await placeFor(defaultName, 'pdf', ctx);
+  const saved = await window.lvds.files.savePdf({ defaultName: place.name, html, ...page, ...(place.defaultDir ? { defaultDir: place.defaultDir } : {}) });
+  place.after(saved);
   return saved ? `Saved ${saved.split(/[\\/]/).pop()}` : null;
 }

@@ -124,7 +124,7 @@ export default function LoadScheduleView({
     setExporting(true);
     try {
       const bytes = await workbookBytes(buildFormWorkbook(project, scope));
-      const m = await saveBinary(`${safeFileName(name)}.xlsx`, bytes, 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      const m = await saveBinary(`${safeFileName(name)}.xlsx`, bytes, 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'loadSchedule', project });
       if (m) onStatus(m);
     } catch (e) {
       onStatus(`Excel export failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -137,7 +137,7 @@ export default function LoadScheduleView({
   async function exportFormPdf(scope: WorkbookScope, name: string) {
     setExporting(true);
     try {
-      const m = await savePdf(`${safeFileName(name)}.pdf`, workbookHtml(project, buildFormWorkbook(project, scope), name), { pageSize: 'A4', landscape: true, cssPages: true });
+      const m = await savePdf(`${safeFileName(name)}.pdf`, workbookHtml(project, buildFormWorkbook(project, scope), name), { pageSize: 'A4', landscape: true, cssPages: true }, { output: 'loadSchedule', project });
       if (m) onStatus(m);
     } catch (e) {
       onStatus(`PDF export failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -248,15 +248,15 @@ export default function LoadScheduleView({
       const one = kind === 'myPdf' || kind === 'myXlsx', mine = one ? formatSheetOf(project, board.id) : undefined, sheets = one ? (mine ? [mine] : []) : formatSheetsOf(project);
       if (!sheets.length) { onStatus(one ? 'Choose a format for this panel in Sheets → My formats first.' : 'No panel of this project has a format yet: choose them in Sheets → My formats.'); return; }
       const excel = kind === 'myXlsx' || kind === 'myXlsxAll', file = one ? `${safeFileName(board.id)}-schedule-my-format` : `${safeFileName(project.name)}-schedules-my-format`;
-      const m = excel ? await saveBinary(`${file}.xlsx`, new Uint8Array(await (await import('../../docs/sheetXlsx')).buildXlsx(sheets).xlsx.writeBuffer()), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') : await savePdf(`${file}.pdf`, sheetsHtml(sheets, one ? `${project.name} — ${board.id}` : project.name), { cssPages: true }); // each sheet on its own paper
+      const m = excel ? await saveBinary(`${file}.xlsx`, new Uint8Array(await (await import('../../docs/sheetXlsx')).buildXlsx(sheets).xlsx.writeBuffer()), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'loadSchedule', project, values: one ? { Board: board.id } : undefined }) : await savePdf(`${file}.pdf`, sheetsHtml(sheets, one ? `${project.name} — ${board.id}` : project.name), { cssPages: true }, { output: 'loadSchedule', project, values: one ? { Board: board.id } : undefined }); // each sheet on its own paper
       if (m) onStatus(one ? m : `${m} — ${sheets.length} panels`);
       return;
     }
     if (kind === 'excel') await exportExcel(...formScope());
     else if (kind === 'pack') await exportExcel({}, `${project.name} submission forms`);
     else if (kind === 'template') setTemplateOpen(true);
-    else if (kind === 'csv') { const c = loadScheduleCsv(project, board.id); const m = await saveCsv(`${project.name} ${board.id} load schedule`, c.headers, c.rows); if (m) onStatus(m); }
-    else if (form === 'db') { const m = await savePdf(`${safeFileName(board.id)}-load-schedule.pdf`, buildLoadScheduleHtml(project, board.id), { pageSize: 'A4', landscape: true }); if (m) onStatus(m); }
+    else if (kind === 'csv') { const c = loadScheduleCsv(project, board.id); const m = await saveCsv(`${project.name} ${board.id} load schedule`, c.headers, c.rows, { output: 'loadSchedule', project, values: { Board: board.id } }); if (m) onStatus(m); }
+    else if (form === 'db') { const m = await savePdf(`${safeFileName(board.id)}-load-schedule.pdf`, buildLoadScheduleHtml(project, board.id), { pageSize: 'A4', landscape: true }, { output: 'loadSchedule', project, values: { Board: board.id } }); if (m) onStatus(m); }
     else await exportFormPdf(...formScope());
   };
 

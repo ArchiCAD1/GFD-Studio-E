@@ -42,7 +42,7 @@ export default function UpsStudy({ project, onChange, onStatus }: {
   async function exportPdf() {
     setBusy(true);
     try {
-      const m = await savePdf(`${safeFileName(project.name)} - UPS and battery sizing.pdf`, buildUpsReportHtml(project, list), { pageSize: 'A4', landscape: false });
+      const m = await savePdf(`${safeFileName(project.name)} - UPS and battery sizing.pdf`, buildUpsReportHtml(project, list), { pageSize: 'A4', landscape: false }, { output: 'upsReport', project });
       if (m) onStatus(m);
     } finally {
       setBusy(false);

@@ -97,14 +97,14 @@ export default function VoltageDropStudy({ project, calcProject = project, stale
   async function exportPdf() {
     setBusy(true);
     try {
-      const m = await savePdf(`${safeFileName(`${project.name} voltage drop ${scope || 'system'}`)}.pdf`, buildVdReportHtml({ ...calcProject, vdReportDocNo: project.vdReportDocNo }, allRows, scopeName, risers), { pageSize: 'A4', landscape: true, cssPages: true, selfNumbered: true });
+      const m = await savePdf(`${safeFileName(`${project.name} voltage drop ${scope || 'system'}`)}.pdf`, buildVdReportHtml({ ...calcProject, vdReportDocNo: project.vdReportDocNo }, allRows, scopeName, risers), { pageSize: 'A4', landscape: true, cssPages: true, selfNumbered: true }, { output: 'vdReport', project });
       if (m) onStatus(m);
     } finally {
       setBusy(false);
     }
   }
   async function exportCsv() {
-    const m = await saveCsv(`${project.name} voltage drop ${scope || 'system'}`, VD_HEADERS, allRows.map(vdCsvCells));
+    const m = await saveCsv(`${project.name} voltage drop ${scope || 'system'}`, VD_HEADERS, allRows.map(vdCsvCells), { output: 'vdReport', project });
     if (m) onStatus(m);
   }
 

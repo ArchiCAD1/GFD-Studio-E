@@ -100,20 +100,20 @@ export default function BoardSheetView({ project, board, results, selected, onSe
           const doc = await PDFDocument.create();
           for (const b of parts) { const src = await PDFDocument.load(b); for (const p of await doc.copyPages(src, src.getPageIndices())) doc.addPage(p); }
           doc.setTitle(`${project.name} — board single line diagrams`);
-          m = await saveBinary(`${name}.pdf`, await doc.save(), 'PDF', 'pdf', 'application/pdf');
+          m = await saveBinary(`${name}.pdf`, await doc.save(), 'PDF', 'pdf', 'application/pdf', { output: 'drawingPdf', project });
         } else {
           // Browser: the print dialog takes one sheet at a time.
           const pg = pages.find((x) => x.boardId === board.id) ?? pages[0];
-          m = await savePdf(`${name}.pdf`, boardSheetHtml(project, pg), { pageSize: 'A3', landscape: true });
+          m = await savePdf(`${name}.pdf`, boardSheetHtml(project, pg), { pageSize: 'A3', landscape: true }, { output: 'drawingPdf', project });
           if (m && pages.length > 1) m += ` (this board only — the desktop app saves every board in one PDF)`;
         }
       } else {
         const files = uniqueDxfFiles(pages.flatMap((pg) => namedDxfFiles(safeFileName(`${pg.info.no} ${pg.boardId}`), buildSheetDxfPages(project, pg.svg, 'A3', pg.info))));
-        if (files.length === 1) m = await saveText(files[0].name, files[0].data, 'DXF drawing (R12)', 'dxf');
+        if (files.length === 1) m = await saveText(files[0].name, files[0].data, 'DXF drawing (R12)', 'dxf', { output: 'drawingCad', project });
         else {
           const zip = new (await import('jszip')).default();
           files.forEach((f) => zip.file(f.name, f.data));
-          m = await saveBinary(`${name}-DXF.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip');
+          m = await saveBinary(`${name}-DXF.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip', { output: 'drawingCad', project });
         }
         const notice = dxfExportNotice(files);
         if (m && notice) m += ` — ${notice}`;

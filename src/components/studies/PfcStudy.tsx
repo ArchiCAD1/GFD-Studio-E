@@ -60,8 +60,8 @@ export default function PfcStudy({ project, onChange, onStatus }: { project: Pro
       const meta = { title: 'Power factor correction', docNo: setup.docNo, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy };
       const name = safeFileName(`${project.name} - Power factor correction`);
       const m = kind === 'pdf'
-        ? await savePdf(`${name}.pdf`, buildStudyReportHtml(project, scope, [section], meta), { cssPages: true })
-        : await saveBinary(`${name}.xlsx`, await workbookBytes(buildStudyWorkbook(project, scope, [section], meta)), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        ? await savePdf(`${name}.pdf`, buildStudyReportHtml(project, scope, [section], meta), { cssPages: true }, { output: 'pfcReport', project })
+        : await saveBinary(`${name}.xlsx`, await workbookBytes(buildStudyWorkbook(project, scope, [section], meta)), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'pfcReport', project });
       if (m) onStatus?.(m);
     } finally {
       setBusy(false);

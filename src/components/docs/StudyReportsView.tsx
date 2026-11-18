@@ -142,13 +142,13 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
         for (const s of sections) {
           const m1 = { ...meta, title: setup.title ? `${setup.title} — ${s.title}` : s.title };
           const make = (pages: Record<string, number>) => buildStudyReportHtml(project, scope, [s], m1, slds, { ...basisOpt, pages });
-          const m = await savePdf(`${base} - ${safeFileName(s.title + scopeTag)}.pdf`, make({}), { cssPages: true, frame: pageFrame(reportDoc(project, m1)), paginate: make });
+          const m = await savePdf(`${base} - ${safeFileName(s.title + scopeTag)}.pdf`, make({}), { cssPages: true, frame: pageFrame(reportDoc(project, m1)), paginate: make }, { output: 'studyReport', project });
           if (m) saved++;
         }
         onStatus(`Saved ${saved} of ${sections.length} study reports`);
         if (saved) offerSubmission({ kind: 'Report', title: title || 'Study reports', purpose: 'For approval', docs: sections.map((s) => ({ number: setup.docNo ?? '', title: s.title, rev: currentRevision(project)?.id ?? '' })) });
       } else {
-        const m = await savePdf(`${base} - ${safeFileName(title + scopeTag)}.pdf`, buildStudyReportHtml(project, scope, sections, meta, slds, { ...basisOpt, pages: {} }), { cssPages: true, frame: pageFrame(reportDoc(project, meta)), paginate: (pages) => buildStudyReportHtml(project, scope, sections, meta, slds, { ...basisOpt, pages }) });
+        const m = await savePdf(`${base} - ${safeFileName(title + scopeTag)}.pdf`, buildStudyReportHtml(project, scope, sections, meta, slds, { ...basisOpt, pages: {} }), { cssPages: true, frame: pageFrame(reportDoc(project, meta)), paginate: (pages) => buildStudyReportHtml(project, scope, sections, meta, slds, { ...basisOpt, pages }) }, { output: 'studyReport', project });
         if (m) { onStatus(m); offerSubmission({ kind: 'Report', title: title || 'Study report', purpose: 'For approval', docs: [{ number: setup.docNo ?? '', title: title || 'Study report', rev: currentRevision(project)?.id ?? '' }] }); }
       }
     } catch (e) {
@@ -164,7 +164,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
     setBusy('xlsx');
     try {
       const bytes = await workbookBytes(buildStudyWorkbook(calc, scope, sections, { title, docNo: setup.docNo, preparedBy: setup.preparedBy, checkedBy: setup.checkedBy }));
-      const m = await saveBinary(`${safeFileName(`${project.name} ${title}`)}.xlsx`, bytes, 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      const m = await saveBinary(`${safeFileName(`${project.name} ${title}`)}.xlsx`, bytes, 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'studyReport', project });
       if (m) onStatus(m);
     } catch (e) {
       onStatus(`Excel export failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -179,7 +179,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
     setBusy('docx');
     try {
       const doc = buildStudyDocx(calc, scope, sections, reportMeta, basisOpt);
-      const m = await saveBinary(`${safeFileName(`${project.name} ${title}`)}.docx`, await docxBytes(doc), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      const m = await saveBinary(`${safeFileName(`${project.name} ${title}`)}.docx`, await docxBytes(doc), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', { output: 'studyReport', project });
       if (m) onStatus(m);
     } catch (e) {
       onStatus(`Word export failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -236,7 +236,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
         cover = await toBytes({ html: packageCoverHtml(p, pm, list, coverPages, snapSections), cssPages: true });
       }
       const bytes = await mergePdfs([cover, ...parts], packageStamp(p, pm), ['Issue package — contents and open items', ...titles]);
-      const m = await saveBinary(`${safeFileName(`${project.name} ${setup.docNo ?? ''} issue package ${pm.snapshot}`.trim())}.pdf`, bytes, 'PDF', 'pdf', 'application/pdf');
+      const m = await saveBinary(`${safeFileName(`${project.name} ${setup.docNo ?? ''} issue package ${pm.snapshot}`.trim())}.pdf`, bytes, 'PDF', 'pdf', 'application/pdf', { output: 'issuePackage', project });
       const open = unresolvedChecks(snapSections).length;
       if (m) onStatus(`${m} — snapshot ${pm.snapshot}: cover, summary, ${snapSections.length} stud${snapSections.length > 1 ? 'ies' : 'y'}, ${drawings.sheets ? `${drawings.sheets} drawing${drawings.sheets === 1 ? '' : 's'}${drawings.register ? ' + register' : ''}, ` : ''}${schedules.length} panel schedule${schedules.length === 1 ? '' : 's'} · ${open} unresolved check${open === 1 ? '' : 's'} listed`);
     } catch (e) {

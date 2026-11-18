@@ -312,12 +312,17 @@ handle('recovery:clear', (_evt, id) => (typeof id === 'string' && id ? projectFi
 // ---- IPC: the error log (src/util/errorLog.ts) ----
 handle('log:error', (_evt, text) => errorLog.appendError(logDir, check.logText(text)));
 
+/** Where a save dialog starts: the folder of the output's role in the project folder (spec F2) when the
+ * renderer asks for one and it is a real folder on this computer, else the Projects folder. Only a start:
+ * nothing is written until the user confirms the dialog. */
+const saveStart = (dir) => projectFolders.startDir(dir) || ensureProjectsFolder();
+
 // ---- IPC: export a generated text file (e.g. OpenDSS script) ----
 handle('files:saveText', async (evt, args) => {
-  const { defaultName, content, filter } = check.saveTextArgs(args);
+  const { defaultName, defaultDir, content, filter } = check.saveTextArgs(args);
   const result = await dialog.showSaveDialog(ownerOf(evt), {
     title: 'Export',
-    defaultPath: path.join(ensureProjectsFolder(), defaultName),
+    defaultPath: path.join(saveStart(defaultDir), defaultName),
     filters: [filter]
   });
   if (result.canceled || !result.filePath) return null;
@@ -329,10 +334,10 @@ handle('files:saveText', async (evt, args) => {
 // Drawings (DWG / DXF) the user chose in a save dialog this session: Design CAD's Save may write over these, and only these.
 const chosenDrawings = new Set();
 handle('files:saveBinary', async (evt, args) => {
-  const { defaultName, bytes, filter } = check.saveBinaryArgs(args);
+  const { defaultName, defaultDir, bytes, filter } = check.saveBinaryArgs(args);
   const result = await dialog.showSaveDialog(ownerOf(evt), {
     title: 'Export',
-    defaultPath: path.join(ensureProjectsFolder(), defaultName),
+    defaultPath: path.join(saveStart(defaultDir), defaultName),
     filters: [filter]
   });
   if (result.canceled || !result.filePath) return null;
@@ -453,6 +458,12 @@ handle('projectFolders:chooseParent', async (evt, start) => {
 });
 handle('projectFolders:create', (_evt, args) => projectFolders.create(args));
 handle('projectFolders:status', (_evt, args) => projectFolders.status(args));
+// After a project save: a copy of the project file in the project folder's projectFile folder (decision 1, option B).
+handle('projectFolders:saveCopy', (_evt, args) => {
+  if (typeof args !== 'object' || args === null) throw new Error('Refused: project file copy');
+  const source = projectPath(ensureProjectsFolder(), args.sourceFile);
+  return projectFolders.saveCopy({ root: args.root, relDir: args.relDir, fileName: args.fileName }, source);
+});
 handle('projectFolders:open', async (_evt, root) => (await shell.openPath(projectFolders.openable(root))) || null);
 handle('database:open', (_evt, file) => {
   const folder = database.folderFor(ensureProjectsFolder());
@@ -464,10 +475,10 @@ handle('database:open', (_evt, file) => {
 // ---- IPC: render an HTML report to PDF ----
 
 handle('files:savePdf', async (evt, args) => {
-  const { defaultName, html, pageSize, landscape, cssPages } = check.pdfArgs(args);
+  const { defaultName, defaultDir, html, pageSize, landscape, cssPages } = check.pdfArgs(args);
   const result = await dialog.showSaveDialog(ownerOf(evt), {
     title: 'Save PDF report',
-    defaultPath: path.join(ensureProjectsFolder(), defaultName),
+    defaultPath: path.join(saveStart(defaultDir), defaultName),
     filters: [{ name: 'PDF', extensions: ['pdf'] }]
   });
   if (result.canceled || !result.filePath) return null;

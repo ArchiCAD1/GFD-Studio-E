@@ -143,8 +143,8 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
     try {
       const name = `${safeFileName(project.name)} - ${safeFileName(doc.title)}`;
       const m = kind === 'pdf'
-        ? await savePdf(`${name}.pdf`, buildSpecHtml(project, doc), specPdfPage(project, doc))
-        : await saveBinary(`${name}.docx`, await (await import('../../docs/specWord')).specDocxBytes(project, doc), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        ? await savePdf(`${name}.pdf`, buildSpecHtml(project, doc), specPdfPage(project, doc), { output: 'specDoc', project })
+        : await saveBinary(`${name}.docx`, await (await import('../../docs/specWord')).specDocxBytes(project, doc), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', { output: 'specDoc', project });
       if (m) onStatus?.(view.missing.length ? `${m} — ${view.missing.length} value${view.missing.length === 1 ? '' : 's'} in it are DATA REQUIRED` : m);
     } finally {
       setBusy(false);
@@ -219,7 +219,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
   };
   const saveSpecFile = async () => {
     const name = `${safeFileName(project.name)} — ${safeFileName(doc.title)}.${SPEC_FILE_EXT}`;
-    try { const path = await saveText(name, specFileText(doc), 'LV Design Studio specification', SPEC_FILE_EXT); if (path !== null) onStatus?.(`Specification saved as a file: ${path || name}`); }
+    try { const path = await saveText(name, specFileText(doc), 'LV Design Studio specification', SPEC_FILE_EXT, { output: 'specFile' }); if (path !== null) onStatus?.(`Specification saved as a file: ${path || name}`); }
     catch (e) { onStatus?.(`Save failed: ${String((e as Error)?.message ?? e)}`); }
   };
   const openSpecFile = async (file: File | undefined) => {

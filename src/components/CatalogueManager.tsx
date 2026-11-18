@@ -42,12 +42,12 @@ export default function CatalogueManager({ onClose, onStatus }: { onClose: () =>
   const saveDevs = (list: DeviceDim[]) => { setDevices(list); saveDevices(list); };
 
   async function exportJson() {
-    const m = await saveText('LV enclosure library.json', JSON.stringify(exportLibrary(), null, 2), 'JSON', 'json');
+    const m = await saveText('LV enclosure library.json', JSON.stringify(exportLibrary(), null, 2), 'JSON', 'json', { output: 'enclosureLibrary' });
     if (m) onStatus(m);
   }
   async function exportXlsx(c?: EnclosureCatalogue) {
     const bytes = await workbookBytes(catalogueWorkbook(c));
-    const m = await saveBinary(`${safeFileName(c ? `${c.supplier} ${c.range}` : 'Enclosure catalogue template')}.xlsx`, bytes, 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const m = await saveBinary(`${safeFileName(c ? `${c.supplier} ${c.range}` : 'Enclosure catalogue template')}.xlsx`, bytes, 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'catalogueTemplate' });
     if (m) onStatus(m);
   }
 

@@ -29,6 +29,7 @@ import { ALL_TOOLS } from './markupTools';
 import { NO_SHEET_ACTIONS, type SheetUi } from './sheetUi';
 import { isFitClick, isPanPress, KEY_STEP, PAN_STEP, useSpaceHeld, viewKey, wheelAction, ZoomChip } from '../drawingView';
 import { MARKUP_LABEL, type SheetMarkup } from '../../model/sheetMarkup';
+import { issueValues } from '../../model/outputRoles';
 
 /** Colours of the sheet outlines on the design canvas. */
 export const OUTLINE_COLORS = ['#2f80ed', '#e2711d', '#27ae60', '#9b51e0', '#d1495b', '#00a6a6', '#b8860b'];
@@ -667,7 +668,7 @@ export function PublishDialog({ project, run, current, ticked: first, onClose, o
         onChange(next);
         setIssuing(false);
         onStatus(`Issued ${r.issue.id}: ${r.issue.sheets.length} sheet(s) — ${o.purpose}`);
-        if (pdf) { setBusy('set'); try { await exportDrawingSet(next, r.set, run, false, onStatus); } finally { setBusy(''); } }
+        if (pdf) { setBusy('set'); try { await exportDrawingSet(next, r.set, run, false, onStatus, undefined, undefined, issueValues(project, r.issue.sheets)); } finally { setBusy(''); } }
         onClose();
       }} />}
     </Modal>

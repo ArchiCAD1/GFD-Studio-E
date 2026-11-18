@@ -1,8 +1,9 @@
 // A project's folders on disk (spec F1, F3, F4): making the folders a folder template asks for, and saying
 // which of them exist. Plain Node, unit tested in a temporary folder (src/model/projectFoldersDisk.test.ts).
 //
-// The only thing written here is a new, empty folder. Nothing is deleted, moved or renamed, no file is
-// opened, and no link is followed: a link, or a file, where a folder should be is reported and left alone.
+// The only things written here are new, empty folders and (saveCopy) the copy of a project file in the
+// project folder's projectFile folder. Nothing else is deleted, moved or renamed, and no link is followed:
+// a link, or a file, where a folder should be is reported and left alone.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -107,4 +108,46 @@ function openable(root) {
   return full;
 }
 
-module.exports = { MAX, args, create, status, openable };
+/** A save dialog's starting folder (spec F2): the folder when it is a real folder (not a link), else undefined. */
+function startDir(dir) {
+  if (typeof dir !== 'string' || !path.isAbsolute(dir)) return undefined;
+  try { return kind(path.resolve(dir)) === 'dir' ? path.resolve(dir) : undefined; } catch { return undefined; }
+}
+
+const PROJECT_FILE = /^[^\\/:*?"<>|]+\.(lvds|json)$/i;
+
+/** Copies a saved project file into a folder inside the project folder (decision 1, option B):
+ * { root, relDir, fileName } as for create, and the full path of the file to copy. The project folder must
+ * exist; missing folders inside it are made. The copy is written to a new temporary file beside it and then
+ * renamed over the old copy, so a copy is never half written; only a file of exactly that name in that
+ * folder is ever replaced, and never a link or a folder. */
+function saveCopy(a, sourceFile) {
+  if (typeof a !== 'object' || a === null) fail('project file copy');
+  const { root, paths } = args({ root: a.root, paths: [a.relDir] });
+  const rel = paths[0];
+  const fileName = segment(a.fileName);
+  if (!PROJECT_FILE.test(fileName) || fileName.startsWith('.')) fail(`project file name "${String(a.fileName).slice(0, 40)}"`);
+  if (root.length + 1 + rel.length + 1 + fileName.length > MAX.pathChars) fail(`file path longer than ${MAX.pathChars} characters`);
+  if (typeof sourceFile !== 'string' || !path.isAbsolute(sourceFile)) fail('project file to copy');
+  const st = fs.lstatSync(sourceFile);
+  if (!st.isFile()) fail('project file to copy: not a plain file');
+  if (kind(root) !== 'dir') throw new Error('The project folder is not on this computer.');
+  const parts = rel.split('/');
+  for (let i = 1; i <= parts.length; i++) make(path.join(root, ...parts.slice(0, i)), parts.slice(0, i).join('/'));
+  const dir = path.join(root, ...parts);
+  const target = path.join(dir, fileName);
+  const there = kind(target);
+  if (there !== 'none' && there !== 'a file') throw new Error(`${rel}/${fileName} is ${there}; it is left as it is.`);
+  const tmp = path.join(dir, `.${fileName}.${process.pid}.${Date.now().toString(36)}.tmp`);
+  const data = fs.readFileSync(sourceFile);
+  try {
+    fs.writeFileSync(tmp, data, { flag: 'wx' });
+    fs.renameSync(tmp, target);
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch { /* not made */ }
+    throw e;
+  }
+  return { file: target };
+}
+
+module.exports = { MAX, args, create, status, openable, startDir, saveCopy };

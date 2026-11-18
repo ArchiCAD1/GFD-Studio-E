@@ -47,10 +47,10 @@ export default function ExportCentre({ project, run, stale, onStatus }: { projec
           used.add(f);
           zip.file(f, d.bytes);
         }
-        m = await saveBinary(`${base}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip');
+        m = await saveBinary(`${base}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip', { output: 'documentsPack' });
       } else {
         const { mergePdfs } = await import('../../docs/mergePdf');
-        m = await saveBinary(`${base}.pdf`, await mergePdfs(done.map((d) => d.bytes), `${project.name} · ${revisionStamp(project)}`, done.map((d) => d.title)), 'PDF', 'pdf', 'application/pdf');
+        m = await saveBinary(`${base}.pdf`, await mergePdfs(done.map((d) => d.bytes), `${project.name} · ${revisionStamp(project)}`, done.map((d) => d.title)), 'PDF', 'pdf', 'application/pdf', { output: 'documentsPack' });
       }
       if (m) onStatus(`${m} — ${done.length} PDF${done.length === 1 ? '' : 's'}${failed.length ? `; failed: ${failed.join('; ')}` : ''}`);
     } finally {

@@ -18,6 +18,7 @@ import { dxfExportNotice, namedDxfFiles, uniqueDxfFiles, type DxfFile } from '..
 import { currentRevision, revisionStamp } from '../../model/revisions';
 import { cableRefsUsed } from '../../model/cableRefs';
 import { safeFileName, saveBinary, savePdf } from '../../util/files';
+import type { SaveValues } from '../../model/outputRoles';
 import { SHEET_MM } from '../../docs/sldSheet';
 import SystemDiagram, { LegendSvg } from '../SystemDiagram';
 import { earthingDrawing } from '../../diagram/earthingDrawing';
@@ -284,13 +285,13 @@ export async function exportSheetsDxf(project: Project, set: DrawingSet, run: Ca
     if (!files.length) { onStatus('No sheets to export'); return; }
     const notice = dxfExportNotice(files);
     if (files.length === 1) {
-      const m = await saveBinary(files[0].name, new TextEncoder().encode(files[0].data), 'DXF', 'dxf', 'application/dxf');
+      const m = await saveBinary(files[0].name, new TextEncoder().encode(files[0].data), 'DXF', 'dxf', 'application/dxf', { output: 'drawingCad', project });
       if (m) onStatus(`${m}${notice ? ` — ${notice}` : ''}`);
       return;
     }
     const zip = new (await import('jszip')).default();
     for (const f of files) zip.file(f.name, f.data);
-    const m = await saveBinary(`${safeFileName(`${project.name} drawings DXF`)}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip');
+    const m = await saveBinary(`${safeFileName(`${project.name} drawings DXF`)}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip', { output: 'drawingCad', project });
     if (m) onStatus(`${m} — ${files.length} DXF sheets${notice ? ` — ${notice}` : ''}`);
   } catch (e) {
     onStatus(`DXF export failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -305,13 +306,13 @@ export async function exportSheetsDwg(project: Project, set: DrawingSet, run: Ca
     const dwg = await Promise.all(files.map(async (f) => ({ name: f.name.replace(/\.dxf$/i, '.dwg'), data: await dxfToDwg(f.data) })));
     const notice = dxfExportNotice(files);
     if (dwg.length === 1) {
-      const m = await saveBinary(dwg[0].name, dwg[0].data, 'DWG drawing (2018 format)', 'dwg', 'application/acad');
+      const m = await saveBinary(dwg[0].name, dwg[0].data, 'DWG drawing (2018 format)', 'dwg', 'application/acad', { output: 'drawingCad', project });
       if (m) onStatus(`${m}${notice ? ` — ${notice}` : ''}`);
       return;
     }
     const zip = new (await import('jszip')).default();
     for (const f of dwg) zip.file(f.name, f.data);
-    const m = await saveBinary(`${safeFileName(`${project.name} drawings DWG`)}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip');
+    const m = await saveBinary(`${safeFileName(`${project.name} drawings DWG`)}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip', { output: 'drawingCad', project });
     if (m) onStatus(`${m} — ${dwg.length} DWG sheets${notice ? ` — ${notice}` : ''}`);
   } catch (e) {
     onStatus(`DWG export failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -339,7 +340,7 @@ export async function exportEverythingZip(project: Project, set: DrawingSet, run
       zip.file(`${safeFileName(`${project.name} drawing set`)}.pdf`, await (await import('../../docs/mergePdf')).mergePdfs(parts, `${project.name} · drawings · ${revisionStamp(project)}`, titles));
     }
     zip.file(`${safeFileName(`${project.name} drawing register`)}.xlsx`, await (await import('../../docs/formWorkbook')).workbookBytes((await import('../../docs/registerWorkbook')).buildRegisterWorkbook(project, set)));
-    const m = await saveBinary(`${safeFileName(`${project.name} drawings`)}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip');
+    const m = await saveBinary(`${safeFileName(`${project.name} drawings`)}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip', { output: 'drawingsZip', project });
     const notice = dxfExportNotice(dxf);
     if (m) onStatus(`${m} — ${dxf.length} DXF${toBytes ? ' + PDFs' : ' (PDFs need the desktop app)'} + register${notice ? ` — ${notice}` : ''}`);
   } catch (e) {
@@ -381,18 +382,19 @@ export async function drawingSetPdfParts(project: Project, set: DrawingSet, run:
   return { parts, titles, sheets: pages.length, register: reg };
 }
 
-export async function exportDrawingSet(project: Project, set: DrawingSet, run: CalcRun | undefined, each: boolean, onStatus: (m: string) => void, only?: string[], withRegister = !only): Promise<void> {
+/** `issued`: the sheets are being issued; the PDFs go to the issued-drawings folder ({Stage}/Rev-{Rev}, spec F2). */
+export async function exportDrawingSet(project: Project, set: DrawingSet, run: CalcRun | undefined, each: boolean, onStatus: (m: string) => void, only?: string[], withRegister = !only, issued?: SaveValues): Promise<void> {
   try {
     const toBytes = window.lvds?.files?.pdfBytes;
     if (each || !toBytes) {
       const pages = await prepareSheets(project, set, run, only);
       let n = 0;
-      for (const p of pages) if (await savePdf(`${safeFileName(`${p.s.number} ${p.s.title}`)}.pdf`, p.html, { pageSize: p.size, landscape: true })) n++;
+      for (const p of pages) if (await savePdf(`${safeFileName(`${p.s.number} ${p.s.title}`)}.pdf`, p.html, { pageSize: p.size, landscape: true }, { output: issued ? 'issuedDrawingsPdf' : 'drawingPdf', project, values: { ...issued, Sheet: p.s.number, Seq: p.s.number, Rev: p.s.rev || sheetRev(p.s) || issued?.Rev } })) n++;
       onStatus(`Saved ${n} of ${pages.length} sheets${!toBytes && !each ? ' (one PDF per sheet — the combined set needs the desktop app)' : ''}`);
       return;
     }
     const d = await renderDrawingSetPdf(project, set, run, toBytes, only, withRegister);
-    const m = await saveBinary(d.name, d.bytes, 'PDF', 'pdf', 'application/pdf');
+    const m = await saveBinary(d.name, d.bytes, 'PDF', 'pdf', 'application/pdf', { output: issued ? 'issuedDrawingsPdf' : 'drawingPdf', project, values: issued });
     if (m) onStatus(`${m} — ${d.sheets} sheets${d.register ? ' + register' : ''}`);
   } catch (e) {
     onStatus(`Export failed: ${e instanceof Error ? e.message : String(e)}`);

@@ -28,15 +28,15 @@ export default function SubmissionsView({ project, draft, me = '', onChange, onS
   const base = safeFileName(project.name);
 
   async function registerPdf() {
-    try { const m = await savePdf(`${base} - Submission register.pdf`, buildSubmissionRegisterHtml(project, now), { pageSize: 'A4', cssPages: true, selfNumbered: true }); if (m) onStatus(m); }
+    try { const m = await savePdf(`${base} - Submission register.pdf`, buildSubmissionRegisterHtml(project, now), { pageSize: 'A4', cssPages: true, selfNumbered: true }, { output: 'submissionRegister', project }); if (m) onStatus(m); }
     catch (e) { onStatus(`PDF export failed: ${e instanceof Error ? e.message : String(e)}`); }
   }
   async function transmittal(s: Submission) {
-    try { const m = await savePdf(`${base} - Transmittal ${s.id}.pdf`, buildTransmittalHtml(project, s), { pageSize: 'A4', cssPages: true, selfNumbered: true }); if (m) onStatus(m); }
+    try { const m = await savePdf(`${base} - Transmittal ${s.id}.pdf`, buildTransmittalHtml(project, s), { pageSize: 'A4', cssPages: true, selfNumbered: true }, { output: 'transmittal', project, values: { TrNo: s.id, Seq: s.id } }); if (m) onStatus(m); }
     catch (e) { onStatus(`PDF export failed: ${e instanceof Error ? e.message : String(e)}`); }
   }
   async function excel() {
-    const m = await saveBinary(`${base} - Submission register.xlsx`, await workbookBytes(buildSubmissionWorkbook(project, now)), 'Excel', 'xlsx', XLSX);
+    const m = await saveBinary(`${base} - Submission register.xlsx`, await workbookBytes(buildSubmissionWorkbook(project, now)), 'Excel', 'xlsx', XLSX, { output: 'submissionRegister', project });
     if (m) onStatus(m);
   }
 

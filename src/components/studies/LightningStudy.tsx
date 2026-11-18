@@ -105,9 +105,9 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
     try {
       const name = `${safeFileName(project.name)} - Lightning protection`, p = { ...project, lightning: i };
       let m: string | null;
-      if (format === 'pdf') m = await savePdf(`${name}.pdf`, buildLightningReportHtml(p, picked), { pageSize: 'A4', landscape: false });
-      else if (format === 'docx') m = await saveBinary(`${name}.docx`, await (await import('../../docs/lightningWord')).lightningDocxBytes(p, picked), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      else m = await saveBinary(`${name}.xlsx`, new Uint8Array(await (await import('../../docs/lightningWorkbook')).buildLightningWorkbook(p).xlsx.writeBuffer()), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      if (format === 'pdf') m = await savePdf(`${name}.pdf`, buildLightningReportHtml(p, picked), { pageSize: 'A4', landscape: false }, { output: 'lightningReport', project });
+      else if (format === 'docx') m = await saveBinary(`${name}.docx`, await (await import('../../docs/lightningWord')).lightningDocxBytes(p, picked), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', { output: 'lightningReport', project });
+      else m = await saveBinary(`${name}.xlsx`, new Uint8Array(await (await import('../../docs/lightningWorkbook')).buildLightningWorkbook(p).xlsx.writeBuffer()), 'Excel workbook', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'lightningReport', project });
       if (m) onStatus?.(m);
     } finally {
       setBusy(false);

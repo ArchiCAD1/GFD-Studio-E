@@ -76,7 +76,7 @@ export function LayoutTemplatesDialog({ current, canSheet, onNew, onStatus, onCl
           keep(next); setPicked(next.find((x) => x.name.toLowerCase() === v!.name.toLowerCase())?.id);
           onStatus(`Layout template ${v.name} imported`);
         }} />
-        <button className="chip" disabled={!t} onClick={async () => { if (!t) return; const m = await saveText(`${safeFileName(t.name)}.layout.json`, JSON.stringify(t, null, 2), 'Layout template', 'json'); if (m) onStatus(m); }}>Export…</button>
+        <button className="chip" disabled={!t} onClick={async () => { if (!t) return; const m = await saveText(`${safeFileName(t.name)}.layout.json`, JSON.stringify(t, null, 2), 'Layout template', 'json', { output: 'layoutTemplate' }); if (m) onStatus(m); }}>Export…</button>
         <button className="chip" disabled={!t} onClick={() => { if (!t) return; const next = list.filter((x) => x.id !== t.id); keep(next); setPicked(next[0]?.id); onStatus(`Layout template ${t.name} deleted`); }}>Delete</button>
         <span className="sp" />
         <button className="chip primary" disabled={!t} onClick={() => { if (!t) return; onNew(t, as); onClose(); }}>New layout</button>
@@ -226,7 +226,7 @@ export function LayoutPlotDialog({ name, about, paper, html, fileName, onStatus,
         onStatus(`Sent ${name} to ${printer}${copies > 1 ? `, ${copies} copies` : ''}`);
       } else {
         const toBytes = window.lvds?.files?.pdfBytes;
-        const m = toBytes ? await saveBinary(fileName, await toBytes({ html: html(), cssPages: true }), 'PDF', 'pdf', 'application/pdf') : await savePdf(fileName, html(), { cssPages: true });
+        const m = toBytes ? await saveBinary(fileName, await toBytes({ html: html(), cssPages: true }), 'PDF', 'pdf', 'application/pdf', { output: 'drawingPdf' }) : await savePdf(fileName, html(), { cssPages: true }, { output: 'drawingPdf' });
         if (m) onStatus(m);
       }
       onClose();

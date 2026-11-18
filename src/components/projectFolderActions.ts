@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FolderBuilding, FolderTemplate, FolderVars, FolderWhen, ProjectFolder } from '../model/folderTemplates';
 import { allTemplates, defaultTemplateId, templatesClient, type TemplatesClient, type TemplatesState } from '../model/folderTemplatesClient';
-import { cleanFolderName, joinPath, offByDefault, planFolders, rememberFolder, suggestedRootName } from '../model/projectFolderPlan';
+import { cleanFolderName, joinPath, offByDefault, planFolders, rememberedFolder, rememberFolder, suggestedRootName } from '../model/projectFolderPlan';
+import { projectCopyTarget } from '../model/outputRoles';
+import type { Project } from '../types';
 
 /** What the desktop app can do with folders on disk; absent in the web version. */
 export type FolderDisk = NonNullable<Window['lvds']['projectFolders']>;
@@ -66,3 +68,24 @@ export async function folderZip(rootName: string, paths: readonly string[]): Pro
   return zip.generateAsync({ type: 'uint8array' });
 }
 
+
+const copyWarned = new Set<string>();
+
+/** After a project save on the desktop: a copy of the saved project file in the project folder's
+ * projectFile folder (decision 1, option B). Never fails the save: resolves to a message the first time a
+ * copy fails for this project in this session, else undefined. */
+export async function copyProjectFileToFolder(p: Pick<Project, 'id' | 'name' | 'info' | 'studyReport' | 'folder'>, file: string, disk: FolderDisk | undefined = folderDisk()): Promise<string | undefined> {
+  if (!disk?.saveCopy) return undefined;
+  const target = projectCopyTarget(p, rememberedFolder(p.id));
+  if (!target) return undefined;
+  try {
+    await disk.saveCopy({ ...target, fileName: file, sourceFile: file });
+    copyWarned.delete(p.id ?? '');
+    return undefined;
+  } catch (e) {
+    const key = p.id ?? '';
+    if (copyWarned.has(key)) return undefined;
+    copyWarned.add(key);
+    return `The copy in the project folder was not saved: ${(e instanceof Error ? e.message : String(e)).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')}`;
+  }
+}

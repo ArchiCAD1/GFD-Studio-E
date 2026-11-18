@@ -86,7 +86,7 @@ export default function ElvView({ project, revision, onChange, onSend, onPlace, 
     try { const p = pkg(); onSend(p, p.sha256); } catch (e) { onStatus(e instanceof Error ? e.message : String(e)); }
   };
   const exportPkg = async () => {
-    try { const m = await saveText(`${safeFileName(project.name)} - ELV loads.json`, `${JSON.stringify(pkg(), null, 2)}\n`, 'ELV loads package', 'json'); if (m) onStatus(m); } catch (e) { onStatus(e instanceof Error ? e.message : String(e)); }
+    try { const m = await saveText(`${safeFileName(project.name)} - ELV loads.json`, `${JSON.stringify(pkg(), null, 2)}\n`, 'ELV loads package', 'json', { output: 'elvLoadsPackage' }); if (m) onStatus(m); } catch (e) { onStatus(e instanceof Error ? e.message : String(e)); }
   };
 
   const types = [...new Set(info.rooms.map((r) => r.type))];

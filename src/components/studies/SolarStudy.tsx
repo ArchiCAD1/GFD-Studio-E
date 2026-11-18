@@ -48,7 +48,7 @@ export default function SolarStudy({ project, onChange, onStatus }: {
   async function exportPdf() {
     setBusy(true);
     try {
-      const m = await savePdf(`${safeFileName(project.name)} - Solar PV sizing.pdf`, buildPvReportHtml(project, s, r), { pageSize: 'A4', landscape: false });
+      const m = await savePdf(`${safeFileName(project.name)} - Solar PV sizing.pdf`, buildPvReportHtml(project, s, r), { pageSize: 'A4', landscape: false }, { output: 'pvReport', project });
       if (m) onStatus(m);
     } finally {
       setBusy(false);

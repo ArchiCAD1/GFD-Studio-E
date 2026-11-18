@@ -77,6 +77,9 @@ declare global {
         status: (root: string, paths: string[]) => Promise<{ root: string; exists: boolean; present: string[]; missing: string[]; looseFiles: string[]; looseCount: number }>;
         /** Shows the folder in the file manager; an error text, or null when it opened. */
         open: (root: string) => Promise<string | null>;
+        /** Writes a copy of a saved project file (from the Projects folder) into a folder inside the project
+         * folder, over an older copy of the same name only. Missing in older desktop builds. */
+        saveCopy?: (args: { root: string; relDir: string; fileName: string; sourceFile: string }) => Promise<{ file: string }>;
       };
       engines: {
         probe: () => Promise<import('./engines/types').EngineProbe | { error: string }>;
@@ -101,9 +104,9 @@ declare global {
       };
       files: {
         /** Shows a save dialog and writes the text; resolves to the saved path, or null if cancelled. */
-        saveText: (opts: { defaultName: string; content: string; filterName: string; extensions: string[] }) => Promise<string | null>;
+        saveText: (opts: { defaultName: string; /** The dialog's starting folder (spec F2); the Projects folder when it is not a real folder. */ defaultDir?: string; content: string; filterName: string; extensions: string[] }) => Promise<string | null>;
         /** Shows a save dialog and writes the bytes; resolves to the saved path, or null if cancelled. Missing in older desktop builds. */
-        saveBinary?: (opts: { defaultName: string; bytes: Uint8Array; filterName: string; extensions: string[] }) => Promise<string | null>;
+        saveBinary?: (opts: { defaultName: string; /** The dialog's starting folder (spec F2); the Projects folder when it is not a real folder. */ defaultDir?: string; bytes: Uint8Array; filterName: string; extensions: string[] }) => Promise<string | null>;
         /** Writes over a DWG / DXF chosen in a save dialog this session (Design CAD Save); `bak` keeps the previous copy. */
         overwriteBinary?: (opts: { file: string; bytes: Uint8Array; bak: boolean }) => Promise<string>;
         /** Shows a save dialog and renders the HTML to an A4 landscape PDF; resolves to the saved path, or null if cancelled. */
@@ -113,7 +116,7 @@ declare global {
         printers?: () => Promise<{ name: string; displayName: string; isDefault: boolean }[]>;
         /** Prints HTML on a listed printer with no dialog (Output → Plot); rejects with the printer's reason. */
         printHtml?: (opts: { html: string; deviceName: string; copies: number; pageSize?: 'A4' | 'A3' | 'A3 portrait' | 'A2' | 'A1'; landscape?: boolean }) => Promise<boolean>;
-        savePdf: (opts: { defaultName: string; html: string; pageSize?: 'A4' | 'A3' | 'A3 portrait' | 'A2' | 'A1'; landscape?: boolean; cssPages?: boolean }) => Promise<string | null>;
+        savePdf: (opts: { defaultName: string; /** The dialog's starting folder (spec F2); the Projects folder when it is not a real folder. */ defaultDir?: string; html: string; pageSize?: 'A4' | 'A3' | 'A3 portrait' | 'A2' | 'A1'; landscape?: boolean; cssPages?: boolean }) => Promise<string | null>;
       };
     };
   }

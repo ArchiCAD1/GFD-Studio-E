@@ -213,7 +213,7 @@ describe('Layout plot dialog', () => {
     expect(p.html).not.toHaveBeenCalled();
     await act(async () => { button('Plot PDF').click(); });
     expect(pdfBytes).toHaveBeenCalledWith({ html: '<html>page</html>', cssPages: true });
-    expect(files.saveBinary).toHaveBeenCalledWith('plan Layout2.pdf', new Uint8Array([1, 2, 3]), 'PDF', 'pdf', 'application/pdf');
+    expect(files.saveBinary).toHaveBeenCalledWith('plan Layout2.pdf', new Uint8Array([1, 2, 3]), 'PDF', 'pdf', 'application/pdf', { output: 'drawingPdf' });
     expect(p.onStatus).toHaveBeenCalledWith('Saved Layout2.pdf');
     expect(p.onClose).toHaveBeenCalledTimes(1);
   });
@@ -222,7 +222,7 @@ describe('Layout plot dialog', () => {
     act(() => root.render(<LayoutPlotDialog {...p} />));
     expect(button('Preview')).toBeUndefined(); // needs the desktop app
     await act(async () => { button('Plot PDF').click(); });
-    expect(files.savePdf).toHaveBeenCalledWith('plan Layout2.pdf', '<html>page</html>', { cssPages: true });
+    expect(files.savePdf).toHaveBeenCalledWith('plan Layout2.pdf', '<html>page</html>', { cssPages: true }, { output: 'drawingPdf' });
     expect(p.onStatus).toHaveBeenCalledWith('Saved by the browser');
     expect(p.onClose).toHaveBeenCalled();
   });

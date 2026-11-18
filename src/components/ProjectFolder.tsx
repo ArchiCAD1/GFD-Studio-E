@@ -124,7 +124,7 @@ export function ProjectFolderDialog({ project, onDone, onClose, client, disk = f
       else {
         const { paths } = planFolders(choice.template, folder.overrides, vars, buildings, choice.unticked);
         const name = cleanFolderName(choice.name);
-        const saved = await saveBinary(`${name}.zip`, await folderZip(name, paths), 'ZIP file', 'zip', 'application/zip');
+        const saved = await saveBinary(`${name}.zip`, await folderZip(name, paths), 'ZIP file', 'zip', 'application/zip', { output: 'folderZip' });
         rememberFolder(project.id, undefined);
         status = saved ? `Saved the folder structure as ${saved}. Unzip it where the project should live.` : 'Folder structure not saved.';
       }

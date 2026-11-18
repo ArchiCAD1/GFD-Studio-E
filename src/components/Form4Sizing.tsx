@@ -71,7 +71,7 @@ export default function Form4Sizing({ project, boardId, tabs, onChange, onStatus
     <h2>To confirm with the panel builder</h2><ul>${CONFIRM.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
     <p class="warn">Preliminary space estimate. Busbar sizing, shipping splits, temperature rise (IEC 61439) and the panel builder's layout are separate checks.</p>
     </body></html>`;
-    const m = await savePdf(`${safeFileName(`${project.name} ${panel} Form-4 enclosure`)}.pdf`, html, { pageSize: 'A4' });
+    const m = await savePdf(`${safeFileName(`${project.name} ${panel} Form-4 enclosure`)}.pdf`, html, { pageSize: 'A4' }, { output: 'enclosureReport', project });
     if (m) onStatus(m);
   }
 
@@ -79,7 +79,7 @@ export default function Form4Sizing({ project, boardId, tabs, onChange, onStatus
   async function exportDxf() {
     if (!r.widthMm) return;
     const title = `${project.name} - ${panel} Form-4 enclosure ${form4SizeText(r.dims)}`;
-    const m = await saveText(`${safeFileName(`${project.name} ${panel} Form-4 enclosure`)}.dxf`, form4Dxf(counts, r, title), 'DXF drawing (R12)', 'dxf');
+    const m = await saveText(`${safeFileName(`${project.name} ${panel} Form-4 enclosure`)}.dxf`, form4Dxf(counts, r, title), 'DXF drawing (R12)', 'dxf', { output: 'enclosureDxf', project });
     if (m) onStatus(m);
   }
 

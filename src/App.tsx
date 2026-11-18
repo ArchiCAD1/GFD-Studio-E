@@ -8,7 +8,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { lazyPage as lazy } from './util/onDemand';
 import { ErrorBoundary, setCrashKeeper } from './components/ErrorBoundary';
 import { Feeder, Board, Project, newProject } from './types';
-import { choiceReady, createChosenFolders, folderDisk, projectFolderOf, type FolderChoice } from './components/projectFolderActions';
+import { choiceReady, copyProjectFileToFolder, createChosenFolders, folderDisk, projectFolderOf, type FolderChoice } from './components/projectFolderActions';
 import { folderBuildings, folderVars } from './model/projectFolderPlan';
 import { sampleProject } from './data/sampleProject';
 import { evaluateProject, type Status } from './calc/electrical';
@@ -746,7 +746,9 @@ export default function App() {
       void clearRecovery(project.id);
       void clearRecovery(named.id);
       setSaveState({ kind: 'idle' });
-      setStatus(`Saved ${named.name} · ${fmtTime(new Date())}`);
+      const savedMsg = `Saved ${named.name} · ${fmtTime(new Date())}`;
+      setStatus(savedMsg);
+      void copyProjectFileToFolder(named, out.file).then((m) => { if (m) setStatus(`${savedMsg} — ${m}`); });
       refreshList();
       return true;
     } catch (e) {
@@ -831,7 +833,7 @@ export default function App() {
   /** Export JSON…: a plain .json copy of the project as it is now. */
   async function exportJson() {
     try {
-      const m = await saveText(`${safeFileName(project.name || 'project')}.json`, JSON.stringify(project, null, 2), 'JSON', 'json');
+      const m = await saveText(`${safeFileName(project.name || 'project')}.json`, JSON.stringify(project, null, 2), 'JSON', 'json', { output: 'projectJson' });
       if (m) setStatus(m);
     } catch (e) { setStatus(e instanceof Error ? e.message : String(e)); }
   }
@@ -953,7 +955,7 @@ export default function App() {
   async function exportOpenDss() {
     const { script, warnings } = exportDss(project);
     const warnNote = warnings.length ? ` — ${warnings.length} warning(s): ${warnings.join(' ')}` : '';
-    const m = await saveText(`${safeFileName(project.name)}.dss`, script, 'OpenDSS script', 'dss');
+    const m = await saveText(`${safeFileName(project.name)}.dss`, script, 'OpenDSS script', 'dss', { output: 'openDss' });
     if (m) setStatus(`${m}${warnNote}`);
   }
 
@@ -1074,7 +1076,7 @@ export default function App() {
     setEditPreset(mode === 'copy' ? { ...rest, id, name: `${p.name} (copy)` } : rest);
   }
   async function exportPresets() {
-    const m = await saveText('feeder-presets.json', presetsFile(userPresets), 'Feeder presets', 'json');
+    const m = await saveText('feeder-presets.json', presetsFile(userPresets), 'Feeder presets', 'json', { output: 'feederPresets' });
     if (m) setStatus(`${m} — import it on another PC from My presets`);
   }
   function importPresets(text: string) {
@@ -1445,7 +1447,7 @@ export default function App() {
           onAdvanceStage: issueStage,
           route: tenderRoute(project),
           onRoute: (r) => setProject(setTenderRoute(project, r), { step: true }),
-          onConceptReport: async () => { const m = await savePdf(`${safeFileName(project.name)} - concept design report.pdf`, (await import('./docs/conceptReport')).buildConceptReportHtml(project, { preparedBy: prefs.profile.name }), { pageSize: 'A4', landscape: false }); if (m) setStatus(m); }
+          onConceptReport: async () => { const m = await savePdf(`${safeFileName(project.name)} - concept design report.pdf`, (await import('./docs/conceptReport')).buildConceptReportHtml(project, { preparedBy: prefs.profile.name }), { pageSize: 'A4', landscape: false }, { output: 'conceptReport', project }); if (m) setStatus(m); }
         }}
       />}
 

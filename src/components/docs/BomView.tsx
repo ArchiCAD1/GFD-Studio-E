@@ -12,6 +12,7 @@ import { boqReview, SCOPE_CHECKS, scopeSummary, type BoqLineScope } from '../../
 import { boqBookmarks, buildBoqHtml, buildBoqWorkbook, buildPriceTemplate, readPriceWorkbook } from '../../docs/boqWorkbook';
 import { workbookBytes } from '../../docs/formWorkbook';
 import { safeFileName, saveBinary, savePdf } from '../../util/files';
+import type { SaveValues } from '../../model/outputRoles';
 import BoqTable from '../BoqTable';
 import VariationsView from './VariationsView';
 import { variationsOf } from '../../model/variations';
@@ -110,9 +111,11 @@ export default function BomView({ command, project, results, me = '', onChange, 
   const newItem = (section = nextManualSection()): ManualItem => ({ id: `m${Date.now().toString(36)}`, section, description: '', unit: 'no', qty: 1 });
   function nextManualSection() { return custom?.sections?.[custom.sections.length - 1]?.id ?? 'K'; }
 
+  /** The issued BOQ revision, for the file name and its Rev-{BoqRev} folder; none while it is a draft. */
+  const boqValues = (): SaveValues => { const s = boqRevisionState(project, bom); return s.rev !== undefined && !s.draft ? { Rev: String(s.rev), BoqRev: String(s.rev) } : {}; };
   async function exportBoq() {
     const wb = buildBoqWorkbook(project, bom, list);
-    const m = await saveBinary(`${safeFileName(project.name)} - BOQ.xlsx`, await workbookBytes(wb), 'Excel', 'xlsx', XLSX);
+    const m = await saveBinary(`${safeFileName(project.name)} - BOQ.xlsx`, await workbookBytes(wb), 'Excel', 'xlsx', XLSX, { output: 'boq', project, values: boqValues() });
     if (m) onStatus(m);
   }
   async function exportPdf(summaryOnly: boolean) {
@@ -121,7 +124,7 @@ export default function BomView({ command, project, results, me = '', onChange, 
       const name = `${safeFileName([project.name, custom?.document?.docNo].filter(Boolean).join(' '))} - BOQ${summaryOnly ? ' summary' : ''}.pdf`;
       const m = await savePdf(name, make({}), summaryOnly
         ? { pageSize: 'A4', cssPages: true, selfNumbered: true }
-        : { pageSize: 'A4', cssPages: true, selfNumbered: true, paginate: make, bookmarks: boqBookmarks(bom) });
+        : { pageSize: 'A4', cssPages: true, selfNumbered: true, paginate: make, bookmarks: boqBookmarks(bom) }, { output: 'boq', project, values: boqValues() });
       if (m) {
         onStatus(m);
         const state = boqRevisionState(project, bom);
@@ -134,7 +137,7 @@ export default function BomView({ command, project, results, me = '', onChange, 
     }
   }
   async function exportTemplate() {
-    const m = await saveBinary(`${safeFileName(list?.name ?? 'Price list')}.xlsx`, await workbookBytes(buildPriceTemplate(items, list)), 'Excel', 'xlsx', XLSX);
+    const m = await saveBinary(`${safeFileName(list?.name ?? 'Price list')}.xlsx`, await workbookBytes(buildPriceTemplate(items, list)), 'Excel', 'xlsx', XLSX, { output: 'priceTemplate' });
     if (m) onStatus(`${m} — fill in the rates and import it back`);
   }
   async function importRates(file: File) {

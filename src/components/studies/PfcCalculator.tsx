@@ -29,7 +29,7 @@ export default function PfcCalculator({ project, onChange, onStatus }: { project
   const loads = input.loads ?? [];
 
   async function report() {
-    const m = await savePdf(`${safeFileName(`${project.name} power factor correction${input.title ? ` ${input.title}` : ''}`)}.pdf`, pfcReportHtml(project, input, r), { pageSize: 'A4' });
+    const m = await savePdf(`${safeFileName(`${project.name} power factor correction${input.title ? ` ${input.title}` : ''}`)}.pdf`, pfcReportHtml(project, input, r), { pageSize: 'A4' }, { output: 'pfcReport', project });
     if (m) onStatus(m);
   }
   function toDesign() {

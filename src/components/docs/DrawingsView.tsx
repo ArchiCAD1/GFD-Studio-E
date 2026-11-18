@@ -19,6 +19,7 @@ import { safeFileName, saveBinary, savePdf } from '../../util/files';
 import { registerHtml } from '../../docs/drawingRegister';
 import { buildTransmittalHtml } from '../../docs/submissionReport';
 import { submissionForIssue } from '../../model/submissions';
+import { issueValues } from '../../model/outputRoles';
 import { PLAN_LABEL } from '../../docs/planLayout';
 import { exportDrawingSet, exportEverythingZip, exportSheetsDxf, registerRows, sheetHtml, SheetPreview } from './sheetRender';
 import SheetGrid from './SheetGrid';
@@ -119,10 +120,10 @@ export default function DrawingsView({ project, run, initialTab = 'sheets', onCh
 
   async function run1(key: string, f: () => Promise<void>) { setBusy(key); setExportOpen(false); try { await f(); } finally { setBusy(''); } }
   const exportSet = (each: boolean, only?: string[]) => run1('set', () => exportDrawingSet(project, set, run, each, onStatus, only, true));
-  const exportRegisterPdf = () => run1('reg', async () => { const m = await savePdf(`${safeFileName(project.name)} - drawing register.pdf`, registerHtml(project, registerRows(set, [], rev?.id), rev?.id ?? '—', rev?.date ?? new Date().toISOString().slice(0, 10), set.issues, company), { pageSize: 'A4', cssPages: true, selfNumbered: true }); if (m) onStatus(m); });
-  const exportRegisterXlsx = () => run1('reg', async () => { const m = await saveBinary(`${safeFileName(project.name)} - drawing register.xlsx`, await excel().then((x) => x.workbookBytes(x.buildRegisterWorkbook(project, set))), 'Excel', 'xlsx', XLSX); if (m) onStatus(m); });
-  async function transmittalPdf(x: DrawingIssue) { const m = await savePdf(`${safeFileName(`${project.name} - transmittal ${x.id}`)}.pdf`, buildTransmittalHtml(project, submissionForIssue(project, x)), { pageSize: 'A4', cssPages: true, selfNumbered: true }); if (m) onStatus(m); }
-  async function transmittalExcel(x: DrawingIssue) { const m = await saveBinary(`${safeFileName(`${project.name} - transmittal ${x.id}`)}.xlsx`, await excel().then((e) => e.workbookBytes(e.buildTransmittalWorkbook(project, x))), 'Excel', 'xlsx', XLSX); if (m) onStatus(m); }
+  const exportRegisterPdf = () => run1('reg', async () => { const m = await savePdf(`${safeFileName(project.name)} - drawing register.pdf`, registerHtml(project, registerRows(set, [], rev?.id), rev?.id ?? '—', rev?.date ?? new Date().toISOString().slice(0, 10), set.issues, company), { pageSize: 'A4', cssPages: true, selfNumbered: true }, { output: 'drawingRegister', project }); if (m) onStatus(m); });
+  const exportRegisterXlsx = () => run1('reg', async () => { const m = await saveBinary(`${safeFileName(project.name)} - drawing register.xlsx`, await excel().then((x) => x.workbookBytes(x.buildRegisterWorkbook(project, set))), 'Excel', 'xlsx', XLSX, { output: 'drawingRegister', project }); if (m) onStatus(m); });
+  async function transmittalPdf(x: DrawingIssue) { const m = await savePdf(`${safeFileName(`${project.name} - transmittal ${x.id}`)}.pdf`, buildTransmittalHtml(project, submissionForIssue(project, x)), { pageSize: 'A4', cssPages: true, selfNumbered: true }, { output: 'transmittal', project, values: { TrNo: x.id, Seq: x.id } }); if (m) onStatus(m); }
+  async function transmittalExcel(x: DrawingIssue) { const m = await saveBinary(`${safeFileName(`${project.name} - transmittal ${x.id}`)}.xlsx`, await excel().then((e) => e.workbookBytes(e.buildTransmittalWorkbook(project, x))), 'Excel', 'xlsx', XLSX, { output: 'transmittal', project, values: { TrNo: x.id, Seq: x.id } }); if (m) onStatus(m); }
   async function preview1(s: DrawingSheet) {
     setBusy(s.id);
     try { const r = await sheetHtml(project, set, s, run); if (r) setPreview({ no: s.number, html: r.html, size: r.size, fits: r.fits }); } finally { setBusy(''); }
@@ -475,7 +476,7 @@ export default function DrawingsView({ project, run, initialTab = 'sheets', onCh
         onStatus(`Issued ${r.issue.id}: ${r.issue.sheets.length} sheet(s) — ${o.purpose}`);
         if (pdf) {
           await transmittalPdf(r.issue);
-          await run1('set', () => exportDrawingSet({ ...project, drawingSet: r.set }, r.set, run, false, onStatus, r.issue.sheets.map((s) => s.id), true));
+          await run1('set', () => exportDrawingSet({ ...project, drawingSet: r.set }, r.set, run, false, onStatus, r.issue.sheets.map((s) => s.id), true, issueValues(project, r.issue.sheets)));
         }
       }} />}
 

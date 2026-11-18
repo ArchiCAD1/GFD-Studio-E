@@ -127,7 +127,7 @@ export default function TitleBlockDesigner({ project, onChange, onStatus, onPara
             <span className="m">Name:</span>
             <input className="bi-text" style={{ width: 220 }} defaultValue={t.name} key={t.name} onBlur={(e) => e.target.value.trim() && setT({ ...t, name: e.target.value.trim() })} />
             <button className="chip" onClick={() => { const lib = loadTemplateLibrary().filter((x) => x.name !== t.name); onStatus(saveTemplateLibrary([...lib, t]) ? `Saved “${t.name}” to your library on this computer` : 'Could not save the library'); }}>Save to my library</button>
-            <button className="chip" onClick={async () => { const m = await saveText(`${t.name}.titleblock.json`, JSON.stringify(t, null, 2), 'Title block', 'json'); if (m) onStatus(m); }}>Export</button>
+            <button className="chip" onClick={async () => { const m = await saveText(`${t.name}.titleblock.json`, JSON.stringify(t, null, 2), 'Title block', 'json', { output: 'titleBlock', project }); if (m) onStatus(m); }}>Export</button>
             <button className="chip" onClick={() => fileRef.current?.click()}>Import</button>
             <input ref={fileRef} type="file" accept=".json" hidden onChange={async (e) => {
               const f = e.target.files?.[0]; e.target.value = '';
@@ -235,7 +235,7 @@ function DrawnEditor({ t, project, params, setT, onProject, onStatus, onDelete }
           <span className="m">Name:</span>
           <input className="bi-text" style={{ width: 220 }} defaultValue={t.name} key={t.name} onBlur={(e) => e.target.value.trim() && setT({ ...t, name: e.target.value.trim() })} />
           <button className="chip" onClick={() => { const lib = loadTemplateLibrary().filter((x) => x.name !== t.name); onStatus(saveTemplateLibrary([...lib, t]) ? `Saved “${t.name}” to your library on this computer` : 'Could not save the library'); }}>Save to library</button>
-          <button className="chip" onClick={async () => { const m = await saveText(`${t.name}.titleblock.json`, JSON.stringify(t, null, 2), 'Title block', 'json'); if (m) onStatus(m); }}>Export</button>
+          <button className="chip" onClick={async () => { const m = await saveText(`${t.name}.titleblock.json`, JSON.stringify(t, null, 2), 'Title block', 'json', { output: 'titleBlock', project }); if (m) onStatus(m); }}>Export</button>
           <button className="linkish bad" onClick={() => void onDelete()}>Delete</button>
         </div>
       </div>

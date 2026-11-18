@@ -17,10 +17,10 @@ export default function AnonymizedSampleDialog({ project, onClose, onStatus }: {
     try { const m = await what(); if (m) onStatus(`${m} — anonymized sample; review it before sharing`); }
     finally { setBusy(false); }
   };
-  const json = () => run(() => saveText(anonymizedFileName('json'), JSON.stringify(r.project, null, 2), 'LV Design Studio project', 'json'));
+  const json = () => run(() => saveText(anonymizedFileName('json'), JSON.stringify(r.project, null, 2), 'LV Design Studio project', 'json', { output: 'anonymizedSample' }));
   // The report code loads when the PDF is asked for, not at start-up.
   const pdf = () => run(async () => savePdf(anonymizedFileName('pdf', 'calculation-report'), (await import('../docs/calcReport')).buildReportHtml(r.project),
-    { pageSize: 'A4', landscape: true, cssPages: true, selfNumbered: true, anonymous: true }));
+    { pageSize: 'A4', landscape: true, cssPages: true, selfNumbered: true, anonymous: true }, { output: 'anonymizedSample' }));
 
   return (
     <Modal onClose={onClose} style={{ maxWidth: 620 }}>

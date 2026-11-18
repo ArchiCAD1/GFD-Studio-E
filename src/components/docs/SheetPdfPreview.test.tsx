@@ -45,7 +45,7 @@ it('plots just the selected sheet and saves the bytes shown in the preview', asy
     await act(async () => button('Next page').click());
     expect(getPage).toHaveBeenLastCalledWith(2);
     await act(async () => button('Save PDF').click());
-    expect(mocks.saveBinary).toHaveBeenCalledWith('sheet.pdf', Uint8Array.of(1, 2, 3), 'PDF', 'pdf', 'application/pdf');
+    expect(mocks.saveBinary).toHaveBeenCalledWith('sheet.pdf', Uint8Array.of(1, 2, 3), 'PDF', 'pdf', 'application/pdf', expect.objectContaining({ output: 'drawingPdf', values: expect.objectContaining({ Sheet: expect.anything() }) }));
     expect(host.querySelector('[role="status"]')?.textContent).toBe('Saved sheet.pdf');
   } finally {
     act(() => root.unmount());

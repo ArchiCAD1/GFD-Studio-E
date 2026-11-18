@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
@@ -6,7 +7,7 @@ import { exportDss } from '../engines/opendss/exportDss';
 import { EMPTY_BYTES } from '../../tests/fixtures/importExport';
 
 type Fn = (...a: unknown[]) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
-type V = Record<'defaultFileName' | 'fileFilter' | 'saveTextArgs' | 'saveBinaryArgs' | 'overwriteBinaryArgs' | 'pdfArgs' | 'printArgs' | 'projectSaveArgs' | 'recoveryArgs' | 'logText' | 'workbookRows' | 'libraryData' | 'engineRequest', Fn> & { ALLOWED_PERMISSIONS: Set<string> };
+type V = Record<'defaultDir' | 'defaultFileName' | 'fileFilter' | 'saveTextArgs' | 'saveBinaryArgs' | 'overwriteBinaryArgs' | 'pdfArgs' | 'printArgs' | 'projectSaveArgs' | 'recoveryArgs' | 'logText' | 'workbookRows' | 'libraryData' | 'engineRequest', Fn> & { ALLOWED_PERMISSIONS: Set<string> };
 const check = createRequire(import.meta.url)('../../electron/ipcValidate.cjs') as V;
 
 describe('IPC payload checks (electron/ipcValidate.cjs)', () => {
@@ -99,5 +100,16 @@ describe.skipIf(!python)('OpenDSS script allow-list (engines/python/lvds_engine.
       'OpenDSS command not allowed: Export', 'OpenDSS command not allowed: Save', 'OpenDSS command not allowed: CD',
       'OpenDSS option not allowed: Set datapath', 'OpenDSS option not allowed: Set editor'
     ]);
+  });
+  it('a save dialog\'s starting folder is an absolute path without control characters, or nothing', () => {
+    expect(check.defaultDir(undefined)).toBeUndefined();
+    expect(check.defaultDir('')).toBeUndefined();
+    expect(check.defaultDir('/jobs/P2611/05_Calcs/../05_Calcs')).toBe(resolve('/jobs/P2611/05_Calcs'));
+    expect(() => check.defaultDir('relative/dir')).toThrow(/Refused/);
+    expect(() => check.defaultDir('/jobs/a\0b')).toThrow(/Refused/);
+    expect(() => check.defaultDir(`/${'a'.repeat(1001)}`)).toThrow(/Refused/);
+    expect(() => check.defaultDir(42)).toThrow(/Refused/);
+    expect(check.saveTextArgs({ content: 'x', filterName: 'T', extensions: ['txt'], defaultDir: '/jobs' }).defaultDir).toBe(resolve('/jobs'));
+    expect(check.saveTextArgs({ content: 'x', filterName: 'T', extensions: ['txt'] }).defaultDir).toBeUndefined();
   });
 });

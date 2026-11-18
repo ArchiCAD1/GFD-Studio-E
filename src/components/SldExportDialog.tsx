@@ -45,21 +45,21 @@ export default function SldExportDialog({ project, onSave, onStatus, onClose, st
       const p = { ...project, drawing: d };
       let m: string | null = null;
       if (kind === 'pdf') {
-        m = await savePdf(`${name}.pdf`, buildSldSheetHtml(p, cur.svg, d.sheet ?? 'A3'), { pageSize: d.sheet ?? 'A3', landscape: true });
+        m = await savePdf(`${name}.pdf`, buildSldSheetHtml(p, cur.svg, d.sheet ?? 'A3'), { pageSize: d.sheet ?? 'A3', landscape: true }, { output: 'drawingPdf', project });
       } else if (kind === 'svg') {
-        m = await saveText(`${name}.svg`, cur.svg, 'SVG image', 'svg');
+        m = await saveText(`${name}.svg`, cur.svg, 'SVG image', 'svg', { output: 'drawingCad', project });
       } else {
         const one = d.cableLabels === 'ref' ? { no: t.number, title: t.title, index: 1, count: 1, cables: cableRefsUsed(p) } : undefined;
         const files = namedDxfFiles(name, buildSheetDxfPages(p, cur.svg, d.sheet ?? 'A3', one));
         // DWG: the same sheets, each DXF saved as DWG by the CAD engine.
         const dwg = kind === 'dwg' ? await Promise.all(files.map(async (f) => ({ name: f.name.replace(/\.dxf$/i, '.dwg'), data: await dxfToDwg(f.data) }))) : null;
         if (files.length === 1) {
-          m = dwg ? await saveBinary(dwg[0].name, dwg[0].data, 'DWG drawing (2018 format)', 'dwg', 'application/acad')
-            : await saveText(files[0].name, files[0].data, 'DXF drawing (R12)', 'dxf');
+          m = dwg ? await saveBinary(dwg[0].name, dwg[0].data, 'DWG drawing (2018 format)', 'dwg', 'application/acad', { output: 'drawingCad', project })
+            : await saveText(files[0].name, files[0].data, 'DXF drawing (R12)', 'dxf', { output: 'drawingCad', project });
         } else {
           const zip = new (await import('jszip')).default();
           (dwg ?? files).forEach((f) => zip.file(f.name, f.data));
-          m = await saveBinary(`${name}-${dwg ? 'DWG' : 'DXF'}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip');
+          m = await saveBinary(`${name}-${dwg ? 'DWG' : 'DXF'}.zip`, await zip.generateAsync({ type: 'uint8array' }), 'ZIP', 'zip', 'application/zip', { output: 'drawingCad', project });
         }
         const notice = dxfExportNotice(files);
         if (m && notice) m += ` — ${notice}`;

@@ -82,7 +82,7 @@ export default function ProjectDashboard({ project, run, stale, saved = false, o
   async function exportPdf() {
     setBusy(true);
     try {
-      const m = await savePdf(`${safeFileName(project.name)} - project summary.pdf`, buildDashboardHtml(project, d), { pageSize: 'A4', landscape: true });
+      const m = await savePdf(`${safeFileName(project.name)} - project summary.pdf`, buildDashboardHtml(project, d), { pageSize: 'A4', landscape: true }, { output: 'projectSummary' });
       if (m) onStatus(m);
     } finally {
       setBusy(false);

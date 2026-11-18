@@ -15,6 +15,14 @@ function defaultFileName(v, fallback = 'export') {
   return s && s !== '.' && s !== '..' ? s.slice(0, 200) : fallback;
 }
 
+/** A save dialog's starting folder (spec F2): an absolute path, at most 1000 characters, no NUL or other
+ * control character; undefined when absent. Whether it is a real folder is checked by the main process. */
+function defaultDir(v) {
+  if (v === undefined || v === null || v === '') return undefined;
+  if (typeof v !== 'string' || v.length > 1000 || [...v].some((c) => c < ' ') || !path.isAbsolute(v)) fail('save folder');
+  return path.resolve(v);
+}
+
 /** Save-dialog filter: a short label and 1–10 plain extensions. */
 function fileFilter(name, extensions) {
   if (!Array.isArray(extensions) || !extensions.length || extensions.length > 10 || !extensions.every((e) => typeof e === 'string' && /^[a-z0-9]{1,10}$/i.test(e))) fail('file type list');
@@ -24,14 +32,14 @@ function fileFilter(name, extensions) {
 function saveTextArgs(a) {
   if (!isObj(a) || typeof a.content !== 'string') fail('text export without text content');
   assertTextWithin(a.content, LIMITS.textExportBytes, 'The export');
-  return { defaultName: defaultFileName(a.defaultName), content: a.content, filter: fileFilter(a.filterName, a.extensions) };
+  return { defaultName: defaultFileName(a.defaultName), defaultDir: defaultDir(a.defaultDir), content: a.content, filter: fileFilter(a.filterName, a.extensions) };
 }
 
 function saveBinaryArgs(a) {
   if (!isObj(a) || !(ArrayBuffer.isView(a.bytes) || a.bytes instanceof ArrayBuffer)) fail('binary export without bytes');
   if (a.bytes.byteLength === 0) fail('empty binary export');
   if (a.bytes.byteLength > LIMITS.binaryExportBytes) fail(`export larger than ${Math.round(LIMITS.binaryExportBytes / 1048576)} MB`);
-  return { defaultName: defaultFileName(a.defaultName), bytes: Buffer.from(ArrayBuffer.isView(a.bytes) ? a.bytes.buffer.slice(a.bytes.byteOffset, a.bytes.byteOffset + a.bytes.byteLength) : a.bytes), filter: fileFilter(a.filterName, a.extensions) };
+  return { defaultName: defaultFileName(a.defaultName), defaultDir: defaultDir(a.defaultDir), bytes: Buffer.from(ArrayBuffer.isView(a.bytes) ? a.bytes.buffer.slice(a.bytes.byteOffset, a.bytes.byteOffset + a.bytes.byteLength) : a.bytes), filter: fileFilter(a.filterName, a.extensions) };
 }
 
 /** Design CAD Save over a copy saved earlier: an absolute DWG / DXF path, the bytes (as for saveBinary), and whether
@@ -51,7 +59,7 @@ function pdfArgs(a) {
   assertTextWithin(a.html, LIMITS.pdfHtmlBytes, 'The report');
   const pageSize = a.pageSize === undefined ? 'A4' : a.pageSize;
   if (!PAGE_SIZES.includes(pageSize)) fail(`PDF sheet size ${String(pageSize)}`);
-  return { defaultName: defaultFileName(a.defaultName, 'report.pdf'), html: a.html, pageSize, landscape: a.landscape === undefined ? true : !!a.landscape, cssPages: !!a.cssPages };
+  return { defaultName: defaultFileName(a.defaultName, 'report.pdf'), defaultDir: defaultDir(a.defaultDir), html: a.html, pageSize, landscape: a.landscape === undefined ? true : !!a.landscape, cssPages: !!a.cssPages };
 }
 
 /** Plot to a printer: the sheet's HTML, a printer name the system listed (checked again in main), 1–99 copies and a
@@ -235,4 +243,4 @@ function scanRoot(v) {
 /** Permissions the app's pages may be granted (everything else, e.g. camera, location, notifications, is denied). */
 const ALLOWED_PERMISSIONS = new Set(['clipboard-sanitized-write']);
 
-module.exports = { defaultFileName, fileFilter, saveTextArgs, saveBinaryArgs, overwriteBinaryArgs, pdfArgs, printArgs, projectSaveArgs, recoveryArgs, logText, workbookRows, libraryData, engineRequest, folderTemplate, folderTemplateId, folderTemplatesExportArgs, scanRoot, ALLOWED_PERMISSIONS, PAGE_SIZES };
+module.exports = { defaultFileName, defaultDir, fileFilter, saveTextArgs, saveBinaryArgs, overwriteBinaryArgs, pdfArgs, printArgs, projectSaveArgs, recoveryArgs, logText, workbookRows, libraryData, engineRequest, folderTemplate, folderTemplateId, folderTemplatesExportArgs, scanRoot, ALLOWED_PERMISSIONS, PAGE_SIZES };

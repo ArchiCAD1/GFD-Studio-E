@@ -45,8 +45,8 @@ export default function BuildingView({ project, onChange, onStatus }: { project:
   const exportSummary = async (kind: 'pdf' | 'xlsx') => {
     const ids = info.buildings.map((x) => x.id);
     const m = kind === 'pdf'
-      ? await savePdf(`${safeFileName(project.name)} - building summary.pdf`, buildingSummaryHtml(project, ids), { pageSize: 'A4' })
-      : await saveBinary(`${safeFileName(project.name)} - building summary.xlsx`, await workbookBytes(buildingSummaryWorkbook(project, ids)), 'Excel', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      ? await savePdf(`${safeFileName(project.name)} - building summary.pdf`, buildingSummaryHtml(project, ids), { pageSize: 'A4' }, { output: 'buildingSummary', project })
+      : await saveBinary(`${safeFileName(project.name)} - building summary.xlsx`, await workbookBytes(buildingSummaryWorkbook(project, ids)), 'Excel', 'xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', { output: 'buildingSummary', project });
     if (m) onStatus(m);
   };
   const types = roomTypesOf(info);

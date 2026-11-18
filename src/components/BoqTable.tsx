@@ -42,7 +42,7 @@ export default function BoqTable({ results, projectName, project }: { results: F
 
   function exportCsv() {
     const { headers, data } = csvRows(rows);
-    void saveCsv(`${projectName} boq`, headers, data);
+    void saveCsv(`${projectName} boq`, headers, data, { output: 'boq' });
   }
 
   return (
