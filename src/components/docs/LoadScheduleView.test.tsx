@@ -10,6 +10,7 @@ import { EMPTY_DATABASE } from '../../database/database';
 import { sampleProject } from '../../data/sampleProject';
 import { scheduleCircuits } from '../../calc/loadSchedule';
 import { spareWaysOf } from '../../model/spareWays';
+import { supplyChain } from '../../model/transformers';
 import { safeFileName, saveBinary, saveCsv, savePdf } from '../../util/files';
 import { loadScheduleRows } from '../../docs/loadScheduleDoc';
 import { addCircuit, updateCircuit } from '../../model/schedule';
@@ -163,14 +164,60 @@ describe('Load schedule page and the ribbon', () => {
     expect(published).toMatchObject({ form: 'tx' });
   });
 
-  it('no longer has the buttons that moved to the ribbon, and keeps the rest', () => {
+  it('no longer has the export buttons, and keeps the add row, the phase load and the rest', () => {
     mount();
     const names = buttons();
-    for (const gone of ['Add circuit', 'Add 3-phase circuit', 'Spare', 'Space', 'Balance phases', 'Export Excel', 'Export PDF', 'Export CSV', 'Submission pack (Excel)', 'My Excel template…']) expect(names).not.toContain(gone);
+    for (const gone of ['Add circuit', 'Add 3-phase circuit', 'Export Excel', 'Export PDF', 'Export CSV', 'Submission pack (Excel)', 'My Excel template…']) expect(names).not.toContain(gone);
+    for (const here of ['1-phase circuit', '3-phase circuit', 'Spare 1-phase', 'Spare 3-phase', 'Space', 'Balance phases']) expect(names).toContain(here);
     expect(document.querySelector('.ls-spare-add')).toBeNull();
-    expect(document.querySelector('.ls-actions')!.textContent).toMatch(/Excel keys.*Phase load \(W\).*imbalance/);
+    const actions = document.querySelector('.ls-actions')!;
+    expect(actions.textContent).toMatch(/Add.*1-phase circuit.*3-phase circuit.*Spare 1-phase.*Spare 3-phase.*Space.*Balance phases.*Phase load \(W\).*imbalance/);
+    expect(actions.querySelector('.gx-hint[aria-label="Excel keys"]')).not.toBeNull();
     expect(document.querySelector('select[aria-label="DB"]')).not.toBeNull();
     expect(document.querySelectorAll('table.ls .icon-btn').length).toBeGreaterThan(0); // the row bins stay
+  });
+
+  it('has a two-row header: help behind the i, supply on the title row, tabs and boards on one row', () => {
+    mount();
+    expect(document.querySelector('p.intro')).toBeNull();
+    expect(document.querySelector('.stage-head')!.textContent).toContain(`Supply ${supplyChain(start, BOARD).join(' → ')}`);
+    const nav = document.querySelector('.ls-nav')!;
+    expect(nav.querySelector('[data-doc-id="load-schedule-groups"]')).not.toBeNull();
+    expect(nav.querySelector('[data-doc-id="load-schedule-panels"]')).not.toBeNull();
+    expect(document.querySelector('[data-doc-id="load-schedule-grid"]')).not.toBeNull();
+    expect(document.querySelector('[role="dialog"][aria-label="How this page works"]')).toBeNull();
+    act(() => { document.querySelector<HTMLButtonElement>('button[aria-label="How this page works"]')!.click(); });
+    expect(document.querySelector('[role="dialog"][aria-label="How this page works"]')!.textContent).toContain('Circuit references are phase + way');
+    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    expect(document.querySelector('[role="dialog"][aria-label="How this page works"]')).toBeNull();
+  });
+
+  it('the add row adds a circuit, a 3-phase circuit, spares and spaces in order', () => {
+    mount();
+    const click = (name: string) => act(() => { [...document.querySelectorAll<HTMLButtonElement>('.ls-actions button, .ls-actions .menu-pop button')].find((b) => b.textContent!.trim() === name)!.click(); });
+    const board = () => latest.boards.find((b) => b.id === BOARD)!;
+    const n = circuits().length;
+    click('1-phase circuit');
+    expect(circuits()).toHaveLength(n + 1);
+    expect(last(circuits()).phase).not.toBe('RYB');
+    click('3-phase circuit');
+    expect(circuits()).toHaveLength(n + 2);
+    expect(last(circuits()).phase).toBe('RYB');
+    click('Spare 1-phase');
+    click('Spare 3-phase');
+    click('Space');
+    click('1-phase space');
+    click('Space');
+    click('3-phase space');
+    expect(spareWaysOf(board()).map((s) => `${s.kind}:${s.phase === 'RYB'}`)).toEqual(['spare:false', 'spare:true', 'space:false', 'space:true']);
+  });
+
+  it('Balance phases on the page balances like the ribbon one', () => {
+    mount();
+    const before = latest;
+    act(() => { [...document.querySelectorAll<HTMLButtonElement>('.ls-actions button')].find((b) => b.textContent!.trim() === 'Balance phases')!.click(); });
+    expect(latest).not.toBe(before);
+    expect(latest.feeders.map((f) => f.id).sort()).toEqual(before.feeders.map((f) => f.id).sort());
   });
 
   it('publishes what the ribbon needs, and again only when those values change', () => {
@@ -477,6 +524,13 @@ describe('the ribbon\'s tools on the connected load & MD form', () => {
   const feedersOf = () => latest.feeders.filter((f) => f.boardId === MDB);
   /** The first input of the row of this outgoing feeder, found by its bin. */
   const feederCell = (id: string) => document.querySelector(`button[aria-label="Delete feeder ${id}"]`)!.closest('tr')!.querySelector<HTMLInputElement>('input[data-cell]')!;
+
+  it('has no add row of the DB schedule on the MD form', () => {
+    shown = MDB;
+    mount();
+    expect(buttons()).not.toContain('1-phase circuit');
+    expect(buttons()).not.toContain('3-phase circuit');
+  });
 
   it('adds a feeder and 3-phase or 1-phase spares and spaces', () => {
     shown = MDB;
