@@ -2,7 +2,9 @@
 
 Status: **approved 2026-11-18 with the five recommended answers** ("Yes, go ahead"): steps 1–4 in order; Shift+drag draws the window and a plain drag keeps panning; Move (M) of a board is done at once with Ctrl+Z; Undo and Redo only on the empty-drawing menu; the "len?" mark shows on the SLD (screen only). Being built, one PR per step.
 
-Progress: Step 1 (menus with today's tools; Zoom to, Order, Copy and Duplicate, Change, Rename, Quick fix list) is in PR 693 (v2.204). As built: Duplicate names the copies by the "-2" rule (SMDB-FF-2, DB-GF1-2), as a paste without a rename; Paste follows the ribbon's rule (any board but the copied one); Properties also brings a hidden inspector back.
+Progress: all four steps built, as stacked PRs to merge in order: step 1 (menus with today's tools; Zoom to, Order, Copy and Duplicate, Change, Rename, Quick fix list) PR 693 (v2.204); step 2 (Move (M), Supply from… / Move to board…, the incomer length flag fix, the len? mark) PR 694 (v2.205); step 3 (picking several, the several-picked menu, the select tools, Edit together) PR 695 (v2.206); step 4 (Show this branch only, menus on the Board tab) PR 696 (v2.207).
+
+As built: Duplicate names the copies by the "-2" rule (SMDB-FF-2, DB-GF1-2), as a paste without a rename. Paste follows the ribbon's rule (any board but the copied one). Properties also brings a hidden inspector back. The len? mark sits on a row under the way's result values (after the cable text it ran into the next way). On the Board tab a sub-board's menu has no Add and no Properties (they work on the board on screen), and a paste or a delete there stays on the board.
 
 On 2026-11-18 the user asked which edit tools could be added on the SLD drawing, such as a right-click menu with Move and other operations, and asked for a mockup. The SLD ribbon proposal had listed "a right-click menu on the SLD" as a later idea.
 
