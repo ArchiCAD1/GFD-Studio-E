@@ -1,6 +1,6 @@
 /** Guessing which output a folder is for from its name ("VD" → voltage drop reports, "DEWA" → DEWA
- * submissions). Used by Auto-assign on the template editor's Roles tab; the later "Learn from a folder"
- * step uses the same table. Pure. */
+ * submissions). Used by Auto-assign on the template editor's Roles tab; the "Learn from folder"
+ * wizard (folderLearn.ts) uses the same table. Pure. */
 
 import { ROLE_CATALOGUE } from './folderRoles';
 import { nodeRoles, walkNodes, type FolderNode } from './folderTemplates';
@@ -28,7 +28,7 @@ export const ROLE_WORDS: Readonly<Record<string, readonly string[]>> = {
   studyReports: ['study reports', 'studies', 'calculations', 'calcs', 'calc'],
   drawingsWip: ['wip', 'work in progress', 'working drawings'],
   drawingsIssued: ['issued', 'ifc', 'published'],
-  drawingsSuperseded: ['superseded', 'old revisions'],
+  drawingsSuperseded: ['superseded', 'old revisions', 'old'],
   loadSchedules: ['load schedules', 'load schedule', 'db schedules'],
   cableSchedule: ['cable schedule'],
   equipmentSchedule: ['equipment schedule', 'equipment'],

@@ -27,7 +27,7 @@ Leave alone: calculations, undo history, zoom, lazy loading of screens and expor
 | M2 | Calculation report: reuse the calculation and the written sections for a project object (`perProject`), so typing the document number rewrites only page 1 and the pre-export check does not calculate again | 300 panels: one letter typed 3.0 s → 5 ms; the first build after a run is still 1–3 s | Done for typing. **A Web Worker is not safe yet**: the calculations read data that is loaded in the window (cable tables, breaker database, catalogue, sizing settings), so a worker would print results from the built-in data. It needs that data passed to the worker first; decide later |
 | M3 | Memoise SLD panels so one edit redraws one panel | To be measured first: the SLD already draws only what is in view, so the gain is on what is on screen | Measure before starting |
 | M4 | Web version: project files and the trash in IndexedDB, not `localStorage` (about 5 MB per site) | No practical size cap; projects saved before are read and move over at the next save | Done (PR #660). Recovery copies stay in `localStorage` (written at once when the window closes) |
-| M5 | Load revision content and old release notes only when their screen opens | Smaller start-up memory | Not started |
+| M5 | Release notes (`src/model/whatsNew.ts`) are read only when this version was not seen yet or What's new is opened | 138 kB (45 kB compressed) out of the code loaded at start | Done. The revisions half is covered by M1: an opened revision shares its panels and circuits with the design, so there is little left to load late |
 | M6 | Auto-run waits for a pause on large projects; recovery copy only when the project changed; revision file size in the benchmark | Typing stays responsive on 1,000-panel projects | PR #622 |
 
 ## Security
@@ -60,7 +60,7 @@ Estimated at 4 characters per token.
 | T3 | Read the module document for the task only | — | — | Done in this PR (rule in `AGENTS.md`) |
 | T4 | Module test file with a short reporter while working, full suite once | — | — | Done in this PR (rule in `AGENTS.md`) |
 | T5 | `lvds mcp --tools <groups>` | about 13,000 tokens of tool definitions with `--write` | about 4,900 with `--tools core` (19 tools) | PR #621 |
-| T6 | `fields` option and header + value rows in list results | full object per row | 40–60 % fewer (estimate) | Not started |
+| T6 | Lists of records as columns and rows on MCP (`src/headless/compact.ts`); `--full-rows` sends records | full object per row | measured: `list_panels` 47 % smaller, `circuit_results` 40 %, `get_panel` 38 %, `run_checks` 20 % | Done. A `fields` option to pick columns is not built |
 | T7 | High-level build tools first ([[AI agent proposal]]) | about 3,000 calls per G+10 | about 150 | Not started |
 
 ## Which model for which task

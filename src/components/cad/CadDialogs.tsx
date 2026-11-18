@@ -2,8 +2,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toolAlias } from './cadCommands';
 import { EDIT_HELP, EDIT_TITLE, type EditSettings, type EditTool } from './SketchEditPanel';
 import { isNumber } from './cadPrompt';
-import { badName, cannotDelete, CAD_FONTS, DIM_ARROWS, DIM_TEXT_ALONG, DIM_TEXT_POS, DIM_UNITS, lookOf, newStyleName, STANDARD, type CadDimStyle, type CadFont, type CadStyles, type CadTextStyle, type DimArrow, type DimTextAlong, type DimTextPos, type DimUnit } from '../../model/cadStyles';
+import { badName, cannotDelete, CAD_FONTS, DIM_ARROWS, DIM_TEXT_ALONG, DIM_TEXT_POS, DIM_UNITS, lookOf, newStyleName, STANDARD, type CadDimStyle, type CadFont, type CadMleaderStyle, type CadStyles, type CadTextStyle, type DimArrow, type DimTextAlong, type DimTextPos, type DimUnit } from '../../model/cadStyles';
 import { dimOf } from '../../model/cadSketch';
+import { mleaderNote, mleaderParts, newMleader } from '../../model/cadMleader';
+import { noteBox, noteSegAt } from '../../model/cadMtext';
 import { POINT_SHAPES, pointMark, type PointStyle } from '../../model/cadPoints';
 import { askedAttdefs, attdefsOf, attrValue, blockNameError, type CadBlockDef } from '../../model/cadBlocks';
 import { cleanTag } from '../../model/cadAttributes';
@@ -297,6 +299,74 @@ const DIM_HELP: Record<DimTab, string> = {
   text: 'Outside: over the line on the side away from the points, as before. Above and below are as the text reads; centred breaks the line round it.',
   units: 'The length measured, in the unit, times the measurement scale; rounded to the step (in the unit) when set. Prefix and suffix are written before and after it.'
 };
+
+type MlTab = 'format' | 'structure' | 'content';
+const ML_TABS: { k: MlTab; label: string }[] = [{ k: 'format', label: 'Leader format' }, { k: 'structure', label: 'Leader structure' }, { k: 'content', label: 'Content' }];
+const ML_HELP: Record<MlTab, string> = {
+  format: 'New multileaders take the current style; sizes are paper mm at the annotation scale. Multileaders drawn before keep their look.',
+  structure: 'The landing is the short level line between where the leaders meet and the words (0 length: none).',
+  content: 'Notes: the words are typed in the note editor. None: the leaders only. Text height 0 takes the annotation text height. A style with the circuit fill-in starts the words with the board and circuit of the device at the arrowhead.'
+};
+
+/** MLEADERSTYLE: the project's multileader styles. */
+export function MleaderStyleDialog({ styles, annoMm, onSave, onClose }: {
+  styles: CadStyles<CadMleaderStyle>;
+  /** The annotation text height (paper mm), taken when a style's own is 0. */
+  annoMm: number;
+  onSave: (s: CadStyles<CadMleaderStyle>) => void;
+  onClose: () => void;
+}) {
+  const [d, setD] = useState(styles);
+  const [sel, setSel] = useState(styles.current);
+  const [tab, setTab] = useState<MlTab>('format');
+  const [msg, setMsg] = useState<string>();
+  const one = d.styles.find((x) => x.name === sel) ?? d.styles[0];
+  const patch = (p: Partial<CadMleaderStyle>) => setD({ ...d, styles: d.styles.map((x) => (x.name === one.name ? { ...x, ...p } : x)) });
+  const mm = (k: 'arrowMm' | 'landingMm' | 'textMm' | 'gapMm', label: string) => <Num label={label} unit="mm" value={one[k]} onChange={(v) => patch({ [k]: Number(v) })} />;
+  return (
+    <CadDialog id="mleaderstyle" title="Multileader style" alias="MLEADERSTYLE" onOk={() => onSave(d)} onClose={onClose} help={ML_HELP[tab]}>
+      <StyleList draft={d} sel={one.name} onSel={setSel} onDraft={setD} make={(from, name) => ({ ...from, name })} err={setMsg} />
+      <NameRow draft={d} sel={one.name} onRename={(to) => { setD(renamed(d, one.name, to)); setSel(to); }} err={setMsg} />
+      <MleaderPreview s={one} annoMm={annoMm} />
+      <div className="cad-dlg-tabs" role="tablist" aria-label="Multileader style">
+        {ML_TABS.map((x) => <button key={x.k} type="button" role="tab" aria-selected={tab === x.k} onClick={() => setTab(x.k)}>{x.label}</button>)}
+      </div>
+      {tab === 'format' && <>
+        <Row label="Arrowhead"><select aria-label="Arrowhead" value={one.arrow} onChange={(e) => patch({ arrow: e.target.value as DimArrow })}>{DIM_ARROWS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select></Row>
+        {mm('arrowMm', 'Arrow size')}
+      </>}
+      {tab === 'structure' && <>
+        <Check label="Landing" value={one.landing} onChange={(v) => patch({ landing: v })} />
+        {mm('landingMm', 'Landing length')}
+      </>}
+      {tab === 'content' && <>
+        <Row label="Content"><select aria-label="Content" value={one.content} onChange={(e) => patch({ content: e.target.value as CadMleaderStyle['content'] })}><option value="note">Notes</option><option value="none">None</option></select></Row>
+        {mm('textMm', 'Text height (0 = annotation height)')}
+        {mm('gapMm', 'Gap')}
+        <Check label="Frame" value={one.frame} onChange={(v) => patch({ frame: v })} />
+        <Check label="Fill in the circuit of the device at the arrowhead" value={one.circuit} onChange={(v) => patch({ circuit: v })} />
+      </>}
+      {msg && <p className="cad-dlg-help" role="alert">{msg}</p>}
+    </CadDialog>
+  );
+}
+
+/** The selected style at paper size, black on white: two leaders to a landing and the words "L1-03". */
+function MleaderPreview({ s, annoMm }: { s: CadMleaderStyle; annoMm: number }) {
+  const note = [{ runs: [{ s: 'L1-03' }] }];
+  const it: SketchItem = { id: 'preview', ...newMleader([0, 0], [16, -4], s.content === 'note' ? note : undefined, s, 1, '', annoMm), pts: [[16, -4], [0, 0], [0, -8]] };
+  const parts = mleaderParts(it), n = mleaderNote(it), P = (q: [number, number]) => `${q[0].toFixed(2)} ${(-q[1]).toFixed(2)}`;
+  const segs = [...parts.legs, ...(parts.landing ? [parts.landing] : []), ...parts.arrows];
+  const b = n ? noteBox(n) : undefined;
+  return (
+    <div className="cad-dlg-prev" aria-label="Preview">
+      <svg viewBox="-3 -6 40 12" width="160" height="48" aria-hidden="true" style={{ background: 'white' }}>
+        <path d={segs.map(([a, c]) => `M${P(a)}L${P(c)}`).join('') + (parts.frame ? `M${parts.frame.map(P).join('L')}Z` : '')} fill="none" stroke="black" strokeWidth="0.25" />
+        {n && b && b.lines.flatMap((line) => line.segs.map((seg) => { const at = noteSegAt(b, line, seg); return <text key={`${line.y}-${seg.x}`} x={at[0].toFixed(2)} y={(-at[1]).toFixed(2)} fontSize={(seg.h * EM_PER_CAP).toFixed(2)} fill="black">{seg.s}</text>; }))}
+      </svg>
+    </div>
+  );
+}
 
 /** The selected style on a 3.20 m dimension, at paper size (the text's capitals at its height). */
 function DimPreview({ s }: { s: CadDimStyle }) {

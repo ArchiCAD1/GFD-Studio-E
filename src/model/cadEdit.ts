@@ -1,6 +1,7 @@
 import { arcMid, bulgeArc, constructionSegment, hasArcs, moved, rotated, scaleLook, segmentsOf } from './cadSketch';
 import type { SketchItem } from '../types';
 import { explodeNote, noteBox, noteCorners, noteWithWidth } from './cadMtext';
+import { mleaderNote, mleaderSegments } from './cadMleader';
 import { explodeInsert, type CadBlockDef } from './cadBlocks';
 
 /** Design CAD → Draw → Modify / Edit: Trim, Extend, Offset, Fillet, Chamfer, Break, Join, Explode, Mirror, Scale, Stretch,
@@ -329,6 +330,11 @@ export function explode(it: SketchItem, defs: CadBlockDef[] = []): Edit {
   // An insert: the objects its block shows, as drawn objects of their own.
   if (it.kind === 'insert') { const items = explodeInsert(it, defs); return items.length ? { items } : { error: `The drawing has no block "${it.block ?? ''}" to explode.` }; }
   if (it.cloud) return { error: 'A revision cloud stays one object: erase it and draw it again to change it.' };
+  // A multileader: its lines, and its words as one note.
+  if (it.kind === 'mleader') {
+    const { id: _id, note: _n, ml: _m, w: _w, h: _h, pts: _p, kind: _k, ...base } = it, n = mleaderNote(it);
+    return { items: [...mleaderSegments(it).map(([a, b]): Omit<SketchItem, 'id'> => ({ ...base, kind: 'line', pts: [a, b] })), ...(n ? [(({ id: _i, ...rest }) => rest)(n)] : [])] };
+  }
   // A note: one single-line text per line.
   if (it.kind === 'mtext') { const items = explodeNote(it); return items.length ? { items } : { error: 'The note has no words to explode.' }; }
   if (it.kind !== 'pline' && !(it.kind === 'line' && it.pts.length > 2)) return { error: 'Explode works on polylines and rectangles.' };
@@ -366,6 +372,7 @@ export function scaled(it: SketchItem, base: Pt, k: number): SketchItem {
   const sc = (q: Pt): Pt => add(base, mul(sub(q, base), k));
   return {
     ...it, ...(it.holes ? { holes: it.holes.map((h) => h.map(sc)) } : {}), ...(it.hatch ? { hatch: { ...it.hatch, scale: it.hatch.scale * k, origin: sc(it.hatch.origin ?? [0, 0]) } } : {}), pts: it.pts.map((q) => add(base, mul(sub(q, base), k))), ...(it.r !== undefined ? { r: it.r * k } : {}), ...(it.h !== undefined ? { h: it.h * k } : {}), ...(it.w !== undefined ? { w: it.w * k } : {}), ...(it.kind === 'insert' ? { sc: (it.sc ?? 1) * k } : {}),
+    ...(it.ml ? { ml: { ...it.ml, size: it.ml.size * k, land: it.ml.land * k, gap: it.ml.gap * k } } : {}),
     ...(it.ax ? { ax: mul(it.ax, k) } : {}), ...(it.cloud !== undefined ? { cloud: it.cloud * k } : {}),
     ...(it.look ? { look: scaleLook(it.look, k) } : {})
   };
@@ -471,7 +478,7 @@ export function gripMoved(it: SketchItem, i: number, to: Pt): SketchItem {
   if (g.kind === 'width') { const b = noteBox(it), v = sub(to, b.tl); return noteWithWidth(it, dot(v, b.u)); }
   // A revision cloud's corner moves alone (the cloud follows its outline).
   if (it.cloud && g.kind === 'point') return { ...it, pts: it.pts.map((q, k) => (k === i ? to : q)) };
-  if (!isPath(it)) return it.kind === 'dim' ? { ...it, pts: it.pts.map((q, k) => (k === i ? to : q)) } : { ...it, pts: it.pts.map((q) => add(q, d)) };
+  if (!isPath(it)) return it.kind === 'dim' || it.kind === 'mleader' ? { ...it, pts: it.pts.map((q, k) => (k === i ? to : q)) } : { ...it, pts: it.pts.map((q) => add(q, d)) };
   if (g.kind === 'point') return { ...it, pts: it.pts.map((q, k) => (k === i ? to : q)) };
   const s = i - it.pts.length, n = it.pts.length;
   return { ...it, pts: it.pts.map((q, k) => (k === s || k === (s + 1) % n ? add(q, d) : q)) };
@@ -484,12 +491,13 @@ export function sketchInWindow(items: SketchItem[], a: Pt, b: Pt, crossing: bool
   const sides: Seg[] = [[[x0, y0], [x1, y0]], [[x1, y0], [x1, y1]], [[x1, y1], [x0, y1]], [[x0, y1], [x0, y0]]];
   return items.filter((it) => {
     if (it.infinite) return crossing && !!constructionSegment(it, [x0, y0, x1, y1]);
-    const segs = segmentsOf(it, 0.001, defs), pts = segs.length ? segs.flat() : it.kind === 'mtext' ? noteCorners(it) : it.pts;
+    const segs = segmentsOf(it, 0.001, defs), pts = segs.length ? [...segs.flat(), ...(it.kind === 'mleader' ? noteCornersOf(it) : [])] : it.kind === 'mtext' ? noteCorners(it) : it.pts;
     if (pts.every(inBox)) return true;
     if (!crossing) return false;
     return pts.some(inBox) || segs.some(([p, q]) => sides.some(([c, d]) => { const t = meet(p, q, c, d); return t !== null && t >= 0 && t <= 1; }));
   });
 }
 
+const noteCornersOf = (it: SketchItem): Pt[] => { const n = mleaderNote(it); return n ? noteCorners(n) : []; };
 /** The length of a path (drawing units). */
 export const pathLength = (it: SketchItem) => { const c = chain(pathOf(it)); return c[c.length - 1] ?? 0; };

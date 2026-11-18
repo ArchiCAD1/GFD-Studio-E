@@ -51,6 +51,39 @@ export function tileOf(x: number, y: number, extents: [number, number, number, n
   return cy * n + cx;
 }
 
+/** What a batch of lines is drawn with (a Path2D on screen). */
+export interface PathLike { moveTo(x: number, y: number): void; lineTo(x: number, y: number): void }
+/** The lines of one layer, colour, linetype and tile, with their box and where the last one ends. */
+export interface LineBatch<P extends PathLike = PathLike> { layer: number; rgb: number; lt: number; path: P; box: [number, number, number, number]; end: [number, number] }
+
+/** A drawing's segments (x1, y1, x2, y2 each, relative to its origin) batched per layer, colour, linetype and tile of
+ * `extents` (so what is off screen is not drawn), in the order each batch first appears; a segment that goes on from
+ * the last one of its batch continues its path (dashes run on). `gone`: segments left out (1). The segments of one
+ * object follow each other and mostly share a batch, so the batch is looked up only when one of those changes: a
+ * drawing of millions of segments is batched without a key per segment. */
+export function lineBatches<P extends PathLike>(segs: ArrayLike<number>, segLayers: ArrayLike<number>, segColors: ArrayLike<number>, segLinetypes: ArrayLike<number> | undefined, extents: [number, number, number, number], newPath: () => P, gone?: ArrayLike<number> | null): LineBatch<P>[] {
+  const by = new Map<string, LineBatch<P>>();
+  let b: LineBatch<P> | undefined;
+  let layer = -1, rgb = -1, lt = -1, tile = -1;
+  for (let i = 0; i < segLayers.length; i += 1) {
+    if (gone?.[i]) continue;
+    const x1 = segs[i * 4], y1 = segs[i * 4 + 1], x2 = segs[i * 4 + 2], y2 = segs[i * 4 + 3];
+    const l = segLayers[i], c = segColors[i], t = segLinetypes?.[i] ?? 0, k = tileOf((x1 + x2) / 2, (y1 + y2) / 2, extents);
+    if (!b || l !== layer || c !== rgb || t !== lt || k !== tile) {
+      layer = l; rgb = c; lt = t; tile = k;
+      const key = `${l}:${c}:${t}:${k}`;
+      b = by.get(key);
+      if (!b) { b = { layer: l, rgb: c, lt: t, path: newPath(), box: [x1, y1, x1, y1], end: [NaN, NaN] }; by.set(key, b); }
+    }
+    const { box, end } = b;
+    if (end[0] !== x1 || end[1] !== y1) b.path.moveTo(x1, y1);
+    b.path.lineTo(x2, y2);
+    end[0] = x2; end[1] = y2;
+    box[0] = Math.min(box[0], x1, x2); box[1] = Math.min(box[1], y1, y2); box[2] = Math.max(box[2], x1, x2); box[3] = Math.max(box[3], y1, y2);
+  }
+  return [...by.values()];
+}
+
 type Rgb = [number, number, number];
 
 /** The channels (0–255) of a CSS colour written #rgb, #rrggbb or rgb(r, g, b); null for any other form. */

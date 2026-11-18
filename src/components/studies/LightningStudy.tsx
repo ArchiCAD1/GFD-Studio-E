@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { SPD_TYPES, type Project } from '../../types';
 import { AIR_METHODS, airResultText as resultText, lightningProtection, lpsLayout, type AirMethod, type AirResult, type LpsClass, type LpsInputs } from '../../calc/lightningProtection';
-import { lightningRisk, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskOutlineSketch, riskStarted, riskText, studyRiskInputs, type RiskInputs, type RiskLevel } from '../../calc/lightningRisk';
+import { lightningRisk, RISK_COMPONENTS, RISK_DAMAGE_LABEL, RISK_LEVELS, RISK_NOTE, riskLevelLabel, riskOutlineSketch, riskScope, riskStarted, riskText, studyRiskInputs,
+  type RiskComponentId, type RiskComponentInput, type RiskInputs, type RiskLevel, type RiskLine, type RiskProbability } from '../../calc/lightningRisk';
 import { areaOf } from '../../model/cadMeasure';
 import { buildLightningReportHtml, LPS_SECTIONS, type LpsSectionKey } from '../../docs/lightningReport';
 import { applyRiskPreset, loadRiskPresets, saveRiskPresets, withRiskPreset } from '../../model/lightningRiskPresets';
@@ -13,6 +14,14 @@ import { NumField, Page, ResultCard, ResultCards, StatusCell, StatusCounts } fro
 const EMPTY: LpsInputs = { lengthM: 0, widthM: 0, heightM: 0, method: 'mesh' };
 const CLASSES: LpsClass[] = ['I', 'II', 'III', 'IV'];
 const n2 = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+/** A bare number box for a table cell: kept when the box is left, and emptied to "not entered". */
+function NumCell({ label, value, onSet, width = 80, hint }: { label: string; value: number | undefined; onSet: (v: number | undefined) => void; width?: number; hint?: string }) {
+  return (
+    <input key={`${value ?? ''}`} aria-label={label} placeholder={hint} inputMode="decimal" style={{ width }} defaultValue={value ?? ''}
+      onBlur={(e) => { const t = e.target.value.trim().replace(',', '.'), v = t === '' ? undefined : Number(t); if (v === undefined || (Number.isFinite(v) && v >= 0)) { if (v !== value) onSet(v); } else e.target.value = value === undefined ? '' : String(value); }} />
+  );
+}
 const methodLabel = (m: AirMethod) => AIR_METHODS.find((x) => x.id === m)!.label;
 const rowStatus = (a: AirResult) => (a.status === 'data' ? 'bad' : a.status);
 
@@ -81,6 +90,15 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
     onChange(done, true);
     onStatus?.(`Part added from ${toFile}: ${n2(outline!.areaM2)} m². Enter its height above ground.`);
   }
+  // The other risk components and the incoming lines some of them count.
+  const comp = (id: RiskComponentId): RiskComponentInput => k0.components?.[id] ?? {};
+  const setComp = (id: RiskComponentId, p: Partial<RiskComponentInput>) => setRisk({ components: { ...k0.components, [id]: { ...comp(id), ...p } } });
+  const lines = k0.lines ?? [];
+  const setLine = (n: number, p: Partial<RiskLine>) => setRisk({ lines: lines.map((x, m) => (m === n ? { ...x, ...p } : x)) });
+  const setLineProbability = (n: number, id: RiskComponentId, p: Partial<RiskProbability>) => setLine(n, { probabilities: { ...lines[n].probabilities, [id]: { ...lines[n].probabilities?.[id], ...p } } });
+  const counted = RISK_COMPONENTS.filter((c) => comp(c.id).on);
+  const ownLine = counted.filter((c) => (c.events === 'line' || c.events === 'nearLine') && comp(c.id).byLine);
+  const needsNear = counted.some((c) => c.events === 'near'), needsLines = counted.some((c) => c.events === 'line' || c.events === 'nearLine');
   const picked = LPS_SECTIONS.map((x) => x.key).filter((x) => sections.includes(x));
   async function exportReport() {
     setBusy(true);
@@ -121,7 +139,7 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
           <>
             <ResultCard label="Risk without protection" value={risk.rows[0].risk !== undefined ? riskText(risk.rows[0].risk) : 'Data required'} status={risk.rows[0].risk !== undefined ? undefined : 'bad'}
               sub={risk.rows[0].risk === undefined ? 'per year' : risk.rows[0].ok ? 'per year · within the tolerable risk' : `per year · exceeds tolerable ${riskText(k0.tolerableRisk!)}`} />
-            <ResultCard label="Minimum protection class" value={minText(risk.minimum)} status={risk.minimum && risk.minimum !== 'insufficient' ? undefined : 'bad'} sub="from the risk assessment · physical damage only" />
+            <ResultCard label="Minimum protection class" value={minText(risk.minimum)} status={risk.minimum && risk.minimum !== 'insufficient' ? undefined : 'bad'} sub={counted.length ? `from the risk assessment · ${counted.length + 1} risk components` : 'from the risk assessment · physical damage only'} />
             <ResultCard label="Direct strikes on building" value={risk.yearsBetweenStrikes ? `1 in ${n2(Math.round(risk.yearsBetweenStrikes))} years` : '—'}
               sub={risk.strikesPerYear !== undefined ? `${riskText(risk.strikesPerYear)} a year` : 'Not worked out yet'} />
           </>
@@ -197,7 +215,7 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
           </label>
           <button className="chip" disabled={!presetName.trim() || !started} onClick={savePreset}>Save as preset</button>
         </div>
-        <p className="m">{RISK_NOTE} A missing value shows DATA REQUIRED; nothing is assumed. A preset keeps your own factors (not the site or the building) on this computer, for any project. One risk component only — physical damage from a direct strike — so the class is a minimum.</p>
+        <p className="m">{RISK_NOTE} A missing value shows DATA REQUIRED; nothing is assumed. A preset keeps your own factors (not the site or the building) on this computer, for any project. {riskScope(k0)}</p>
         {k0.shape === 'outline' && (
           <p className="m">{k0.outline?.length ? `Outline taken: ${k0.outline.length} points. ` : 'No outline taken yet. '}In Design CAD, draw one closed polyline round the roof, then take it here; take it again after changing the drawing. The height is the building height above. A tower, a lift overrun or a mast: draw its outline (a closed polyline or a circle) on the same drawing, add it as a part and give its height above ground; each part reaches 3 × its own height.{k0.outline?.length && !k0.outlineOrigin ? ' To add parts, take the roof outline again first.' : ''}</p>
         )}
@@ -240,6 +258,86 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
             </g>
           </svg>
         )}
+        <p className="m">Other risk components: tick the ones that apply and enter the loss and the probability of each. Tick "By class" when the protection class changes the probability, and "By line" when the lines differ. Physical damage from a strike on the building is always counted.</p>
+        <table>
+          <thead><tr><th>Count</th><th>Risk component</th><th>Loss</th><th>Probability</th><th>By class</th><th>By line</th></tr></thead>
+          <tbody>
+            {RISK_COMPONENTS.map((c) => {
+              const e = comp(c.id);
+              return (
+                <tr key={c.id}>
+                  <td><input type="checkbox" aria-label={`Count — ${c.label}`} checked={!!e.on} onChange={(ev) => setComp(c.id, { on: ev.target.checked })} /></td>
+                  <td style={{ whiteSpace: 'normal' }}>{c.label}</td>
+                  <td>{e.on && <NumCell label={`Loss — ${c.label}`} value={e.loss} onSet={(v) => setComp(c.id, { loss: v })} />}</td>
+                  <td>
+                    {e.on && (e.byLine && c.events !== 'building' && c.events !== 'near' ? 'For each line, below'
+                      : e.byClass
+                      ? RISK_LEVELS.map((l) => <NumCell key={l} width={58} hint={l === 'none' ? 'None' : l} label={`Probability — ${c.label} — ${riskLevelLabel(l)}`} value={e.classProbability?.[l]} onSet={(v) => setComp(c.id, { classProbability: { ...e.classProbability, [l]: v } })} />)
+                      : <NumCell label={`Probability — ${c.label}`} value={e.probability} onSet={(v) => setComp(c.id, { probability: v })} />)}
+                  </td>
+                  <td>{e.on && <input type="checkbox" aria-label={`Probability by class — ${c.label}`} checked={!!e.byClass} onChange={(ev) => setComp(c.id, { byClass: ev.target.checked })} />}</td>
+                  <td>{e.on && (c.events === 'line' || c.events === 'nearLine') && <input type="checkbox" aria-label={`Probability by line — ${c.label}`} checked={!!e.byLine} onChange={(ev) => setComp(c.id, { byLine: ev.target.checked })} />}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {(needsNear || needsLines) && (
+          <div className="dm-head">
+            {needsNear && (k0.shape === 'area'
+              ? <NumField label="Area for strikes near the building" unit="m²" value={k0.nearAreaM2} min={0} onSet={(v) => setRisk({ nearAreaM2: v })} optional />
+              : <NumField label="Distance for strikes near the building" unit="m" value={k0.nearReachM} min={0} onSet={(v) => setRisk({ nearReachM: v })} optional />)}
+            <NumField label="Density for near and line strikes (blank: as for the building)" unit="/km²/yr" value={k0.nearDensity} min={0} onSet={(v) => setRisk({ nearDensity: v })} optional />
+          </div>
+        )}
+        {needsLines && (
+          <>
+            <table>
+              <thead><tr><th>Incoming line</th><th>Length (m)</th><th>Width, strikes on it (m)</th><th>Width, strikes near it (m)</th><th>Installation factor</th><th>Environment factor</th><th>Line type factor</th><th>Far-end structure area (m²)</th><th>Far-end location factor</th><th /></tr></thead>
+              <tbody>
+                {lines.map((line, n) => (
+                  <tr key={n}>
+                    <td><input key={line.name ?? ''} aria-label={`Name of line ${n + 1}`} placeholder={`Line ${n + 1}`} style={{ width: 110 }} defaultValue={line.name ?? ''} onBlur={(e) => { const t = e.target.value.trim(); if (t !== (line.name ?? '')) setLine(n, { name: t || undefined }); }} /></td>
+                    <td><NumCell width={64} label={`Length of line ${n + 1}`} value={line.lengthM} onSet={(v) => setLine(n, { lengthM: v })} /></td>
+                    <td><NumCell width={64} label={`Width for strikes on line ${n + 1}`} value={line.strikeWidthM} onSet={(v) => setLine(n, { strikeWidthM: v })} /></td>
+                    <td><NumCell width={64} label={`Width for strikes near line ${n + 1}`} value={line.nearWidthM} onSet={(v) => setLine(n, { nearWidthM: v })} /></td>
+                    <td><NumCell width={64} label={`Installation factor of line ${n + 1}`} value={line.installationFactor} onSet={(v) => setLine(n, { installationFactor: v })} /></td>
+                    <td><NumCell width={64} label={`Environment factor of line ${n + 1}`} value={line.environmentFactor} onSet={(v) => setLine(n, { environmentFactor: v })} /></td>
+                    <td><NumCell width={64} label={`Line type factor of line ${n + 1}`} value={line.typeFactor} onSet={(v) => setLine(n, { typeFactor: v })} /></td>
+                    <td><NumCell width={64} label={`Far-end structure area of line ${n + 1}`} value={line.farEndAreaM2} onSet={(v) => setLine(n, { farEndAreaM2: v })} /></td>
+                    <td><NumCell width={64} label={`Far-end location factor of line ${n + 1}`} value={line.farEndLocationFactor} onSet={(v) => setLine(n, { farEndLocationFactor: v })} /></td>
+                    <td><button className="chip" aria-label={`Remove line ${n + 1}`} onClick={() => setRisk({ lines: lines.filter((_, m) => m !== n) })}>Remove</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="dm-head">
+              <button className="chip" onClick={() => setRisk({ lines: [...lines, {}] })}>Add incoming line</button>
+              <span>Each line: its length, the width that collects strikes on it and near it, and its factors. The far-end structure is optional.</span>
+            </div>
+            {ownLine.length > 0 && lines.length > 0 && (
+              <table>
+                <thead><tr><th>Incoming line</th><th>Risk component</th><th>Probability for this line</th></tr></thead>
+                <tbody>
+                  {lines.flatMap((line, n) => ownLine.map((c) => {
+                    const own = line.probabilities?.[c.id], tag = line.name?.trim() || `Line ${n + 1}`;
+                    return (
+                      <tr key={`${n}-${c.id}`}>
+                        <td>{tag}</td>
+                        <td style={{ whiteSpace: 'normal' }}>{c.label}</td>
+                        <td>
+                          {comp(c.id).byClass
+                            ? RISK_LEVELS.map((l) => <NumCell key={l} width={58} hint={l === 'none' ? 'None' : l} label={`Probability — ${c.label} — line ${n + 1} — ${riskLevelLabel(l)}`} value={own?.classProbability?.[l]} onSet={(v) => setLineProbability(n, c.id, { classProbability: { ...own?.classProbability, [l]: v } })} />)
+                            : <NumCell label={`Probability — ${c.label} — line ${n + 1}`} value={own?.probability} onSet={(v) => setLineProbability(n, c.id, { probability: v })} />}
+                        </td>
+                      </tr>
+                    );
+                  }))}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
         {risk.working.length > 0 && (
           <table>
             <thead><tr><th>Step</th><th>Formula</th><th className="num">Result</th></tr></thead>
@@ -267,6 +365,17 @@ export default function LightningStudy({ project, onChange, onStatus }: { projec
             })}
           </tbody>
         </table>
+        {counted.length > 0 && risk.rows.some((row) => row.parts) && (
+          <table>
+            <thead><tr><th>Risk per year by component</th>{RISK_LEVELS.map((l) => <th key={l} className="num">{riskLevelLabel(l)}</th>)}</tr></thead>
+            <tbody>
+              {[{ id: 'damage' as const, label: RISK_DAMAGE_LABEL }, ...counted].map((c) => (
+                <tr key={c.id}><td style={{ whiteSpace: 'normal' }}>{c.label}</td>{risk.rows.map((row) => <td key={row.level} className="num">{row.parts?.[c.id] !== undefined ? riskText(row.parts[c.id]!) : '—'}</td>)}</tr>
+              ))}
+              <tr><td>Total</td>{risk.rows.map((row) => <td key={row.level} className="num">{row.risk !== undefined ? riskText(row.risk) : '—'}</td>)}</tr>
+            </tbody>
+          </table>
+        )}
         <div className="dm-head">
           <NumField label="Sensitivity: strike density multiplier" value={k0.sensitivity} min={0} onSet={(v) => setRisk({ sensitivity: v })} optional />
           {risk.sensitivityMinimum && <span>With the strike density × {n2(k0.sensitivity!)}: {minText(risk.sensitivityMinimum)}{risk.sensitivityRisk !== undefined ? ` (${riskText(risk.sensitivityRisk)})` : ''}</span>}

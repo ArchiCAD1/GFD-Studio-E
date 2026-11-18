@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, cssRgb, dashArray, hatchLines, patternLength, screenColour, tileOf } from './cadDraw';
+import { contrastRatio, cssRgb, dashArray, hatchLines, lineBatches, patternLength, screenColour, tileOf, type PathLike } from './cadDraw';
 
 describe('drawing linetypes and hatches', () => {
   it('turns a linetype pattern into a canvas dash array', () => {
@@ -26,6 +26,58 @@ describe('drawing linetypes and hatches', () => {
     expect(tileOf(159, 0, [0, 0, 160, 160])).toBe(15);
     expect(tileOf(15, 25, [0, 0, 160, 160])).toBe(2 * 16 + 1);
     expect(tileOf(-50, 999, [0, 0, 160, 160])).toBe(15 * 16); // outside: the nearest tile
+  });
+
+  /** A path that records what is drawn on it. */
+  class Rec implements PathLike {
+    calls: string[] = [];
+    moveTo(x: number, y: number) { this.calls.push(`M${x},${y}`); }
+    lineTo(x: number, y: number) { this.calls.push(`L${x},${y}`); }
+  }
+  /** The batching as it was written before 2.189, a key looked up per segment: what lineBatches must still give. */
+  function batchesPerSegment(segs: Float32Array, layers: Uint16Array, colors: Uint32Array, lts: Uint16Array, ext: [number, number, number, number], gone: Uint8Array) {
+    const by = new Map<string, { layer: number; rgb: number; lt: number; path: Rec; box: number[]; end: number[] }>();
+    for (let i = 0; i < layers.length; i += 1) {
+      if (gone[i]) continue;
+      const [x1, y1, x2, y2] = [segs[i * 4], segs[i * 4 + 1], segs[i * 4 + 2], segs[i * 4 + 3]];
+      const key = `${layers[i]}:${colors[i]}:${lts[i]}:${tileOf((x1 + x2) / 2, (y1 + y2) / 2, ext)}`;
+      let b = by.get(key);
+      if (!b) { b = { layer: layers[i], rgb: colors[i], lt: lts[i], path: new Rec(), box: [x1, y1, x1, y1], end: [NaN, NaN] }; by.set(key, b); }
+      if (b.end[0] !== x1 || b.end[1] !== y1) b.path.moveTo(x1, y1);
+      b.path.lineTo(x2, y2);
+      b.end = [x2, y2];
+      b.box = [Math.min(b.box[0], x1, x2), Math.min(b.box[1], y1, y2), Math.max(b.box[2], x1, x2), Math.max(b.box[3], y1, y2)];
+    }
+    return [...by.values()];
+  }
+
+  it('batches lines per layer, colour, linetype and tile as a key per segment would', () => {
+    // Objects of a few segments each, mostly end to end, over three layers, two colours and two linetypes; some
+    // objects cross tiles, and some segments are left out (erased).
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const n = 4000, segs = new Float32Array(n * 4), layers = new Uint16Array(n), colors = new Uint32Array(n), lts = new Uint16Array(n), gone = new Uint8Array(n);
+    let x = 0, y = 0, layer = 0, rgb = 0xff000007, lt = 0;
+    for (let i = 0; i < n; i += 1) {
+      if (rnd() < 0.2) { x = Math.round(rnd() * 1600); y = Math.round(rnd() * 1600); layer = Math.floor(rnd() * 3); rgb = rnd() < 0.5 ? 0xff000007 : 0xffff0000; lt = rnd() < 0.3 ? 1 : 0; }
+      const nx = x + Math.round((rnd() - 0.5) * 200), ny = y + Math.round((rnd() - 0.5) * 200);
+      segs.set(rnd() < 0.05 ? [nx, ny, x, y] : [x, y, nx, ny], i * 4);
+      layers[i] = layer; colors[i] = rgb; lts[i] = lt; gone[i] = rnd() < 0.03 ? 1 : 0;
+      [x, y] = [nx, ny];
+    }
+    const ext: [number, number, number, number] = [0, 0, 1600, 1600];
+    const got = lineBatches(segs, layers, colors, lts, ext, () => new Rec(), gone);
+    const want = batchesPerSegment(segs, layers, colors, lts, ext, gone);
+    expect(got.length).toBeGreaterThan(50);
+    expect(got.map((b) => [b.layer, b.rgb, b.lt, b.box, b.end, b.path.calls])).toEqual(want.map((b) => [b.layer, b.rgb, b.lt, b.box, b.end, b.path.calls]));
+  });
+
+  it('continues a batch\'s path from where its last segment ended, and leaves out what is gone', () => {
+    const segs = new Float32Array([0, 0, 1, 0, 1, 0, 2, 0, 5, 5, 6, 5, 2, 0, 3, 0]);
+    const one = new Uint16Array(4), ink = new Uint32Array(4).fill(7);
+    const [b] = lineBatches(segs, one, ink, undefined, [0, 0, 1000, 1000], () => new Rec(), new Uint8Array([0, 0, 1, 0]));
+    expect(b.path.calls).toEqual(['M0,0', 'L1,0', 'L2,0', 'L3,0']);
+    expect(b.box).toEqual([0, 0, 3, 0]);
   });
 });
 

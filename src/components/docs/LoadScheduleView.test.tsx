@@ -2,6 +2,7 @@
 import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import ExcelJS from 'exceljs';
 import LoadScheduleView from './LoadScheduleView';
 import type { RibbonActions } from '../Ribbon';
 import type { Project } from '../../types';
@@ -97,7 +98,7 @@ describe('Load schedule page and the ribbon', () => {
     expect(savePdf).not.toHaveBeenCalled();
     act(() => root.unmount());
     root = createRoot(document.body.appendChild(document.createElement('div')));
-    const sheet: Sheet = { ...newSheet(), cells: { A1: 'Ref' }, link: { category: 'db', cells: {}, firstRow: 2, rows: [], columns: { A: 'row.ref' } } };
+    const sheet: Sheet = { ...newSheet(), cells: { A1: 'Ref' }, paper: 'A3', link: { category: 'db', cells: {}, firstRow: 2, rows: [], columns: { A: 'row.ref' } } };
     start = withProjectFormat(sampleProject, 'db', { id: 'f', name: 'F', category: 'db', sheet, updatedAt: '2026-11-14' });
     mount();
     expect(published!.sheetFormats).toBe(true);
@@ -106,11 +107,41 @@ describe('Load schedule page and the ribbon', () => {
     expect(savePdf).toHaveBeenCalledTimes(1);
     expect(vi.mocked(savePdf).mock.calls[0][0]).toBe(`${BOARD}-schedule-my-format.pdf`);
     expect(vi.mocked(savePdf).mock.calls[0][1]).toContain(`>${first}</td>`);
-    expect(vi.mocked(savePdf).mock.calls[0][2]).toEqual({ pageSize: 'A4', landscape: true, cssPages: true });
+    expect(vi.mocked(savePdf).mock.calls[0][1]).toContain('@page { size: A3 landscape; margin: 10mm; }'); // the paper of the format
+    expect(vi.mocked(savePdf).mock.calls[0][2]).toEqual({ cssPages: true });
     expect(status).toHaveBeenLastCalledWith('Saved');
     await run('myPdfAll');
     expect(vi.mocked(savePdf).mock.calls[1][0]).toBe(`${safeFileName(sampleProject.name)}-schedules-my-format.pdf`);
     expect(vi.mocked(savePdf).mock.calls[1][1]).toContain(`>${first}</td>`);
+    expect(String(status.mock.calls[status.mock.calls.length - 1][0])).toMatch(/^Saved — \d+ panels$/);
+  });
+
+  it('exports the panel as an Excel file in the project\'s format, one panel or all, and says when there is no format', async () => {
+    const run = async (kind: 'myXlsx' | 'myXlsxAll') => { await act(async () => { published!.onExport(kind); for (let i = 0; i < 20; i++) await Promise.resolve(); }); };
+    mount();
+    await run('myXlsx');
+    expect(status).toHaveBeenLastCalledWith('Choose a format for this panel in Sheets → My formats first.');
+    await run('myXlsxAll');
+    expect(status).toHaveBeenLastCalledWith('No panel of this project has a format yet: choose them in Sheets → My formats.');
+    expect(saveBinary).not.toHaveBeenCalled();
+    act(() => root.unmount());
+    root = createRoot(document.body.appendChild(document.createElement('div')));
+    const sheet: Sheet = { ...newSheet(), cells: { A1: 'Ref' }, paper: 'A3', link: { category: 'db', cells: {}, firstRow: 2, rows: [], columns: { A: 'row.ref' } } };
+    start = withProjectFormat(sampleProject, 'db', { id: 'f', name: 'F', category: 'db', sheet, updatedAt: '2026-11-14' });
+    mount();
+    await run('myXlsx');
+    await vi.waitFor(() => expect(saveBinary).toHaveBeenCalledTimes(1)); // the Excel code loads on demand
+    const call = vi.mocked(saveBinary).mock.calls[0];
+    expect(call[0]).toBe(`${BOARD}-schedule-my-format.xlsx`);
+    expect(call.slice(2, 4)).toEqual(['Excel workbook', 'xlsx']);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(call[1] as unknown as ArrayBuffer);
+    expect(wb.worksheets).toHaveLength(1);
+    expect(wb.worksheets[0].getCell('A2').value).toBe('R1');
+    expect(status).toHaveBeenLastCalledWith('Saved');
+    await run('myXlsxAll');
+    await vi.waitFor(() => expect(saveBinary).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(saveBinary).mock.calls[1][0]).toBe(`${safeFileName(sampleProject.name)}-schedules-my-format.xlsx`);
     expect(String(status.mock.calls[status.mock.calls.length - 1][0])).toMatch(/^Saved — \d+ panels$/);
   });
 
