@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type MutableRefObject, type ReactNode, type Ref } from 'react';
-import { Play, TriangleAlert, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Info, Play, TriangleAlert, X } from 'lucide-react';
 import { STATUS_TEXT } from '../calc/statusText';
 import type { Status } from '../calc/electrical';
 
@@ -71,13 +72,51 @@ export function StaleBanner({ stale, onRun, what }: { stale: string[]; onRun: ()
   );
 }
 
-/** Page scaffold for a study or document: title, intro, action buttons. */
-export function Page({ title, intro, actions, children, docId }: { title: string; intro?: ReactNode; actions?: ReactNode; children: ReactNode; docId?: string }) {
+/** The "i" button beside a page title: help text in a small popover. Closes on a click outside, Escape, scroll or resize.
+ * The popover is placed on the page body, so the header's scroll box does not clip it. */
+export function InfoButton({ children }: { children: ReactNode }) {
+  const [at, setAt] = useState<CSSProperties | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+  const open = () => {
+    const r = btn.current?.getBoundingClientRect();
+    if (!r) return;
+    setAt({ position: 'fixed', top: r.bottom + 4, left: r.left, maxWidth: Math.max(240, Math.min(560, window.innerWidth - r.left - 16)) });
+  };
+  useEffect(() => {
+    if (!at) return;
+    const close = () => setAt(null);
+    const down = (e: MouseEvent) => { const t = e.target as Node; if (!btn.current?.contains(t) && !pop.current?.contains(t)) close(); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('mousedown', down);
+    document.addEventListener('keydown', key);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', down);
+      document.removeEventListener('keydown', key);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [at]);
+  return (
+    <>
+      <button ref={btn} className="icon-btn info-btn" aria-label="How this page works" title="How this page works" aria-expanded={!!at} onClick={() => (at ? setAt(null) : open())}><Info size={16} /></button>
+      {at && createPortal(<div ref={pop} className="menu-pop info-pop" role="dialog" aria-label="How this page works" style={at}>{children}</div>, document.body)}
+    </>
+  );
+}
+
+/** Page scaffold for a study or document: title, intro, action buttons.
+ * `info` puts the help text behind an "i" button beside the title; `head` adds content to the title row. */
+export function Page({ title, intro, info, head, actions, children, docId }: { title: string; intro?: ReactNode; info?: ReactNode; head?: ReactNode; actions?: ReactNode; children: ReactNode; docId?: string }) {
   return (
     <>
       <section className="stage" data-doc-id={docId}>
         <div className="stage-head">
-          <h3>{title}</h3>
+          {info || head
+            ? <div className="stage-title"><h3>{title}</h3>{info && <InfoButton>{info}</InfoButton>}{head}</div>
+            : <h3>{title}</h3>}
           {actions && <div>{actions}</div>}
         </div>
         {intro && <p className="m intro">{intro}</p>}

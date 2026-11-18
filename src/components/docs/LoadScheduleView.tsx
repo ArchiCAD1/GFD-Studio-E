@@ -3,7 +3,7 @@ import { panelCategoryOf } from '../../docs/sheetLink';
 import { projectFormat } from '../../model/scheduleFormats';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supplyChain } from '../../model/transformers';
-import { Trash2, X } from 'lucide-react';
+import { Keyboard, ListPlus, Scale, Square, SquareDashed, Trash2, X } from 'lucide-react';
 import type { Board, Phase, PointType, Project } from '../../types';
 import { cables } from '../../calc/cableTable';
 import { defaultCpcMm2 } from '../../calc/earthing';
@@ -29,6 +29,7 @@ import { dbChecks } from '../../calc/building';
 import TxSummaryView, { type TxTools } from './TxSummaryView';
 import RiserFormView from './RiserFormView';
 import { SCHEDULE_GROUPS, scheduleBoardOrder, scheduleGroupOf, scheduleGroups, type ScheduleGroup, incompleteSchedules } from '../../model/scheduleGroups';
+import MenuButton from '../MenuButton';
 import CircuitEditDialog from './CircuitEditDialog';
 import TemplateExportDialog from './TemplateExportDialog';
 import { addSpareWay, deleteSpareWay, spareLabel, spareRef, updateSpareWay } from '../../model/spareWays';
@@ -297,9 +298,14 @@ export default function LoadScheduleView({
     <Page
       docId="load-schedule-page"
       title={form === 'riser' ? 'Bus bar riser — connected load / max. demand' : form === 'tx' ? 'Summary of the TCL at transformer level' : form === 'md' ? 'Connected load, maximum demand & kWh metering' : 'Load distribution schedule'}
-      intro={form === 'riser' ? 'For high-rise buildings: the busbar riser from the MDB and each floor’s tap-off to its SMDB / DB, with connected load per phase, TCL, D.F, MD and kWh meters.' : form === 'tx' ? 'Authority summary of every transformer: main breaker and setting, fault duty, connected load per phase, TCL, demand factor, MDL and the kWh meters it feeds. Loads and meters come from the MD forms and load schedules below each transformer.' : form === 'md'
-        ? 'Authority form for a meter cabinet, MDB, SMDB or MCC: its incomer and every outgoing feeder. Connected load per phase, TCL and MDL come from everything below each feeder, down to the DB load schedules. Type ratings, cable type, meters and remarks in the white cells.'
-        : `Enter circuits here or on the SLD — both edit the same data. Circuit references are phase + way (R1, Y1, B1, R2…; RYB = 3-phase). Load per circuit = points × WATT/UNIT (your input). Lighting circuits (LTG / fans only): min ${settings.minWireLightingMm2} mm², ${settings.elcbLightingMa} mA ELCB; power circuits: min ${settings.minWirePowerMm2} mm², ${settings.elcbPowerMa} mA ELCB — change these in Project settings. MCB and wire are sized from the load, voltage drop and earth fault; a size chosen by hand is kept.`}
+      info={form === 'riser' ? <p>For high-rise buildings: the busbar riser from the MDB and each floor’s tap-off to its SMDB / DB, with connected load per phase, TCL, D.F, MD and kWh meters.</p> : form === 'tx' ? <p>Authority summary of every transformer: main breaker and setting, fault duty, connected load per phase, TCL, demand factor, MDL and the kWh meters it feeds. Loads and meters come from the MD forms and load schedules below each transformer.</p> : form === 'md'
+        ? <p>Authority form for a meter cabinet, MDB, SMDB or MCC: its incomer and every outgoing feeder. Connected load per phase, TCL and MDL come from everything below each feeder, down to the DB load schedules. Type ratings, cable type, meters and remarks in the white cells.</p>
+        : <>
+        <p>Enter circuits here or on the SLD — both edit the same data. Circuit references are phase + way (R1, Y1, B1, R2…; RYB = 3-phase). Load per circuit = points × WATT/UNIT (your input).</p>
+        <p>Lighting circuits (LTG / fans only): min {settings.minWireLightingMm2} mm², {settings.elcbLightingMa} mA ELCB; power circuits: min {settings.minWirePowerMm2} mm², {settings.elcbPowerMa} mA ELCB — change these in Project settings.</p>
+        <p>MCB and wire are sized from the load, voltage drop and earth fault; a size chosen by hand is kept.</p>
+      </>}
+      head={<span className="m ls-supply" title="Where this board's supply comes from">Supply {supplyChain(project, board.id).join(' → ')}</span>}
       actions={
         <>
           {form !== 'tx' && form !== 'riser' && <select className="chip" value={board.id} onChange={(e) => onBoard(e.target.value)} aria-label="DB">
@@ -308,41 +314,43 @@ export default function LoadScheduleView({
         </>
       }
     >
-      <p className="m ls-supply" title="Where this board's supply comes from">Supply: {supplyChain(project, board.id).join(' → ')}</p>
-      {(() => {
-        const c = dbChecks(project).find((x) => x.boardId === board.id);
-        if (!c) return null;
-        return (
-          <p className={`ls-rooms ${c.status}`} title="From Building information: the rooms this board serves and their room types' W/m²">
-            Serves {c.rooms.length} room{c.rooms.length === 1 ? '' : 's'} ({c.rooms.map((x) => x.room.name).slice(0, 3).join(', ')}{c.rooms.length > 3 ? '…' : ''}), {txt.size(c.areaM2)} m²:
-            {' '}expected {txt.power(c.expectedKw)} kW from the room types, designed {txt.power(c.scheduledKw)} kW ({c.wPerM2.toFixed(1)} W/m²)
-            {c.status === 'warn' ? ' — check' : ' — OK'}
-          </p>
-        );
-      })()}
-      <div className="seg form-tabs" role="tablist" aria-label="Schedules" data-doc-id="load-schedule-groups">
-        <button role="tab" aria-selected={form === 'tx'} className={form === 'tx' ? 'on' : ''} title="Summary of the TCL at transformer level — every transformer of the project" onClick={() => setTxForm('tx')}>TCL summary</button>
-        {SCHEDULE_GROUPS.flatMap(({ key, label }) => {
-          const tab = groups[key].length ? [<button key={key} role="tab" aria-selected={!txForm && group === key} className={!txForm && group === key ? 'on' : ''} onClick={() => openGroup(key)}>{label} <span className="m">({groups[key].length})</span></button>] : [];
-          // The busbar riser follows the main LV panels.
-          return key === 'mdb' && project.busRisers?.length ? [...tab, <button key="riser" role="tab" aria-selected={form === 'riser'} className={form === 'riser' ? 'on' : ''} title="Bus bar riser — connected load / max. demand of each tap-off (high-rise)" onClick={() => setTxForm('riser')}>Busbar riser</button>] : tab;
-        })}
-      </div>
-      {!txForm && (
-        <div className="ls-panels" data-doc-id="load-schedule-panels">
-          {groups[group].map((b) => (
-            <button key={b.id} className={`chip${b.id === board.id ? ' on' : ''}`} title={incomplete(b) ? `${b.id}: schedule not filled yet` : b.name} onClick={() => b.id !== board.id && onBoard(b.id)}>
-              {b.id}{incomplete(b) && <span className="warn"> !</span>}
-            </button>
-          ))}
-          {data.rows.length > 0 && mdAvailable && (
-            <span className="seg ls-form">
-              <button className={form === 'db' ? 'on' : ''} onClick={() => setPick({ board: board.id, form: 'db' })}>Load schedule</button>
-              <button className={form === 'md' ? 'on' : ''} onClick={() => setPick({ board: board.id, form: 'md' })}>Connected load &amp; MD</button>
-            </span>
-          )}
+      <div className="ls-nav">
+        <div className="seg form-tabs" role="tablist" aria-label="Schedules" data-doc-id="load-schedule-groups">
+          <button role="tab" aria-selected={form === 'tx'} className={form === 'tx' ? 'on' : ''} title="Summary of the TCL at transformer level — every transformer of the project" onClick={() => setTxForm('tx')}>TCL summary</button>
+          {SCHEDULE_GROUPS.flatMap(({ key, label }) => {
+            const tab = groups[key].length ? [<button key={key} role="tab" aria-selected={!txForm && group === key} className={!txForm && group === key ? 'on' : ''} onClick={() => openGroup(key)}>{label} <span className="m">({groups[key].length})</span></button>] : [];
+            // The busbar riser follows the main LV panels.
+            return key === 'mdb' && project.busRisers?.length ? [...tab, <button key="riser" role="tab" aria-selected={form === 'riser'} className={form === 'riser' ? 'on' : ''} title="Bus bar riser — connected load / max. demand of each tap-off (high-rise)" onClick={() => setTxForm('riser')}>Busbar riser</button>] : tab;
+          })}
         </div>
-      )}
+        {!txForm && (
+          <>
+            <span className="ls-nav-sep" aria-hidden />
+            <div className="ls-panels" data-doc-id="load-schedule-panels">
+              {groups[group].map((b) => (
+                <button key={b.id} className={`chip${b.id === board.id ? ' on' : ''}`} title={incomplete(b) ? `${b.id}: schedule not filled yet` : b.name} onClick={() => b.id !== board.id && onBoard(b.id)}>
+                  {b.id}{incomplete(b) && <span className="warn"> !</span>}
+                </button>
+              ))}
+              {data.rows.length > 0 && mdAvailable && (
+                <span className="seg ls-form">
+                  <button className={form === 'db' ? 'on' : ''} onClick={() => setPick({ board: board.id, form: 'db' })}>Load schedule</button>
+                  <button className={form === 'md' ? 'on' : ''} onClick={() => setPick({ board: board.id, form: 'md' })}>Connected load &amp; MD</button>
+                </span>
+              )}
+            </div>
+          </>
+        )}
+        {(() => {
+          const c = dbChecks(project).find((x) => x.boardId === board.id);
+          if (!c) return null;
+          return (
+            <span className={`ls-rooms ${c.status}`} title={`From Building information: the rooms this board serves and their room types' W/m². Serves ${c.rooms.length} room${c.rooms.length === 1 ? '' : 's'} (${c.rooms.map((x) => x.room.name).slice(0, 3).join(', ')}${c.rooms.length > 3 ? '…' : ''}), ${txt.size(c.areaM2)} m²: expected ${txt.power(c.expectedKw)} kW from the room types, designed ${txt.power(c.scheduledKw)} kW (${c.wPerM2.toFixed(1)} W/m²)${c.status === 'warn' ? ' — check' : ' — OK'}`}>
+              Serves {c.rooms.length} room{c.rooms.length === 1 ? '' : 's'}{c.status === 'warn' ? ' — check' : ' — OK'}
+            </span>
+          );
+        })()}
+      </div>
       {form === 'riser' ? (
         <RiserFormView project={project} onOpenRiser={() => onOpenRiser?.()} />
       ) : form === 'tx' ? (
@@ -380,13 +388,29 @@ export default function LoadScheduleView({
             </p>
           )}
           <div className="ls-actions">
-            <span className="m gx-hint" title="Arrows / Enter move · Shift+arrows or drag select · Ctrl/⌘ C copy · Ctrl/⌘ V paste from Excel · Ctrl/⌘ D fill down · Delete clears the selection">Excel keys: paste · fill down (⌘D) · copy</span>
+            <span className="m ls-add-lbl">Add</span>
+            <button className="chip primary" title={`Add a circuit in the next free way of ${board.id}`} onClick={() => add()}><ListPlus size={15} /> 1-phase circuit</button>
+            <button className="chip" title={`Add a 3-phase circuit (RYB) to ${board.id}`} onClick={() => add('RYB')}><ListPlus size={15} /> 3-phase circuit</button>
+            <span className="ls-sep" aria-hidden />
+            <button className="chip" title="A 1-phase way with a breaker fitted and nothing connected" onClick={() => addSpare('spare')}><SquareDashed size={15} /> Spare 1-phase</button>
+            <button className="chip" title="A 3-phase way with a breaker fitted and nothing connected" onClick={() => addSpare('spare', 'three')}><SquareDashed size={15} /> Spare 3-phase</button>
+            <MenuButton label={<><Square size={15} /> Space</>} title="An empty way kept for a future breaker">
+              {(close) => (
+                <>
+                  <button title="A 1-phase empty way kept for a future breaker" onClick={() => { close(); addSpare('space'); }}>1-phase space</button>
+                  <button title="A 3-phase empty way kept for a future breaker" onClick={() => { close(); addSpare('space', 'three'); }}>3-phase space</button>
+                </>
+              )}
+            </MenuButton>
+            <span className="ls-sep" aria-hidden />
+            <button className="chip" title="Lighting circuits first, then power, each starting on an ELCB section; spread over R/Y/B and renumber" disabled={!canBalance} onClick={() => now.balance()}><Scale size={15} /> Balance phases</button>
             <span className="sp" />
             <span>
               Phase load (W): <b className="ph-r">R {fmtFixed(data.phaseW.R * 1000, 0)}</b> · <b className="ph-y">Y {fmtFixed(data.phaseW.Y * 1000, 0)}</b> ·{' '}
               <b className="ph-b">B {fmtFixed(data.phaseW.B * 1000, 0)}</b> · imbalance{' '}
               <b className={data.imbalance > 20 ? 'warn' : 'ok'}>{data.imbalance.toFixed(0)}%</b>
             </span>
+            <span className="m gx-hint" aria-label="Excel keys" title="Arrows / Enter move · Shift+arrows or drag select · Ctrl/⌘ C copy · Ctrl/⌘ V paste from Excel · Ctrl/⌘ D fill down · Delete clears the selection · New rows go in the next free way (R1 → Y1 → B1 → R2 …); a 3-phase circuit or spare takes a whole way."><Keyboard size={16} /></span>
           </div>
 
           {current && why && (
@@ -447,7 +471,7 @@ export default function LoadScheduleView({
                 </thead>
                 <tbody>
                   {data.entries.length === 0 && (
-                    <tr><td colSpan={7 + columns.length + 7} className="m">No circuits yet — use Load schedule → Add circuit to start this DB's schedule.</td></tr>
+                    <tr><td colSpan={7 + columns.length + 7} className="m">No circuits yet — use 1-phase circuit or 3-phase circuit above to start this DB's schedule.</td></tr>
                   )}
                   {data.entries.map((e, i) => {
                     const g = e.group;
