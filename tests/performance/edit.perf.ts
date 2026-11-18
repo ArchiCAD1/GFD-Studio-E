@@ -81,6 +81,36 @@ function zoomStep(p: Project): number {
   return t.slice(3).sort((a, b) => a - b)[5];
 }
 
+/** One edit (a circuit's load) with the design canvas open and the whole drawing in view: what the main window
+ * does between the keystroke and the drawing showing it — the calculation, the layout and the redraw. */
+function editStep(p: Project): { calc: number; draw: number } {
+  const size = { left: 0, top: 0, right: 1400, bottom: 800, width: 1400, height: 800, x: 0, y: 0, toJSON: () => ({}) };
+  const rect = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = () => size;
+  (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  const draw = (q: Project, results = evaluateProject(q)) => flushSync(() => root.render(createElement(SystemDiagram, {
+    ...canvasDrawing(false), project: q, calcProject: q, results, selectedFeederId: null, selectedBoardId: null, onSelectFeeder: noop, onSelectBoard: noop, onDrawing: noop, resizable: true
+  })));
+  draw(p);
+  const calc: number[] = [], drawn: number[] = [];
+  let q = p;
+  for (let i = 0; i < 8; i++) {
+    q = edit(q, i + 2);
+    const a = performance.now(), results = evaluateProject(q), b = performance.now();
+    draw(q, results);
+    calc.push(b - a);
+    drawn.push(performance.now() - b);
+  }
+  root.unmount();
+  host.remove();
+  Element.prototype.getBoundingClientRect = rect;
+  const mid = (t: number[]) => t.slice(2).sort((x, y) => x - y)[3];
+  return { calc: mid(calc), draw: mid(drawn) };
+}
+
 it('edit and output benchmark', () => {
   const lines = [`Machine: ${os.cpus()[0]?.model} · ${os.cpus().length} cores · Node ${process.version} · ${new Date().toISOString()}`, ''];
   const tooSlow = new Set<string>();
@@ -98,6 +128,8 @@ it('edit and output benchmark', () => {
       lines.push(`  ${name}: ${ms(t[Math.floor((t.length - 1) / 2)])}`);
     }
     lines.push(`  zoom step, whole drawing in view: ${ms(zoomStep(edit(base, 1)))}`);
+    const step = editStep(base);
+    lines.push(`  one edit with the SLD open, whole drawing in view: calculation ${ms(step.calc)}, layout and redraw ${ms(step.draw)}`);
     // The unsaved-changes check after an edit, on a project with ten issued revisions.
     const issued = Array.from({ length: 10 }).reduce<Project>((p, _, r) => issueRevision(p, { description: `Rev ${r}` }), base);
     projectFingerprint(issued);
