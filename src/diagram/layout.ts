@@ -14,8 +14,14 @@ export const ROOT_BUS_Y = 210;
 const MARGIN_X = 36;
 /** A load symbol's centre below its board's busbar (where an end board's panel box goes). */
 export const BOX_DY = 94;
-/** Extra height a panel takes under its busbar when one of its ways shows an ELCB unit (the standard style's text rows sit lower). */
+/** Extra height a panel takes under its busbar for each device row its ways need: an ELCB unit, a kWh meter (the standard style's text rows sit lower). */
 export const ELCB_ROW = { dewa: 30, standard: 34 } as const;
+
+/** Device rows a way needs between its breaker's text and its cable text: the ELCB unit (IEC symbols), then a kWh
+ * meter. A meter on a sub-board's incomer is drawn lower, below the incomer's result labels, so it needs none. */
+export function deviceRows(f: Feeder, iec: boolean | undefined, incomer: boolean): number {
+  return (iec && elcbUnitOf(f) ? 1 : 0) + (f.kwhMeter && !incomer ? 1 : 0);
+}
 
 export interface BoardNode {
   board: Board;
@@ -37,7 +43,7 @@ export interface BoardNode {
   genX?: number;
   busX1: number;
   busX2: number;
-  /** Height of the ELCB row under this board's busbar (IEC symbols, a way with an ELCB unit); what hangs below the breakers is that much lower. */
+  /** Height of the device rows under this board's busbar (an ELCB unit with IEC symbols, a kWh meter); what hangs below the breakers is that much lower. */
   elcbRow?: number;
   /** DEWA style: the panel frame's left and right edges, wide enough for every label of its ways and incomer. */
   frame?: { x1: number; x2: number };
@@ -162,7 +168,9 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
     if (opts.frames) left = Math.max(left, (frameEnd[depth] ?? -Infinity) + FRAME_INSET + (end ? FRAME_INSET + end.left - LEAF_W / 2 : 0));
     const busY = rootY + depth * levelH;
     const co = isInterlocked(board), inst = instrumentSlot(board);
-    const row = opts.iec && children(board.id).some((f) => elcbUnitOf(f)) ? (opts.frames ? ELCB_ROW.dewa : ELCB_ROW.standard) : 0;
+    // A way to a sub-board drawn below is that board's incomer (see the loop below).
+    const rows = Math.max(0, ...children(board.id).map((f) => { const child = subBoard(f); return deviceRows(f, opts.iec, !!child && !boxed.has(child.id) && !placed.has(child.id)); }));
+    const row = rows * (opts.frames ? ELCB_ROW.dewa : ELCB_ROW.standard);
     let cursor = left + (co ? CHANGEOVER_LEFT * LEAF_W : 0) + (inst ? LEAF_W : 0);
     const xs: number[] = [];
     // Right-hand end of the labels on this panel's ways (DEWA frames only).
@@ -252,8 +260,8 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
 
   const maxDepth = boards.reduce((m, b) => (b.boxed ? m : Math.max(m, b.depth)), 0);
   const level = (b: BoardNode) => (b.boxed ? b.depth - 1 : b.depth);
-  // A level with a changeover board is taller by CHANGEOVER_H; the levels below move down with it. A level with an
-  // ELCB row moves only the levels below it.
+  // A level with a changeover board is taller by CHANGEOVER_H; the levels below move down with it. A level with
+  // device rows (ELCB unit, kWh meter) moves only the levels below it.
   const shift: number[] = [];
   const rowAt = (d: number) => boards.reduce((m, b) => (!b.boxed && b.depth === d ? Math.max(m, b.elcbRow ?? 0) : m), 0);
   let rows = 0;

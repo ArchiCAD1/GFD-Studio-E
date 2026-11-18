@@ -277,4 +277,26 @@ describe('room for the busbar description', () => {
       expect(layoutSystem(p, 0, { frames, iec: false }).height).toBe(plain.height);
     }
   });
+
+  it('gives a board a device row for a kWh meter on a way, two for an ELCB unit and a meter on one way, none for a metered sub-board incomer', () => {
+    const p = (patch: Record<string, Partial<Feeder>>): Project => ({
+      ...base,
+      boards: [{ id: 'MDB', name: 'M' }, { id: 'SUB', name: 'S', upstreamId: 'MDB' }, { id: 'END', name: 'E', kind: 'DB', upstreamId: 'MDB' }],
+      feeders: [feeder('INC', 'MDB', 'SUB'), feeder('BOX', 'MDB', 'END'), feeder('A', 'MDB'), feeder('B', 'SUB')].map((f) => ({ ...f, ...patch[f.id] }))
+    });
+    const rowOf = (q: Project, frames: boolean, iec: boolean) => layoutSystem(q, 0, { frames, iec }).boards.find((b) => b.board.id === 'MDB')!.elcbRow;
+    for (const frames of [false, true]) {
+      const row = frames ? ELCB_ROW.dewa : ELCB_ROW.standard;
+      for (const iec of [false, true]) {
+        expect(rowOf(p({ A: { kwhMeter: 'CT' } }), frames, iec)).toBe(row); // with either symbol set
+        expect(rowOf(p({ BOX: { kwhMeter: '3-PH' } }), frames, iec)).toBe(row); // an end board drawn as a box is a way like any other
+        expect(rowOf(p({ INC: { kwhMeter: 'CT' } }), frames, iec)).toBeUndefined(); // drawn on the incomer, below its labels
+      }
+      expect(rowOf(p({ A: { kwhMeter: 'CT', rcdMa: 30 } }), frames, true)).toBe(2 * row);
+      expect(rowOf(p({ A: { rcdMa: 30 }, BOX: { kwhMeter: 'CT' } }), frames, true)).toBe(row); // one row each, side by side
+      const plain = layoutSystem(p({}), 0, { frames }), metered = layoutSystem(p({ A: { kwhMeter: 'CT' } }), 0, { frames });
+      expect(metered.boards.find((b) => b.board.id === 'SUB')!.busY).toBe(plain.boards.find((b) => b.board.id === 'SUB')!.busY + row);
+      expect(metered.height).toBe(plain.height + row);
+    }
+  });
 });
