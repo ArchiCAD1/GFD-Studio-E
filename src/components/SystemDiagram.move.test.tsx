@@ -29,12 +29,12 @@ describe('SLD Move tool, Supply from… and the len? mark', () => {
   });
   afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; vi.unstubAllGlobals(); setArmedItem(null); document.elementFromPoint = originalFromPoint; });
 
-  const draw = (extra: { project?: Project; selectedBoardId?: string | null; selectedFeederId?: string | null; lengthChecks?: boolean } = {}) => {
+  const draw = (extra: { project?: Project; selectedBoardId?: string | null; selectedFeederId?: string | null; screenMarks?: boolean } = {}) => {
     const project = extra.project ?? { ...sampleProject, id: 'move' };
     const results = evaluateProject(project);
     act(() => root.render(
       <SystemDiagram project={project} calcProject={project} results={results} selectedFeederId={extra.selectedFeederId ?? null} selectedBoardId={extra.selectedBoardId ?? null}
-        onSelectFeeder={noop} onSelectBoard={noop} onDrawing={noop} onPatchFeeder={noop} onMoveItem={(i, t) => moves.push([i, t])} onStatus={(s) => statuses.push(s)} lengthChecks={extra.lengthChecks}
+        onSelectFeeder={noop} onSelectBoard={noop} onDrawing={noop} onPatchFeeder={noop} onMoveItem={(i, t) => moves.push([i, t])} onStatus={(s) => statuses.push(s)} screenMarks={extra.screenMarks}
         menuFor={(t, v) => sldMenu({ project, calcProject: project, results, canUndo: false, canRedo: false, layers: DEFAULT_LAYERS, colorBy: 'none', supply: 'normal', hasGenerator: false, outages: [], grid: v.grid, detail: v.detail }, t)}
         onMenu={(t, a, v) => menus.push([t, a, v])} />
     ));
@@ -162,14 +162,14 @@ describe('SLD Move tool, Supply from… and the len? mark', () => {
     expect(host.querySelector('.tree-move')).toBeNull();
   });
 
-  it('len? shows on a flagged incomer only with lengthChecks', () => {
+  it('len? shows on a flagged incomer only with screenMarks', () => {
     const flagged: Project = { ...sampleProject, id: 'flag', feeders: sampleProject.feeders.map((f) => (f.id === 'INC-FF' ? { ...f, lengthToCheck: true } : f)) };
     draw({ project: flagged });
     expect(host.querySelector('.len-check')).toBeNull();
-    draw({ project: flagged, lengthChecks: true });
+    draw({ project: flagged, screenMarks: true });
     expect(host.querySelectorAll('.len-check')).toHaveLength(1);
     expect(host.querySelector('g.fd[data-lv-id="feeder:INC-FF"] .len-check text')!.textContent).toBe('len?');
-    draw({ lengthChecks: true });
+    draw({ screenMarks: true });
     expect(host.querySelector('.len-check')).toBeNull();
   });
 });

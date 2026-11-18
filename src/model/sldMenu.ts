@@ -47,17 +47,22 @@ export interface SldMenuState {
   /** The drawing's own view settings. */
   grid: 'lines' | 'dots' | 'off';
   detail: 'auto' | 'all';
+  /** The board whose branch the drawing shows alone, if any. */
+  branch?: string;
 }
 
 /** Every action the menus run (sldMenuRun.ts handles each one). */
 export const SLD_MENU_ACTIONS: readonly string[] = [
   'edit', 'schedule', 'diagram', 'add', 'copy', 'paste', 'duplicate', 'repeat', 'move', 'supplyfrom', 'moveto', 'order', 'rename', 'cabletype', 'lengthchecked', 'delete', 'plan', 'zoom', 'properties',
   'quickfix', 'editcable', 'change', 'together', 'similar', 'below', 'select', 'deselect', 'txsizing', 'hv', 'addsupply', 'scenario', 'tieop', 'tierating', 'tieremove',
-  'undo', 'redo', 'fit', 'grid', 'text', 'values', 'colour', 'export'
+  'undo', 'redo', 'branch', 'showall', 'fit', 'grid', 'text', 'values', 'colour', 'export'
 ];
 
 /** Actions the drawing does itself (its view, its cable editor); the page is not told of them. */
-export const SLD_VIEW_ACTIONS: readonly string[] = ['fit', 'grid', 'text', 'editcable', 'move', 'supplyfrom', 'moveto', 'similar', 'below', 'select', 'deselect'];
+export const SLD_VIEW_ACTIONS: readonly string[] = ['fit', 'branch', 'showall', 'grid', 'text', 'editcable', 'move', 'supplyfrom', 'moveto', 'similar', 'below', 'select', 'deselect'];
+
+/** Where a menu opens: the system diagram, or one board's tab (which leaves off the rows whose tools live only on the system diagram). */
+export type SldWhere = 'system' | 'board';
 
 /** A picked row's arg, "action|value", as [action, value]. */
 export const sldAction = (x: CtxItem): [string, string | undefined] => {
@@ -92,7 +97,7 @@ function orderList(project: Project, item: MoveItem, bus: string): CtxItem {
   };
 }
 
-const view = (id: string, zoomLabel = `Zoom to ${id}`): CtxEntry[] => [row('Show on plan', 'plan', { icon: 'locate' }), row(zoomLabel, 'zoom', { key: 'Z', icon: 'zoom' })];
+const view = (id: string, sys = true, zoomLabel = `Zoom to ${id}`): CtxEntry[] => [row('Show on plan', 'plan', { icon: 'locate' }), ...(sys ? [row(zoomLabel, 'zoom', { key: 'Z', icon: 'zoom' })] : [])];
 const props = (): CtxEntry[] => [row('Properties', 'properties', { icon: 'properties' })];
 
 /** The cable types of a board's ways, as the Panels tree's menu offers them. */
@@ -109,7 +114,10 @@ const cableTypeList = (project: Project, b: Board): CtxItem | undefined => {
   };
 };
 
-function boardMenu(s: SldMenuState, id: string) {
+function boardMenu(s: SldMenuState, id: string, where: SldWhere, here?: string) {
+  const sys = where === 'system';
+  // On the Board tab a sub-board's Add and Properties need that board picked, which would switch the tab: left off there.
+  const local = sys || here === undefined || here === id;
   const { project } = s;
   const b = project.boards.find((x) => x.id === id);
   if (!b) return null;
@@ -122,23 +130,23 @@ function boardMenu(s: SldMenuState, id: string) {
   const cables = cableTypeList(project, b);
   const item: MoveItem = { kind: 'board', id };
   const items = groups(
-    [row(`Edit ${id}…`, 'edit', { key: 'F2', icon: 'edtext' }), row('Load schedule', 'schedule', { icon: 'schedule' }), row('Board diagram', 'diagram', { key: 'Ctrl+2', icon: 'sld' }),
-      {
-        label: 'Add', icon: 'plus',
-        sub: [row('Load…', 'add|load', { icon: 'circuit' }), row('Motor…', 'add|motor'), row('Solar PV…', 'add|pv'), row('EV charger…', 'add|ev'), row('Feeder cable…', 'add|cable'), '-', row('Sub-board…', 'add|board')]
-      }],
+    [row(`Edit ${id}…`, 'edit', { key: 'F2', icon: 'edtext' }), row('Load schedule', 'schedule', { icon: 'schedule' }), ...(sys || here !== id ? [row('Board diagram', 'diagram', { key: 'Ctrl+2', icon: 'sld' })] : []),
+      ...(local ? [{
+        label: 'Add', icon: 'plus' as const,
+        sub: [row('Load…', 'add|load', { icon: 'circuit' }), row('Motor…', 'add|motor'), row('Solar PV…', 'add|pv'), row('EV charger…', 'add|ev'), row('Feeder cable…', 'add|cable'), '-' as const, row('Sub-board…', 'add|board')]
+      }] : [])],
     [row('Copy with everything below', 'copy', { key: 'Ctrl+C', icon: 'copy' }),
       ...(copied ? [row(`Paste ${copied} here`, 'paste', { key: 'Ctrl+V', icon: 'paste' })] : loads.length ? [row(`Paste ${loads.length === 1 ? loads[0] : `${loads.length} loads`} here`, 'paste', { key: 'Ctrl+V', icon: 'paste' })] : []),
       ...(up ? [row('Duplicate', 'duplicate', { key: 'Ctrl+D', icon: 'copyplus' }), row('Repeat branch on other floors…', 'repeat', { icon: 'layers' })] : [])],
-    [...(up ? [row('Move', 'move', { key: 'M', icon: 'move' }), row('Supply from…', 'supplyfrom', { icon: 'plug' }), orderList(project, item, up)] : []),
+    [...(up ? [...(sys ? [row('Move', 'move', { key: 'M', icon: 'move' }), row('Supply from…', 'supplyfrom', { icon: 'plug' })] : []), orderList(project, item, up)] : []),
       {
         label: 'Change', icon: 'sliders',
         sub: [row('Rename…', 'rename', { icon: 'textcursor' }), ...(cables ? [cables] : []), ...(incomerChecked ? [row('Incomer length checked', 'lengthchecked', { icon: 'status' })] : [])]
       },
       row(`Delete ${id} and everything below…`, 'delete', { key: 'Del', icon: 'delete', bad: true })],
-    view(id),
-    branchItems(project, id).length ? [row('Select everything below', 'below', { icon: 'similar' })] : [],
-    props()
+    [...view(id, sys), ...(sys && s.branch !== id ? [row('Show this branch only', 'branch', { icon: 'isolate' })] : [])],
+    sys && branchItems(project, id).length ? [row('Select everything below', 'below', { icon: 'similar' })] : [],
+    local ? props() : []
   );
   return { head: { icon: 'board', title: id, detail } satisfies CtxHead, items, label: `${id} menu` };
 }
@@ -179,8 +187,9 @@ function changeList(project: Project, fs: Feeder[]): CtxItem {
   };
 }
 
-function loadMenu(s: SldMenuState, id: string) {
+function loadMenu(s: SldMenuState, id: string, where: SldWhere) {
   const { project } = s;
+  const sys = where === 'system';
   const f = project.feeders.find((x) => x.id === id);
   if (!f) return null;
   const r = s.results.find((x) => x.feeder.id === id);
@@ -197,11 +206,11 @@ function loadMenu(s: SldMenuState, id: string) {
       label: 'Quick fix', icon: 'tools' as const,
       sub: fixes.map((x, i) => row(x.label, `quickfix|${i}`, { key: x.after.status === 'ok' ? 'passes' : 'still to check' }))
     }] : []),
-    row(`Edit ${id}…`, 'edit', { key: 'F2', icon: 'edtext' }), row('Edit cable…', 'editcable', { icon: 'route' }),
+    row(`Edit ${id}…`, 'edit', { key: 'F2', icon: 'edtext' }), ...(sys ? [row('Edit cable…', 'editcable', { icon: 'route' })] : []),
     changeList(project, [f])],
-    [row('Copy', 'copy', { key: 'Ctrl+C', icon: 'copy' }), row('Duplicate', 'duplicate', { key: 'Ctrl+D', icon: 'copyplus' }), row('Move', 'move', { key: 'M', icon: 'move' }), row('Move to board…', 'moveto', { icon: 'plug' }), orderList(project, { kind: 'feeder', id }, f.boardId), row(`Delete ${id}`, 'delete', { key: 'Del', icon: 'delete', bad: true })],
-    view(id),
-    [similarList(s, f)],
+    [row('Copy', 'copy', { key: 'Ctrl+C', icon: 'copy' }), row('Duplicate', 'duplicate', { key: 'Ctrl+D', icon: 'copyplus' }), ...(sys ? [row('Move', 'move', { key: 'M', icon: 'move' }), row('Move to board…', 'moveto', { icon: 'plug' })] : []), orderList(project, { kind: 'feeder', id }, f.boardId), row(`Delete ${id}`, 'delete', { key: 'Del', icon: 'delete', bad: true })],
+    view(id, sys),
+    sys ? [similarList(s, f)] : [],
     props()
   );
   return { head, items, label: `${id} menu` };
@@ -295,7 +304,7 @@ function canvasMenu(s: SldMenuState) {
   const items = groups(
     [row('Undo', 'undo', { key: 'Ctrl+Z', icon: 'undo', off: !s.canUndo }), row('Redo', 'redo', { key: 'Ctrl+Y', icon: 'redo', off: !s.canRedo })],
     [{ label: 'Add', icon: 'plus', sub: add }],
-    [row('Fit', 'fit', { key: 'F', icon: 'fit' }),
+    [...(s.branch ? [row('Show everything', 'showall', { icon: 'isolate' })] : []), row('Fit', 'fit', { key: 'F', icon: 'fit' }),
       { label: 'Grid', icon: 'grid', sub: [['Lines', 'lines'], ['Dots', 'dots'], ['None', 'off']].map(([l, v]) => row(l, `grid|${v}`, { now: s.grid === v })) },
       { label: 'Text', icon: 'text', sub: [row('Follows the zoom', 'text|auto', { now: s.detail === 'auto' }), row('All text', 'text|all', { now: s.detail === 'all' })] },
       { label: 'Values', icon: 'tags', sub: LAYER_LABELS.map(([k, l]) => row(l, `values|${k}`, { on: !!s.layers[k] })) },
@@ -307,11 +316,12 @@ function canvasMenu(s: SldMenuState) {
   return { head: { icon: 'sld', title: 'System diagram', detail: project.name } satisfies CtxHead, items, label: 'Diagram menu' };
 }
 
-/** The menu of a target: its header, its rows and the label of the menu; null when the target is gone. */
-export function sldMenu(s: SldMenuState, t: SldTarget): { head: CtxHead; items: CtxEntry[]; label: string } | null {
+/** The menu of a target: its header, its rows and the label of the menu; null when the target is gone. `here` is the board
+ * on screen on the Board tab (its own Board diagram row is left off). */
+export function sldMenu(s: SldMenuState, t: SldTarget, where: SldWhere = 'system', here?: string): { head: CtxHead; items: CtxEntry[]; label: string } | null {
   switch (t.kind) {
-    case 'board': return boardMenu(s, t.id);
-    case 'feeder': return loadMenu(s, t.id);
+    case 'board': return boardMenu(s, t.id, where, here);
+    case 'feeder': return loadMenu(s, t.id, where);
     case 'supply': return supplyMenu(s, t.boardId);
     case 'tie': return tieMenu(s, t.id);
     case 'several': return severalMenu(s, t.items);
