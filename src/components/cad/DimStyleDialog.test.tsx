@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -46,12 +47,16 @@ describe('Dimension style dialog', () => {
     });
   });
 
-  it('draws the preview\'s text with its capitals at the style\'s text height', () => {
+  it('draws the preview\'s text with its capitals at the style\'s text height, under the app\'s svg text rule', () => {
+    // The app's `svg text` rule (11 px) beat the font-size attribute: 11 mm text in the 52 mm preview.
+    const style = document.head.appendChild(document.createElement('style'));
+    style.textContent = readFileSync('src/styles.css', 'utf8').match(/(?:^|\n)svg text\{[^}]*\}/)![0];
     render();
     tab('Text');
     set('Text height', '3.5');
     const t = q('[aria-label^="Preview: "] text')!;
-    expect(Number(t.getAttribute('font-size'))).toBeCloseTo((3.5 * 2048) / 1467, 6); // Arial's em per capital
+    expect(parseFloat(getComputedStyle(t).fontSize)).toBeCloseTo((3.5 * 2048) / 1467, 4); // Arial's em per capital
+    style.remove();
   });
 
   it('imports the dimension styles of a DXF, the drawing\'s current one selected, and says what it read', async () => {

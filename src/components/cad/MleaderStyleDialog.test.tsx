@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -39,6 +40,20 @@ describe('Multileader style dialog', () => {
     set('Content', 'none'); set('Text height (0 = annotation height)', '3.5'); set('Gap', '2'); set('Frame', true); set('Fill in the circuit of the device at the arrowhead', true);
     ok();
     expect(onSave.mock.calls[0][0].styles[0]).toMatchObject({ name: 'Standard', arrow: 'dot', arrowMm: 4, landing: false, landingMm: 5, content: 'none', textMm: 3.5, gapMm: 2, frame: true, circuit: true });
+  });
+
+  it('keeps the preview\'s words black and at the style\'s text height under the app\'s svg text rule', () => {
+    // The app's `svg text` rule (11 px, the theme's text colour) beat the attributes: in the dark themes the words
+    // were near-white on the white preview, and 11 mm high.
+    const style = document.head.appendChild(document.createElement('style'));
+    style.textContent = readFileSync('src/styles.css', 'utf8').match(/(?:^|\n)svg text\{[^}]*\}/)![0];
+    render();
+    tab('Content');
+    set('Text height (0 = annotation height)', '3.5');
+    const cs = getComputedStyle(q('[aria-label="Preview"] svg text')!);
+    expect(cs.fill).toBe('rgb(0, 0, 0)');
+    expect(parseFloat(cs.fontSize)).toBeCloseTo((3.5 * 2048) / 1467, 2); // Arial's em per capital
+    style.remove();
   });
 
   it('draws the preview black on white: two leaders to a landing and the words L1-03, with the frame when on, and no words for a style with none', () => {
