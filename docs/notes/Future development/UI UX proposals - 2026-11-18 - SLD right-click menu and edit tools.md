@@ -2,6 +2,8 @@
 
 Status: **approved 2026-11-18 with the five recommended answers** ("Yes, go ahead"): steps 1–4 in order; Shift+drag draws the window and a plain drag keeps panning; Move (M) of a board is done at once with Ctrl+Z; Undo and Redo only on the empty-drawing menu; the "len?" mark shows on the SLD (screen only). Being built, one PR per step.
 
+Progress: Step 1 (menus with today's tools; Zoom to, Order, Copy and Duplicate, Change, Rename, Quick fix list) is in PR 693 (v2.204). As built: Duplicate names the copies by the "-2" rule (SMDB-FF-2, DB-GF1-2), as a paste without a rename; Paste follows the ribbon's rule (any board but the copied one); Properties also brings a hidden inspector back.
+
 On 2026-11-18 the user asked which edit tools could be added on the SLD drawing, such as a right-click menu with Move and other operations, and asked for a mockup. The SLD ribbon proposal had listed "a right-click menu on the SLD" as a later idea.
 
 Mockup: `docs/mockups/sld-right-click-menu-mockup.html` (image: `sld-right-click-menu-mockup.png`). The drawing in it is the app's own system diagram of the demonstration project, rendered from the code, not a screenshot. The menus use the look of Design CAD's right-click menu (`CadMenu`).
