@@ -1,9 +1,13 @@
 import { isScheduleCircuit } from '../calc/loadSchedule';
+import type { FeederResult } from '../calc/electrical';
 import { applyRecommendation, recommend } from '../calc/sizing';
+import { loadTypeOf } from '../calc/summary';
 import { cableTypeDef } from './cableTypes';
+import { deleteBoard } from './edit';
 import { below } from './moveBoard';
 import { pasteBoard } from './copyBoard';
 import { setCircuitPhase } from './phases';
+import { kindOf } from './renamePanels';
 import { applyDrop, applyMove, canMove, type DropResult, type DropTarget, type MoveItem, type ProtectionDevice } from './sldEdit';
 import type { Feeder, MeterType, Project } from '../types';
 
@@ -151,4 +155,115 @@ export function changeFeeder(project: Project, id: string, field: string, value 
     case 'localIsolator': return done({ localIsolator: f.localIsolator ? undefined : true }, `local isolator ${f.localIsolator ? 'off' : 'on'}`);
   }
   return { project, message: `${id}: nothing changed` };
+}
+
+// ---- Several picked (the SLD's Shift+click and window picks) ------------------------------------------------------
+
+/** A board or a load picked on the drawing (an incomer way counts as its board). */
+export type PickItem = { kind: 'board'; id: string } | { kind: 'feeder'; id: string };
+
+const loadIds = (items: PickItem[]): string[] => items.filter((x) => x.kind === 'feeder').map((x) => x.id);
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** "3 loads and 1 board", leaving out a zero part. */
+export const countWords = (loads: number, boards: number): string => [loads ? plural(loads, 'load') : '', boards ? plural(boards, 'board') : ''].filter(Boolean).join(' and ');
+
+/** The drawn loads (not an incomer): the same type as this one, on its board or everywhere. */
+export function similarLoads(project: Project, id: string, scope: 'board' | 'all'): PickItem[] {
+  const f = project.feeders.find((x) => x.id === id);
+  if (!f) return [];
+  const type = loadTypeOf(f);
+  return project.feeders.filter((x) => !x.feedsBoardId && !isScheduleCircuit(x) && loadTypeOf(x) === type && (scope === 'all' || x.boardId === f.boardId)).map((x) => ({ kind: 'feeder' as const, id: x.id }));
+}
+
+/** A board's drawn ways and every board fed from it, with their ways, through all levels. */
+export function branchItems(project: Project, boardId: string): PickItem[] {
+  const boards = [boardId, ...below(project, boardId)];
+  return [
+    ...boards.slice(1).map((id) => ({ kind: 'board' as const, id })),
+    ...project.feeders.filter((f) => !f.feedsBoardId && !isScheduleCircuit(f) && boards.includes(f.boardId)).map((f) => ({ kind: 'feeder' as const, id: f.id }))
+  ];
+}
+
+/** The empty drawing's Select list: every drawn load, the drawn ways that fail or are to check (an incomer is its board), or the boards of one kind. */
+export function selectAll(project: Project, results: FeederResult[], what: 'loads' | 'failing' | 'warn' | 'kind', kind?: string): PickItem[] {
+  if (what === 'kind') return project.boards.filter((b) => kindOf(b) === kind).map((b) => ({ kind: 'board' as const, id: b.id }));
+  const status = new Map(results.map((r) => [r.feeder.id, r.status]));
+  const ways = project.feeders.filter((f) => !isScheduleCircuit(f));
+  if (what === 'loads') return ways.filter((f) => !f.feedsBoardId).map((f) => ({ kind: 'feeder' as const, id: f.id }));
+  return ways.filter((f) => status.get(f.id) === (what === 'failing' ? 'bad' : 'warn')).map((f) => (f.feedsBoardId ? { kind: 'board' as const, id: f.feedsBoardId } : { kind: 'feeder' as const, id: f.id }));
+}
+
+/** One setting on every picked load. The three switches go to the opposite of "all on". */
+export function changeFeeders(project: Project, ids: string[], field: string, value = ''): DropResult {
+  const list = ids.map((id) => project.feeders.find((x) => x.id === id)).filter((f): f is Feeder => !!f && !f.feedsBoardId);
+  if (!list.length) return { project, message: 'No loads to change' };
+  const toggle = field === 'essential' || field === 'existing' || field === 'localIsolator';
+  const allOn = toggle && list.every((f) => !!f[field as 'essential' | 'existing' | 'localIsolator']);
+  let p = project, done = 0, what = '';
+  for (const f of list) {
+    if (toggle && !!f[field as 'essential'] === !allOn) continue; // already as wanted
+    const r = changeFeeder(p, f.id, field, value);
+    if (r.project === p) continue;
+    p = r.project; done++; what ||= r.message.replace(/^[^:]*: /, '');
+  }
+  if (!done) return { project, message: `${plural(list.length, 'load')}: nothing changed` };
+  return { project: p, message: `${plural(done, 'load')}: ${what}` };
+}
+
+/** Each picked load right after itself, each picked board with everything below it right after itself; main boards are skipped. */
+export function duplicateMany(project: Project, targets: PickItem[]): DropResult {
+  let p = project, loads = 0, boards = 0, skipped = 0;
+  for (const t of targets) {
+    const r = t.kind === 'board' ? duplicateBoard(p, t.id) : duplicateFeeder(p, t.id);
+    if (r.project === p) { skipped++; continue; }
+    p = r.project;
+    if (t.kind === 'board') boards++; else loads++;
+  }
+  if (p === project) return { project, message: 'Nothing to duplicate (a main board has no board above it to duplicate on)' };
+  return { project: p, message: `Duplicated ${countWords(loads, boards)}${skipped ? ` (${skipped} skipped)` : ''}` };
+}
+
+/** Every picked item to the end of one busbar, in the order of the project's ways; those it can't take are skipped and named. */
+export function moveMany(project: Project, targets: PickItem[], toBoard: string): DropResult {
+  const order = (t: PickItem) => { const f = moverOf(project, t); return f ? project.feeders.indexOf(f) : Infinity; };
+  const sorted = [...targets].sort((a, b) => order(a) - order(b));
+  let p = project, moved = 0;
+  const skipped: string[] = [];
+  for (const t of sorted) {
+    const f = moverOf(p, t);
+    if (!f || f.boardId === toBoard || !canMove(p, t, { type: 'bus', boardId: toBoard })) { skipped.push(t.id); continue; }
+    p = applyMove(p, t, { type: 'bus', boardId: toBoard }).project;
+    moved++;
+  }
+  if (!moved) return { project, message: `Nothing moved: ${skipped.join(', ')} can't go on ${toBoard}` };
+  return { project: p, message: `Moved ${plural(moved, 'item')} to ${toBoard}${skipped.length ? `; left where they are: ${skipped.join(', ')}` : ''}` };
+}
+
+/** Delete the picked boards (with everything below them) and loads; a load under a deleted board is not counted twice. */
+export function deleteMany(project: Project, targets: PickItem[]): DropResult {
+  let p = project, boards = 0;
+  const left: string[] = [];
+  for (const t of targets.filter((x) => x.kind === 'board')) {
+    if (!p.boards.some((b) => b.id === t.id)) continue; // already gone with a board above it
+    try { p = deleteBoard(p, t.id); boards++; } catch { left.push(t.id); }
+  }
+  const alive = new Set(p.feeders.map((f) => f.id));
+  const gone = new Set(loadIds(targets).filter((id) => alive.has(id) && !p.feeders.find((f) => f.id === id)?.feedsBoardId));
+  if (gone.size) p = { ...p, feeders: p.feeders.filter((f) => !gone.has(f.id)) };
+  if (p === project) return { project, message: left.length ? `${left.join(', ')} can't be deleted: a project needs at least one main board` : 'Nothing to delete' };
+  const main = p.boards.find((b) => !b.upstreamId) ?? p.boards[0];
+  return { project: p, ...(main ? { select: { type: 'board' as const, id: main.id } } : {}), message: `Deleted ${countWords(gone.size, boards)}${left.length ? `; kept ${left.join(', ')} (a project needs a main board)` : ''} (undo with ⌘Z)` };
+}
+
+/** The copies of several loads, in order, at the end of a busbar or before a load: one result, one undo step. */
+export function pasteFeeders(project: Project, sourceIds: string[], target: DropTarget): DropResult {
+  let p = project, last: DropResult | undefined, n = 0;
+  for (const id of sourceIds) {
+    const r = pasteFeeder(p, id, target);
+    if (r.project === p) { last = last ?? r; continue; }
+    p = r.project; last = r; n++;
+  }
+  if (!last) return { project, message: 'Nothing to paste' };
+  if (n <= 1) return last;
+  return { project: p, select: last.select, message: `Pasted ${n} loads ${target.type === 'bus' ? `at the end of ${target.boardId}` : 'before the load picked'}` };
 }

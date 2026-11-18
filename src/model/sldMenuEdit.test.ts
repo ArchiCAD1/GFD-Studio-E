@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import type { Project } from '../types';
 import { applyMove } from './sldEdit';
-import { busWays, changeFeeder, copyFeeder, duplicateBoard, duplicateFeeder, moveBlockedReason, orderTarget, pasteFeeder } from './sldMenuEdit';
+import { evaluateProject } from '../calc/electrical';
+import { branchItems, busWays, changeFeeder, changeFeeders, copyFeeder, countWords, deleteMany, duplicateBoard, duplicateFeeder, duplicateMany, moveBlockedReason, moveMany, orderTarget, pasteFeeder, pasteFeeders, selectAll, similarLoads, type PickItem } from './sldMenuEdit';
 import { withUids } from './stableIds';
 
 const base: Project = withUids(structuredClone(sampleProject));
@@ -174,5 +175,100 @@ describe('why a place can not take it', () => {
     expect(moveBlockedReason(base, load('FF-IT'), way('FF-IT'))).toBe('That is FF-IT itself');
     expect(moveBlockedReason(base, load('FF-LTG'), bus('SMDB-FF'))).toBe('FF-LTG is already last on SMDB-FF');
     expect(moveBlockedReason(base, load('FF-LTG'), { type: 'canvas' })).toBe('Click a busbar or a load');
+  });
+});
+
+const L = (id: string): PickItem => ({ kind: 'feeder', id }), B = (id: string): PickItem => ({ kind: 'board', id });
+const ofIds = (list: PickItem[]) => list.map((x) => `${x.kind === 'board' ? 'B' : 'L'}:${x.id}`).sort();
+
+describe('select tools', () => {
+  it('similar loads: the same type on the board, or everywhere', () => {
+    expect(ofIds(similarLoads(base, 'GF-HVAC', 'board'))).toEqual(['L:GF-HVAC', 'L:GF-VRF']);
+    expect(ofIds(similarLoads(base, 'FF-LTG', 'all'))).toEqual(['L:FF-LTG', 'L:GF-LTG']);
+    expect(ofIds(similarLoads(base, 'FF-LTG', 'board'))).toEqual(['L:FF-LTG']);
+    expect(similarLoads(base, 'NOPE', 'all')).toEqual([]);
+  });
+  it('everything below a board: its ways and every board fed from it, through all levels', () => {
+    expect(ofIds(branchItems(base, 'SMDB-GF'))).toEqual(['B:DB-GF1', 'L:GF-HVAC', 'L:GF-LTG', 'L:GF-SKT', 'L:GF-VRF']);
+    const all = ofIds(branchItems(base, 'MDB-1'));
+    expect(all).toContain('B:DB-GF1');
+    expect(all).toContain('L:FF-LAB');
+    expect(all).not.toContain('B:MDB-1');
+    expect(all.filter((x) => x.startsWith('L:INC'))).toEqual([]); // an incomer is its board, not a load
+  });
+  it('select on the empty drawing: loads, failing, to check, boards of one kind', () => {
+    const failing: Project = { ...base, feeders: base.feeders.map((f) => (f.id === 'FF-LAB' ? { ...f, cableCsaMm2: 4 } : f)) };
+    const results = evaluateProject(failing);
+    expect(selectAll(failing, results, 'loads')).toHaveLength(base.feeders.filter((f) => !f.feedsBoardId && busWays(base, f.boardId).includes(f)).length);
+    expect(ofIds(selectAll(failing, results, 'failing'))).toContain('L:FF-LAB');
+    expect(selectAll(base, evaluateProject(base), 'failing')).toEqual([]);
+    expect(ofIds(selectAll(base, [], 'kind', 'SMDB'))).toEqual(['B:SMDB-FF', 'B:SMDB-GF']);
+  });
+  it('counts words', () => {
+    expect(countWords(3, 1)).toBe('3 loads and 1 board');
+    expect(countWords(1, 0)).toBe('1 load');
+    expect(countWords(0, 2)).toBe('2 boards');
+  });
+});
+
+describe('several loads at once', () => {
+  it('changes one setting on every load, with one result', () => {
+    const r = changeFeeders(base, ['FF-OFF', 'FF-IT', 'FF-LAB'], 'rcdMa', '30');
+    expect(['FF-OFF', 'FF-IT', 'FF-LAB'].map((id) => r.project.feeders.find((f) => f.id === id)!.rcdMa)).toEqual([30, 30, 30]);
+    expect(r.message).toBe('3 loads: earth leakage 30 mA');
+    expect(base.feeders.find((f) => f.id === 'FF-OFF')!.rcdMa).not.toBe(30);
+  });
+  it('a switch goes to the opposite of all on', () => {
+    const some = changeFeeders(base, ['FF-OFF', 'FF-IT'], 'essential').project;
+    expect(['FF-OFF', 'FF-IT'].map((id) => !!some.feeders.find((f) => f.id === id)!.essential)).toEqual([true, true]);
+    const off = changeFeeders(some, ['FF-OFF', 'FF-IT'], 'essential').project;
+    expect(['FF-OFF', 'FF-IT'].map((id) => !!off.feeders.find((f) => f.id === id)!.essential)).toEqual([false, false]);
+    const mixed = changeFeeders(some, ['FF-OFF', 'FF-IT', 'FF-LAB'], 'essential').project;
+    expect(['FF-OFF', 'FF-IT', 'FF-LAB'].map((id) => !!mixed.feeders.find((f) => f.id === id)!.essential)).toEqual([true, true, true]);
+  });
+  it('says so when nothing changes', () => {
+    const r = changeFeeders(base, ['FF-OFF'], 'nonsense', 'x');
+    expect(r.project).toBe(base);
+    expect(changeFeeders(base, ['NOPE'], 'essential').message).toBe('No loads to change');
+  });
+  it('duplicates each load after itself and each board with everything below, skipping a main board', () => {
+    const r = duplicateMany(base, [L('FF-IT'), L('FF-LAB'), B('SMDB-GF'), B('MDB-1')]);
+    expect(ids(r.project, 'SMDB-FF')).toEqual(['FF-OFF', 'FF-IT', 'FF-IT-2', 'FF-LAB', 'FF-LAB-2', 'FF-LTG']);
+    expect(r.project.boards.length).toBeGreaterThan(base.boards.length);
+    expect(r.message).toContain('Duplicated 2 loads and 1 board (1 skipped)');
+    expect(duplicateMany(base, [B('MDB-1')]).project).toBe(base);
+  });
+  it('moves them to the end of one busbar, naming what it cannot take', () => {
+    const r = moveMany(base, [L('FF-LAB'), L('FF-IT'), B('SMDB-GF')], 'MCC-1');
+    expect(ids(r.project, 'MCC-1').slice(-3).sort()).toEqual(['FF-IT', 'FF-LAB', 'INC-GF']);
+    expect(ids(r.project, 'SMDB-FF')).toEqual(['FF-OFF', 'FF-LTG']);
+    const own = moveMany(base, [B('SMDB-GF'), L('GF-LTG')], 'DB-GF1');
+    expect(own.message).toContain('left where they are: SMDB-GF');
+    expect(own.project.feeders.find((f) => f.id === 'GF-LTG')!.boardId).toBe('DB-GF1');
+    const none = moveMany(base, [L('FF-LAB')], 'SMDB-FF');
+    expect(none.project).toBe(base);
+    expect(none.message).toContain("FF-LAB can't go on SMDB-FF");
+  });
+  it('deletes loads and boards in one result, not counting a load under a deleted board twice', () => {
+    const r = deleteMany(base, [L('GF-LTG'), L('FF-LAB'), B('SMDB-GF')]);
+    expect(r.project.boards.some((b) => b.id === 'SMDB-GF')).toBe(false);
+    expect(r.project.feeders.some((f) => f.id === 'GF-LTG' || f.id === 'FF-LAB')).toBe(false);
+    expect(r.message).toContain('Deleted 1 load and 1 board');
+    expect(r.select).toEqual({ type: 'board', id: 'MDB-1' });
+    expect(base.feeders.some((f) => f.id === 'FF-LAB')).toBe(true);
+  });
+  it('keeps the last main board', () => {
+    const r = deleteMany(base, [B('MDB-1')]);
+    expect(r.project).toBe(base);
+    expect(r.message).toContain('main board');
+  });
+  it('pastes several copies in order, with one result', () => {
+    const end = pasteFeeders(base, ['FF-IT', 'FF-LAB'], { type: 'bus', boardId: 'SMDB-GF' });
+    expect(ids(end.project, 'SMDB-GF').slice(-2)).toEqual(['FF-IT-2', 'FF-LAB-2']);
+    expect(end.message).toBe('Pasted 2 loads at the end of SMDB-GF');
+    const before = pasteFeeders(base, ['FF-IT', 'FF-LAB'], { type: 'feeder', feederId: 'GF-SKT' });
+    expect(ids(before.project, 'SMDB-GF')).toEqual(['GF-LTG', 'FF-IT-2', 'FF-LAB-2', 'GF-SKT', 'GF-HVAC', 'GF-VRF', 'INC-DBGF1']);
+    expect(pasteFeeders(base, ['FF-IT'], { type: 'bus', boardId: 'SMDB-GF' }).message).toMatch(/^Pasted FF-IT-2, a copy of FF-IT/);
+    expect(pasteFeeders(base, [], { type: 'bus', boardId: 'SMDB-GF' }).project).toBe(base);
   });
 });

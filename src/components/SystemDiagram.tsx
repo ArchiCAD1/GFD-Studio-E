@@ -45,8 +45,9 @@ import CadMenu from './cad/CadMenu';
 import type { CtxItem } from './cad/cadContextMenu';
 import { sldAction, type sldMenu, type SldTarget } from '../model/sldMenu';
 import { renameProblems } from '../model/renamePanels';
-import { moveBlocked } from '../model/moveBoard';
-import { moveBlockedReason } from '../model/sldMenuEdit';
+import { below, moveBlocked } from '../model/moveBoard';
+import { branchItems, moveBlockedReason, selectAll, similarLoads, type PickItem } from '../model/sldMenuEdit';
+import { mergePicks, pickInWindow, pickPoints, zoomBox, type Rect } from './sld/sldPick';
 
 interface Tag {
   text: string;
@@ -802,6 +803,51 @@ export default function SystemDiagram({
   const [moveTool, setMoveTool] = useState<{ item: MoveItem; label: string } | null>(null);
   const [moveAt, setMoveAt] = useState<{ x: number; y: number; why?: string } | null>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
+  // Several picked (Shift+click, or a Shift+drag window on the empty drawing): the drawing's own, beside the app's one selection.
+  const [pickedRaw, setPicked] = useState<PickItem[]>([]);
+  const picked = useMemo(() => pickedRaw.filter((x) => (x.kind === 'board' ? project.boards.some((b) => b.id === x.id) : project.feeders.some((f) => f.id === x.id && !f.feedsBoardId))), [pickedRaw, project]);
+  const pickedBoards = useMemo(() => new Set(picked.filter((x) => x.kind === 'board').map((x) => x.id)), [picked]);
+  const pickedLoads = useMemo(() => new Set(picked.filter((x) => x.kind === 'feeder').map((x) => x.id)), [picked]);
+  const boxedBoards = useMemo(() => new Set(layout.boards.filter((n) => n.boxed).map((n) => n.board.id)), [layout]);
+  const pickPts = useMemo(() => pickPoints(layout, elcbRowOf), [layout, elcbRowOf]);
+  const [win, setWin] = useState<Rect | null>(null); // the window being drawn, in pixels inside the drawing
+  const winStart = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const winDone = useRef(false); // the click after a window is not a click on the empty drawing
+  const setPicks = (list: PickItem[]) => {
+    setPicked(list);
+    onStatus?.(list.length >= 2 ? `${list.length} picked: a right-click on any of them opens the menu for all of them. Esc clears.` : list.length === 1 ? '1 picked' : 'Nothing to pick');
+  };
+  /** Shift+click: add or take away one load or board. The first one also takes in what is selected now. */
+  const togglePick = (item: PickItem) => {
+    const was = picked.length ? picked : (() => { const t = selectedTarget(); return t && (t.kind === 'board' || t.kind === 'feeder') ? [t] : []; })();
+    const has = was.some((x) => x.kind === item.kind && x.id === item.id);
+    setPicks(has ? was.filter((x) => !(x.kind === item.kind && x.id === item.id)) : [...was, item]);
+  };
+  /** A click on a load or a board: Shift adds or takes it away from the picks; a plain click selects it and ends the picks. */
+  const itemClick = (item: PickItem, select: () => void) => (e: React.MouseEvent) => {
+    if (e.shiftKey && !moveTool && !armed && tool !== 'pan' && !drag.current?.moved) {
+      e.stopPropagation(); // picking: not the plain click on the drawing that clears the picks
+      togglePick(item);
+      select();
+      return;
+    }
+    click(select)();
+  };
+  /** The picked items fitted in the view, with a margin. */
+  function zoomToPicked(items: PickItem[]) {
+    const el = svgRef.current;
+    const aspect = el?.clientWidth && el.clientHeight ? el.clientWidth / el.clientHeight : view.current.w / view.current.h;
+    const v = zoomBox(pickPts, items, aspect);
+    if (v) setVb(v);
+  }
+  /** Drawing units at a point of the screen. */
+  const toDrawing = (clientX: number, clientY: number) => {
+    const svg = svgRef.current, ctm = svg?.getScreenCTM();
+    if (!svg || !ctm) return undefined;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX; pt.y = clientY;
+    return pt.matrixTransform(ctm.inverse());
+  };
   const [cableEdit, setCableEdit] = useState<{ id: string; x: number; y: number; size: string; cores: string; length: string; runs: string; type: string } | null>(null);
   const editCable = (f: Feeder, x: number, y: number) => setCableEdit({ id: f.id, x, y, size: String(f.cableCsaMm2), cores: String(f.cores), length: String(f.lengthM), runs: String(runsOf(f)), type: f.cableType ?? '' });
   const lengthOk = (v: string) => /^\d*\.?\d+$/.test(v.trim().replace(',', '.')) && Number(v.trim().replace(',', '.')) > 0;
@@ -818,11 +864,24 @@ export default function SystemDiagram({
   };
   function onPointerDown(e: React.PointerEvent) {
     if (e.button === 2) return; // a right-click opens the menu: no pan, no pick
+    if (e.shiftKey && e.button === 0 && !moveTool && !armed && tool !== 'pan' && !space.current && onMenu && !(e.target as Element).closest('g.fd, g.bd, g.tx, g.tie')) {
+      winStart.current = { x: e.clientX, y: e.clientY, moved: false }; // Shift+drag on the empty drawing draws a window, not a pan
+      return;
+    }
     drag.current = { px: e.clientX, py: e.clientY, vb: view.current, moved: false };
   }
   function onPointerMove(e: React.PointerEvent) {
     const pk = pick.current;
     const svg = svgRef.current;
+    const ws = winStart.current;
+    if (ws && svg) {
+      if (!ws.moved && Math.hypot(e.clientX - ws.x, e.clientY - ws.y) < 4) return;
+      if (!ws.moved) svg.setPointerCapture?.(e.pointerId);
+      ws.moved = true;
+      const r = svg.parentElement!.getBoundingClientRect();
+      setWin({ x0: ws.x - r.left, y0: ws.y - r.top, x1: e.clientX - r.left, y1: e.clientY - r.top });
+      return;
+    }
     if (pk && svg) {
       if (!moving && Math.hypot(e.clientX - pk.px, e.clientY - pk.py) < 6) return;
       if (!moving) svg.setPointerCapture(e.pointerId);
@@ -862,6 +921,21 @@ export default function SystemDiagram({
     moveVb({ ...d.vb, x: d.vb.x - dx * scale, y: d.vb.y - dy * scale });
   }
   function onPointerUp(e: React.PointerEvent) {
+    const ws = winStart.current;
+    if (ws) {
+      winStart.current = null;
+      setWin(null);
+      if (ws.moved) {
+        winDone.current = true;
+        setTimeout(() => (winDone.current = false), 0);
+        const a = toDrawing(ws.x, ws.y), b = toDrawing(e.clientX, e.clientY);
+        if (a && b) {
+          const got = pickInWindow(pickPts, { x0: a.x, y0: a.y, x1: b.x, y1: b.y });
+          setPicks(e.shiftKey ? mergePicks(picked, got) : got);
+        }
+      }
+      return;
+    }
     const pk = pick.current;
     pick.current = null;
     if (pk && moving) {
@@ -990,7 +1064,7 @@ export default function SystemDiagram({
     onMoveItem?.(item, t.target);
   }
   // Supply from… / Move to board…: the Panels tree's list of boards, at the menu's point.
-  const [moveList, setMoveList] = useState<{ item: MoveItem; x: number; y: number } | null>(null);
+  const [moveList, setMoveList] = useState<{ item: MoveItem; several?: PickItem[]; x: number; y: number } | null>(null);
   const [moveQ, setMoveQ] = useState('');
   useEffect(() => {
     if (!moveList) return;
@@ -1028,6 +1102,13 @@ export default function SystemDiagram({
     e.preventDefault();
     const hit = (e.target as Element).closest('g.tie, g.tx, g.fd, g.bd');
     const id = hit?.getAttribute('data-lv-id')?.split(':').slice(1).join(':');
+    if (hit && id && (hit.classList.contains('fd') || hit.classList.contains('bd'))) {
+      // On one of two or more picked: the menu of all of them. On anything else the picks end.
+      const f = hit.classList.contains('fd') ? project.feeders.find((x) => x.id === id) : undefined;
+      const item: PickItem | undefined = hit.classList.contains('bd') ? { kind: 'board', id } : f ? (f.feedsBoardId ? { kind: 'board', id: f.feedsBoardId } : { kind: 'feeder', id }) : undefined;
+      if (item && picked.length >= 2 && picked.some((x) => x.kind === item.kind && x.id === item.id)) { openMenu({ kind: 'several', items: picked }, e.clientX, e.clientY); return; }
+    }
+    if (hit && picked.length) setPicked([]);
     let t: SldTarget = { kind: 'canvas' };
     if (hit?.classList.contains('tie') && hit.getAttribute('data-tie')) t = { kind: 'tie', id: hit.getAttribute('data-tie')! };
     else if (hit?.classList.contains('tx') && id) { t = { kind: 'supply', boardId: id }; onSelectBoard(id); }
@@ -1060,6 +1141,12 @@ export default function SystemDiagram({
     else if (a === 'grid' && (v === 'lines' || v === 'dots' || v === 'off')) chooseGrid(v);
     else if (a === 'text' && (v === 'auto' || v === 'all')) chooseDetail(v);
     else if (a === 'editcable' && m.t.kind === 'feeder') { const f = project.feeders.find((q) => q.id === (m.t as { id: string }).id); if (f) editCable(f, m.x, m.y); }
+    else if (a === 'zoom' && m.t.kind === 'several') zoomToPicked(m.t.items);
+    else if (a === 'deselect') setPicked([]);
+    else if (a === 'similar' && m.t.kind === 'feeder') setPicks(v === 'failing' ? selectAll(project, results, 'failing') : similarLoads(project, m.t.id, v === 'all' ? 'all' : 'board'));
+    else if (a === 'below' && m.t.kind === 'board') setPicks(branchItems(project, m.t.id));
+    else if (a === 'select' && v) { const [what, kind] = v.split('|'); if (what === 'loads' || what === 'failing' || what === 'warn' || what === 'kind') setPicks(selectAll(project, results, what, kind)); }
+    else if (a === 'moveto' && m.t.kind === 'several') { setMoveQ(''); setMoveList({ item: { kind: 'feeder', id: '' }, several: m.t.items, x: m.x, y: m.y }); }
     else if (a === 'move') startMove(m.t);
     else if ((a === 'supplyfrom' && m.t.kind === 'board') || (a === 'moveto' && m.t.kind === 'feeder')) { setMoveQ(''); setMoveList({ item: { kind: m.t.kind === 'board' ? 'board' : 'feeder', id: m.t.id }, x: m.x, y: m.y }); }
     else if (a === 'rename' && m.t.kind === 'board') setRenaming({ from: m.t.id, to: m.t.id, x: m.x, y: m.y });
@@ -1083,6 +1170,19 @@ export default function SystemDiagram({
       aria-label="Single line diagram. Plus and minus zoom, F or 0 fits, arrow keys pan, G changes the grid, Shift+F10 opens the menu."
       onKeyDown={(e) => {
         if (moveTool && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); endMove(true); return; }
+        if (e.key === 'Escape' && picked.length && !menu && !moveList && !(e.target as HTMLElement).closest('input,select,textarea')) { e.preventDefault(); e.stopPropagation(); setPicked([]); return; }
+        if (menuFor && onMenu && !menu && picked.length >= 2 && !(e.target as HTMLElement).closest('input,select,textarea,button,[contenteditable="true"]')) {
+          // Two or more picked: the keys act on all of them, and the app's single-item keys do not run.
+          const several: SldTarget = { kind: 'several', items: picked }, mod = e.ctrlKey || e.metaKey;
+          if (!mod && !e.altKey && !e.shiftKey && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); e.stopPropagation(); onMenu(several, 'delete'); return; }
+          if (!mod && !e.altKey && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); zoomToPicked(picked); return; }
+          if (mod && !e.altKey && !e.shiftKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); onMenu(several, 'duplicate'); return; }
+          if (mod && !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+            e.preventDefault(); e.stopPropagation();
+            if (picked.every((x) => x.kind === 'feeder')) onMenu(several, 'copy'); else onStatus?.('Boards are copied one at a time: pick the loads only, or select one board');
+            return;
+          }
+        }
         if (menuFor && !menu && !(e.target as HTMLElement).closest('input,select,textarea,button,[contenteditable="true"]')) {
           const sel = selectedTarget();
           if ((e.shiftKey && e.key === 'F10') || e.key === 'ContextMenu') { e.preventDefault(); openMenuAtSelection(); return; }
@@ -1154,6 +1254,7 @@ export default function SystemDiagram({
         onAuxClick={(e) => { if (isFitClick(e)) setVb(full); }}
         onPointerLeave={(e) => { onPointerUp(e); if (armed) { setHover(null); setInsertAt(null); } if (moveTool) { setMoveAt(null); setHover(null); } }}
         onClickCapture={(e) => (moveTool ? clickMove(e) : placeArmed(e))}
+        onClick={(e) => { if (!e.shiftKey && !winDone.current && !drag.current?.moved && picked.length) setPicked([]); }}
         {...dnd({ type: 'canvas' }, 'canvas')}
         onDragLeave={(e) => { if (!svgRef.current?.contains(e.relatedTarget as Node)) { setHover(null); setInsertAt(null); } }}
       >
@@ -1481,7 +1582,7 @@ export default function SystemDiagram({
           const supplyC = supply && SUPPLY_COLOR[supply.feeder(f)];
           const r = byFeeder.get(f.id);
           const status = r?.status ?? 'ok';
-          const sel = f.id === selectedFeederId;
+          const sel = f.id === selectedFeederId || (f.feedsBoardId ? pickedBoards.has(f.feedsBoardId) && (!!n.panelBoardId || boxedBoards.has(f.feedsBoardId)) : pickedLoads.has(f.id));
           const y = n.busY;
           // Below the breaker's text rows everything hangs lower on a board with an ELCB row (IEC symbols).
           const ex = elcbRowOf.get(f.boardId) ?? 0;
@@ -1502,7 +1603,7 @@ export default function SystemDiagram({
               data-drop={`fd:${f.id}`}
               data-lv-id={`feeder:${f.id}`}
               onPointerDown={startPick(n.childBoardId ? { kind: 'board', id: n.childBoardId } : { kind: 'feeder', id: f.id }, n.childBoardId ?? f.name ?? f.id)}
-              onClick={click(() => onSelectFeeder(f.id))}
+              onClick={itemClick(f.feedsBoardId ? { kind: 'board', id: f.feedsBoardId } : { kind: 'feeder', id: f.id }, () => onSelectFeeder(f.id))}
               onDoubleClick={edit(onEditFeeder, f.id)}
               tabIndex={0}
               onKeyDown={(e) => (e.key === 'Enter' ? onSelectFeeder(f.id) : e.key === 'F2' && edit(onEditFeeder, f.id)())}
@@ -1701,7 +1802,7 @@ export default function SystemDiagram({
           const b = n.board;
           const s = summaries.get(b.id)!;
           const status = worst([s.loadingStatus, ...(feedersOn.get(b.id) ?? []).map((f) => byFeeder.get(f.id)?.status)]);
-          const sel = b.id === selectedBoardId;
+          const sel = b.id === selectedBoardId || pickedBoards.has(b.id);
           const place = showPlace ? placeOf(b) : undefined;
           const [count, phases] = circuitLines(project, b, n.circuits);
           const failing = n.circuits.filter((f) => byFeeder.get(f.id)?.status !== 'ok').length;
@@ -1722,7 +1823,7 @@ export default function SystemDiagram({
               data-drop={`bus:${b.id}`}
               data-lv-id={`board:${b.id}`}
               onPointerDown={startPick({ kind: 'board', id: b.id }, b.id)}
-              onClick={click(() => onSelectBoard(b.id))}
+              onClick={itemClick({ kind: 'board', id: b.id }, () => onSelectBoard(b.id))}
               onDoubleClick={edit(onEditBoard, b.id)}
               tabIndex={0}
               onKeyDown={(e) => (e.key === 'Enter' ? onSelectBoard(b.id) : e.key === 'F2' && edit(onEditBoard, b.id)())}
@@ -2121,6 +2222,12 @@ export default function SystemDiagram({
         </div>
       )}
       {moving && <div className="move-ghost" style={{ left: moving.x + 14, top: moving.y + 10 }}>Move {moving.label}{hover ? '' : ' — drop on a busbar or feeder'}</div>}
+      {win && (
+        <>
+          <div className="sd-window" style={{ left: Math.min(win.x0, win.x1), top: Math.min(win.y0, win.y1), width: Math.abs(win.x1 - win.x0), height: Math.abs(win.y1 - win.y0) }} />
+          <div className="sd-window-tag" style={{ left: Math.max(win.x0, win.x1) + 12, top: Math.max(win.y0, win.y1) + 10 }}>Window</div>
+        </>
+      )}
       {moveTool && moveAt && (
         <>
           <div ref={ghostRef} className="move-ghost" style={{ left: moveAt.x + 14, top: moveAt.y + 10 }}>Move {moveTool.label}</div>
@@ -2181,7 +2288,8 @@ export default function SystemDiagram({
       })()}
       {menu && menuData && <CadMenu left={menu.x + 4} top={menu.y + 4} head={menuData.head} items={menuData.items} label={menuData.label} onPick={pickMenu} onClose={() => setMenu(null)} />}
       {moveList && (() => {
-        const { item } = moveList;
+        const { item, several } = moveList;
+        const heading = several ? `Move ${several.length} to` : item.kind === 'board' ? `Supply ${item.id} from` : `Move ${item.id} to`;
         const host = rootRef.current?.getBoundingClientRect();
         const left = Math.max(8, Math.min(moveList.x, (host?.width ?? 800) - 300 - 8));
         const top = Math.max(8, Math.min(moveList.y, (host?.height ?? 600) - 340));
@@ -2189,14 +2297,15 @@ export default function SystemDiagram({
         const q = moveQ.trim().toLowerCase();
         const close = () => setMoveList(null);
         return (
-          <div className="tree-move" role="dialog" aria-label={item.kind === 'board' ? `Supply ${item.id} from` : `Move ${item.id} to`} style={{ left, top, right: 'auto', width: 300 }} onMouseDown={(e) => e.stopPropagation()}>
-            <div className="tree-menu-h">{item.kind === 'board' ? `Supply ${item.id} from…` : `Move ${item.id} to…`} <span className="sp" /><button className="icon-btn" title="Close" aria-label="Close" onClick={close}><X size={14} aria-hidden /></button></div>
+          <div className="tree-move" role="dialog" aria-label={heading} style={{ left, top, right: 'auto', width: 300 }} onMouseDown={(e) => e.stopPropagation()}>
+            <div className="tree-menu-h">{heading}… <span className="sp" /><button className="icon-btn" title="Close" aria-label="Close" onClick={close}><X size={14} aria-hidden /></button></div>
             <input autoFocus type="search" placeholder="Find a board…" value={moveQ} onChange={(e) => setMoveQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } }} />
             <div className="tree-move-list">
               {project.boards.filter((t) => `${t.id} ${t.name}`.toLowerCase().includes(q)).map((t) => {
-                const why = item.kind === 'board' ? moveBlocked(project, item.id, t.id) : t.id === own ? `${item.id} is already on ${t.id}` : undefined;
-                const note = why ? (item.kind === 'feeder' ? 'current board' : why.includes('already') ? 'current source' : why.includes('loop') ? 'below it' : '') : t.name !== t.id ? t.name : '';
-                return <button key={t.id} disabled={!!why} title={why ?? (item.kind === 'board' ? `Supply ${item.id} from ${t.id}` : `Move ${item.id} to ${t.id}`)} onClick={() => { close(); onMoveItem?.(item, { type: 'bus', boardId: t.id }); }}><b>{t.id}</b> <span className="m">{note}</span></button>;
+                const sub = several?.some((x) => x.kind === 'board' && (x.id === t.id || below(project, x.id).has(t.id)));
+                const why = several ? (sub ? `${t.id} is a picked board or below one` : undefined) : item.kind === 'board' ? moveBlocked(project, item.id, t.id) : t.id === own ? `${item.id} is already on ${t.id}` : undefined;
+                const note = why ? (several ? 'picked branch' : item.kind === 'feeder' ? 'current board' : why.includes('already') ? 'current source' : why.includes('loop') ? 'below it' : '') : t.name !== t.id ? t.name : '';
+                return <button key={t.id} disabled={!!why} title={why ?? (several ? `Move ${several.length} to ${t.id}` : item.kind === 'board' ? `Supply ${item.id} from ${t.id}` : `Move ${item.id} to ${t.id}`)} onClick={() => { close(); if (several) onMenu?.({ kind: 'several', items: several }, 'moveto', t.id); else onMoveItem?.(item, { type: 'bus', boardId: t.id }); }}><b>{t.id}</b> <span className="m">{note}</span></button>;
               })}
             </div>
           </div>
