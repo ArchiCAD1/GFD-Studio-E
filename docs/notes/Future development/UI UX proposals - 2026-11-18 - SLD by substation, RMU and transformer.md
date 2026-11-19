@@ -1,6 +1,6 @@
 # SLD by substation, RMU and transformer — proposal (2026-11-18)
 
-Status: **decisions 1–7 approved 2026-11-18 with the recommended answers.** Decision 8 (an HV-only view) is open. Nothing is built yet.
+Status: **all eight decisions approved with the recommended answers**: 1–7 on 2026-11-18, 8 (the HV overview as a Show menu row, no new tab) on 2026-11-19. Step 1 is being built.
 Mockup: `docs/mockups/sld-substation-view-mockup.html` + `.png` (example project: five substations, six RMUs, seven transformers and one board on an authority LV supply).
 Follows [[UI UX proposals - 2026-11-11 - SLD supply sources, RMU and package substations]]: that proposal's D1 (where the upstream chain is drawn) is answered here with "above the main boards, by substation".
 
@@ -52,7 +52,8 @@ No new tab. The mockup's section 0 shows each place.
 
 ### 2. Show: whole network, substation, RMU or transformer (screen)
 
-- SLD ribbon → View: a new **Show** menu beside Values, Colour by and Scenario. The menu is the supply tree: Whole network, then each substation, its RMUs and their transformers (with kVA and main board), each row with its board count. Any row can be picked.
+- SLD ribbon → View: a new **Show** menu beside Values, Colour by and Scenario. The menu is the supply tree: Whole network, HV overview, then each substation, its RMUs and their transformers (with kVA and main board), each row with its board count. Any row can be picked.
+- HV overview (decision 8) draws only the HV side: the source, the ring, the substations with their RMUs and transformers, and each main board as a name, like sheet E-SLD-001. Double-click a substation frame there to show that substation.
 - The drawing then shows only that part:
   - its piece of the ring, as stubs ("from DEWA primary S/S", "to RMU-2 · SS-2");
   - its RMU(s), transformer(s) and main board(s), with everything they feed.
@@ -97,7 +98,7 @@ No new tab. The mockup's section 0 shows each place.
 ## Steps
 
 1. The supply arrangement on the SLD (part 1), plus the two fixes: the RMU limit from the configuration, and Fill from project by substation name.
-2. Show, the chip and right-click Show (part 2).
+2. Show, the chip, the HV overview row and right-click Show (part 2).
 3. The panel tree by substation (part 3).
 4. The Substations card, and right-click Substation / RMU (part 4).
 5. One sheet per substation (part 5).
@@ -106,7 +107,7 @@ Each step is one PR, with tests.
 
 ## Decisions
 
-Decisions 1–7 were answered on 2026-11-18 with the recommended answers.
+All eight were answered with the recommended answers: 1–7 on 2026-11-18, 8 on 2026-11-19.
 
 1. **Substation frame:** around the RMU(s) and transformers (recommended), or down to the main board's incomer.
 2. **Ring:** an open line through the RMUs with "from" / "to" labels (recommended), or a closed loop back to the source.
@@ -115,4 +116,4 @@ Decisions 1–7 were answered on 2026-11-18 with the recommended answers.
 5. **Panel tree:** add the Group switch with Boards as the default (recommended), or leave the tree as it is.
 6. **Substation details:** one record shared with the DM-D-013 Substation area page, which already holds the name, type, transformer count, kVA and building (recommended), or a separate list.
 7. **Order:** steps 1 → 5 as listed (recommended), or Show first (step 2 before step 1).
-8. **HV-only view** (open). This means the ring, substations, RMUs and transformers, with each main board as a name, like sheet E-SLD-001. Either an HV overview row in the Show menu on the System diagram tab (recommended), or a fifth SLD tab, HV supply, after Riser.
+8. **HV-only view:** the ring, substations, RMUs and transformers, with each main board as a name, like sheet E-SLD-001. Either an HV overview row in the Show menu on the System diagram tab (recommended, approved 2026-11-19), or a fifth SLD tab, HV supply, after Riser.
