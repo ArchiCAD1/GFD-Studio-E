@@ -29,7 +29,7 @@ export default function PanelsPage({ project, onChange, onCreated, onStatus, onB
   onCreated: (next: Project, message: string, added: string[]) => void;
   onStatus: (m: string) => void;
   onBuilding: () => void;
-  /** The tab to open on (the SLD ribbon's HV supply and RMUs opens Transformers); Quick create without one. */
+  /** The tab to open on (the SLD ribbon's MV supply and RMUs opens Transformers); Quick create without one. */
   initialTab?: 'tx' | 'repeat';
   /** With the Repeat group tab: the board it starts on (the SLD's right-click menu). */
   repeatRoot?: string;
