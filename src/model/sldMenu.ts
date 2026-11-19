@@ -50,13 +50,13 @@ export interface SldMenuState {
 
 /** Every action the menus run (sldMenuRun.ts handles each one). */
 export const SLD_MENU_ACTIONS: readonly string[] = [
-  'edit', 'schedule', 'diagram', 'add', 'copy', 'paste', 'duplicate', 'repeat', 'order', 'rename', 'cabletype', 'lengthchecked', 'delete', 'plan', 'zoom', 'properties',
+  'edit', 'schedule', 'diagram', 'add', 'copy', 'paste', 'duplicate', 'repeat', 'move', 'supplyfrom', 'moveto', 'order', 'rename', 'cabletype', 'lengthchecked', 'delete', 'plan', 'zoom', 'properties',
   'quickfix', 'editcable', 'change', 'txsizing', 'hv', 'addsupply', 'scenario', 'tieop', 'tierating', 'tieremove',
   'undo', 'redo', 'fit', 'grid', 'text', 'values', 'colour', 'export'
 ];
 
 /** Actions the drawing does itself (its view, its cable editor); the page is not told of them. */
-export const SLD_VIEW_ACTIONS: readonly string[] = ['fit', 'grid', 'text', 'editcable'];
+export const SLD_VIEW_ACTIONS: readonly string[] = ['fit', 'grid', 'text', 'editcable', 'move', 'supplyfrom', 'moveto'];
 
 /** A picked row's arg, "action|value", as [action, value]. */
 export const sldAction = (x: CtxItem): [string, string | undefined] => {
@@ -129,7 +129,7 @@ function boardMenu(s: SldMenuState, id: string) {
     [row('Copy with everything below', 'copy', { key: 'Ctrl+C', icon: 'copy' }),
       ...(copied ? [row(`Paste ${copied} here`, 'paste', { key: 'Ctrl+V', icon: 'paste' })] : load ? [row(`Paste ${load} here`, 'paste', { key: 'Ctrl+V', icon: 'paste' })] : []),
       ...(up ? [row('Duplicate', 'duplicate', { key: 'Ctrl+D', icon: 'copyplus' }), row('Repeat branch on other floors…', 'repeat', { icon: 'layers' })] : [])],
-    [...(up ? [orderList(project, item, up)] : []),
+    [...(up ? [row('Move', 'move', { key: 'M', icon: 'move' }), row('Supply from…', 'supplyfrom', { icon: 'plug' }), orderList(project, item, up)] : []),
       {
         label: 'Change', icon: 'sliders',
         sub: [row('Rename…', 'rename', { icon: 'textcursor' }), ...(cables ? [cables] : []), ...(incomerChecked ? [row('Incomer length checked', 'lengthchecked', { icon: 'status' })] : [])]
@@ -189,7 +189,7 @@ function loadMenu(s: SldMenuState, id: string) {
         row('Local isolator', 'change|localIsolator', { icon: 'toggle', on: !!f.localIsolator })
       ]
     }],
-    [row('Copy', 'copy', { key: 'Ctrl+C', icon: 'copy' }), row('Duplicate', 'duplicate', { key: 'Ctrl+D', icon: 'copyplus' }), orderList(project, { kind: 'feeder', id }, f.boardId), row(`Delete ${id}`, 'delete', { key: 'Del', icon: 'delete', bad: true })],
+    [row('Copy', 'copy', { key: 'Ctrl+C', icon: 'copy' }), row('Duplicate', 'duplicate', { key: 'Ctrl+D', icon: 'copyplus' }), row('Move', 'move', { key: 'M', icon: 'move' }), row('Move to board…', 'moveto', { icon: 'plug' }), orderList(project, { kind: 'feeder', id }, f.boardId), row(`Delete ${id}`, 'delete', { key: 'Del', icon: 'delete', bad: true })],
     view(id),
     props()
   );

@@ -65,6 +65,10 @@ kWh meter, phase or cable type, rename a board, delete, show on plan, zoom to
 and properties. On the empty drawing it holds undo, add, fit, grid, text, values,
 colour by, scenario and export. Keys on the drawing: **Z** zooms to the selection,
 **Alt+Left** and **Alt+Right** move it along its busbar, **Ctrl+D** duplicates it.
+**Move** (**M**) moves a board or a load: click the busbar to put it on, or a load to
+place it before that one; Esc or a right-click cancels. **Supply from…** and
+**Move to board…** pick the board from a list instead. A board moved to another source
+gets **len?** under its values until its incomer length is checked.
 
 <a id="SLD-050"></a>
 ## Build the panel hierarchy
