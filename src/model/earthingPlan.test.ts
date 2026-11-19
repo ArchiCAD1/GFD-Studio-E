@@ -342,7 +342,7 @@ describe('earthing schematic', () => {
     expect(earthingLayout(withEarthPitIds(sampleProject)).items.filter((i) => i.kind === 'txn')).toHaveLength(1);
   });
 
-  describe('earthing system "Shared HV body earth": tank bars to the RMU earth bar, RMU pits shared', () => {
+  describe('earthing system "Shared MV body earth": tank bars to the RMU earth bar, RMU pits shared', () => {
     const kindOf = (L: ReturnType<typeof earthingLayout>) => new Map(L.pits.map((x) => [x.id, x.kind]));
     const bodyKinds = new Set(['rmu', 'txb']);
     /** Each transformer tank / body bar has one cable to its RMU earth bar (data-bond); returns the bonded items. */
@@ -393,7 +393,7 @@ describe('earthing schematic', () => {
       // Each tank / body bar has its own cable to the RMU earth bar (two cables), drawn and priced.
       const svg = earthingDrawing(p).svg;
       expect(bonds(svg, L)).toHaveLength(2);
-      expect(svg).toContain('Earthing system: Shared HV body earth');
+      expect(svg).toContain('Earthing system: Shared MV body earth');
       expect(buildBom({ ...p, earthingPlan: {} }).find((i) => i.key.startsWith('earth-body'))?.qty).toBe(2);
     });
 

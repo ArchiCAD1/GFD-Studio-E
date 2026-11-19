@@ -8,7 +8,7 @@ import { escapeHtmlAttr } from '../util/escape';
 
 /** Earthing schematic drawing (printable SVG), in the SLD drawing style.
  *
- * Earth only — no power cables. Earthing system "Shared HV body earth". One band
+ * Earth only — no power cables. Earthing system "Shared MV body earth". One band
  * per substation: each RMU followed by the transformers it feeds (the tank /
  * body earth bar of each connected to a stud on the RMU earth bar; the RMU bar
  * to its 2 body-earth pits; the neutral to its own pit), then the LV room (each
@@ -501,7 +501,7 @@ function drawAt(project: Project, L: EarthLayout, includeSchedule: boolean, opts
   const legend = `<g transform="translate(${lx} ${ly})"><rect x="0" y="0" width="520" height="${legendH}" fill="#fff" stroke="#111"/><text x="10" y="18" font-weight="bold">LEGEND</text>${ln(0, 24, 520, 24, 0.6)}${legendBody}</g>`;
   const notes = [
     'NOTES',
-    `1. EARTHING SYSTEM: ${L.system.name.toUpperCase()}. HV BODY (RMU AND TRANSFORMER TANKS), TRANSFORMER NEUTRAL AND LV EARTHS ARE SEPARATE SYSTEMS.`,
+    `1. EARTHING SYSTEM: ${L.system.name.toUpperCase()}. MV BODY (RMU AND TRANSFORMER TANKS), TRANSFORMER NEUTRAL AND LV EARTHS ARE SEPARATE SYSTEMS.`,
     '2. EACH RMU HAS 2 BODY-EARTH PITS; THE TANK / BODY EARTH BAR OF EACH TRANSFORMER IT FEEDS (MAX. 2) IS CONNECTED TO THE RMU EARTH BAR. ONE NEUTRAL PIT PER TRANSFORMER. NEUTRAL AND BODY EARTHS ARE NOT INTERCONNECTED.',
     '3. EARTH PITS OF DIFFERENT SUBSTATIONS ARE NOT INTERCONNECTED.',
     '4. SUBSTATION EARTHS < 2 Ω; LV EARTH ≤ 1 Ω PER INCOMING SUPPLY / MDB (DEWA).',

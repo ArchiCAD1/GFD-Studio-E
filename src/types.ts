@@ -298,7 +298,7 @@ export interface ExistingInfo {
   others?: OtherBuilding[];
 }
 
-/** Authority HV supply (an 11 / 22 / 33 kV infeed from a primary substation) feeding the project's RMUs
+/** Authority MV supply (an 11 / 22 / 33 kV infeed from a primary substation) feeding the project's RMUs
  * and transformers. Its fault level gives the network impedance in series with each transformer
  * (IEC 60909-0 §6.2); without one the MV network is taken as infinite. */
 export interface GridSource {
@@ -336,7 +336,7 @@ export interface Rmu {
   ikKa?: number;
   ikDurationS?: 1 | 3;
   insulation?: 'SF6' | 'solid' | 'air' | 'eco-gas';
-  /** Tee-off protection: switch-fuse (HV fuse rating A) or circuit breaker with relay. */
+  /** Tee-off protection: switch-fuse (MV fuse rating A) or circuit breaker with relay. */
   tOff?: 'fuse' | 'vcb';
   fuseA?: number;
   owner?: 'authority' | 'consumer';
@@ -640,7 +640,7 @@ export interface Project {
   revisions?: Revision[]; // issued revisions, oldest first (A, B, C…)
   drawing?: DrawingInfo; // SLD drawing title block
   ties?: BusTie[]; // bus couplers between main boards (normally open unless closed)
-  /** Authority HV supplies feeding the RMUs (Panels → Transformers → HV supply and RMUs). */
+  /** Authority MV supplies feeding the RMUs (Panels → Transformers → MV supply and RMUs). */
   gridSources?: GridSource[];
   /** RMU details by name (main boards name their RMU in `Board.rmu`). */
   rmus?: Rmu[];

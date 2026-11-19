@@ -1,6 +1,6 @@
 import type { GridSource, Project, Rmu } from '../types';
 
-/** Edits of the HV supply (grid sources) and the RMU records. */
+/** Edits of the MV supply (grid sources) and the RMU records. */
 
 /** Next free "GRID-n" id. */
 export function nextGridId(project: Project): string {
