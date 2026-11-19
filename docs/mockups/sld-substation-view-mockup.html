@@ -217,7 +217,7 @@ table.t tr:last-child td{border-bottom:0}
     <div class="bd">
       <p style="margin:0 0 8px"><b>Make the sheets automatically</b></p>
       <div class="chips2"><span class="chip2">Split by panels</span><span class="m">max 10</span><span class="chip2">One sheet per MDB</span><span class="chip2">Overview + one per SMDB</span><span class="chip2 new">One sheet per substation<span class="bdg"><i class="n">5</i></span></span></div>
-      <p class="note" style="margin:10px 0 0">The new button makes the HV overview sheet (ring, substations, RMUs, transformers, with RMU and transformer schedules) and then one sheet per substation (section 6).</p>
+      <p class="note" style="margin:10px 0 0">The new button makes the MV overview sheet (ring, substations, RMUs, transformers, with RMU and transformer schedules) and then one sheet per substation (section 6).</p>
     </div>
   </div>
   <div class="mini" style="flex:1">
@@ -233,11 +233,11 @@ table.t tr:last-child td{border-bottom:0}
   <div><i class="n">5</i><span><b>Design CAD → Sheets → Make the sheets automatically → One sheet per substation</b> (section 6).</span></div>
 </div>
 <div class="row" style="gap:20px;margin-top:14px;align-items:stretch">
-  <div class="box" style="width:1150px;flex:none"><h4>Decision 8 · an HV-only view <span class="rec">approved 2026-11-19: a row in the Show menu</span></h4>
-    <p style="margin:0 0 6px">For a big project it helps to see only the HV side: the ring, the substations, the RMUs and the transformers, with each main board as a name (like sheet E-SLD-001).</p>
+  <div class="box" style="width:1150px;flex:none"><h4>Decision 8 · an MV-only view <span class="rec">approved 2026-11-19: a row in the Show menu</span></h4>
+    <p style="margin:0 0 6px">For a big project it helps to see only the MV side: the ring, the substations, the RMUs and the transformers, with each main board as a name (like sheet E-SLD-001).</p>
     <ol style="margin:0">
-      <li><b>HV overview as the second row of the Show menu</b>, on the System diagram tab <span class="rec">(recommended, approved)</span>: no new tab; double-click a substation frame there to show that substation.</li>
-      <li style="color:#6b7280"><b>A fifth tab "HV supply"</b> after Riser, drawing only the HV side; clicking a substation opens it on the System diagram tab. (Not chosen.)</li>
+      <li><b>MV overview as the second row of the Show menu</b>, on the System diagram tab <span class="rec">(recommended, approved)</span>: no new tab; double-click a substation frame there to show that substation.</li>
+      <li style="color:#6b7280"><b>A fifth tab "MV supply"</b> after Riser, drawing only the MV side; clicking a substation opens it on the System diagram tab. (Not chosen.)</li>
     </ol>
   </div>
   <div class="box" style="flex:1" id="d8"></div>
@@ -373,12 +373,12 @@ table.t tr:last-child td{border-bottom:0}
     <div class="set"><b>One sheet per MDB</b><span class="m">Each main board with everything it feeds; an overview when there are several. Now also draws the transformer's RMU, other ways as stubs.</span></div>
     <div class="set"><b>Overview + one per SMDB</b><span class="m">Main boards and sub-mains, then a sheet per SMDB / MCC.</span></div>
     <div class="set"><b>Split by panels</b><span class="m">For authority submissions, e.g. 10 panels per sheet.</span></div>
-    <div class="set on nw"><b>One sheet per substation</b><span class="m">An HV overview (ring, substations, RMUs, transformers), then each substation with its main boards and everything they feed. A bus coupler between two main boards stays on their sheet (a per-MDB sheet drops it today).</span></div>
+    <div class="set on nw"><b>One sheet per substation</b><span class="m">An MV overview (ring, substations, RMUs, transformers), then each substation with its main boards and everything they feed. A bus coupler between two main boards stays on their sheet (a per-MDB sheet drops it today).</span></div>
     <table class="t" style="margin-top:6px" id="sheet-list"></table>
   </div>
   <div>
     <div class="sheet" id="sheet-hv" style="width:1380px"></div>
-    <p class="note" style="margin:6px 0 0">E-SLD-001, the HV overview: the main boards appear as names only, each with the sheet it is drawn on; the RMU and transformer ratings go in two schedules under the drawing. Black and white, title block as on every sheet.</p>
+    <p class="note" style="margin:6px 0 0">E-SLD-001, the MV overview: the main boards appear as names only, each with the sheet it is drawn on; the RMU and transformer ratings go in two schedules under the drawing. Black and white, title block as on every sheet.</p>
   </div>
 </div></div>
 
@@ -392,11 +392,11 @@ table.t tr:last-child td{border-bottom:0}
     <li><b>Panel tree</b> — add the Group switch, Boards stays the default <span class="rec">(recommended)</span>, or leave the tree as it is.</li>
     <li><b>Substation details</b> — one record shared with the DM-D-013 Substation area page <span class="rec">(recommended)</span>, or a separate list.</li>
     <li><b>Order</b> — steps 1 → 5 <span class="rec">(recommended)</span>, or Show first.</li>
-    <li><b>HV-only view</b> (section 0) — an HV overview row in the Show menu <span class="rec">(recommended, approved 2026-11-19)</span>, or a fifth SLD tab "HV supply".</li>
+    <li><b>MV-only view</b> (section 0) — an MV overview row in the Show menu <span class="rec">(recommended, approved 2026-11-19)</span>, or a fifth SLD tab "MV supply".</li>
   </ol></div>
   <div class="box" style="flex:1"><h4>Steps (one PR each, with tests)</h4><ol>
     <li>The supply arrangement on the SLD (section 2), plus two fixes: the RMU limit from its tee-offs, and Substation area → Fill from project by substation name (today one substation per RMU, so SS-3 becomes two).</li>
-    <li>Show, the chip with ◀ ▶, the HV overview row (decision 8) and right-click Show … only (sections 0, 3 and 4).</li>
+    <li>Show, the chip with ◀ ▶, the MV overview row (decision 8) and right-click Show … only (sections 0, 3 and 4).</li>
     <li>The panel tree by substation (section 3).</li>
     <li>The Substations card and right-click Substation / RMU (section 5).</li>
     <li>One sheet per substation (section 6).</li>
@@ -549,7 +549,7 @@ function lvSide(x, id, Y, lv, sheetNo) {
   return { s, a, b, yBus: Y.yM };
 }
 
-/** The HV arrangement of the given substations, left to right from x, plus each transformer's LV side.
+/** The MV arrangement of the given substations, left to right from x, plus each transformer's LV side.
  * o: { yr, gapTx, gapSs, lv, scr, left: {kind:'grid'} | {text:[…]}, right: {text:[…], arrow}, marks, partial, sheetNo,
  *      teeStub: {rmu, text}, tieStub: {tx, side, text} } */
 function network(subs, x, o) {
@@ -675,11 +675,11 @@ const svg = (w, h, body, scr) =>`<svg class="sld${scr ? ' scr' : ''}" width="${w
       <div><div class="note" style="margin:0 0 4px"><b>1 ·</b> Show menu (approved)</div>
         <div class="menu" style="position:relative;width:250px">
           <div class="it">Whole network</div>
-          <div class="it on nw"><span class="tk">✓</span>HV overview<span class="c">ring + substations</span></div><hr>
+          <div class="it on nw"><span class="tk">✓</span>MV overview<span class="c">ring + substations</span></div><hr>
           <div class="it"><b>SS-1</b><span class="c">2 TX</span></div><div class="it"><b>SS-2</b><span class="c">1 TX</span></div><div class="it m">…</div>
         </div></div>
       <div style="opacity:.55"><div class="note" style="margin:0 0 4px"><b>2 ·</b> SLD page tabs (not chosen)</div>
-        <span class="stabs"><span class="on">System diagram</span><span>Board: MDB-1</span><span>Earthing</span><span>Riser</span><span class="nw" style="outline-offset:-2px">HV supply</span></span></div>
+        <span class="stabs"><span class="on">System diagram</span><span>Board: MDB-1</span><span>Earthing</span><span>Riser</span><span class="nw" style="outline-offset:-2px">MV supply</span></span></div>
     </div>`;
 })();
 
@@ -825,7 +825,7 @@ const svg = (w, h, body, scr) =>`<svg class="sld${scr ? ' scr' : ''}" width="${w
 
 // ---------------- 6 · sheets ----------------
 (function sheets() {
-  const list = [['E-SLD-001', 'HV supply — ring, substations, transformers'], ['E-SLD-002', 'SLD — SS-1 (TX-1, TX-2)'], ['E-SLD-003', 'SLD — SS-2 (TX-3)'], ['E-SLD-004', 'SLD — SS-3 (TX-4, TX-5)'], ['E-SLD-005', 'SLD — SS-4 (TX-6)'], ['E-SLD-006', 'SLD — SS-5 (TX-7)'], ['E-SLD-007', 'SLD — MDB-8 (authority LV supply)'], ['E-SLD-008', 'Earthing schematic']];
+  const list = [['E-SLD-001', 'MV supply — ring, substations, transformers'], ['E-SLD-002', 'SLD — SS-1 (TX-1, TX-2)'], ['E-SLD-003', 'SLD — SS-2 (TX-3)'], ['E-SLD-004', 'SLD — SS-3 (TX-4, TX-5)'], ['E-SLD-005', 'SLD — SS-4 (TX-6)'], ['E-SLD-006', 'SLD — SS-5 (TX-7)'], ['E-SLD-007', 'SLD — MDB-8 (authority LV supply)'], ['E-SLD-008', 'Earthing schematic']];
   document.getElementById('sheet-list').innerHTML = '<tr><th>Sheet</th><th>Title</th></tr>' + list.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
   const sheetNo = { 'TX-1': 'E-SLD-002', 'TX-2': 'E-SLD-002', 'TX-3': 'E-SLD-003', 'TX-4': 'E-SLD-004', 'TX-5': 'E-SLD-004', 'TX-6': 'E-SLD-005', 'TX-7': 'E-SLD-006' };
   const base = { yr: 92, gapTx: 200, gapSs: 24, lv: 'overview', left: { kind: 'grid', x: 46 }, sheetNo };
@@ -852,7 +852,7 @@ const svg = (w, h, body, scr) =>`<svg class="sld${scr ? ' scr' : ''}" width="${w
   s += table(712, yT, 'TRANSFORMER SCHEDULE', [['TX', 46], ['kVA', 46], ['Z %', 38], ['Group', 52], ['Ratio', 80], ['S/S', 44], ['RMU / way', 84], ['Main board', 78], ['Sheet', 76]], txRows);
   const tbx = SW - 14 - 520, tby = SH - 14 - 92;
   s += rc(tbx, tby, 520, 92) + ln(tbx, tby + 30, tbx + 520, tby + 30) + ln(tbx, tby + 61, tbx + 520, tby + 61) + ln(tbx + 330, tby, tbx + 330, tby + 92);
-  s += tx_(tbx + 10, tby + 20, 'HV SUPPLY — 11 kV RING AND SUBSTATIONS', 'b') + tx_(tbx + 10, tby + 50, 'Example project · Electrical services', 'm') + tx_(tbx + 10, tby + 81, 'FOR APPROVAL · Scale NTS', 'm');
+  s += tx_(tbx + 10, tby + 20, 'MV SUPPLY — 11 kV RING AND SUBSTATIONS', 'b') + tx_(tbx + 10, tby + 50, 'Example project · Electrical services', 'm') + tx_(tbx + 10, tby + 81, 'FOR APPROVAL · Scale NTS', 'm');
   s += tx_(tbx + 340, tby + 20, 'Drawing no.', 'xs') + tx_(tbx + 340, tby + 50, 'E-SLD-001', 't') + tx_(tbx + 340, tby + 81, 'Rev 00 · Sheet 1 of 8', 'm');
   s += tx_(30, SH - 58, 'NOTES', 'b') + tx_(30, SH - 44, '1. Substations are drawn in ring order. 2. Each main board is drawn on the sheet named under it.', 'm') + tx_(30, SH - 31, '3. Ratings are example values.', 'm');
   const el = document.getElementById('sheet-hv');
