@@ -432,6 +432,8 @@ td.ec .ec-err{position:absolute;left:4px;top:100%;z-index:2;background:var(--bad
 .sysdiag .cable-lbl:hover{fill:var(--acc);text-decoration:underline dotted}
 .move-ghost{position:absolute;z-index:5;pointer-events:none;background:var(--acc);color:var(--on-acc);font-size:12px;font-weight:600;padding:3px 8px;border-radius:5px;white-space:nowrap;box-shadow:var(--shadow-pop)}
 .move-why{position:absolute;z-index:5;pointer-events:none;background:var(--panel);color:var(--tx);border:1px solid var(--bad);font-size:12px;padding:3px 8px;border-radius:5px;white-space:nowrap;box-shadow:var(--shadow-pop)}
+.sd-window{position:absolute;z-index:4;pointer-events:none;border:1px solid var(--res-cur);background:color-mix(in srgb,var(--res-cur) 12%,transparent)}
+.sd-window-tag{position:absolute;z-index:4;pointer-events:none;font-size:11px;color:var(--res-cur)}
 .sysdiag .len-check rect{fill:var(--canvas-bg);stroke:var(--warn);stroke-width:1}
 .sysdiag .len-check text{fill:var(--warn);font-size:10px;font-weight:600}
 .cable-edit{position:absolute;z-index:6;display:grid;grid-template-columns:auto auto;gap:6px 10px;align-items:center;background:var(--panel);border:1px solid var(--acc);border-radius:8px;padding:10px 12px;box-shadow:var(--shadow-pop);font-size:var(--fs-sm)}

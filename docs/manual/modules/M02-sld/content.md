@@ -69,6 +69,17 @@ colour by, scenario and export. Keys on the drawing: **Z** zooms to the selectio
 place it before that one; Esc or a right-click cancels. **Supply from…** and
 **Move to board…** pick the board from a list instead. A board moved to another source
 gets **len?** under its values until its incomer length is checked.
+**Show this branch only** (on a board) dims everything not fed from it, on screen only;
+**Esc**, or **Show everything** on the empty drawing, ends it. The Board tab has the same
+right-click menus for its ways and sub-boards, without the tools that need the whole
+drawing (Move, Supply from…, Zoom to, Select similar); the view stays on that board.
+
+To work on several at once, **Shift+click** loads and boards, or **Shift+drag** a window on
+the empty drawing (a plain drag still pans); **Esc** clears. A right-click on any picked
+item opens one menu for all of them. **Edit together…** sets one field on every picked
+load, with a before and after list and a warning for anything that would start failing,
+as one undo step. **Select similar**, **Select everything below** and **Select** on the
+empty drawing pick by load type, branch, failing circuits or board kind.
 
 <a id="SLD-050"></a>
 ## Build the panel hierarchy

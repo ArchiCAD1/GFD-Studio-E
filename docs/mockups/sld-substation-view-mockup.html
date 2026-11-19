@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SLD by substation, RMU and transformer — mockup</title>
+<style>
+/* App tokens (src/theme/tokens.css), Blueprint light; ribbon sizes from src/styles.css (.ribbon-*) */
+:root{--bg:#EDF3FA;--panel:#ffffff;--p2:#E4EDF6;--line:#C9D8E8;--line-strong:#A7BED6;--tx:#142D4A;--mut:#4A647F;--acc:#1D5FBF;--ok:#177336;--warn:#8a5d00;--bad:#b42318;--new:#7a3fd1}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/18px -apple-system,"Segoe UI",system-ui,sans-serif;width:1952px;padding:16px 20px 20px}
+h1{font-size:17px;line-height:22px;margin:0 0 4px}
+h2{font-size:13px;margin:22px 0 6px;font-weight:600}
+h2 .hm{font-weight:400;color:var(--mut);margin-left:8px}
+.n{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:var(--new);color:#fff;text-align:center;font-size:11px;font-weight:700;margin-right:6px;vertical-align:1px;font-style:normal}
+p.lead{margin:0 0 8px;color:var(--mut);max-width:1640px}
+.legend{color:var(--mut);font-size:12px;margin:0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin:0 5px 0 14px;border:1.5px dashed var(--new)}
+.legend i.k{border:0;background:var(--new);border-radius:50%}
+.ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ico.s{width:14px;height:14px}
+.ico.xs{width:11px;height:11px}
+.frame{border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);position:relative;overflow:hidden}
+.pad{padding:12px 16px}
+.row{display:flex;gap:18px;align-items:flex-start}
+.nw{outline:1.5px dashed var(--new);outline-offset:2px;border-radius:6px}
+.note{font-size:12px;color:var(--mut)}
+.note b{color:var(--tx)}
+.keys{display:flex;flex-wrap:wrap;gap:6px 26px;font-size:12px;margin:8px 2px 0}
+.keys span{white-space:nowrap}
+
+/* SLD drawings: black and white, as printed (screen views tint the 11 kV lines like the app) */
+.sld{display:block}
+.sld line,.sld polyline,.sld path,.sld rect,.sld circle{stroke:#111;stroke-width:1.3;fill:none}
+.sld .bus{stroke-width:3.4}
+.sld .rbus{stroke-width:2.4}
+.sld .mv{stroke-width:1.8}
+.sld .frm{stroke-dasharray:12 3 2 3;stroke-width:1.2}
+.sld .stub{stroke-dasharray:5 3}
+.sld .fill{fill:#111;stroke:none}
+.sld .wf{fill:#fff}
+.sld .rmu{fill:#fff}
+.sld text{fill:#111;stroke:none;font:10px Arial,Helvetica,sans-serif}
+.sld text.b{font-weight:700;font-size:11px}
+.sld text.t{font-weight:700;font-size:12.5px}
+.sld text.m{fill:#333;font-size:9.5px}
+.sld text.xs{fill:#333;font-size:8.5px}
+.sld text.hl{fill:var(--acc);font-size:9.5px}
+.sld .mk circle{fill:var(--new);stroke:none}
+.sld .mk text{fill:#fff;font-weight:700;font-size:11px}
+.scr .mv{stroke:var(--acc)}
+.scr .rmu{fill:#E8EFF9}
+.scr .hot{stroke:var(--acc)}
+
+/* ribbon (tools row only) */
+.rb{display:flex;align-items:stretch;padding:4px 8px;background:var(--p2);border-bottom:1px solid var(--line)}
+.grp{display:flex;flex-direction:column;gap:2px;padding:0 8px;border-right:1px solid var(--line)}
+.grp:last-child{border-right:0}
+.btns{display:flex;gap:2px;flex:1;align-items:center}
+.cap{font-size:11px;line-height:14px;color:var(--mut);text-align:center;white-space:nowrap}
+.big{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:58px;min-height:54px;padding:4px 6px;border-radius:6px;font-size:12px;line-height:15px;white-space:nowrap;position:relative}
+.big .sub{font-size:11px;line-height:13px;color:var(--mut)}
+.big .lb{display:inline-flex;align-items:center;gap:2px}
+.big.open{background:#DCE7F5;box-shadow:inset 0 0 0 1px var(--acc)}
+.smc{display:flex;flex-direction:column;gap:1px}
+.sm{display:flex;align-items:center;gap:6px;height:22px;padding:0 6px;border-radius:6px;font-size:11px;white-space:nowrap}
+.fade{color:var(--mut);display:flex;align-items:center;padding:0 14px;font-size:12px;border-right:1px solid var(--line)}
+.menu{position:absolute;z-index:4;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(20,45,74,.18);padding:4px;font-size:12px;line-height:16px}
+.menu .it{display:flex;align-items:center;gap:8px;padding:4px 10px;border-radius:5px;white-space:nowrap}
+.menu .it .c{margin-left:auto;padding-left:18px;color:var(--mut);font-size:11px}
+.menu .it.on{background:#EAF1FB;color:var(--acc);font-weight:600}
+.menu .it.on .c{color:var(--acc);font-weight:400}
+.menu .tk{display:inline-block;width:12px;color:var(--acc);font-weight:700}
+.menu .hd{font-size:11px;color:var(--mut);padding:4px 10px 2px;text-transform:uppercase;letter-spacing:.04em}
+.menu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.menu .m{color:var(--mut);font-weight:400}
+.menu .sub2{padding-left:22px}
+.menu .sub3{padding-left:40px}
+.menu .ar{margin-left:auto;color:var(--mut)}
+
+/* workspace */
+.ws{display:flex;align-items:stretch}
+.tree{width:250px;flex:none;border-right:1px solid var(--line);background:var(--panel);font-size:12px;line-height:16px;padding:8px 0}
+.tree .th{display:flex;align-items:center;gap:6px;padding:0 10px 8px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.tree .th b{font-size:12px}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;font-size:11px;margin-left:auto}
+.seg span{padding:2px 8px;white-space:nowrap}
+.seg span.on{background:var(--acc);color:#fff}
+.tn{display:flex;align-items:center;gap:5px;padding:2px 10px;white-space:nowrap}
+.tn .ch{width:10px;color:var(--mut);font-size:10px}
+.tn .g{font-weight:600}
+.tn .m{color:var(--mut);font-size:11px}
+.tn .bd{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:10px;line-height:14px;color:var(--mut)}
+.tn .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);margin-left:auto;flex:none}
+.tn .dot.w{background:#d39b00}
+.tn.sel{background:#EAF1FB;box-shadow:inset 2px 0 0 var(--acc)}
+.tn.grp1{margin-top:4px}
+.cv{flex:1;position:relative;background:#fff;overflow:hidden}
+.chip{position:absolute;left:12px;top:10px;z-index:3;display:flex;align-items:center;gap:10px;border:1px solid var(--acc);border-radius:6px;background:#EAF1FB;padding:5px 6px 5px 10px;font-size:12px;line-height:16px;color:var(--tx);white-space:nowrap}
+.chip b{color:var(--acc)}
+.chip .m{color:var(--mut)}
+.chip .nb{display:inline-flex;align-items:center;justify-content:center;width:22px;height:20px;border:1px solid var(--line-strong);border-radius:4px;background:#fff;color:var(--tx)}
+.chip .all{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line-strong);border-radius:4px;background:#fff;padding:1px 8px}
+.cvh{position:absolute;right:12px;top:12px;font-size:11px;color:var(--mut)}
+
+/* cards and tables */
+.card{border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);padding:12px 16px}
+.card h3{font-size:14px;margin:0 0 2px;display:flex;align-items:center;gap:10px}
+.card h3 .sp{flex:1}
+.card .hint{color:var(--mut);font-size:12px;margin:0 0 8px}
+.btn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line-strong);border-radius:6px;padding:3px 10px;font-size:12px;font-weight:400;background:#fff;white-space:nowrap}
+.btn.p{border-color:var(--acc);color:var(--acc)}
+table.t{border-collapse:collapse;width:100%;font-size:12px;line-height:16px}
+table.t th{font-weight:600;text-align:left;color:var(--mut);font-size:11px;border-bottom:1px solid var(--line);padding:5px 8px;white-space:nowrap}
+table.t td{border-bottom:1px solid var(--line);padding:5px 8px;vertical-align:middle;white-space:nowrap}
+table.t tr:last-child td{border-bottom:0}
+.inp{display:inline-block;border:1px solid var(--line-strong);border-radius:5px;padding:1px 7px;background:#fff;min-width:60px}
+.sel{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-strong);border-radius:5px;padding:1px 6px 1px 8px;background:#fff}
+.pc{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line-strong);border-radius:10px;padding:0 8px;font-size:11px;line-height:17px;background:var(--p2);margin-right:4px}
+.pc.sp{border-style:dashed;background:#fff;color:var(--mut)}
+.ok{color:var(--ok);font-weight:600}
+.wr{color:var(--warn);font-weight:600}
+.grip{color:var(--line-strong);letter-spacing:-2px}
+.ctx{position:relative;display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(20,45,74,.18);padding:4px;font-size:12px;line-height:16px;width:250px;vertical-align:top}
+.ctx .h{padding:4px 10px 6px;border-bottom:1px solid var(--line);margin-bottom:4px;font-weight:600}
+.ctx .h .m{font-weight:400;color:var(--mut)}
+.ctx .it{display:flex;align-items:center;gap:8px;padding:4px 10px;border-radius:5px;white-space:nowrap}
+.ctx .it.on{background:#EAF1FB;color:var(--acc)}
+.ctx .it .ar{margin-left:auto;color:var(--mut)}
+.ctx hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.ctx .flyout{position:absolute;left:246px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(20,45,74,.18);padding:4px;width:200px}
+.ctx .m{color:var(--mut)}
+.ctx .tk{display:inline-block;width:12px;color:var(--acc);font-weight:700}
+
+/* sheets */
+.sets{display:flex;flex-direction:column;gap:6px;width:430px;flex:none}
+.set{border:1px solid var(--line-strong);border-radius:8px;padding:7px 12px;background:#fff;font-size:12px;line-height:16px}
+.set b{display:block;font-size:12.5px}
+.set .m{color:var(--mut)}
+.set.on{border-color:var(--acc);background:#EAF1FB}
+.sheet{background:#fff;border:1px solid #888;position:relative;flex:none}
+.box{border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);padding:12px 16px;font-size:12.5px;line-height:18px}
+.box h4{margin:0 0 8px;font-size:13px}
+.box ol{margin:0;padding-left:20px}
+.box li{margin:0 0 6px}
+.rec{color:var(--ok);font-weight:600}
+
+/* section 0: where each part goes */
+.tabs{display:flex;align-items:center;gap:4px;padding:6px 14px 0;background:var(--panel)}
+.tabs span{display:inline-flex;align-items:center;min-height:30px;padding:0 14px;border-radius:6px 6px 0 0;color:var(--mut);font-size:12.5px}
+.tabs span.on{background:var(--acc);color:#fff;font-weight:600}
+.tabs span.sep{min-height:0;width:1px;height:18px;padding:0;margin:0 6px;background:var(--line)}
+.sh{display:flex;align-items:center;gap:10px;padding:7px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.stabs{display:inline-flex;border:1px solid var(--line-strong);border-radius:6px;overflow:visible;font-size:12px;position:relative}
+.stabs span{padding:4px 12px;white-space:nowrap;position:relative}
+.stabs span.on{background:var(--acc);color:#fff;font-weight:600;border-radius:5px}
+.sp{flex:1}
+.bdg{position:absolute;top:-9px;right:-9px;z-index:5}
+.bdg i.n{margin:0}
+.insp{width:230px;flex:none;border-left:1px solid var(--line);background:var(--panel);padding:10px 12px;font-size:12px;line-height:18px;color:var(--mut)}
+.insp b{color:var(--tx)}
+.mini{border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);overflow:hidden;position:relative}
+.mini .tt{font-size:12px;font-weight:600;padding:7px 12px;background:var(--p2);border-bottom:1px solid var(--line)}
+.mini .tt .m{font-weight:400;color:var(--mut)}
+.mini .bd{padding:10px 12px;font-size:12px;line-height:18px}
+.mini .ptabs{display:flex;gap:4px;padding:6px 10px 0;border-bottom:1px solid var(--line);font-size:11.5px}
+.mini .ptabs span{padding:3px 10px;border-radius:5px 5px 0 0;color:var(--mut)}
+.mini .ptabs span.on{background:var(--acc);color:#fff;font-weight:600}
+.subc{border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin:0 0 8px;color:var(--mut)}
+.subc b{color:var(--tx)}
+.subc.new{border:1.5px dashed var(--new);color:var(--tx)}
+.chips2{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip2{display:inline-flex;align-items:center;border:1px solid var(--line-strong);border-radius:6px;padding:4px 10px;background:#fff;font-size:12px;white-space:nowrap;position:relative}
+.chip2.new{border:1.5px dashed var(--new);color:var(--tx);font-weight:600}
+.keys0{display:grid;grid-template-columns:1fr 1fr;gap:6px 30px;font-size:12.5px;line-height:19px;margin:10px 2px 0}
+.keys0 div{display:flex;gap:8px;align-items:flex-start}
+.keys0 i.n{flex:none;margin-top:1px}
+</style>
+</head>
+<body>
+<h1>SLD — show and draw it by substation, RMU and transformer (proposal mockup, 2026-11-18)</h1>
+<p class="lead">Example project: five substations, six RMUs, seven transformers, and one board on an authority LV supply (MDB-8). Each main board already names its RMU and its substation in Panels → Transformers; today the SLD draws neither the substation nor the RMU's ways, and always shows the whole network. Sheets print in black and white; the screen views tint the 11 kV lines as the app does today. All ratings are example values.</p>
+<p class="legend"><i></i>new or changed <i class="k"></i>numbered point in the text</p>
+
+<h2>0 · Where each part goes <span class="hm">no new tab: the SLD page keeps its four tabs (System diagram, Board, Earthing, Riser); the numbers point to sections 2–6</span></h2>
+<div class="frame" style="overflow:visible">
+  <div class="tabs"><span>Project</span><span class="sep"></span><span>Load schedule</span><span class="on">SLD</span><span>Design CAD</span><span>Sheets</span><span>Specification</span><span class="sep"></span><span>Stages</span><span class="sep"></span><span>Documents</span><span>BOM / Cost</span><span>Standards</span></div>
+  <div class="rb" id="ribbon0"></div>
+  <div class="sh">
+    <span class="stabs"><span class="on">System diagram<span class="bdg"><i class="n">1</i></span></span><span>Board: MDB-1</span><span>Earthing</span><span>Riser</span></span>
+    <span class="btn">+ Add</span><span class="sp"></span><span class="pc">Normal supply</span><span class="pc">Calculations up to date</span>
+  </div>
+  <div class="ws" style="height:530px">
+    <div class="tree" style="width:230px;position:relative">
+      <div class="th"><b>Panels</b><span class="seg nw" style="position:relative;overflow:visible"><span>Boards</span><span class="on">Substations</span><span class="bdg" style="top:-14px;right:-14px"><i class="n">3</i></span></span></div>
+      <div id="tree0"></div>
+    </div>
+    <div class="cv">
+      <div class="chip nw"><span>Showing <b>SS-1</b> <span class="m">· Conventional · Ground floor</span></span><span>2 transformers · 25 boards</span><span class="nb">◀</span><span class="nb">▶</span><span class="all">Show all</span></div>
+      <div id="fig0" style="position:absolute;left:0;top:44px"></div>
+    </div>
+    <div class="insp"><b>Properties</b><br>TX-1 · 1000 kVA<br>Substation SS-1 · RMU-1 (T1)<br><span style="font-size:11px">Right-click a transformer, an RMU or a substation frame on the drawing: Show … only, Substation, RMU, Configuration (section 5).</span></div>
+  </div>
+</div>
+<div class="row" style="gap:20px;margin-top:14px;align-items:stretch">
+  <div class="mini" style="width:700px;flex:none">
+    <div class="tt">Panels → Transformers <span class="m">· opened from SLD ribbon → Supply → MV supply and RMUs…, as today</span></div>
+    <div class="ptabs"><span>Quick create</span><span class="on">Transformers</span><span>Panel list</span><span>Naming</span><span>Typical floors</span><span>Repeat group</span><span>Templates</span></div>
+    <div class="bd">
+      <div class="subc"><b>Create transformers</b> · number, sizes, substation, RMU option (as today)</div>
+      <div class="subc"><b>MV supply and RMUs</b> · grid source, RMU configuration and ratings (as today)</div>
+      <div class="subc new" style="position:relative"><b>Substations</b> · new card: one row per substation in ring order: type, location, RMUs, transformers, owner<span class="bdg"><i class="n">4</i></span></div>
+      <div class="subc"><b>Transformer loading table</b> · its RMU column takes the limit from the RMU's tee-offs</div>
+    </div>
+  </div>
+  <div class="mini" style="width:640px;flex:none">
+    <div class="tt">Design CAD → Sheets <span class="m">· where every submission sheet is made since v2.4</span></div>
+    <div class="bd">
+      <p style="margin:0 0 8px"><b>Make the sheets automatically</b></p>
+      <div class="chips2"><span class="chip2">Split by panels</span><span class="m">max 10</span><span class="chip2">One sheet per MDB</span><span class="chip2">Overview + one per SMDB</span><span class="chip2 new">One sheet per substation<span class="bdg"><i class="n">5</i></span></span></div>
+      <p class="note" style="margin:10px 0 0">The new button makes the MV overview sheet (ring, substations, RMUs, transformers, with RMU and transformer schedules) and then one sheet per substation (section 6).</p>
+    </div>
+  </div>
+  <div class="mini" style="flex:1">
+    <div class="tt">Not changed</div>
+    <div class="bd">The Board, Earthing and Riser tabs, the Load schedule and Design CAD's Plan and Draw stay as they are. The earthing schematic already groups its pits by substation.</div>
+  </div>
+</div>
+<div class="keys0">
+  <div><i class="n">1</i><span><b>SLD → System diagram</b> (the first tab, as today): the drawing itself shows the 11 kV ring, the RMUs with their ways and the substation frames (section 2).</span></div>
+  <div><i class="n">2</i><span><b>SLD ribbon → View → Show</b>, beside Fit: whole network, a substation, an RMU or a transformer; the chip on the drawing steps ◀ ▶ (sections 3–4).</span></div>
+  <div><i class="n">3</i><span><b>Panel tree</b> on the left of the SLD page: a Group switch, Boards (today) or Substations (section 3).</span></div>
+  <div><i class="n">4</i><span><b>Panels → Transformers → Substations</b> card; and right-click on the drawing (section 5).</span></div>
+  <div><i class="n">5</i><span><b>Design CAD → Sheets → Make the sheets automatically → One sheet per substation</b> (section 6).</span></div>
+</div>
+<div class="row" style="gap:20px;margin-top:14px;align-items:stretch">
+  <div class="box" style="width:1150px;flex:none"><h4>Decision 8 · an MV-only view <span class="rec">approved 2026-11-19: a row in the Show menu</span></h4>
+    <p style="margin:0 0 6px">For a big project it helps to see only the MV side: the ring, the substations, the RMUs and the transformers, with each main board as a name (like sheet E-SLD-001).</p>
+    <ol style="margin:0">
+      <li><b>MV overview as the second row of the Show menu</b>, on the System diagram tab <span class="rec">(recommended, approved)</span>: no new tab; double-click a substation frame there to show that substation.</li>
+      <li style="color:#6b7280"><b>A fifth tab "MV supply"</b> after Riser, drawing only the MV side; clicking a substation opens it on the System diagram tab. (Not chosen.)</li>
+    </ol>
+  </div>
+  <div class="box" style="flex:1" id="d8"></div>
+</div>
+
+<h2>1 · Today <span class="hm">every transformer, and the meter cabinet too, hangs from one 11 kV line under one utility symbol</span></h2>
+<div class="frame pad"><div class="row">
+  <div id="fig-today"></div>
+  <div class="tree" style="border:1px solid var(--line);border-radius:6px;padding:6px 0;width:220px">
+    <div class="th"><b>Panels</b></div>
+    <div id="tree-today"></div>
+  </div>
+  <div class="note" style="width:330px;line-height:18px">
+    <p style="margin:0 0 8px"><i class="n">1</i><b>One line for everything.</b> TX-1 … TX-7 all drop from the same 11 kV line. MDB-8 is on a DEWA LV supply, but its meter-cabinet line crosses the 11 kV line, so it looks fed from it too.</p>
+    <p style="margin:0 0 8px"><i class="n">2</i><b>RMUs are labels.</b> RMU-1 … RMU-6 are boxes laid over that line. Their ring and tee-off ways are not drawn, nor is the ring from one RMU to the next.</p>
+    <p style="margin:0 0 8px"><i class="n">3</i><b>No substations.</b> SS-1 … SS-5 are set on the transformers. The TCL summary, the earthing schematic and the BOQ group by them; the SLD does not.</p>
+    <p style="margin:0"><i class="n">4</i><b>Always the whole network.</b> The SLD page has no way to show one substation, RMU or transformer, and the panel tree lists MDB-1 … MDB-8 flat.</p>
+  </div>
+</div></div>
+
+<h2>2 · Proposed — the supply arrangement, drawn by substation <span class="hm">the whole network; the same drawing on screen and on sheets</span></h2>
+<div class="frame pad">
+  <div id="fig-whole" class="nw" style="outline-offset:6px"></div>
+  <div class="keys">
+    <span><i class="n">1</i>SS-1: one RMU (RRTT) → two transformers, bus coupler between MDB-1 and MDB-2</span>
+    <span><i class="n">2</i>SS-2: one RMU (RRT) → one transformer, circuit breaker tee-off with relay</span>
+    <span><i class="n">3</i>SS-3: two RMUs in one substation, each → one transformer</span>
+    <span><i class="n">4</i>SS-4: RRTT with one tee-off spare</span>
+    <span><i class="n">5</i>SS-5: normally open point (N/O) on the ring</span>
+    <span><i class="n">6</i>MDB-8: authority LV supply, off the 11 kV ring</span>
+  </div>
+  <p class="note" style="margin:8px 2px 0">Main boards are placed by substation, then by RMU. The ring runs from the grid source through each RMU's ring switches (R) in substation order; tee-offs (T) feed the transformers. Each named substation gets a dash-dot frame around its RMU(s) and transformers. Everything from the transformer's LV side down is drawn as today. A second grid source would start a second ring.</p>
+</div>
+
+<h2>3 · Show one substation <span class="hm">SLD ribbon → View → Show; the menu is the supply tree, so a substation, an RMU or a transformer can be picked</span></h2>
+<div class="frame" style="overflow:visible">
+  <div class="rb" id="ribbon"></div>
+  <div style="position:relative;height:604px;background:var(--bg);border-bottom:1px solid var(--line)">
+    <div id="show-menu"></div>
+    <div class="note" id="show-note" style="position:absolute;left:24px;top:24px;width:700px;line-height:19px">
+      <p style="margin:0 0 10px"><b>Show</b> sits in the View group beside Fit. Its menu lists Whole network, then each substation with its RMUs and their transformers, the way they are connected. Each row shows the transformers and boards it holds. One click shows that part.</p>
+      <p style="margin:0 0 10px">Rows: a <b>substation</b> shows its RMUs, transformers and main boards, with everything they feed; an <b>RMU</b> shows its transformers; a <b>transformer</b> shows its main board's tree. The ring, and anything outside the part, is drawn as short stubs with "from …" / "to …" labels.</p>
+      <p style="margin:0 0 10px">Only the view changes. Calculations, checks, results and fault levels are those of the whole network. Fit fits the shown part. Export exports what is shown, titled e.g. "SLD — SS-1".</p>
+      <p style="margin:0 0 10px">Boards on an authority LV supply are listed after the substations. "Selection's substation" shows the substation of the board picked on the drawing.</p>
+      <p style="margin:0">Optional, in the same step: <b>Colour by → Transformer</b> tints each transformer's branch on screen; sheets print black, as with Colour by → Supply.</p>
+    </div>
+  </div>
+  <div class="ws" style="height:570px">
+    <div class="tree nw" style="outline-offset:-3px">
+      <div class="th"><b>Panels</b><span class="seg"><span>Boards</span><span class="on">Substations</span></span></div>
+      <div id="tree-ss"></div>
+    </div>
+    <div class="cv">
+      <div class="chip nw"><span>Showing <b>SS-1</b> <span class="m">· Conventional · Ground floor</span></span><span>2 transformers · 25 boards</span><span class="nb">◀</span><span class="nb">▶</span><span class="all">Show all</span></div>
+      <div class="cvh">◀ ▶ step to the previous / next substation</div>
+      <div id="fig-ss1" style="position:absolute;left:0;top:44px"></div>
+    </div>
+  </div>
+</div>
+<p class="note" style="margin:6px 2px 0">Panel tree: a new <b>Group</b> switch (Boards = today, the default; Substations = grouped by substation → RMU → main board). On the SLD page a click on a substation or RMU row shows that part; a board row selects the board as today.</p>
+
+<h2>4 · Show one transformer, or one RMU <span class="hm">a transformer's tree on its own; the RMU's other ways and the bus coupler become stubs</span></h2>
+<div class="row" style="gap:20px">
+  <div class="frame" style="width:946px;height:600px"><div class="cv" style="height:100%">
+    <div class="chip nw"><span>Showing <b>TX-2</b> <span class="m">· 1000 kVA · SS-1 / RMU-1</span></span><span>13 boards</span><span class="nb">◀</span><span class="nb">▶</span><span class="all">Show all</span></div>
+    <div id="fig-tx2" style="position:absolute;left:0;top:44px"></div>
+  </div></div>
+  <div class="frame" style="width:946px;height:600px"><div class="cv" style="height:100%">
+    <div class="chip nw"><span>Showing <b>RMU-5</b> <span class="m">· RRTT · SS-4</span></span><span>1 transformer · 9 boards</span><span class="nb">◀</span><span class="nb">▶</span><span class="all">Show all</span></div>
+    <div id="fig-rmu5" style="position:absolute;left:0;top:44px"></div>
+  </div></div>
+</div>
+<p class="note" style="margin:6px 2px 0">◀ ▶ step through items of the same kind (TX-1 … TX-7, RMU-1 … RMU-6). Right-click a substation frame, an RMU or a transformer on the SLD → <b>Show … only</b>. Picking a board outside the shown part (panel tree, Check, Find) shows its substation (decision 4).</p>
+
+<h2>5 · Where the arrangement is entered <span class="hm">Panels → Transformers, and right-click on the SLD</span></h2>
+<div class="card nw">
+  <h3>Substations <span class="note" style="font-weight:400">in ring order: the SLD draws them left to right and the ring runs through their RMUs in this order</span><span class="sp"></span><span class="btn p">+ Substation</span></h3>
+  <table class="t" id="ss-table"></table>
+  <p class="hint" style="margin:8px 0 0">Type = the DM-D-013 types of the Substation area page, so one record serves the SLD, the TCL summary and the DM form (decision 6). Old projects: the substation names already on the transformers fill the card. ⋮⋮ drags a row to change the ring order.</p>
+</div>
+<div class="row" style="gap:24px;margin-top:14px;height:262px">
+  <div class="card" style="width:560px;flex:none;height:262px">
+    <h3>Transformers <span class="note" style="font-weight:400">the existing table, RMU column</span></h3>
+    <table class="t">
+      <tr><th>Transformer</th><th>MDB</th><th>kVA</th><th>Substation</th><th>RMU</th></tr>
+      <tr><td>TX-6</td><td>MDB-6</td><td>1500</td><td><span class="inp">SS-4</span></td><td style="position:relative"><span class="sel nw">RMU-5 <svg class="ico xs" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+        <div class="menu" style="left:-150px;top:26px;width:290px">
+          <div class="it">—</div>
+          <div class="it">RMU-1 <span class="m">RRTT</span><span class="c">full · 2 of 2 tee-offs</span></div>
+          <div class="it">RMU-2 <span class="m">RRT</span><span class="c">full · 1 of 1</span></div>
+          <div class="it">RMU-4 <span class="m">RRT</span><span class="c">full · 1 of 1</span></div>
+          <div class="it on"><span class="tk">✓</span>RMU-5 <span class="m">RRTT</span><span class="c">1 of 2 · 1 free</span></div>
+          <hr><div class="it">New RMU <span class="c">starts as RRT</span></div>
+        </div></td></tr>
+    </table>
+    <p class="hint" style="margin:6px 0 0;width:250px">Today: a fixed "full — max 2 TX", whatever the RMU. Proposed: the limit comes from the RMU's tee-offs (RT / RRT 1, RRTT 2, RRTTT 3).</p>
+  </div>
+  <div style="width:470px;flex:none;position:relative">
+    <div class="ctx nw">
+      <div class="h">TX-6 <span class="m">· 1500 kVA · MDB-6</span></div>
+      <div class="it">Show TX-6 only</div>
+      <div class="it">Show SS-4 only</div>
+      <hr>
+      <div class="it on">Substation <span class="ar">SS-4 <svg class="ico xs" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="it">RMU <span class="ar">RMU-5 <svg class="ico xs" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <hr>
+      <div class="it">Edit transformer…</div>
+      <div class="flyout" style="top:92px">
+        <div class="it">SS-1</div><div class="it">SS-2</div><div class="it">SS-3</div><div class="it on"><span class="tk">✓</span>SS-4</div><div class="it">SS-5</div><hr><div class="it">New substation…</div>
+      </div>
+    </div>
+  </div>
+  <div style="width:420px;flex:none;position:relative">
+    <div class="ctx nw">
+      <div class="h">RMU-5 <span class="m">· RRTT · SS-4</span></div>
+      <div class="it">Show RMU-5 only</div>
+      <hr>
+      <div class="it on">Configuration <span class="ar">RRTT <svg class="ico xs" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <div class="it">Normally open <span class="ar">none <svg class="ico xs" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span></div>
+      <hr>
+      <div class="it">MV supply and RMUs…</div>
+      <div class="flyout" style="top:62px;width:150px">
+        <div class="it">RT</div><div class="it">RRT</div><div class="it on"><span class="tk">✓</span>RRTT</div><div class="it">RRRT</div><div class="it">RRTTT</div>
+      </div>
+    </div>
+  </div>
+  <p class="note" style="flex:1;margin:0;line-height:19px">Right-click on the SLD. A transformer moves to another substation or RMU; the RMU list shows the free tee-offs. An RMU gets its configuration and its normally open ring switch (R1, R2 or none). "MV supply and RMUs…" opens the existing card for the ratings. New optional fields: <code>Rmu.substation</code> (an RMU with no transformer yet) and <code>Rmu.normallyOpen</code>.</p>
+</div>
+
+<h2>6 · Sheets — one sheet per substation <span class="hm">Design CAD → Sheets → Make the sheets automatically</span></h2>
+<div class="frame pad"><div class="row" style="gap:22px">
+  <div class="sets">
+    <div class="set"><b>One sheet per MDB</b><span class="m">Each main board with everything it feeds; an overview when there are several. Now also draws the transformer's RMU, other ways as stubs.</span></div>
+    <div class="set"><b>Overview + one per SMDB</b><span class="m">Main boards and sub-mains, then a sheet per SMDB / MCC.</span></div>
+    <div class="set"><b>Split by panels</b><span class="m">For authority submissions, e.g. 10 panels per sheet.</span></div>
+    <div class="set on nw"><b>One sheet per substation</b><span class="m">An MV overview (ring, substations, RMUs, transformers), then each substation with its main boards and everything they feed. A bus coupler between two main boards stays on their sheet (a per-MDB sheet drops it today).</span></div>
+    <table class="t" style="margin-top:6px" id="sheet-list"></table>
+  </div>
+  <div>
+    <div class="sheet" id="sheet-hv" style="width:1380px"></div>
+    <p class="note" style="margin:6px 0 0">E-SLD-001, the MV overview: the main boards appear as names only, each with the sheet it is drawn on; the RMU and transformer ratings go in two schedules under the drawing. Black and white, title block as on every sheet.</p>
+  </div>
+</div></div>
+
+<h2>7 · Decisions and steps <span class="hm">all eight approved with the recommended answers: 1–7 on 2026-11-18, 8 on 2026-11-19</span></h2>
+<div class="row" style="gap:20px">
+  <div class="box" style="width:1150px;flex:none"><h4>Decisions</h4><ol>
+    <li><b>Substation frame</b> — around the RMU(s) and transformers <span class="rec">(recommended)</span>, or down to the main board's incomer.</li>
+    <li><b>Ring</b> — an open line through the RMUs with "from" / "to" labels <span class="rec">(recommended)</span>, or a closed loop back to the source.</li>
+    <li><b>Show menu</b> — one supply tree, substation → RMU → transformer <span class="rec">(recommended)</span>, or three separate lists.</li>
+    <li><b>A board outside the shown part is picked</b> (panel tree, Check, Find) — show its substation <span class="rec">(recommended)</span>, or the whole network.</li>
+    <li><b>Panel tree</b> — add the Group switch, Boards stays the default <span class="rec">(recommended)</span>, or leave the tree as it is.</li>
+    <li><b>Substation details</b> — one record shared with the DM-D-013 Substation area page <span class="rec">(recommended)</span>, or a separate list.</li>
+    <li><b>Order</b> — steps 1 → 5 <span class="rec">(recommended)</span>, or Show first.</li>
+    <li><b>MV-only view</b> (section 0) — an MV overview row in the Show menu <span class="rec">(recommended, approved 2026-11-19)</span>, or a fifth SLD tab "MV supply".</li>
+  </ol></div>
+  <div class="box" style="flex:1"><h4>Steps (one PR each, with tests)</h4><ol>
+    <li>The supply arrangement on the SLD (section 2), plus two fixes: the RMU limit from its tee-offs, and Substation area → Fill from project by substation name (today one substation per RMU, so SS-3 becomes two).</li>
+    <li>Show, the chip with ◀ ▶, the MV overview row (decision 8) and right-click Show … only (sections 0, 3 and 4).</li>
+    <li>The panel tree by substation (section 3).</li>
+    <li>The Substations card and right-click Substation / RMU (section 5).</li>
+    <li>One sheet per substation (section 6).</li>
+  </ol></div>
+</div>
+
+<script>
+const CR = '<svg class="ico xs" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>', CD = '<svg class="ico xs" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>';
+// ---------------- example project ----------------
+const TX = {
+  'TX-1': { kva: 1000, mdb: 'MDB-1', acb: 1600 }, 'TX-2': { kva: 1000, mdb: 'MDB-2', acb: 1600 },
+  'TX-3': { kva: 1500, mdb: 'MDB-3', acb: 2500 }, 'TX-4': { kva: 1000, mdb: 'MDB-4', acb: 1600 },
+  'TX-5': { kva: 1000, mdb: 'MDB-5', acb: 1600 }, 'TX-6': { kva: 1500, mdb: 'MDB-6', acb: 2500 },
+  'TX-7': { kva: 1000, mdb: 'MDB-7', acb: 1600 }
+};
+const SUBS = [
+  { id: 'SS-1', type: 'Conventional', loc: 'Ground floor', dm: 'Conventional substation', where: 'Ground floor, room G.01', ties: [['TX-1', 'TX-2']],
+    rmus: [{ id: 'RMU-1', cfg: 'RRTT', t: 'fuse', fuse: 80, tx: ['TX-1', 'TX-2'] }] },
+  { id: 'SS-2', type: 'Conventional', loc: 'Basement 1', dm: 'Conventional substation', where: 'Basement 1, room B1.04',
+    rmus: [{ id: 'RMU-2', cfg: 'RRT', t: 'cb', tx: ['TX-3'] }] },
+  { id: 'SS-3', type: 'Detached', loc: 'Plot A', dm: 'Detached substation — ground floor', where: 'Plot A, north gate', ties: [['TX-4', 'TX-5']],
+    rmus: [{ id: 'RMU-3', cfg: 'RRT', t: 'fuse', fuse: 80, tx: ['TX-4'] }, { id: 'RMU-4', cfg: 'RRT', t: 'fuse', fuse: 80, tx: ['TX-5'] }] },
+  { id: 'SS-4', type: 'Conventional', loc: 'Podium P2', dm: 'Conventional substation', where: 'Podium P2, room P2.10',
+    rmus: [{ id: 'RMU-5', cfg: 'RRTT', t: 'cb', tx: ['TX-6', null] }] },
+  { id: 'SS-5', type: 'Pocket type', loc: 'Villa cluster', dm: 'Detached substation — POCKET type', where: 'Villa cluster, plot V-12',
+    rmus: [{ id: 'RMU-6', cfg: 'RRT', t: 'fuse', fuse: 80, tx: ['TX-7'], no: true }] }
+];
+// Boards below each main board: [name, boards below it]
+const LVT = {
+  'MDB-1': [['SMDB-G1', ['DB-G01', 'DB-G02', 'DB-G03']], ['SMDB-G2', ['DB-G04', 'DB-G05']], ['SMDB-1F', ['DB-101', 'DB-102']], ['MCC-1', []]],
+  'MDB-2': [['SMDB-G3', ['DB-G06', 'DB-G07']], ['SMDB-2F', ['DB-201', 'DB-202', 'DB-203']], ['SMDB-RF', ['DB-RF1']], ['EMDB-1', ['EDB-1', 'EDB-2']]],
+  'MDB-3': [['SMDB-B1', ['DB-B01', 'DB-B02']], ['SMDB-B2', ['DB-B03', 'DB-B04']], ['MCC-B1', []]],
+  'MDB-4': [['SMDB-A1', ['DB-A01', 'DB-A02']], ['SMDB-A2', ['DB-A03']], ['DB-AL', []]],
+  'MDB-5': [['SMDB-A3', ['DB-A05', 'DB-A06']], ['SMDB-A4', ['DB-A07', 'DB-A08']], ['MCC-A1', []]],
+  'MDB-6': [['SMDB-P1', ['DB-P01', 'DB-P02', 'DB-P03']], ['SMDB-P2', ['DB-P04', 'DB-P05']], ['MCC-P1', []]],
+  'MDB-7': [['SMDB-V1', ['DB-V01', 'DB-V02']], ['SMDB-V2', ['DB-V03', 'DB-V04']]],
+  'MDB-8': [['DB-GH1', []]]
+};
+const boardsUnder = (mdb) => 1 + LVT[mdb].reduce((s, [, dbs]) => s + 1 + dbs.length, 0);
+const ssTx = (ss) => ss.rmus.flatMap((r) => r.tx.filter(Boolean));
+const ssBoards = (ss) => ssTx(ss).reduce((s, t) => s + boardsUnder(TX[t].mdb), 0);
+const kindOf = (n) => n.startsWith('SMDB') ? 'SMDB' : n.startsWith('MCC') ? 'MCC' : n.startsWith('EMDB') ? 'EMDB' : n.startsWith('EDB') ? 'EDB' : 'DB';
+
+// ---------------- drawing primitives ----------------
+const r1 = (n) => Math.round(n * 10) / 10;
+const ln = (x1, y1, x2, y2, c) => `<line x1="${r1(x1)}" y1="${r1(y1)}" x2="${r1(x2)}" y2="${r1(y2)}"${c ? ` class="${c}"` : ''}/>`;
+const pl = (pts, c) => `<polyline points="${pts.map((p) => p.map(r1).join(',')).join(' ')}"${c ? ` class="${c}"` : ''}/>`;
+const tx_ = (x, y, s, c, a) => `<text x="${r1(x)}" y="${r1(y)}"${c ? ` class="${c}"` : ''}${a ? ` text-anchor="${a}"` : ''}>${s}</text>`;
+const rc = (x, y, w, h, c, rx) => `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}"${rx ? ` rx="${rx}"` : ''}${c ? ` class="${c}"` : ''}/>`;
+const ci = (x, y, r, c) => `<circle cx="${r1(x)}" cy="${r1(y)}" r="${r}"${c ? ` class="${c}"` : ''}/>`;
+const mark = (x, y, n) => `<g class="mk">${ci(x, y, 9)}${tx_(x, y + 4, n, '', 'middle')}</g>`;
+
+/** A switch on the vertical line x from y1 (supply side) to y2: the blade from the pivot towards the fixed contact.
+ * kind: lbs (load-break switch, small circle), cb (circuit breaker, cross), plain. dir: the side the blade leans to. */
+function sw(x, y1, y2, o = {}) {
+  const g = Math.min(24, (y2 - y1) * 0.62), top = (y1 + y2 - g) / 2, bot = top + g, d = o.dir ?? -1;
+  let s = ln(x, y1, x, top, o.c) + ln(x, bot, x, y2, o.c);
+  s += ln(x, bot, x + d * (o.open ? 15 : 9), top + (o.open ? -2 : 3), o.c);
+  if (o.kind === 'lbs') s += ci(x, top, 2.2, 'wf');
+  if (o.kind === 'cb') s += ln(x - 3, top - 3, x + 3, top + 3) + ln(x - 3, top + 3, x + 3, top - 3);
+  return s;
+}
+/** The same switch on a horizontal line (bus coupler). */
+function swH(x1, x2, y) {
+  const g = Math.min(22, (x2 - x1) * 0.55), l = (x1 + x2 - g) / 2, r = l + g;
+  return ln(x1, y, l, y) + ln(r, y, x2, y) + ln(l, y, r - 3, y - 8) + ln(r - 3, y - 3, r + 3, y + 3) + ln(r - 3, y + 3, r + 3, y - 3);
+}
+const fuse = (x, yc) => rc(x - 3.5, yc - 7, 7, 14);
+/** Transformer, top terminal at y; bottom terminal at y + 37. */
+const trafo = (x, y) => ci(x, y + 11, 11) + ci(x, y + 26, 11);
+/** Grid source (today's utility symbol). */
+const grid = (x, y) => ci(x, y, 12) + `<path d="M${x - 6} ${y} q3 -7 6 0 t6 0"/>`;
+/** 2:1 board symbol (the shipped Option A patterns), centre x, top y. */
+function bsym(x, y, kind) {
+  const w = 34, h = 17, a = x - w / 2;
+  let s = '';
+  if (kind === 'SMDB') s += `<path d="M${a} ${y}H${a + w}L${a} ${y + h}Z" class="fill"/>` + ln(a, y + h, a + w, y);
+  else if (kind === 'DB') s += ln(a, y + h, a + w, y);
+  else if (kind === 'MCC') s += rc(a, y, w, h / 2, 'fill');
+  else if (kind === 'EDB') s += ln(a, y, a + w, y + h) + ln(a, y + h, a + w, y);
+  else if (kind === 'EMDB') s += `<path d="M${a} ${y}L${a + w / 2} ${y + h / 2}L${a} ${y + h}Z M${a + w} ${y}L${a + w / 2} ${y + h / 2}L${a + w} ${y + h}Z" class="fill"/>` + ln(a, y, a + w, y + h) + ln(a, y + h, a + w, y) + rc(a - 3, y - 3, w + 6, h + 6);
+  return s + rc(a, y, w, h);
+}
+
+// ---------------- vertical positions ----------------
+const ys = (yr) => ({ yF: yr - 56, yr, boxT: yr + 8, yb: yr + 56, tSw: yr + 82, boxB: yr + 106, yj: yr + 120, ytx: yr + 132, yFB: yr + 186, acbT: yr + 200, acbB: yr + 230, yM: yr + 248 });
+const WP = 32; // RMU way pitch
+
+/** One RMU: ring switches at both ends, tee-offs between; returns the drawing, the ring terminals and the tee-off x. */
+function rmu(cx, r, Y, scr) {
+  const nT = [...r.cfg].filter((c) => c === 'T').length, nR = [...r.cfg].filter((c) => c === 'R').length;
+  const n = nT + nR, w = (n - 1) * WP, x0 = cx - w / 2, x1 = x0 + w;
+  const tx = [...Array(nT)].map((_, i) => x0 + WP * (i + 1));
+  let s = rc(x0 - 16, Y.boxT, w + 32, Y.boxB - Y.boxT, 'rmu', 3);
+  s += ln(x0, Y.yb, x1, Y.yb, 'rbus');
+  s += sw(x0, Y.yr, Y.yb, { kind: 'lbs', dir: -1, c: scr ? 'mv' : '' });
+  s += sw(x1, Y.yr, Y.yb, { kind: 'lbs', dir: 1, open: !!r.no, c: scr ? 'mv' : '' });
+  if (r.no) s += tx_(x1 + 21, (Y.yr + Y.yb) / 2 + 4, 'N/O', 'b');
+  tx.forEach((x, i) => {
+    s += sw(x, Y.yb, Y.tSw, { kind: r.t === 'cb' ? 'cb' : 'lbs', dir: -1 });
+    s += ln(x, Y.tSw, x, Y.boxB);
+    if (r.t === 'fuse') s += fuse(x, (Y.tSw + Y.boxB) / 2) + tx_(x + 6, (Y.tSw + Y.boxB) / 2 + 3, `${r.fuse} A`, 'xs');
+  });
+  if (r.t === 'cb') { const xr = tx[tx.length - 1] + 6; s += tx_(xr, Y.tSw + 8, '50/51', 'xs') + tx_(xr, Y.tSw + 18, '50N/51N', 'xs'); }
+  s += tx_(cx, Y.boxT + 17, r.id, 'b', 'middle') + tx_(cx, Y.boxT + 29, r.cfg, 'm', 'middle');
+  return { s, r1x: x0, r2x: x1, tx };
+}
+
+/** Transformer under its tee-off: the cable jogs across when the tee-off is not above it. */
+function teeToTx(xt, xTx, Y, scr) {
+  const c = scr ? 'mv' : '';
+  return (xt === xTx ? ln(xt, Y.boxB, xt, Y.ytx, c) : pl([[xt, Y.boxB], [xt, Y.yj], [xTx, Y.yj], [xTx, Y.ytx]], c));
+}
+function txLabel(x, id, Y) {
+  const t = TX[id];
+  return tx_(x + 18, Y.ytx + 12, id, 'b') + tx_(x + 18, Y.ytx + 25, `${t.kva} kVA · 6% Z`, 'm') + tx_(x + 18, Y.ytx + 37, 'Dyn11 · 11 / 0.400 kV', 'm');
+}
+/** LV side: incomer ACB and the main board. lv: 'short' (busbar + first three ways), 'deep' (sub-mains and their DBs),
+ * 'overview' (name and sheet only). Returns the drawing and the busbar ends. */
+function lvSide(x, id, Y, lv, sheetNo) {
+  const t = TX[id], mdb = t.mdb;
+  let s = ln(x, Y.ytx + 37, x, Y.acbT) + sw(x, Y.acbT, Y.acbB, { kind: 'cb' }) + ln(x, Y.acbB, x, Y.yM);
+  s += tx_(x + 12, (Y.acbT + Y.acbB) / 2 + 3, `ACB ${t.acb} A`, 'm');
+  if (lv === 'overview') {
+    s += rc(x - 34, Y.yM, 68, 22) + tx_(x, Y.yM + 15, mdb, 'b', 'middle') + tx_(x, Y.yM + 36, `sheet ${sheetNo}`, 'm', 'middle');
+    return { s, a: x - 34, b: x + 34, yBus: Y.yM + 11 };
+  }
+  const kids = LVT[mdb];
+  if (lv === 'short') {
+    const show = kids.slice(0, 3), a = x - 78, b = x + 78;
+    s += ln(a, Y.yM, b, Y.yM, 'bus') + tx_(a, Y.yM - 7, mdb, 'b');
+    show.forEach(([n], i) => {
+      const wx = x + (i - 1) * 56;
+      s += sw(wx, Y.yM, Y.yM + 34, { kind: 'cb' }) + ln(wx, Y.yM + 34, wx, Y.yM + 40) + bsym(wx, Y.yM + 40, kindOf(n)) + tx_(wx, Y.yM + 72, n, 'm', 'middle');
+    });
+    if (kids.length > 3) s += tx_(b, Y.yM + 86, `+ ${kids.length - 3} more`, 'xs', 'end');
+    return { s, a, b, yBus: Y.yM };
+  }
+  // deep
+  const P = 180, xs = kids.map((_, i) => x + (i - (kids.length - 1) / 2) * P), a = xs[0] - 50, b = xs[xs.length - 1] + 50;
+  s += ln(a, Y.yM, b, Y.yM, 'bus') + tx_(a, Y.yM - 7, mdb, 'b') + tx_(a + 46, Y.yM - 7, `${t.acb} A`, 'm');
+  kids.forEach(([n, dbs], i) => {
+    const wx = xs[i], yS = Y.yM + 44, k = kindOf(n);
+    s += sw(wx, Y.yM, Y.yM + 38, { kind: 'cb' }) + ln(wx, Y.yM + 38, wx, yS) + bsym(wx, yS, k) + tx_(wx + 22, yS + 9, n, 'b') + tx_(wx + 22, yS + 21, k === 'MCC' ? 'motor control' : k === 'EMDB' ? 'emergency' : `${dbs.length} DB${dbs.length === 1 ? '' : 's'}`, 'xs');
+    if (!dbs.length) return;
+    const yB = yS + 56, dp = 50, dx = dbs.map((_, j) => wx + (j - (dbs.length - 1) / 2) * dp);
+    s += ln(wx, yS + 17, wx, yB) + ln(dx[0] - 14, yB, dx[dx.length - 1] + 14, yB, 'rbus');
+    dbs.forEach((d, j) => { s += sw(dx[j], yB, yB + 30, { kind: 'cb' }) + ln(dx[j], yB + 30, dx[j], yB + 34) + bsym(dx[j], yB + 34, kindOf(d)) + tx_(dx[j], yB + 64, d, 'm', 'middle'); });
+  });
+  return { s, a, b, yBus: Y.yM };
+}
+
+/** The MV arrangement of the given substations, left to right from x, plus each transformer's LV side.
+ * o: { yr, gapTx, gapSs, lv, scr, left: {kind:'grid'} | {text:[…]}, right: {text:[…], arrow}, marks, partial, sheetNo,
+ *      teeStub: {rmu, text}, tieStub: {tx, side, text} } */
+function network(subs, x, o) {
+  const Y = ys(o.yr);
+  let s = '', ring = [], frames = [], pos = {};
+  for (const ss of subs) {
+    const txs = ssTx(ss).filter((t) => !o.only || o.only.includes(t)), fl = x + (o.padL ?? 0);
+    txs.forEach((t, i) => { pos[t] = fl + (o.lead ?? 70) + i * o.gapTx; });
+    const fr = pos[txs[txs.length - 1]] + (o.trail ?? 130);
+    frames.push({ ss, fl, fr });
+    x = fr + o.gapSs;
+  }
+  for (const { ss, fl, fr } of frames) {
+    s += rc(fl, Y.yF, fr - fl, Y.yFB - Y.yF, 'frm');
+    s += tx_(fl + 9, Y.yF + 17, ss.id, 't') + tx_(fl + 9, Y.yF + 30, `${ss.type} · ${ss.loc}${o.partial ? ' (part shown)' : ''}`, 'm');
+    if (o.marks) s += mark(fr - 16, Y.yF + 14, o.marks[ss.id]);
+    for (const r of ss.rmus) {
+      const real = r.tx.filter(Boolean);
+      const w = ([...r.cfg].length - 1) * WP;
+      // Centre: over the middle of its transformers; with a spare or stubbed tee-off, the first used tee-off lines up with its transformer.
+      const firstUsed = r.tx.findIndex((t) => t && pos[t] !== undefined);
+      const full = r.tx.every((t) => t && pos[t] !== undefined);
+      const cx = full ? (Math.min(...real.map((t) => pos[t])) + Math.max(...real.map((t) => pos[t]))) / 2 : pos[r.tx[firstUsed]] - (-w / 2 + WP * (firstUsed + 1));
+      const m = rmu(cx, r, Y, o.scr);
+      s += m.s;
+      ring.push(m);
+      r.tx.forEach((t, i) => {
+        const xt = m.tx[i];
+        if (t && pos[t] !== undefined) s += teeToTx(xt, pos[t], Y, o.scr);
+        else if (t) { // tee-off to a transformer not shown
+          s += pl([[xt, Y.boxB], [xt, Y.yj], [xt - 70, Y.yj]], 'stub') + ci(xt - 72, Y.yj, 2.2, 'wf') + tx_(xt - 78, Y.yj + 4, `to ${t} · ${TX[t].mdb}`, 'hl', 'end');
+        } else { // spare tee-off
+          s += ln(xt, Y.boxB, xt, Y.boxB + 14) + ln(xt - 5, Y.boxB + 14, xt + 5, Y.boxB + 14) + tx_(xt + 9, Y.boxB + 17, 'SPARE', 'xs');
+        }
+      });
+    }
+  }
+  // the ring: source (or stub) → R1 … R2 → next R1 … → end
+  const mvc = 'mv';
+  const xL = o.left.kind === 'grid' ? o.left.x + 12 : o.left.x;
+  s += ln(xL, Y.yr, ring[0].r1x, Y.yr, mvc);
+  for (let i = 1; i < ring.length; i++) s += ln(ring[i - 1].r2x, Y.yr, ring[i].r1x, Y.yr, mvc);
+  s += ln(ring[ring.length - 1].r2x, Y.yr, o.right.x, Y.yr, mvc);
+  if (o.left.kind === 'grid') {
+    s += grid(o.left.x, Y.yr) + tx_(o.left.x - 26, Y.yr - 36, 'DEWA 11 kV', 'b') + tx_(o.left.x - 26, Y.yr - 23, '350 MVA · X/R 10', 'm')
+      + tx_(o.left.x - 26, Y.yr + 30, 'primary S/S', 'm') + tx_(o.left.x - 26, Y.yr + 42, 'feeder F12', 'm') + tx_(xL + 8, Y.yr - 5, '11 kV ring', 'xs');
+  } else {
+    s += ci(o.left.x, Y.yr, 2.6, 'wf') + o.left.text.map((t, i) => tx_(o.left.x + 2, Y.yr - 8 - (o.left.text.length - 1 - i) * 12, t, 'hl')).join('');
+  }
+  if (o.right.arrow) s += `<path d="M${o.right.x - 8} ${Y.yr - 4}L${o.right.x} ${Y.yr}L${o.right.x - 8} ${Y.yr + 4}" />`;
+  else s += ci(o.right.x, Y.yr, 2.6, 'wf');
+  s += o.right.text.map((t, i) => tx_(o.right.x - 2, Y.yr - 8 - (o.right.text.length - 1 - i) * 12, t, o.right.arrow ? 'm' : 'hl', 'end')).join('');
+  // transformers and their LV side
+  const ends = {};
+  for (const [t, xt] of Object.entries(pos)) {
+    s += trafo(xt, Y.ytx) + txLabel(xt, t, Y);
+    const lv = lvSide(xt, t, Y, o.lv, o.sheetNo?.[t]);
+    s += lv.s; ends[t] = lv;
+  }
+  // bus couplers between main boards drawn side by side
+  for (const ss of subs) for (const [a, b] of ss.ties ?? []) {
+    if (!ends[a] || !ends[b] || o.lv === 'overview') continue;
+    s += swH(ends[a].b, ends[b].a, ends[a].yBus) + tx_((ends[a].b + ends[b].a) / 2, ends[a].yBus - 12, 'BC · N/O', 'xs', 'middle');
+  }
+  if (o.tieStub) {
+    const e = ends[o.tieStub.tx], xs = e.a - 70;
+    s += ln(xs, e.yBus, e.a - 24, e.yBus, 'stub') + swH(e.a - 24, e.a, e.yBus) + ci(xs - 2, e.yBus, 2.2, 'wf') + tx_(xs - 8, e.yBus - 4, o.tieStub.text[0], 'hl', 'end') + tx_(xs - 8, e.yBus + 9, o.tieStub.text[1], 'hl', 'end');
+  }
+  return { s, pos, frames, Y };
+}
+/** A main board on an authority LV supply (meter cabinet): its own source, off the 11 kV ring. */
+function auth(x8, Y, lv, sheet) {
+  let s = grid(x8, Y.yr + 66) + tx_(x8 - 30, Y.yr + 22, 'DEWA LV supply', 'b') + tx_(x8 - 30, Y.yr + 35, '400 V · existing S/S 3415', 'm');
+  s += ln(x8, Y.yr + 78, x8, Y.ytx) + rc(x8 - 16, Y.ytx, 32, 24, '', 3) + tx_(x8, Y.ytx + 16, 'kWh', 'b', 'middle') + tx_(x8 + 22, Y.ytx + 10, 'METER CABINET', 'm') + tx_(x8 + 22, Y.ytx + 22, '200 A TP MCCB', 'm');
+  s += ln(x8, Y.ytx + 24, x8, Y.yM);
+  if (lv === 'overview') return s + rc(x8 - 34, Y.yM, 68, 22) + tx_(x8, Y.yM + 15, 'MDB-8', 'b', 'middle') + tx_(x8, Y.yM + 36, `sheet ${sheet}`, 'm', 'middle');
+  s += ln(x8 - 44, Y.yM, x8 + 44, Y.yM, 'bus') + tx_(x8 - 44, Y.yM - 7, 'MDB-8', 'b');
+  return s + sw(x8, Y.yM, Y.yM + 34, { kind: 'cb' }) + ln(x8, Y.yM + 34, x8, Y.yM + 40) + bsym(x8, Y.yM + 40, 'DB') + tx_(x8, Y.yM + 72, 'DB-GH1', 'm', 'middle');
+}
+const svg = (w, h, body, scr) =>`<svg class="sld${scr ? ' scr' : ''}" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`;
+
+
+// ---------------- 0 · where each part goes ----------------
+(function where() {
+  const I = {
+    run: '<path d="M6 3l14 9-14 9z"/>',
+    check: '<path d="M3 5h2M3 12h2M3 19h2M8 5h13M8 12h13M8 19h13"/>',
+    tx: '<circle cx="12" cy="8" r="5"/><circle cx="12" cy="15" r="5"/>',
+    dev: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+    show: '<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3M12 12V8"/>',
+    fit: '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>',
+    exp: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M12 18v-6M9 15l3 3 3-3"/>',
+    dn: '<path d="m6 9 6 6 6-6"/>'
+  };
+  const ic = (k, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24">${I[k]}</svg>`;
+  const big = (k, label, sub, cls = '', arrow = true, badge = '') => `<div class="big ${cls}">${ic(k)}<span class="lb">${label}${arrow ? ic('dn', 'xs') : ''}</span>${sub ? `<span class="sub">${sub}</span>` : ''}${badge ? `<span class="bdg"><i class="n">${badge}</i></span>` : ''}</div>`;
+  document.getElementById('ribbon0').innerHTML =
+    `<div class="grp"><div class="btns">${big('run', 'Run', '', '', false)}${big('check', 'Check', '', '', false)}</div><div class="cap">Run and check</div></div>`
+    + `<div class="fade">Canvas · Boards</div>`
+    + `<div class="grp"><div class="btns">${big('tx', 'Supply', '')}${big('dev', 'Devices', '')}</div><div class="cap">Equipment</div></div>`
+    + `<div class="fade">Selection · Results · Copy and undo</div>`
+    + `<div class="grp"><div class="btns">${big('show', 'Show', 'SS-1', 'nw', true, '2')}${big('fit', 'Fit', '', '', false)}</div><div class="cap">View</div></div>`
+    + `<div class="grp"><div class="btns">${big('exp', 'Export', '')}</div><div class="cap">Output</div></div>`;
+  let h = '';
+  SUBS.forEach((ss, i) => {
+    const open = i === 0;
+    h += `<div class="tn${i ? ' grp1' : ''}"><span class="ch">${open ? CD : CR}</span><span class="g">${ss.id}</span><span class="m">${ssTx(ss).length} TX · ${ssBoards(ss)}</span></div>`;
+    if (!open) return;
+    for (const r of ss.rmus) {
+      h += `<div class="tn" style="padding-left:24px"><span class="ch">${CD}</span>${r.id}<span class="m">${r.cfg}</span></div>`;
+      for (const t of r.tx.filter(Boolean)) h += `<div class="tn" style="padding-left:38px"><span class="ch">${CR}</span>${TX[t].mdb}<span class="bd">${t} · ${TX[t].kva} kVA</span><span class="dot"></span></div>`;
+    }
+  });
+  h += `<div class="tn grp1"><span class="ch">${CR}</span><span class="g">Authority supply</span><span class="m">1 · ${boardsUnder('MDB-8')}</span></div>`;
+  document.getElementById('tree0').innerHTML = h;
+  const n = network([SUBS[0]], 0, { yr: 74, gapTx: 760, gapSs: 0, lv: 'deep', scr: true, padL: 300, lead: 70, left: { x: 18, text: ['from DEWA 11 kV · 350 MVA', 'primary S/S, feeder F12'] }, right: { x: 1640, text: ['to RMU-2 · SS-2'] } });
+  const cv = document.getElementById('fig0').parentElement.getBoundingClientRect();
+  const k = Math.min(cv.width / 1660, (cv.height - 52) / 560);
+  document.getElementById('fig0').innerHTML = svg(Math.round(1660 * k), Math.round(560 * k), `<g transform="scale(${k.toFixed(4)})">${n.s}</g>`, true);
+  // decision 8: the two ways
+  document.getElementById('d8').innerHTML = `<h4>The two ways, as they would look</h4>
+    <div style="display:flex;gap:18px;align-items:flex-start">
+      <div><div class="note" style="margin:0 0 4px"><b>1 ·</b> Show menu (approved)</div>
+        <div class="menu" style="position:relative;width:250px">
+          <div class="it">Whole network</div>
+          <div class="it on nw"><span class="tk">✓</span>MV overview<span class="c">ring + substations</span></div><hr>
+          <div class="it"><b>SS-1</b><span class="c">2 TX</span></div><div class="it"><b>SS-2</b><span class="c">1 TX</span></div><div class="it m">…</div>
+        </div></div>
+      <div style="opacity:.55"><div class="note" style="margin:0 0 4px"><b>2 ·</b> SLD page tabs (not chosen)</div>
+        <span class="stabs"><span class="on">System diagram</span><span>Board: MDB-1</span><span>Earthing</span><span>Riser</span><span class="nw" style="outline-offset:-2px">MV supply</span></span></div>
+    </div>`;
+})();
+
+// ---------------- 1 · today ----------------
+(function today() {
+  const xs = [70, 220, 370, 520, 670, 820, 970, 1120], ids = ['TX-1', 'TX-2', 'TX-3', 'TX-4', 'TX-5', 'TX-6', 'TX-7'];
+  const ux = (xs[0] + xs[7]) / 2;
+  let s = ci(ux, 22, 11) + `<path d="M${ux - 5} 22 q2.5 -6 5 0 t5 0"/>` + tx_(ux + 18, 20, 'DEWA', 'b') + tx_(ux + 18, 34, '11 kV · 350 MVA', 'm');
+  s += ln(xs[0], 50, xs[7], 50, 'mv') + ln(ux, 33, ux, 50, 'mv');
+  const rm = [['RMU-1 · RRTT · 11 kV', [0, 1]], ['RMU-2 · RRT · 11 kV', [2]], ['RMU-3 · RRT · 11 kV', [3]], ['RMU-4 · RRT · 11 kV', [4]], ['RMU-5 · RRTT · 11 kV', [5]], ['RMU-6 · RRT · 11 kV', [6]]];
+  for (const [lab, ii] of rm) {
+    const a = xs[ii[0]], b = xs[ii[ii.length - 1]], mid = (a + b) / 2, half = Math.max((b - a) / 2 + 34, 62);
+    s += rc(mid - half, 41, 2 * half, 18, 'rmu', 3) + tx_(mid, 54, lab, 'b', 'middle');
+  }
+  ids.forEach((id, i) => {
+    const x = xs[i];
+    s += ln(x, 59, x, 78, 'mv') + trafo(x, 78) + tx_(x + 18, 88, id, 'b') + tx_(x + 18, 101, `${TX[id].kva} kVA · 6% Z`, 'm') + tx_(x + 18, 113, 'Dyn11', 'm');
+    s += ln(x, 115, x, 150) + ln(x - 60, 150, x + 60, 150, 'bus') + tx_(x - 60, 143, TX[id].mdb, 'b');
+    [-40, 0, 40].forEach((d) => { s += ln(x + d, 150, x + d, 168) + bsym(x + d, 168, 'SMDB'); });
+  });
+  const x8 = xs[7];
+  s += ln(x8, 34, x8, 66) + rc(x8 - 16, 66, 32, 24, '', 3) + tx_(x8, 82, 'kWh', 'b', 'middle') + tx_(x8 + 24, 76, 'DEWA supply', 'b') + tx_(x8 + 24, 89, 'METER CABINET', 'm');
+  s += ln(x8, 90, x8, 150) + ln(x8 - 40, 150, x8 + 40, 150, 'bus') + tx_(x8 - 40, 143, 'MDB-8', 'b') + ln(x8, 150, x8, 168) + bsym(x8, 168, 'DB');
+  s += mark(x8 - 30, 34, 1) + mark(22, 50, 2);
+  document.getElementById('fig-today').innerHTML = svg(1250, 200, s, true);
+  const rows = Object.values(TX).map((t, i) => `<div class="tn"><span class="ch">${CR}</span>${t.mdb}<span class="bd">${t.kva} kVA</span><span class="dot"></span></div>`).join('') + '<div class="tn"><span class="ch">' + CR + '</span>MDB-8<span class="m">DEWA supply</span><span class="dot"></span></div>';
+  document.getElementById('tree-today').innerHTML = rows;
+})();
+
+// ---------------- 2 · whole network ----------------
+(function whole() {
+  const o = { yr: 92, gapTx: 200, gapSs: 24, lv: 'short', left: { kind: 'grid', x: 46 }, marks: { 'SS-1': 1, 'SS-2': 2, 'SS-3': 3, 'SS-4': 4, 'SS-5': 5 } };
+  const pre = network(SUBS, 112, { ...o, right: { x: 0, text: [] } }); // positions only
+  const lastFr = pre.frames[pre.frames.length - 1].fr;
+  const n = network(SUBS, 112, { ...o, right: { x: lastFr + 106, arrow: true, text: ['ring to primary S/S', 'feeder F14'] } });
+  const Y = n.Y, x8 = lastFr + 168;
+  const s = n.s + auth(x8, Y, 'short') + mark(x8 + 74, Y.yr - 14, 6);
+  document.getElementById('fig-whole').innerHTML = svg(1878, Y.yM + 96, s);
+})();
+
+// ---------------- 3 · ribbon, Show menu, tree, SS-1 ----------------
+(function ribbon() {
+  const I = {
+    tags: '<path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r="1"/>',
+    palette: '<circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.9 0 1.6-.7 1.6-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1a1.6 1.6 0 0 1 1.6-1.7h2c3 0 5.6-2.5 5.6-5.6C22 6 17.5 2 12 2z"/>',
+    scen: '<path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"/>',
+    show: '<rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3M12 12V8"/>',
+    fit: '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>',
+    exp: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M12 18v-6M9 15l3 3 3-3"/>',
+    copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    paste: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M16 4h2a2 2 0 0 1 2 2v4M21 14H11M15 10l-4 4 4 4"/>',
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+    dn: '<path d="m6 9 6 6 6-6"/>'
+  };
+  const ic = (k, c = '') => `<svg class="ico ${c}" viewBox="0 0 24 24">${I[k]}</svg>`;
+  const big = (k, label, sub, cls = '', arrow = true) => `<div class="big ${cls}">${ic(k)}<span class="lb">${label}${arrow ? ic('dn', 'xs') : ''}</span>${sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
+  const sm = (k, label) => `<div class="sm">${ic(k, 's')}${label}</div>`;
+  document.getElementById('ribbon').innerHTML =
+    `<div class="fade">… Run and check · Canvas · Boards · Equipment · Selection</div>`
+    + `<div class="grp"><div class="btns">${big('tags', 'Values', '3 shown')}${big('palette', 'Colour by', 'None')}${big('scen', 'Scenario', 'Normal')}</div><div class="cap">Results</div></div>`
+    + `<div class="grp"><div class="btns"><div class="smc">${sm('copy', 'Copy')}${sm('paste', 'Paste')}</div><div class="smc">${sm('undo', 'Undo')}${sm('redo', 'Redo')}</div></div><div class="cap">Copy and undo</div></div>`
+    + `<div class="grp"><div class="btns"><span id="show-btn">${big('show', 'Show', 'SS-1', 'open nw')}</span>${big('fit', 'Fit', '', '', false)}</div><div class="cap">View</div></div>`
+    + `<div class="grp"><div class="btns">${big('exp', 'Export', '')}</div><div class="cap">Output</div></div>`;
+  // the Show menu: the supply tree
+  let m = `<div class="it"><span class="tk"></span>Whole network<span class="c">7 transformers · 66 boards</span></div><hr><div class="hd">Substations, RMUs and transformers</div>`;
+  for (const ss of SUBS) {
+    const on = ss.id === 'SS-1';
+    m += `<div class="it${on ? ' on' : ''}"><span class="tk">${on ? '✓' : ''}</span><b>${ss.id}</b> <span class="m">${ss.type} · ${ss.loc}</span><span class="c">${ssTx(ss).length} TX · ${ssBoards(ss)} boards</span></div>`;
+    for (const r of ss.rmus) {
+      m += `<div class="it sub2"><span class="tk"></span>${r.id} <span class="m">${r.cfg}${r.tx.includes(null) ? ' · 1 tee-off spare' : ''}${r.no ? ' · N/O' : ''}</span></div>`;
+      for (const t of r.tx.filter(Boolean)) m += `<div class="it sub3"><span class="tk"></span>${t} <span class="m">${TX[t].kva} kVA → ${TX[t].mdb}</span><span class="c">${boardsUnder(TX[t].mdb)} boards</span></div>`;
+    }
+  }
+  m += `<hr><div class="hd">Authority LV supply</div><div class="it sub2"><span class="tk"></span>MDB-8 <span class="m">meter cabinet 200 A</span><span class="c">${boardsUnder('MDB-8')} boards</span></div>`;
+  m += `<hr><div class="it"><span class="tk"></span>Selection's substation<span class="c">SS-1</span></div>`;
+  const btn = document.getElementById('show-btn').getBoundingClientRect(), host = document.getElementById('show-menu').parentElement.getBoundingClientRect();
+  const el = document.getElementById('show-menu');
+  el.className = 'menu nw';
+  const left = Math.round(btn.left - host.left);
+  el.style.cssText = `left:${left}px;top:4px;width:410px`;
+  el.innerHTML = m;
+  // the explanation sits beside the menu, on whichever side has room
+  const note = document.getElementById('show-note');
+  if (left >= 640) { note.style.left = '24px'; note.style.width = `${left - 64}px`; }
+  else { note.style.left = `${left + 450}px`; note.style.width = `${Math.min(760, host.width - left - 480)}px`; }
+})();
+
+(function treeSS() {
+  const dot = (w) => `<span class="dot${w ? ' w' : ''}"></span>`;
+  let h = '';
+  SUBS.forEach((ss, i) => {
+    const open = ss.id === 'SS-1';
+    h += `<div class="tn${i ? ' grp1' : ''}"><span class="ch">${open ? CD : CR}</span><span class="g">${ss.id}</span><span class="m">${ssTx(ss).length} TX · ${ssBoards(ss)}</span></div>`;
+    if (!open) return;
+    for (const r of ss.rmus) {
+      h += `<div class="tn" style="padding-left:24px"><span class="ch">${CD}</span>${r.id}<span class="m">${r.cfg}</span></div>`;
+      for (const t of r.tx.filter(Boolean)) {
+        const mdb = TX[t].mdb;
+        h += `<div class="tn" style="padding-left:38px"><span class="ch">${CD}</span>${mdb}<span class="bd">${t} · ${TX[t].kva} kVA</span>${dot()}</div>`;
+        for (const [n, dbs] of LVT[mdb]) h += `<div class="tn${n === 'SMDB-G2' ? ' sel' : ''}" style="padding-left:52px"><span class="ch">${dbs.length ? CR : ''}</span>${n}${dbs.length ? `<span class="m">${dbs.length}</span>` : ''}${dot(n === 'SMDB-RF')}</div>`;
+      }
+    }
+  });
+  h += `<div class="tn grp1"><span class="ch">${CR}</span><span class="g">Authority supply</span><span class="m">1 · ${boardsUnder('MDB-8')}</span></div>`;
+  document.getElementById('tree-ss').innerHTML = h;
+})();
+
+(function ss1() {
+  const ss = SUBS[0];
+  const n = network([ss], 0, { yr: 74, gapTx: 760, gapSs: 0, lv: 'deep', scr: true, padL: 300, lead: 70, left: { x: 18, text: ['from DEWA 11 kV · 350 MVA', 'primary S/S, feeder F12'] }, right: { x: 1640, text: ['to RMU-2 · SS-2'] } });
+  document.getElementById('fig-ss1').innerHTML = svg(1660, 590, n.s, true);
+})();
+
+// ---------------- 4 · one transformer, one RMU ----------------
+(function tx2() {
+  const ss = { ...SUBS[0], rmus: [{ ...SUBS[0].rmus[0] }], ties: [] };
+  // TX-2 only: TX-1's tee-off becomes a stub
+  const pos0 = 470;
+  const one = { ...ss, rmus: [{ ...ss.rmus[0], tx: ['TX-1', 'TX-2'] }] };
+  const n = network([{ ...one, rmus: [{ ...one.rmus[0] }] }], 0, {
+    yr: 74, gapTx: 0, gapSs: 0, lv: 'deep', scr: true, partial: true, padL: 200, lead: pos0 - 200, trail: 330,
+    left: { x: 18, text: ['from DEWA 11 kV', 'primary S/S, feeder F12'] }, right: { x: 926, text: ['to RMU-2 · SS-2'] },
+    tieStub: { tx: 'TX-2', text: ['BC to MDB-1', '(TX-1)'] }, only: ['TX-2']
+  });
+  document.getElementById('fig-tx2').innerHTML = svg(946, 550, n.s, true);
+})();
+(function rmu5() {
+  const ss = SUBS[3];
+  const n = network([ss], 0, { yr: 74, gapTx: 0, gapSs: 0, lv: 'deep', scr: true, padL: 330, lead: 70, trail: 330, left: { x: 18, text: ['from RMU-4 · SS-3'] }, right: { x: 926, text: ['to RMU-6 · SS-5'] } });
+  document.getElementById('fig-rmu5').innerHTML = svg(946, 550, n.s, true);
+})();
+
+// ---------------- 5 · Substations card ----------------
+(function card() {
+  const chipsR = (ss) => ss.rmus.map((r) => `<span class="pc">${r.id} · ${r.cfg}${r.t === 'cb' ? ' · CB' : ` · fuse ${r.fuse} A`}${r.no ? ' · N/O' : ''}</span>`).join('') + '<span class="pc sp">+ RMU</span>';
+  const chipsT = (ss) => ss.rmus.flatMap((r) => r.tx.map((t) => (t ? `<span class="pc">${t} · ${TX[t].kva}</span>` : '<span class="pc sp">1 tee-off spare</span>'))).join('') + '<span class="pc sp">+ Transformer</span>';
+  const chk = { 'SS-1': '<span class="ok">✓</span> 2 of 2 tee-offs', 'SS-2': '<span class="ok">✓</span>', 'SS-3': '<span class="ok">✓</span>', 'SS-4': '<span class="ok">✓</span> 1 spare', 'SS-5': '<span class="ok">✓</span> pocket: max 2 TX' };
+  let h = '<tr><th></th><th>Substation</th><th>Type (DM-D-013)</th><th>Location</th><th>RMUs</th><th>Transformers</th><th>Owner</th><th>Check</th></tr>';
+  for (const ss of SUBS) h += `<tr><td><span class="grip">⋮⋮</span></td><td><b>${ss.id}</b></td><td><span class="sel">${ss.dm} <svg class="ico xs" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></td><td>${ss.where}</td><td>${chipsR(ss)}</td><td>${chipsT(ss)}</td><td>Authority</td><td>${chk[ss.id]}</td></tr>`;
+  document.getElementById('ss-table').innerHTML = h;
+})();
+
+// ---------------- 6 · sheets ----------------
+(function sheets() {
+  const list = [['E-SLD-001', 'MV supply — ring, substations, transformers'], ['E-SLD-002', 'SLD — SS-1 (TX-1, TX-2)'], ['E-SLD-003', 'SLD — SS-2 (TX-3)'], ['E-SLD-004', 'SLD — SS-3 (TX-4, TX-5)'], ['E-SLD-005', 'SLD — SS-4 (TX-6)'], ['E-SLD-006', 'SLD — SS-5 (TX-7)'], ['E-SLD-007', 'SLD — MDB-8 (authority LV supply)'], ['E-SLD-008', 'Earthing schematic']];
+  document.getElementById('sheet-list').innerHTML = '<tr><th>Sheet</th><th>Title</th></tr>' + list.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+  const sheetNo = { 'TX-1': 'E-SLD-002', 'TX-2': 'E-SLD-002', 'TX-3': 'E-SLD-003', 'TX-4': 'E-SLD-004', 'TX-5': 'E-SLD-004', 'TX-6': 'E-SLD-005', 'TX-7': 'E-SLD-006' };
+  const base = { yr: 92, gapTx: 200, gapSs: 24, lv: 'overview', left: { kind: 'grid', x: 46 }, sheetNo };
+  const lastFr = network(SUBS, 112, { ...base, right: { x: 0, text: [] } }).frames.slice(-1)[0].fr;
+  const n = network(SUBS, 112, { ...base, right: { x: lastFr + 106, arrow: true, text: ['ring to primary S/S', 'feeder F14'] } });
+  const x8 = lastFr + 168, body = n.s + auth(x8, n.Y, 'overview', 'E-SLD-007');
+  const W = x8 + 130, H = n.Y.yM + 44;
+  const SW = 1380, SH = 680, k = (SW - 60) / W;
+  let s = rc(8, 8, SW - 16, SH - 16) + rc(14, 14, SW - 28, SH - 28);
+  s += `<g transform="translate(30 22) scale(${k.toFixed(4)})">${body}</g>`;
+  // schedules under the drawing
+  const table = (x, y, title, cols, rows) => {
+    let t = tx_(x, y, title, 'b'), yy = y + 8, cx = x;
+    const w = cols.reduce((a, [, cw]) => a + cw, 0);
+    t += rc(x, yy, w, 20 * (rows.length + 1));
+    cols.forEach(([h, cw], i) => { t += tx_(cx + 5, yy + 14, h, 'b'); if (i) t += ln(cx, yy, cx, yy + 20 * (rows.length + 1)); cx += cw; });
+    rows.forEach((r, j) => { const ry = yy + 20 * (j + 1); t += ln(x, ry, x + w, ry); let c2 = x; r.forEach((v, i) => { t += tx_(c2 + 5, ry + 14, v, 'm'); c2 += cols[i][1]; }); });
+    return t;
+  };
+  const yT = 22 + H * k + 26;
+  const rmuRows = SUBS.flatMap((ss) => ss.rmus.map((r) => [r.id, ss.id, r.cfg, '12 kV · 630 A', '20 kA 3 s', r.t === 'cb' ? 'CB, relay 50/51, 50N/51N' : `switch-fuse ${r.fuse} A`, r.tx.map((t, i) => t ?? `T${i + 1} spare`).join(', ') + (r.no ? ' · N/O on R2' : '')]));
+  s += table(30, yT, 'RMU SCHEDULE', [['RMU', 58], ['S/S', 46], ['Ways', 50], ['Rating', 96], ['Short-time', 76], ['Tee-off protection', 162], ['Feeds', 160]], rmuRows);
+  const txRows = SUBS.flatMap((ss) => ss.rmus.flatMap((r) => r.tx.map((t, i) => t && [t, `${TX[t].kva}`, '6', 'Dyn11', '11 / 0.4 kV', ss.id, `${r.id} / T${i + 1}`, TX[t].mdb, sheetNo[t]]).filter(Boolean)));
+  s += table(712, yT, 'TRANSFORMER SCHEDULE', [['TX', 46], ['kVA', 46], ['Z %', 38], ['Group', 52], ['Ratio', 80], ['S/S', 44], ['RMU / way', 84], ['Main board', 78], ['Sheet', 76]], txRows);
+  const tbx = SW - 14 - 520, tby = SH - 14 - 92;
+  s += rc(tbx, tby, 520, 92) + ln(tbx, tby + 30, tbx + 520, tby + 30) + ln(tbx, tby + 61, tbx + 520, tby + 61) + ln(tbx + 330, tby, tbx + 330, tby + 92);
+  s += tx_(tbx + 10, tby + 20, 'MV SUPPLY — 11 kV RING AND SUBSTATIONS', 'b') + tx_(tbx + 10, tby + 50, 'Example project · Electrical services', 'm') + tx_(tbx + 10, tby + 81, 'FOR APPROVAL · Scale NTS', 'm');
+  s += tx_(tbx + 340, tby + 20, 'Drawing no.', 'xs') + tx_(tbx + 340, tby + 50, 'E-SLD-001', 't') + tx_(tbx + 340, tby + 81, 'Rev 00 · Sheet 1 of 8', 'm');
+  s += tx_(30, SH - 58, 'NOTES', 'b') + tx_(30, SH - 44, '1. Substations are drawn in ring order. 2. Each main board is drawn on the sheet named under it.', 'm') + tx_(30, SH - 31, '3. Ratings are example values.', 'm');
+  const el = document.getElementById('sheet-hv');
+  el.style.height = `${SH}px`;
+  el.innerHTML = svg(SW, SH, s);
+})();
+
+// One page, the size of the content (hidden renderer: tests/pdf/render.cjs)
+document.head.appendChild(document.createElement('style')).textContent = '@page{size:1952px ' + (Math.ceil(document.documentElement.scrollHeight) + 4) + 'px;margin:0}';
+</script>
+</body>
+</html>
