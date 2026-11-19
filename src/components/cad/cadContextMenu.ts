@@ -9,9 +9,9 @@ import type { CadTool } from './cadState';
  * which must be one of CAD_COMMANDS, so every entry has a working tool behind it) or a page action (`act`); the page
  * turns them into clicks. */
 
-export type CtxAct = 'repeat' | 'properties' | 'enter' | 'cancel' | 'option' | 'input' | 'snap' | 'deselect' | 'dev' | 'room' | 'dw' | 'xref' | 'vp' | 'paper' | 'grip' | 'fpaper' | 'sk';
+export type CtxAct = 'repeat' | 'properties' | 'enter' | 'cancel' | 'option' | 'input' | 'snap' | 'deselect' | 'dev' | 'room' | 'dw' | 'xref' | 'vp' | 'paper' | 'grip' | 'fpaper' | 'sk' | 'sld';
 /** The icons of the menus (cadMenuIcons.tsx): the ribbon's icon for the same tool. */
-export type CtxIcon = 'repeat' | 'history' | 'tools' | 'clipboard' | 'cut' | 'copyclip' | 'paste' | 'undo' | 'redo' | 'erase' | 'move' | 'copy' | 'scale' | 'rotate' | 'mirror' | 'stretch' | 'array' | 'draworder' | 'isolate' | 'pan' | 'zoom' | 'similar' | 'invert' | 'deselect' | 'selectall' | 'qselect' | 'filter' | 'count' | 'properties' | 'options' | 'trim' | 'extend' | 'offset' | 'fillet' | 'chamfer' | 'break' | 'join' | 'explode' | 'reverse' | 'tocable' | 'room' | 'qmeasure' | 'addsel' | 'mkblock' | 'edtext' | 'find' | 'circuit' | 'swap' | 'sld' | 'schedule' | 'arrange' | 'samecircuit' | 'sametype' | 'device' | 'route' | 'tray' | 'enter' | 'cancel' | 'input' | 'snap' | 'boxes' | 'line' | 'pline' | 'circle' | 'arc' | 'rect' | 'text' | 'mtext' | 'dim' | 'hatch' | 'insert' | 'cloud' | 'point' | 'open' | 'crop' | 'reload' | 'unload' | 'detach' | 'bind' | 'layers' | 'print' | 'references' | 'activate' | 'expand' | 'lock' | 'unlock' | 'frame' | 'pagesetup' | 'plot' | 'viewport' | 'legend' | 'notes' | 'status' | 'sheets' | 'newlayout' | 'fromfile' | 'layouts' | 'rename' | 'delete' | 'arrangevp' | 'model' | 'plus' | 'minus' | 'save' | 'osnap' | 'ortho' | 'polar' | 'ellipse';
+export type CtxIcon = 'repeat' | 'history' | 'tools' | 'clipboard' | 'cut' | 'copyclip' | 'paste' | 'undo' | 'redo' | 'erase' | 'move' | 'copy' | 'scale' | 'rotate' | 'mirror' | 'stretch' | 'array' | 'draworder' | 'isolate' | 'pan' | 'zoom' | 'similar' | 'invert' | 'deselect' | 'selectall' | 'qselect' | 'filter' | 'count' | 'properties' | 'options' | 'trim' | 'extend' | 'offset' | 'fillet' | 'chamfer' | 'break' | 'join' | 'explode' | 'reverse' | 'tocable' | 'room' | 'qmeasure' | 'addsel' | 'mkblock' | 'edtext' | 'find' | 'circuit' | 'swap' | 'sld' | 'schedule' | 'arrange' | 'samecircuit' | 'sametype' | 'device' | 'route' | 'tray' | 'enter' | 'cancel' | 'input' | 'snap' | 'boxes' | 'line' | 'pline' | 'circle' | 'arc' | 'rect' | 'text' | 'mtext' | 'dim' | 'hatch' | 'insert' | 'cloud' | 'point' | 'open' | 'crop' | 'reload' | 'unload' | 'detach' | 'bind' | 'layers' | 'print' | 'references' | 'activate' | 'expand' | 'lock' | 'unlock' | 'frame' | 'pagesetup' | 'plot' | 'viewport' | 'legend' | 'notes' | 'status' | 'sheets' | 'newlayout' | 'fromfile' | 'layouts' | 'rename' | 'delete' | 'arrangevp' | 'model' | 'plus' | 'minus' | 'save' | 'osnap' | 'ortho' | 'polar' | 'ellipse' | 'board' | 'transformer' | 'txsizing' | 'copyplus' | 'sliders' | 'textcursor' | 'locate' | 'shield' | 'shieldalert' | 'gauge' | 'waves' | 'power' | 'toggle' | 'fit' | 'grid' | 'tags' | 'palette' | 'export' | 'hv';
 export interface CtxItem {
   label: string;
   /** The key shown on the right (a shortcut or alias). */
@@ -39,7 +39,7 @@ export interface CtxItem {
 /** An entry, or a separator. */
 export type CtxEntry = CtxItem | '-';
 /** The line at the top of a menu: what is picked (or the command and its prompt). */
-export interface CtxHead { icon?: CtxIcon; title: string; detail?: string; second?: string }
+export interface CtxHead { icon?: CtxIcon; title: string; detail?: string; second?: string; secondTone?: 'bad' | 'warn' }
 
 /** No separator first, last or twice in a row; the lists tidied the same way, and empty lists dropped. */
 export function tidy(list: CtxEntry[]): CtxEntry[] {

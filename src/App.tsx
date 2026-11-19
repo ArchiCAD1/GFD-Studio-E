@@ -66,6 +66,7 @@ const EquipmentScheduleView = lazy(() => documents().then((m) => ({ default: m.E
 const ReportView = lazy(() => documents().then((m) => ({ default: m.ReportView })));
 const LoadScheduleView = lazy(() => import('./components/docs/LoadScheduleView'));
 import { refreshBoard } from './model/schedule';
+import { convertSpareWay } from './model/wayConversion';
 const DatabaseView = lazy(() => import('./components/docs/DatabaseView'));
 const DesignReferencesView = lazy(() => import('./components/docs/DesignReferencesView'));
 import { pullLibrary } from './database/librarySync';
@@ -102,6 +103,9 @@ import { generatorScenario, transformerOutage, type SupplyMode } from './calc/sc
 import { removeTie, TIE_OPERATION, tieRatings, updateTie } from './model/sldEdit';
 import type { ColorBy } from './diagram/heatmap';
 import { applyMove, armHint, boardTakes, dropMany, libraryEntries, stayOnBoard, type DropResult, type DropTarget, type MoveItem, type PaletteItem } from './model/sldEdit';
+import { sldMenu, type SldTarget } from './model/sldMenu';
+import { pasteFeeder } from './model/sldMenuEdit';
+import { runSldMenu, type SldMenuCtx } from './components/sld/sldMenuRun';
 import { getArmedItem, setArmedItem } from './diagram/dragItem';
 import EquipmentPalette from './components/EquipmentPalette';
 import { loadUserPresets, mergePresets, presetFromFeeder, presetsFile, readPresetsFile, saveUserPresets, type FeederPreset } from './model/presets';
@@ -255,6 +259,9 @@ export default function App() {
   // What the Load schedule page says its ribbon tools can do (it clears this when it goes away).
   const [scheduleRibbon, setScheduleRibbon] = useState<RibbonActions['schedule']>();
   const [panelsTx, setPanelsTx] = useState<number | undefined>();
+  // The SLD menu's Repeat branch on other floors: Panels opens on that tab with this board picked.
+  const [repeatRoot, setRepeatRoot] = useState<string | undefined>();
+  const [inspectorShown, setInspectorShown] = useState(0); // the SLD menu's Properties brings a hidden inspector back
   // A cable type new to the project gets the next free reference number (kept).
   const patchHistory = history.patch;
   useEffect(() => { patchHistory(withCableRefs); }, [patchHistory, project.feeders, project.cableRefs]);
@@ -370,6 +377,7 @@ export default function App() {
   const inboxHere = inbox.filter((x) => x.key === inboxKey).map((x) => x.item);
   // Copy / paste of a board with everything below it.
   const [copiedBoard, setCopiedBoard] = useState<string | null>(null);
+  const [copiedLoad, setCopiedLoad] = useState<string | null>(null); // one clipboard: a board or a load
   const [pasteTarget, setPasteTarget] = useState<string | null>(null);
   const [createdPanelIds, setCreatedPanelIds] = useState<string[]>([]);
   // Study pages filtered to a board and the boards below it (panel tree).
@@ -378,7 +386,7 @@ export default function App() {
   // A ribbon command belongs to the visit it was given in: leaving the BOQ drops it, so it does not run again when the view opens next time.
   useEffect(() => { if (view !== 'boq') setBomCmd(undefined); }, [view]);
   // Leaving the SLD: an item chosen and not placed is put down; leaving Panels: it opens on its first tab next time.
-  useEffect(() => { if (view !== 'design') setArmedItem(null); if (view !== 'panels') setPanelsTx(undefined); }, [view]);
+  useEffect(() => { if (view !== 'design') setArmedItem(null); if (view !== 'panels') { setPanelsTx(undefined); setRepeatRoot(undefined); } }, [view]);
 
   // LV Database: Excel workbooks in the projects folder. Every save in Excel
   // arrives here; the data is applied to the calculations, library-linked
@@ -699,8 +707,8 @@ export default function App() {
   }
 
   /** Show on plan: the selected board or circuit on its floor plan in Design CAD, or why it is not on one. */
-  function showOnPlan() {
-    const t = planTarget(project, panel === 'feeder' && selected ? { feeder: selected } : board ? { board: board.id } : {});
+  function showOnPlan(of?: { board?: string; feeder?: string }) {
+    const t = planTarget(project, of ?? (panel === 'feeder' && selected ? { feeder: selected } : board ? { board: board.id } : {}));
     if (typeof t === 'string') { setStatus(t); return; }
     cadDo((x) => x.showOnPlan(t));
   }
@@ -1018,7 +1026,7 @@ export default function App() {
   };
 
   async function confirmDeleteSelected() {
-    if (panel === 'feeder' && selectedFeeder) { if (await askUser({ title: `Delete feeder ${selectedFeeder.id}?`, confirmLabel: 'Delete feeder', danger: true })) deleteFeeder(selectedFeeder.id); return; }
+    if (panel === 'feeder' && selectedFeeder) { await confirmDeleteFeeder(selectedFeeder.id); return; }
     if (board) await confirmRemoveBoard(board.id);
   }
   /** Deletes a board and everything below it, after asking. */
@@ -1132,6 +1140,40 @@ export default function App() {
     setEditPreset(presetFromFeeder(project, f, name));
   }
 
+  /** A quick fix of a circuit (its hover card and the SLD menu). */
+  function fixFeeder(id: string, patch: Partial<Feeder>, label: string) {
+    setProject((p) => ({ ...p, feeders: p.feeders.map((f) => (f.id === id ? { ...f, ...patch } : f)) }), { step: true });
+    selectFeeder(id);
+    setStatus(`${id}: ${label} (undo with ⌘Z)`);
+  }
+  /** The cable type of every outgoing way of a board (the Panels tree and the SLD menu); 'auto' = by the load. */
+  function setBoardCableType(id: string, t: string) {
+    const ids = project.feeders.filter((f) => f.boardId === id && !isScheduleCircuit(f)).map((f) => f.id);
+    setProject((p) => ({ ...p, feeders: p.feeders.map((f) => (ids.includes(f.id) ? { ...f, cableType: t === 'auto' ? undefined : t } : f)) }), { step: true });
+    setStatus(`${ids.length} cable${ids.length === 1 ? '' : 's'} from ${id}: ${t === 'auto' ? 'automatic type (fire-rated for life safety)' : cableTypeDef(t).label}`);
+  }
+  /** The incomer of a board has its length checked after a move to another source. */
+  function setLengthChecked(id: string) {
+    setProject({ ...project, feeders: project.feeders.map((f) => (f.feedsBoardId === id ? { ...f, lengthToCheck: undefined } : f)) }, { step: true });
+  }
+  /** A bus coupler's operation or rating (its dialog and the SLD menu). */
+  function applyTie(id: string, patch: { closed?: boolean; ratingA?: number }) {
+    const t = project.ties?.find((x) => x.id === id);
+    if (!t) return;
+    const closed = patch.closed ?? !!t.closed, ratingA = patch.ratingA ?? t.ratingA;
+    if (closed === !!t.closed && ratingA === t.ratingA) return;
+    setProject((p) => updateTie(p, id, { closed, ratingA }), { step: true });
+    setStatus(`${id}: ${ratingA} A, ${closed ? 'normally closed — transformers in parallel' : 'normally open'} (undo with ⌘Z)`);
+  }
+  async function confirmRemoveTie(id: string) {
+    if (!(await askUser({ title: `Remove bus coupler ${id}?`, confirmLabel: 'Remove', danger: true }))) return;
+    setProject(removeTie(project, id), { step: true });
+    setStatus(`Removed bus coupler ${id}`);
+  }
+  async function confirmDeleteFeeder(id: string) {
+    if (await askUser({ title: `Delete feeder ${id}?`, confirmLabel: 'Delete feeder', danger: true })) deleteFeeder(id);
+  }
+
   const [dropQty, setDropQty] = useState(1);
   function dropItem(item: PaletteItem, target: DropTarget, stay?: string) {
     const r = dropMany(project, item, target, dropQty, db.loads);
@@ -1180,6 +1222,36 @@ export default function App() {
     if (panel === 'feeder' && selectedFeeder) return confirmDeleteSelected();
     if (panel === 'board' && board) void confirmRemoveBoard(board.id);
   }
+
+  /** The SLD's right-click menus: what a row shows (sldMenu.ts) and what it does (components/sld/sldMenuRun.ts). */
+  const sldMenuFor = (t: SldTarget, v: { grid: 'lines' | 'dots' | 'off'; detail: 'auto' | 'all' }) => sldMenu({
+    project, calcProject, results: allResults, copiedBoard: copiedBoard ?? undefined, copiedLoad: copiedLoad ?? undefined, canUndo: history.canUndo, canRedo: history.canRedo,
+    layers, colorBy, supply: onGenerator ? 'generator' : outageId ? `outage:${outageId}` : 'normal', hasGenerator, outages: tiedRoots, grid: v.grid, detail: v.detail
+  }, t);
+  const sldMenuCtx: SldMenuCtx = {
+    project, calcProject, copiedBoard: copiedBoard ?? undefined, copiedLoad: copiedLoad ?? undefined,
+    status: setStatus, apply: showResult, selectBoard, selectFeeder, editBoard: setEditBoardId, editFeeder,
+    openSchedule: (id) => { setActiveBoardId(id); setView('load-schedule'); },
+    openBoardDiagram: () => setDiagramMode('board'),
+    addLoad: (id, preset) => { setActiveBoardId(id); openAddFeeder(preset); },
+    addBoard: (id) => { setActiveBoardId(id); setBoardPreset(undefined); setShowBoardForm(true); },
+    copyBoard, copyLoad,
+    pasteBoard: (id) => { setActiveBoardId(id); setPasteTarget(id); },
+    repeatBranch: (id) => { setRepeatRoot(id); setPanelsTx(Date.now()); setView('panels'); },
+    moveItem, setCableType: setBoardCableType, lengthChecked: setLengthChecked, fixFeeder,
+    deleteBoard: (id) => { void confirmRemoveBoard(id); },
+    deleteLoad: (id) => { void confirmDeleteFeeder(id); },
+    showOnPlan,
+    zoomTo: (kind, id) => setSldFocus({ kind, id, n: Date.now() }),
+    properties: (kind, id) => { if (kind === 'board') { selectBoard(id); setBoardTab('general'); } else selectFeeder(id); setInspectorShown(Date.now()); },
+    txSizing: () => setView('sizing'),
+    hvSupply: () => { setRepeatRoot(undefined); setPanelsTx(Date.now()); setView('panels'); },
+    dropItem: (item, target) => showResult(dropMany(project, item, target, 1, db.loads)),
+    setSupply, toggleLayer: (k) => setLayers({ ...layers, [k]: !layers[k] }), setColorBy,
+    exportSld: () => { setView('design'); setDiagramMode('system'); setShowExport(true); },
+    undo: history.undo, redo: history.redo,
+    setTie: applyTie, removeTie: (id) => { void confirmRemoveTie(id); }
+  };
 
   // ⌘Z / Ctrl+Z undo, ⇧⌘Z / Ctrl+Y redo, Delete on the diagram. Typing in a
   // field or a sheet keeps its own undo and delete.
@@ -1242,9 +1314,16 @@ export default function App() {
       } else if (mod && e.key.toLowerCase() === 'c' && view === 'design' && panel === 'board' && board && !!t?.closest('.sysdiag')) {
         e.preventDefault();
         copyBoard(board.id);
+      } else if (mod && e.key.toLowerCase() === 'c' && view === 'design' && panel === 'feeder' && selectedFeeder && !selectedFeeder.feedsBoardId && !!t?.closest('.sysdiag')) {
+        e.preventDefault();
+        copyLoad(selectedFeeder.id);
       } else if (mod && e.key.toLowerCase() === 'v' && view === 'design' && panel === 'board' && board && copiedBoard && !!t?.closest('.sysdiag')) {
         e.preventDefault();
         setPasteTarget(board.id);
+      } else if (mod && e.key.toLowerCase() === 'v' && view === 'design' && copiedLoad && !!t?.closest('.sysdiag') && (panel === 'board' ? !!board : !!selectedFeeder)) {
+        // A copied load goes at the end of the selected board, or before the selected load.
+        e.preventDefault();
+        showResult(pasteFeeder(project, copiedLoad, panel === 'feeder' && selectedFeeder ? { type: 'feeder', feederId: selectedFeeder.id } : { type: 'bus', boardId: board!.id }));
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && view === 'design' && !!t?.closest('.sysdiag')) {
         e.preventDefault();
         deleteSelection();
@@ -1271,7 +1350,14 @@ export default function App() {
 
   function copyBoard(id: string) {
     setCopiedBoard(id);
+    setCopiedLoad(null);
     setStatus(`Copied ${id} with everything below it — select the board to paste it on and press Paste (⌘V / Ctrl+V)`);
+  }
+
+  function copyLoad(id: string) {
+    setCopiedLoad(id);
+    setCopiedBoard(null);
+    setStatus(`Copied ${id} — select a board or a load and press Paste (⌘V / Ctrl+V)`);
   }
 
   function addBoard(b: Board, incomer: Feeder) {
@@ -1394,7 +1480,7 @@ export default function App() {
               supply: onGenerator ? 'generator' as const : outageId ? `outage:${outageId}` as const : 'normal' as const, onSupply: setSupply, hasGenerator, outages: tiedRoots,
               canCopy: onBoard, onCopy: () => { if (board) copyBoard(board.id); },
               canPaste: onBoard && !!copiedBoard && project.boards.some((b) => b.id === copiedBoard), copied: copiedBoard ?? undefined, onPaste: () => { if (board) setPasteTarget(board.id); },
-              onShowOnPlan: showOnPlan,
+              onShowOnPlan: () => showOnPlan(),
               onFit: () => setSldFit((n) => n + 1),
               onExport: () => { system(); setShowExport(true); }
             };
@@ -1477,13 +1563,9 @@ export default function App() {
               setStatus(`${id} is now supplied from ${to} — check the incomer cable length.`);
             },
             onReorder: (id, dir) => setProject(reorderBoard(project, id, dir), { step: true }),
-            onLengthChecked: (id) => setProject({ ...project, feeders: project.feeders.map((f) => (f.feedsBoardId === id ? { ...f, lengthToCheck: undefined } : f)) }, { step: true }),
+            onLengthChecked: setLengthChecked,
             cableTypes: CABLE_TYPE_DEFS.filter((d) => d.value !== 'XLPE/SWA/PVC'),
-            onCableType: (id, t) => {
-              const ids = project.feeders.filter((f) => f.boardId === id && !isScheduleCircuit(f)).map((f) => f.id);
-              setProject((p) => ({ ...p, feeders: p.feeders.map((f) => (ids.includes(f.id) ? { ...f, cableType: t === 'auto' ? undefined : t } : f)) }), { step: true });
-              setStatus(`${ids.length} cable${ids.length === 1 ? '' : 's'} from ${id}: ${t === 'auto' ? 'automatic type (fire-rated for life safety)' : cableTypeDef(t).label}`);
-            }
+            onCableType: setBoardCableType
           }}
         />}
 
@@ -1567,6 +1649,18 @@ export default function App() {
                     onEditFeeder={editFeeder}
                     onEditBoard={(id) => { selectBoard(id); setEditBoardId(id); }}
                     onOpenSchedule={(id) => { setActiveBoardId(id); setView('load-schedule'); }}
+                    onConvertSpare={async (boardId, wayId) => {
+                      const source = project.boards.find((b) => b.id === boardId)?.spareWays?.find((w) => w.id === wayId);
+                      if (!source) { setStatus('That spare / space is no longer on the board'); return; }
+                      const what = source.kind === 'spare' ? 'spare' : 'space';
+                      const poles = source.phase === 'RYB' ? 'TP' : 'SP';
+                      if (!(await askUser({ title: `Convert ${what} to a circuit?`, message: `${boardId}: ${source.ratingA} A ${poles}. The new circuit starts with no load; enter its load and cable length after converting.`, confirmLabel: 'Convert' }))) return;
+                      const r = convertSpareWay(project, boardId, wayId);
+                      if (r.project === project) { setStatus(r.message); return; }
+                      setProject(r.project, { step: true });
+                      if (r.id) { setSelected(r.id); setActiveBoardId(boardId); setPanel('feeder'); }
+                      setStatus(`${r.message} (undo with ⌘Z)`);
+                    }}
                     colorBy={colorBy}
                     scenario={genScenario}
                     chain={chain}
@@ -1575,11 +1669,7 @@ export default function App() {
                     fullScreen={sldFull}
                     onToggleFullScreen={() => setSldFull((v) => !v)}
                     focus={sldFocus}
-                    onFixFeeder={(id, patch, label) => {
-                      setProject((p) => ({ ...p, feeders: p.feeders.map((f) => (f.id === id ? { ...f, ...patch } : f)) }), { step: true });
-                      selectFeeder(id);
-                      setStatus(`${id}: ${label} (undo with ⌘Z)`);
-                    }}
+                    onFixFeeder={fixFeeder}
                     onDrawing={(d) => setProject((p) => ({ ...p, drawing: { ...p.drawing, ...d } }))}
                     onEditTie={async (id) => {
                       const t = project.ties?.find((x) => x.id === id);
@@ -1593,16 +1683,8 @@ export default function App() {
                         ]
                       });
                       if (!r) return;
-                      if (r.op === TIE_OPERATION.remove) {
-                        if (!(await askUser({ title: `Remove bus coupler ${id}?`, confirmLabel: 'Remove', danger: true }))) return;
-                        setProject(removeTie(project, id), { step: true });
-                        setStatus(`Removed bus coupler ${id}`);
-                        return;
-                      }
-                      const closed = r.op === TIE_OPERATION.closed, ratingA = parseInt(r.rating, 10) || t.ratingA;
-                      if (closed === !!t.closed && ratingA === t.ratingA) return;
-                      setProject((p) => updateTie(p, id, { closed, ratingA }), { step: true });
-                      setStatus(`${id}: ${ratingA} A, ${closed ? 'normally closed — transformers in parallel' : 'normally open'} (undo with ⌘Z)`);
+                      if (r.op === TIE_OPERATION.remove) { await confirmRemoveTie(id); return; }
+                      applyTie(id, { closed: r.op === TIE_OPERATION.closed, ratingA: parseInt(r.rating, 10) || t.ratingA });
                     }}
                     onDropItem={dropItem}
                     onMoveItem={moveItem}
@@ -1611,6 +1693,8 @@ export default function App() {
                       selectFeeder(id);
                       setStatus(`${id}: cable ${patch.parallel ? `${patch.parallel} × ` : ''}${patch.cores}C × ${patch.cableCsaMm2} mm², ${patch.lengthM} m`);
                     }}
+                    menuFor={sldMenuFor}
+                    onMenu={(t, action, value) => runSldMenu(sldMenuCtx, t, action, value)}
                   />
                   )}
                   </div>
@@ -1659,7 +1743,7 @@ export default function App() {
             </ErrorBoundary>
             </main>
 
-            <InspectorPanel label={panel === 'board' ? 'Board properties' : 'Circuit results'}>
+            <InspectorPanel label={panel === 'board' ? 'Board properties' : 'Circuit results'} showRequest={inspectorShown}>
               {panel === 'board' ? (
                 <BoardPanel project={calcProject.boards.some((b) => b.id === board.id) ? calcProject : project} board={board} results={allResults} onChange={updateBoard} onSelectFeeder={selectFeeder} tab={boardTab} onTab={setBoardTab} onEnclosure={() => setView('enclosure')} main={mainOfSelected()} />
               ) : (
@@ -1771,7 +1855,7 @@ export default function App() {
             )}
             {view === 'study-reports' && <StudyReportsView project={project} me={{ preparedBy: signature(prefs.profile), checkedBy: prefs.profile.checkedBy }} run={run} stale={stale} onRun={runNow} onChange={setProject} onStatus={setStatus} />}
             {view === 'calculators' && <QuickCalcs project={project} />}
-            {view === 'panels' && <PanelsPage key={panelsTx ?? 0} initialTab={panelsTx ? 'tx' : undefined} project={project} onChange={(p) => setProject(p, { step: true })} onStatus={setStatus} onBuilding={() => setView('building')}
+            {view === 'panels' && <PanelsPage key={panelsTx ?? 0} initialTab={repeatRoot ? 'repeat' : panelsTx ? 'tx' : undefined} repeatRoot={repeatRoot} project={project} onChange={(p) => setProject(p, { step: true })} onStatus={setStatus} onBuilding={() => setView('building')}
               onCreated={(next, m, added) => { setProject(next, { step: true }); setCreatedPanelIds(added); setStatus(m); }} />}
             {view === 'earth-schematic' && <EarthingView project={project} onChange={(p) => setProject(p, { step: true })} onSheets={openEarthSheet} />}
             {view === 'enclosure' && <EnclosureSizing key={board?.id} project={project} boardId={board?.id} onChange={(p) => setProject(p, { step: true })} onStatus={setStatus} />}
