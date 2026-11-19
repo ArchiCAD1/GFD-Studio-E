@@ -30,6 +30,15 @@ describe('CadMenu', () => {
   const press = (key: string, el: Element | null = document.activeElement) => act(() => { el!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })); });
   const focused = () => document.activeElement?.querySelector('.lb')?.textContent;
 
+  it('tones the second header line when asked', () => {
+    show({ ...head, second: 'Fails · Cable too small', secondTone: 'bad' });
+    expect(menu().querySelector('.cad-menu-hd2')!.className).toBe('cad-menu-hd2 bad');
+    show({ ...head, second: 'To check', secondTone: 'warn' });
+    expect(menu().querySelector('.cad-menu-hd2')!.className).toBe('cad-menu-hd2 warn');
+    show();
+    expect(menu().querySelector('.cad-menu-hd2')!.className).toBe('cad-menu-hd2');
+  });
+
   it('has the header, the rows as direct children, and takes the focus', () => {
     show();
     expect(menu().querySelector('.cad-menu-hd')!.textContent).toBe('Line · 2.34 m · A-WALL');

@@ -1,10 +1,11 @@
 import { ask, tell } from '../ConfirmDialog';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { ListPlus, Plus, Trash2 } from 'lucide-react';
 import type { Board, Feeder, Project, SpareWay } from '../../types';
 import { applyMdEdits, buildMdSheet } from '../../docs/mdSheet';
 import { addOutgoingFeeder, deleteOutgoingFeeder, duplicateOutgoingFeeder, feederDeleteBlock } from '../../model/mdFeeders';
 import { addSpareWay, deleteSpareWay, spareLabel, spareRef } from '../../model/spareWays';
+import { convertSpareWay } from '../../model/wayConversion';
 import { revisionStamp } from '../../model/revisions';
 import ClassicGrid, { type ClassicGridHandle } from '../grid/ClassicGrid';
 import { txt } from '../../util/format';
@@ -62,6 +63,15 @@ export default function MdSheetView({ project, boardId, onChange, onStatus, onSe
     onChange(r.project);
     onStatus(r.message);
   };
+  const convertWay = async (w: SpareWay) => {
+    const what = spareLabel(w).toLowerCase();
+    const poles = w.phase === 'RYB' ? 'TP' : 'SP';
+    const kept = w.kind === 'spare' ? 'keep its fitted breaker' : 'add the breaker planned for this space';
+    if (!(await ask(`Convert this ${what} to an outgoing circuit on ${boardId}? It will ${kept} (${w.ratingA} A ${poles}) and start with no load.`))) return;
+    const r = convertSpareWay(project, boardId, w.id);
+    if (r.project !== project) onChange(r.project);
+    onStatus(r.message);
+  };
   const removeFeeder = async (f: Feeder, toBoard?: Board) => {
     const block = feederDeleteBlock(project, f.id);
     const label = toBoard ? toBoard.id : f.name || f.id;
@@ -77,9 +87,14 @@ export default function MdSheetView({ project, boardId, onChange, onStatus, onSe
       const w = row.way;
       const what = spareLabel(w).toLowerCase();
       return (
-        <button className="icon-btn" aria-label={`Delete ${what}`} title={`Delete this ${what}`} onClick={() => removeWay(w)}>
-          <Trash2 size={14} />
-        </button>
+        <>
+          <button className="icon-btn" aria-label={`Convert ${what} to circuit`} title={`Convert this ${what} to an outgoing circuit`} onClick={() => void convertWay(w)}>
+            <ListPlus size={14} />
+          </button>
+          <button className="icon-btn" aria-label={`Delete ${what}`} title={`Delete this ${what}`} onClick={() => removeWay(w)}>
+            <Trash2 size={14} />
+          </button>
+        </>
       );
     }
     if (row.type !== 'feeder') return null;
