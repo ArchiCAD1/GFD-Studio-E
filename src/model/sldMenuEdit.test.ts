@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import type { Project } from '../types';
 import { applyMove } from './sldEdit';
-import { busWays, changeFeeder, copyFeeder, duplicateBoard, duplicateFeeder, orderTarget, pasteFeeder } from './sldMenuEdit';
+import { busWays, changeFeeder, copyFeeder, duplicateBoard, duplicateFeeder, moveBlockedReason, orderTarget, pasteFeeder } from './sldMenuEdit';
 import { withUids } from './stableIds';
 
 const base: Project = withUids(structuredClone(sampleProject));
@@ -150,5 +150,29 @@ describe('change one setting of a load', () => {
   });
   it('says so for a load that is gone', () => {
     expect(changeFeeder(base, 'NOPE', 'essential').project).toBe(base);
+  });
+});
+
+describe('why a place can not take it', () => {
+  const bus = (boardId: string) => ({ type: 'bus' as const, boardId });
+  const way = (feederId: string) => ({ type: 'feeder' as const, feederId });
+  const board = (id: string) => ({ kind: 'board' as const, id });
+  const load = (id: string) => ({ kind: 'feeder' as const, id });
+  it('is undefined where the move works', () => {
+    expect(moveBlockedReason(base, board('SMDB-GF'), bus('SMDB-FF'))).toBeUndefined();
+    expect(moveBlockedReason(base, load('FF-IT'), way('FF-LTG'))).toBeUndefined();
+  });
+  it('names the board cases', () => {
+    expect(moveBlockedReason(base, board('MDB-1'), bus('SMDB-FF'))).toBe('A main board has no incomer to move');
+    expect(moveBlockedReason(base, board('SMDB-GF'), { type: 'canvas' })).toBe('Click a busbar or a load');
+    expect(moveBlockedReason(base, board('SMDB-GF'), bus('SMDB-GF'))).toBe("SMDB-GF can't supply itself");
+    expect(moveBlockedReason(base, board('SMDB-GF'), way('GF-LTG'))).toBe("SMDB-GF can't supply itself");
+    expect(moveBlockedReason(base, board('SMDB-GF'), bus('DB-GF1'))).toBe('DB-GF1 is below SMDB-GF — that would make a loop');
+    expect(moveBlockedReason(base, board('SMDB-GF'), way('INC-GF'))).toBe('That is SMDB-GF’s own incomer');
+  });
+  it('names the load cases', () => {
+    expect(moveBlockedReason(base, load('FF-IT'), way('FF-IT'))).toBe('That is FF-IT itself');
+    expect(moveBlockedReason(base, load('FF-LTG'), bus('SMDB-FF'))).toBe('FF-LTG is already last on SMDB-FF');
+    expect(moveBlockedReason(base, load('FF-LTG'), { type: 'canvas' })).toBe('Click a busbar or a load');
   });
 });

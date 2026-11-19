@@ -1,9 +1,10 @@
 import { isScheduleCircuit } from '../calc/loadSchedule';
 import { applyRecommendation, recommend } from '../calc/sizing';
 import { cableTypeDef } from './cableTypes';
+import { below } from './moveBoard';
 import { pasteBoard } from './copyBoard';
 import { setCircuitPhase } from './phases';
-import { applyDrop, applyMove, type DropResult, type DropTarget, type MoveItem, type ProtectionDevice } from './sldEdit';
+import { applyDrop, applyMove, canMove, type DropResult, type DropTarget, type MoveItem, type ProtectionDevice } from './sldEdit';
 import type { Feeder, MeterType, Project } from '../types';
 
 /** The edits behind the SLD right-click menu (sldMenu.ts) that the drag and drop tools did not have: moving a way along
@@ -34,6 +35,26 @@ export function orderTarget(project: Project, item: MoveItem, how: 'left' | 'rig
     case 'first': return i > 0 ? before(0) : undefined;
     case 'last': return i < end ? before(end + 1) : undefined;
   }
+}
+
+/** Why a place can't take what is being moved, in a few words for the label under the pointer; undefined when it can. */
+export function moveBlockedReason(project: Project, item: MoveItem, target: DropTarget): string | undefined {
+  if (canMove(project, item, target)) return undefined;
+  const f = moverOf(project, item);
+  if (!f) return item.kind === 'board' ? 'A main board has no incomer to move' : 'It can’t go there';
+  if (target.type === 'canvas') return 'Click a busbar or a load';
+  const way = target.type === 'feeder' ? project.feeders.find((x) => x.id === target.feederId) : undefined;
+  const to = target.type === 'bus' ? target.boardId : way?.boardId;
+  if (!to) return 'It can’t go there';
+  if (item.kind === 'board') {
+    if (way?.id === f.id) return `That is ${item.id}’s own incomer`;
+    if (to === item.id) return `${item.id} can't supply itself`;
+    if (below(project, item.id).has(to)) return `${to} is below ${item.id} — that would make a loop`;
+  } else {
+    if (way?.id === f.id) return `That is ${item.id} itself`;
+    if (target.type === 'bus' && to === f.boardId) return `${item.id} is already last on ${to}`;
+  }
+  return 'It can’t go there';
 }
 
 const newUid = (): string | undefined => globalThis.crypto?.randomUUID?.();
