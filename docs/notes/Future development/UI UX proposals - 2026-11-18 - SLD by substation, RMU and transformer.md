@@ -1,6 +1,6 @@
 # SLD by substation, RMU and transformer — proposal (2026-11-18)
 
-Status: **all eight decisions approved with the recommended answers**: 1–7 on 2026-11-18, 8 (the MV overview as a Show menu row, no new tab) on 2026-11-19. Step 1 (the ring on the SLD and the two fixes) is in PR 697, v2.208; the normally open point waits for step 4, where it is entered.
+Status: **all eight decisions approved with the recommended answers**: 1–7 on 2026-11-18, 8 (the MV overview as a Show menu row, no new tab) on 2026-11-19. Step 1 (the ring on the SLD and the two fixes) is in PR 697, v2.208; the normally open point waits for step 4, where it is entered. PR 698 (v2.209) renames the app's older HV labels to MV, among them the MV supply and RMUs card and menu item named here.
 Mockup: `docs/mockups/sld-substation-view-mockup.html` + `.png` (example project: five substations, six RMUs, seven transformers and one board on an authority LV supply).
 Follows [[UI UX proposals - 2026-11-11 - SLD supply sources, RMU and package substations]]: that proposal's D1 (where the upstream chain is drawn) is answered here with "above the main boards, by substation".
 
@@ -27,7 +27,7 @@ No new tab. The mockup's section 0 shows each place.
 1. **SLD → System diagram**, the first of the SLD page's four tabs: the drawing itself shows the arrangement (part 1). Board, Earthing and Riser stay as they are.
 2. **SLD ribbon → View → Show**, beside Fit. The chip sits on the drawing (part 2).
 3. **Panel tree**, on the left of the SLD page: the Group switch (part 3).
-4. **Panels → Transformers**, opened from SLD ribbon → Supply → HV supply and RMUs… as today: the Substations card (part 4). Right-click works on the drawing.
+4. **Panels → Transformers**, opened from SLD ribbon → Supply → MV supply and RMUs… as today: the Substations card (part 4). Right-click works on the drawing.
 5. **Design CAD → Sheets → Make the sheets automatically**: a fourth button, One sheet per substation (part 5). Since v2.4 every submission sheet is made there, not on the SLD page.
 
 ## Proposal
