@@ -14,6 +14,12 @@ function feeder(id: string, boardId: string, feedsBoardId?: string): Feeder {
 const base = { name: 'T', voltageV: 415, frequencyHz: 50, ambientC: 45, vdLimitPct: 4, updatedAt: '' };
 
 describe('system layout', () => {
+  it('places the main boards in the order given, the others after them in project order', () => {
+    const p: Project = { ...base, boards: [{ id: 'A', name: 'A' }, { id: 'B', name: 'B' }, { id: 'C', name: 'C' }], feeders: [feeder('a', 'A'), feeder('b', 'B'), feeder('c', 'C')] };
+    expect(layoutSystem(p, 0, { rootOrder: ['C', 'A'] }).roots.map((r) => r.board.id)).toEqual(['C', 'A', 'B']);
+    expect(layoutSystem(p).roots.map((r) => r.board.id)).toEqual(['A', 'B', 'C']);
+  });
+
   it('places every board and feeder exactly once; final circuits go to their DB', () => {
     const l = layoutSystem(sampleProject);
     expect(l.boards.map((b) => b.board.id).sort()).toEqual(sampleProject.boards.map((b) => b.id).sort());

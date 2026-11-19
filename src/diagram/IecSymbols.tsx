@@ -91,6 +91,7 @@ export function legendEntries(project: Project): LegendEntry[] {
   const out: LegendEntry[] = [];
   const add = (key: string, label: string, draw: LegendEntry['draw']) => out.push({ key, label, draw });
   if (shown.some((b) => b.sourceKva)) add('tx', 'Transformer', (x, y) => <Sym id="tx" x={x} y={y} s={SYM_SCALE.legend} />);
+  if (shown.some((b) => !b.upstreamId && !!b.rmu?.trim())) add('rmu', SYMBOLS.rmu.label, (x, y) => <Sym id="rmu" x={x} y={y} s={SYM_SCALE.legend} />);
   if (shown.some((b) => b.standby)) add('gen', 'Standby generator', (x, y) => <Sym id="gen" x={x} y={y} s={SYM_SCALE.legend} />);
   if (shown.some((b) => b.standby && b.standby.changeover !== 'ACB')) add('ats', 'Automatic transfer switch (ATS), 4P switched neutral', (x, y) => <Sym id="ats" x={x} y={y} s={SYM_SCALE.legend} />);
   add('bus', 'Busbar', (x, y) => <line x1={x - 12} y1={y} x2={x + 12} y2={y} className="bus" />);

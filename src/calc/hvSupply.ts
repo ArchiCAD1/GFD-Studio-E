@@ -28,6 +28,13 @@ export function rmuWays(config: string): { ring: number; tOff: number } {
   return { ring: [...c].filter((x) => x === 'R').length, tOff: [...c].filter((x) => x === 'T').length };
 }
 
+/** How many transformers an RMU can feed: the tee-offs of its recorded configuration (RT / RRT 1, RRTT 2,
+ * RRTTT 3), or 2 when no configuration is entered. */
+export function rmuTeeOffs(project: Project, name: string): number {
+  const config = rmuRecord(project, name)?.config?.trim();
+  return config ? rmuWays(config).tOff : 2;
+}
+
 export interface RmuCheck { label: string; status: Status; text: string }
 export interface RmuChecks { rmu: string; source?: GridSource; transformers: string[]; checks: RmuCheck[] }
 

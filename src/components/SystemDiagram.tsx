@@ -4,7 +4,7 @@ import { txTag } from '../model/transformers';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore, type CSSProperties, type RefObject } from 'react';
 import { STATUS_TEXT } from '../calc/statusText';
 import { componentLabel } from '../model/components';
-import type { DrawingInfo, Project } from '../types';
+import type { DrawingInfo, GridSource, Project } from '../types';
 import { cableTypeOf, CABLE_TYPE_DEFS, labelCode } from '../model/cableTypes';
 import { cableRefOf } from '../model/cableRefs';
 import { dbSpares, spareBreaker } from '../model/spareWays';
@@ -18,6 +18,8 @@ import { failReasons, quickFixes } from '../calc/quickFix';
 import { boardLocation } from '../model/levels';
 import { boardPhaseKw } from '../calc/loadSchedule';
 import { DEWA_EXTRA_Y, ELCB_ROW, LEAF_W, layoutSystem } from '../diagram/layout';
+import HvRing from '../diagram/HvRing';
+import { HV_DY, hvGeometry, hvLeads, hvPlan, hvRingOn, onHvSide, type HvGeom } from '../diagram/hvArrangement';
 import { panelSummary } from '../docs/mdSheet';
 import { cpcOf } from '../calc/cableTable';
 import LoadIcon from './LoadIcon';
@@ -91,16 +93,23 @@ export function plannedEarthPits(project: Project): Map<string, string[]> {
 
 /** The SLD's layout. DEWA style: a framed main board's LV earth pits stand side by side outside
  * its frame, on the left, so the root takes that much room before it (earthLead, by board id;
- * more when its instruments sit outside the frame). */
-export function sldLayout(project: Project, dewa: boolean, cableRefs = false, rootExtraY = 0, planned = plannedEarthPits(project), showPlace = false) {
+ * more when its instruments sit outside the frame). Main boards stand by ring, substation and RMU
+ * (hvPlan, from the whole project when only part of it is drawn); once RMUs or substations are
+ * named, the ring arrangement (hv) is drawn above them: the transformers drop by HV_DY and the
+ * main boards by that and the room for the substation frame's bottom line. */
+export function sldLayout(project: Project, dewa: boolean, cableRefs = false, rootExtraY = 0, planned = plannedEarthPits(project), showPlace = false, whole: Project = project) {
   const extraY = dewa ? DEWA_EXTRA_Y : 0;
   const iec = (project.drawing?.symbols ?? 'iec') === 'iec';
-  let base = layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, iec });
+  const plan = hvPlan(whole);
+  const ring = hvRingOn(whole);
+  if (ring) rootExtraY += HV_DY + hvFrameRoom(project, dewa);
+  const rootOrder = plan.order;
+  let base = layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, iec, rootOrder });
   // A DEWA main board with no outgoing panels has no frame head to hold its earth pits: it
   // draws the standard-style detail in its own band, so the root bus drops by that band.
   if (dewa && base.roots.some((r) => r.terminal && hasEarthPits(r.board) && lvPitCount(r.board, planned) > 0)) {
     rootExtraY += EARTH_BAND_Y;
-    base = layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, iec });
+    base = layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, iec, rootOrder });
   }
   const earthLead = new Map<string, number>();
   if (dewa) {
@@ -132,11 +141,27 @@ export function sldLayout(project: Project, dewa: boolean, cableRefs = false, ro
     const tags = [...(b.kind === 'UPS' ? [upsTag(project, b).text] : []), ...(n.circuits.length ? circuitLines(project, b, n.circuits) : [])];
     endFrames.set(b.id, { left: BOARD_FRAME_IN, right: BOARD_FRAME_PAD + endBoardReach(project, b, tags, loc ? trunc(loc, 30) : undefined) });
   }
-  const layout = rootLead.size || rootReach.size || endFrames.size
-    ? layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, iec, rootLeadX: rootLead, rootReachX: rootReach, endFrameX: endFrames })
-    : base;
-  return { layout, earthLead };
+  const final = () => layoutSystem(project, extraY, { frames: dewa, cableRefs, rootExtraY, iec, rootLeadX: rootLead, rootReachX: rootReach, endFrameX: endFrames, rootOrder });
+  let layout = rootLead.size || rootReach.size || endFrames.size ? final() : base;
+  let hv: HvGeom | undefined;
+  if (ring) {
+    // The transformer's neutral and body earth labels stand under it: the frame goes below them.
+    const opts = { earth: layout.roots.some((r) => !!r.board.sourceKva && !r.board.upstreamId && hasEarthPits(r.board) && lvPitCount(r.board, planned) > 0) };
+    const lead = hvLeads(whole, plan, layout.roots.map((r) => ({ id: r.board.id, x: r.x })), opts);
+    if (lead.size) {
+      for (const [id, v] of lead) rootLead.set(id, (rootLead.get(id) ?? 0) + v);
+      layout = final();
+    }
+    hv = hvGeometry(whole, plan, new Map(layout.roots.filter((r) => onHvSide(r.board)).map((r) => [r.board.id, r.x])), opts);
+    layout = { ...layout, width: Math.max(layout.width, hv.right + 36) };
+  }
+  return { layout, earthLead, hv };
 }
+
+/** Room between a transformer and its main board for the substation frame's bottom line: the DEWA style's frame
+ * heads reach higher, and a framed changeover's LV earth pits stand above its frame. */
+const hvFrameRoom = (project: Project, dewa: boolean) =>
+  (dewa ? 56 : 40) + (dewa && project.boards.some((b) => !b.upstreamId && isInterlocked(b) && hasEarthPits(b)) ? 82 : 0);
 
 /** A UPS board's tag: its rating and how loaded it is by its board's demand. */
 const upsTag = (project: Project, b: Board) => {
@@ -282,6 +307,7 @@ function BoardSymbol({ project, board: b, x, top, status, sel, place, tint }: { 
 export default function SystemDiagram({
   project,
   calcProject,
+  wholeProject,
   stale = false,
   results,
   selectedFeederId,
@@ -323,6 +349,9 @@ export default function SystemDiagram({
   project: Project;
   /** The project the results were calculated for (the last run). */
   calcProject?: Project;
+  /** The whole project when `project` is part of it (a sheet, a study's scope): the 11 kV ring, the RMUs' other
+   * tee-offs and the transformer numbers come from it. */
+  wholeProject?: Project;
   /** Results out of date: labels, dots and colours are shown faded. */
   stale?: boolean;
   results: FeederResult[];
@@ -435,7 +464,19 @@ export default function SystemDiagram({
   const earthLift = !dewa && project.boards.some((b) => !b.upstreamId && hasEarthPits(b)) ? EARTH_BAND_Y : 0;
   // Earth pit IDs (E1, E2 …) from the earthing plan, so the SLD and the earthing sheet agree.
   const earthPits = useMemo(() => plannedEarthPits(project), [project]);
-  const { layout, earthLead } = useMemo(() => sldLayout(project, dewa, cableRefs, earthLift, earthPits, !!layers?.location), [project, dewa, cableRefs, earthLift, earthPits, layers?.location]);
+  const whole = wholeProject ?? project;
+  const { layout, earthLead, hv } = useMemo(() => sldLayout(project, dewa, cableRefs, earthLift, earthPits, !!layers?.location, whole), [project, dewa, cableRefs, earthLift, earthPits, layers?.location, whole]);
+  // The ring arrangement draws the transformers (and every main board's supply rows) this much lower.
+  const hy = hv ? HV_DY : 0;
+  // Without it, one 11 kV line over the main boards on the 11 kV side, the utility above their middle.
+  const hvRoots = layout.roots.filter((r) => onHvSide(r.board));
+  const utilityX = hvRoots.length ? (hvRoots[0].x + hvRoots[hvRoots.length - 1].x) / 2 : layout.utilityX;
+  const gridTitle = (g: GridSource) => `${g.name}${g.operator ? ` (${g.operator})` : ''}${g.primarySubstation ? `, from ${g.primarySubstation}` : ''}${g.feederRef ? ` feeder ${g.feederRef}` : ''}: ${gridLabel(g)}`;
+  const rmuTitle = (name: string) => {
+    const feeds = (hv?.rmus.find((g) => g.item.name === name)?.item.tees ?? []).filter((t): t is string => !!t);
+    const ratings = rmuRatings(whole, name);
+    return `${rmuLabel(whole, name)}: ring main unit feeding ${feeds.join(', ') || 'no transformer'}${ratings ? ` — ${ratings}` : ''}`;
+  };
   const pitIds = (key: string) => m2s(earthPits.get(key));
   // A framed panel's name box: as wide as the room left of the incomer allows (never across it),
   // with the location wrapped onto a second line when it doesn't fit.
@@ -1005,92 +1046,79 @@ export default function SystemDiagram({
           </g>
         )}
 
-        {/* Utility and transformers */}
-        {main && layout.roots.some((r) => r.board.sourceKva) && (
+        {/* Utility and transformers: the ring arrangement once RMUs or substations are named, else one 11 kV
+            line over the transformers (a main board on an authority LV supply has its own source). */}
+        {main && hv && <HvRing geom={hv} rmuTitle={rmuTitle} sourceTitle={(g) => (g ? gridTitle(g) : undefined)} />}
+        {main && !hv && hvRoots.some((r) => r.board.sourceKva) && (
           <g>
-            <circle cx={layout.utilityX} cy="22" r="11" className="sym" />
-            <path d={`M${layout.utilityX - 5} 22 q2.5 -6 5 0 t5 0`} className="ln" />
-            {hvGrid && <title>{`${hvGrid.name}${hvGrid.operator ? ` (${hvGrid.operator})` : ''}${hvGrid.primarySubstation ? `, from ${hvGrid.primarySubstation}` : ''}${hvGrid.feederRef ? ` feeder ${hvGrid.feederRef}` : ''}: ${gridLabel(hvGrid)}`}</title>}
-            <text className="b" x={layout.utilityX + 18} y="20">{hvGrid ? hvGrid.operator || hvGrid.name : 'Utility'}</text>
-            <text className="m" x={layout.utilityX + 18} y="34">{hvGrid ? gridLabel(hvGrid) : '11 kV'}</text>
-            {layout.roots.length > 1 && (
-              <line x1={layout.roots[0].x} y1="50" x2={layout.roots[layout.roots.length - 1].x} y2="50" className="ln mv" />
+            <circle cx={utilityX} cy="22" r="11" className="sym" />
+            <path d={`M${utilityX - 5} 22 q2.5 -6 5 0 t5 0`} className="ln" />
+            {hvGrid && <title>{gridTitle(hvGrid)}</title>}
+            <text className="b" x={utilityX + 18} y="20">{hvGrid ? hvGrid.operator || hvGrid.name : 'Utility'}</text>
+            <text className="m" x={utilityX + 18} y="34">{hvGrid ? gridLabel(hvGrid) : '11 kV'}</text>
+            {hvRoots.length > 1 && (
+              <line x1={hvRoots[0].x} y1="50" x2={hvRoots[hvRoots.length - 1].x} y2="50" className="ln mv" />
             )}
-            <line x1={layout.utilityX} y1="33" x2={layout.utilityX} y2="50" className="ln mv" />
+            <line x1={utilityX} y1="33" x2={utilityX} y2="50" className="ln mv" />
           </g>
         )}
 
-        {/* RMUs: one box across the transformers each one feeds (11 kV side) */}
-        {[...new Set(layout.roots.map((r) => r.board.rmu).filter((x): x is string => !!x))].map((rmu) => {
-          const rs = layout.roots.filter((r) => r.board.rmu === rmu);
-          const label = rmuLabel(project, rmu);
-          const ratings = rmuRatings(project, rmu);
-          // A longer label (ways entered) widens the box up to about one board column, centred on the transformers it feeds.
-          const mid = (Math.min(...rs.map((r) => r.x)) + Math.max(...rs.map((r) => r.x))) / 2;
-          const span = (Math.max(...rs.map((r) => r.x)) - Math.min(...rs.map((r) => r.x))) / 2 + 34;
-          const half = label === `${rmu} · 11 kV` ? span : Math.max(span, Math.min(textWidth(label, 10, true) / 2 + 6, 62));
-          const x1 = mid - half, x2 = mid + half;
-          return (
-            <g key={`rmu-${rmu}`} className="rmu">
-              <title>{`${rmu}: ring main unit feeding ${rs.map((r) => r.board.id).join(', ')}${ratings ? ` — ${ratings}` : ''}`}</title>
-              <rect x={x1} y={41} width={x2 - x1} height={18} rx="3" className="sym rmu-box" />
-              <text x={(x1 + x2) / 2} y={54} textAnchor="middle" className="b" style={{ fontSize: 10 }}>{label}</text>
-            </g>
-          );
-        })}
         {layout.roots.map((r) => r.board.upstreamId ? (() => {
           // Part of the network (a study report's scope): the board is fed
           // from a board that isn't drawn.
           const inc = (calcProject ?? project).feeders.find((f) => f.feedsBoardId === r.board.id && f.boardId === r.board.upstreamId);
           return (
             <g key={`from-${r.board.id}`} className="from-up">
-              <path d={`M${r.x - 7} 60 L${r.x} 72 L${r.x + 7} 60`} className="ln" />
-              <line x1={r.x} y1="40" x2={r.x} y2={r.headY - 58} className="ln" />
-              <text className="b" x={r.x + 14} y="46">From {r.board.upstreamId}{fromSheet?.[r.board.id] ? ` — sheet ${fromSheet[r.board.id]}` : ''}</text>
-              {inc && <text className="m" x={r.x + 14} y="60">{inc.id}: {cableSizeText(inc)}, {inc.lengthM} m · {inc.breakerRatingA} A</text>}
+              <path d={`M${r.x - 7} ${60 + hy} L${r.x} ${72 + hy} L${r.x + 7} ${60 + hy}`} className="ln" />
+              <line x1={r.x} y1={40 + hy} x2={r.x} y2={r.headY - 58} className="ln" />
+              <text className="b" x={r.x + 14} y={46 + hy}>From {r.board.upstreamId}{fromSheet?.[r.board.id] ? ` — sheet ${fromSheet[r.board.id]}` : ''}</text>
+              {inc && <text className="m" x={r.x + 14} y={60 + hy}>{inc.id}: {cableSizeText(inc)}, {inc.lengthM} m · {inc.breakerRatingA} A</text>}
             </g>
           );
         })() : !r.board.sourceKva && r.board.supply ? (
           <g key={`sup-${r.board.id}`} className="tx" data-lv-id={`board:${r.board.id}`} onDoubleClick={edit(onEditBoard, r.board.id)}>
             <title>Supply from the authority — double-click to edit</title>
-            <rect x={r.x - 16} y={52} width={32} height={26} rx={3} className="sym" />
-            <text className="b" x={r.x} y={69} textAnchor="middle" style={{ fontSize: 10 }}>kWh</text>
-            <text className="b" x={r.x + 24} y="62">{r.board.supply.fedFrom ?? 'DEWA'} supply</text>
+            {/* Its own source, off the 11 kV side. */}
+            <circle cx={r.x} cy={22 + hy} r="11" className="sym" />
+            <path d={`M${r.x - 5} ${22 + hy} q2.5 -6 5 0 t5 0`} className="ln" />
+            <text className="b" x={r.x + 18} y={20 + hy}>{r.board.supply.fedFrom ?? 'DEWA'} supply</text>
+            <rect x={r.x - 16} y={52 + hy} width={32} height={26} rx={3} className="sym" />
+            <text className="b" x={r.x} y={69 + hy} textAnchor="middle" style={{ fontSize: 10 }}>kWh</text>
             {dewa ? (
               <>
-                <text className="m" x={r.x + 24} y="76">METER CABINET{r.board.supply.ctRatio || r.board.protection?.ctRatio ? ` · CTM ${r.board.supply.ctRatio ?? r.board.protection?.ctRatio}` : ''}</text>
-                {r.board.supply.ratingA && <text className="m" x={r.x + 24} y="90">{r.board.supply.ratingA}A TP {r.board.supply.device ?? 'MCCB'}{r.board.supply.faultKa ? ` ${r.board.supply.faultKa} kA` : ''}</text>}
-                <text className="m" x={r.x + 24} y="104">CABLE BY {r.board.supply.fedFrom ?? 'DEWA'} · FED FROM {r.board.supply.fedFrom ?? 'DEWA'}</text>
+                <text className="m" x={r.x + 24} y={76 + hy}>METER CABINET{r.board.supply.ctRatio || r.board.protection?.ctRatio ? ` · CTM ${r.board.supply.ctRatio ?? r.board.protection?.ctRatio}` : ''}</text>
+                {r.board.supply.ratingA && <text className="m" x={r.x + 24} y={90 + hy}>{r.board.supply.ratingA}A TP {r.board.supply.device ?? 'MCCB'}{r.board.supply.faultKa ? ` ${r.board.supply.faultKa} kA` : ''}</text>}
+                <text className="m" x={r.x + 24} y={104 + hy}>CABLE BY {r.board.supply.fedFrom ?? 'DEWA'} · FED FROM {r.board.supply.fedFrom ?? 'DEWA'}</text>
               </>
-            ) : <text className="m" x={r.x + 24} y="76">{r.board.supply.ratingA ? `${r.board.supply.ratingA} A ${r.board.supply.device ?? ''}` : 'meter cabinet'}{r.board.supply.meter ? ` · ${r.board.supply.meter} meter` : ''}</text>}
-            <line x1={r.x} y1="34" x2={r.x} y2="52" className="ln" />
-            <line x1={r.x} y1="78" x2={r.x} y2={r.headY - 58} className="ln" />
+            ) : <text className="m" x={r.x + 24} y={76 + hy}>{r.board.supply.ratingA ? `${r.board.supply.ratingA} A ${r.board.supply.device ?? ''}` : 'meter cabinet'}{r.board.supply.meter ? ` · ${r.board.supply.meter} meter` : ''}</text>}
+            <line x1={r.x} y1={33 + hy} x2={r.x} y2={52 + hy} className="ln" />
+            <line x1={r.x} y1={78 + hy} x2={r.x} y2={r.headY - 58} className="ln" />
             <text className="m" x={r.x - 8} y={r.headY - 72} textAnchor="end">{project.voltageV} V</text>
           </g>
         ) : (
           <g key={`tx-${r.board.id}`} className={`tx${r.board.existing ? ' existing' : ''}`} data-lv-id={`board:${r.board.id}`} onDoubleClick={edit(onEditBoard, r.board.id)}>
             <title>Double-click to edit the transformer</title>
-            <line x1={r.x} y1="50" x2={r.x} y2="78" className="ln mv" />
-            <Sym id="tx" x={r.x} y={92} s={SYM_SCALE.load} />
-            <text className="b" x={r.x + 24} y="86">{`${txTag(project, r.board.id) ?? 'Transformer'}${r.board.existing ? ' — EXISTING' : ''}`}</text>
-            <text className="m" x={r.x + 24} y="100">
+            {!hv && <line x1={r.x} y1="50" x2={r.x} y2="78" className="ln mv" />}
+            <Sym id="tx" x={r.x} y={92 + hy} s={SYM_SCALE.load} />
+            <text className="b" x={r.x + 24} y={86 + hy}>{`${txTag(whole, r.board.id) ?? 'Transformer'}${r.board.existing ? ' — EXISTING' : ''}`}</text>
+            <text className="m" x={r.x + 24} y={100 + hy}>
               {r.board.sourceKva ? `${r.board.sourceKva} kVA · ${r.board.sourceImpedancePct ?? '—'}% Z` : 'no source data'}
             </text>
-            {r.board.sourceKva && <text className="m" x={r.x + 24} y="113">{r.board.vectorGroup ?? 'Dyn11'} · 11 / {(project.voltageV / 1000).toFixed(3)} kV</text>}
-            {r.board.existing && recordedText(project, r.board) && <text className="m" x={r.x + 24} y="127">{recordedText(project, r.board)}</text>}
-            <line x1={r.x} y1="106" x2={r.x} y2={r.headY - 58} className="ln" />
+            {r.board.sourceKva && <text className="m" x={r.x + 24} y={113 + hy}>{r.board.vectorGroup ?? 'Dyn11'} · 11 / {(project.voltageV / 1000).toFixed(3)} kV</text>}
+            {r.board.existing && recordedText(project, r.board) && <text className="m" x={r.x + 24} y={127 + hy}>{recordedText(project, r.board)}</text>}
+            <line x1={r.x} y1={106 + hy} x2={r.x} y2={r.headY - 58} className="ln" />
             <text className="m" x={r.x - 8} y={r.headY - (dewa ? 96 : protectionOf(r.board) ? 84 : 72)} textAnchor="end">{project.voltageV} V</text>
             {scenario?.outage?.failedId === r.board.id && (
               <g className="failed-tx">
-                <line x1={r.x - 20} y1="68" x2={r.x + 20} y2="116" />
-                <line x1={r.x + 20} y1="68" x2={r.x - 20} y2="116" />
-                <text x={r.x + 24} y="114" className="res bad">FAILED</text>
+                <line x1={r.x - 20} y1={68 + hy} x2={r.x + 20} y2={116 + hy} />
+                <line x1={r.x + 20} y1={68 + hy} x2={r.x - 20} y2={116 + hy} />
+                <text x={r.x + 24} y={114 + hy} className="res bad">FAILED</text>
               </g>
             )}
             {(() => {
               const t = scenario?.outage?.transformers.find((x) => x.boardId === r.board.id);
               if (!t) return null;
-              return <text x={r.x + 24} y="114" className={`res ${t.loadingPct > 100 ? 'bad' : t.loadingPct > 80 ? 'warn' : 'ok'}`}>{fmtFixed(t.loadingPct, 0)}% loaded ({fmtFixed(t.demandKva, 0)} kVA)</text>;
+              return <text x={r.x + 24} y={114 + hy} className={`res ${t.loadingPct > 100 ? 'bad' : t.loadingPct > 80 ? 'warn' : 'ok'}`}>{fmtFixed(t.loadingPct, 0)}% loaded ({fmtFixed(t.demandKva, 0)} kVA)</text>;
             })()}
           </g>
         ))}
@@ -1205,15 +1233,15 @@ export default function SystemDiagram({
               {tx && (
                 <g className="tx-earth">
                   {/* Neutral (star point) to its own pit, on the left */}
-                  <circle cx={r.x - 14} cy={100} r="1.8" className="dot" />
-                  <path d={`M${r.x - 14} 100 H${r.x - 36} V130`} className="ln" />
-                  {gnd(r.x - 36, 130)}
-                  <text x={r.x - 36} y={146} textAnchor="middle" className="acc-t" style={{ fontSize: 7 }}>{`N EARTH${nIds ? ` · ${nIds}` : ''}`}</text>
+                  <circle cx={r.x - 14} cy={100 + hy} r="1.8" className="dot" />
+                  <path d={`M${r.x - 14} ${100 + hy} H${r.x - 36} V${130 + hy}`} className="ln" />
+                  {gnd(r.x - 36, 130 + hy)}
+                  <text x={r.x - 36} y={146 + hy} textAnchor="middle" className="acc-t" style={{ fontSize: 7 }}>{`N EARTH${nIds ? ` · ${nIds}` : ''}`}</text>
                   {/* Tank / body earth (via the RMU earth bar to the RMU pits unless it has its own), on the right under the rating text */}
-                  <rect x={r.x - 18} y={67} width="36" height="51" className="ln interlock" fill="none" />
-                  <path d={`M${r.x + 12} 118 V124 H${r.x + 44} V130`} className="ln" />
-                  {gnd(r.x + 44, 130)}
-                  <text x={r.x + 44} y={146} textAnchor="middle" className="acc-t" style={{ fontSize: 7 }}>{`BODY EARTH${bIds ? ` · ${bIds}` : ''}`}</text>
+                  <rect x={r.x - 18} y={67 + hy} width="36" height="51" className="ln interlock" fill="none" />
+                  <path d={`M${r.x + 12} ${118 + hy} V${124 + hy} H${r.x + 44} V${130 + hy}`} className="ln" />
+                  {gnd(r.x + 44, 130 + hy)}
+                  <text x={r.x + 44} y={146 + hy} textAnchor="middle" className="acc-t" style={{ fontSize: 7 }}>{`BODY EARTH${bIds ? ` · ${bIds}` : ''}`}</text>
                 </g>
               )}
               {column ? lvDetail() : (<>

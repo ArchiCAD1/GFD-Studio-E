@@ -18,6 +18,16 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.208', date: '2026-11-19',
+    items: [
+      { title: 'SLD: the 11 kV ring by substation and RMU', text: 'When a main board names its RMU or its substation (Panels → Transformers), the SLD draws the 11 kV ring from the grid source through each RMU: its ring switches, its tee-offs (switch-fuse with its fuse rating, or breaker with 50/51, 50N/51N) and SPARE for a tee-off with no transformer. Each transformer stands under its tee-off. Each substation gets a dash-dot frame round its RMUs and transformers, titled with its type and building from the Substation area page. Main boards stand by substation, then by RMU. Each grid source has its own ring. The sheets and the DXF / DWG export show the same.' },
+      { title: 'SLD sheets: the rest of the ring as stubs', text: 'A sheet or study report that draws only some main boards shows an RMU\'s other tee-offs, and the ring\'s ends, as stubs naming the transformer or RMU drawn elsewhere, never as spares. Each transformer keeps its number from the whole project: on its own sheet, TX-2 was labelled TX-1 before.' },
+      { title: 'SLD: meter cabinet off the 11 kV line', text: 'A main board on an authority LV supply has its own source symbol and stands after the transformers, so the 11 kV line no longer runs across its meter cabinet.' },
+      { title: 'Transformers: RMU limit from its tee-offs', text: 'In Panels → Transformers an RMU takes as many transformers as its configuration has tee-offs (RT and RRT 1, RRTT 2, RRTTT 3), not 2 for every RMU. With no configuration entered it stays at 2.' },
+      { title: 'Substation area: Fill from project by substation', text: 'Fill from project makes one substation for each substation name on the main boards, so a substation with two RMUs is one substation, not two. Main boards with no substation name are grouped by RMU, as before.' }
+    ]
+  },
+  {
     version: '2.203', date: '2026-11-18',
     items: [
       { title: 'SLD: kWh meter clear of the cable text', text: 'A kWh meter on a way now has its own row inside the panel, like the ELCB, so it no longer sits on the cable text. On a way with both, the meter is under the ELCB. The meter is drawn a little larger, so "kWh" fits its box. The same applies in the DXF / DWG export.' }
