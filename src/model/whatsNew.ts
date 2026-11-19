@@ -28,6 +28,13 @@ export const RELEASES: Release[] = [
     ]
   },
   {
+    version: '2.204', date: '2026-11-18',
+    items: [
+      { title: 'SLD: right-click menus', text: 'Right-click a board, a load, a transformer, a bus coupler or the empty drawing on the SLD for its menu (Shift+F10, or the menu key, opens it for the selection). Each menu lists what you can do there: edit, load schedule, add, copy and paste, rename, delete, show on plan, properties, and the drawing\'s view settings on the empty drawing.' },
+      { title: 'New on the SLD', text: 'Zoom to (Z), Order a way or a board on its busbar (Alt+Left / Alt+Right, first, last), Copy and Duplicate a load (Ctrl+D), Duplicate a board, Rename a board, a Quick fix list for a failing circuit, and Change on a load: switching device, earth leakage, kWh meter, phase, cable type, essential, existing and local isolator.' }
+    ]
+  },
+  {
     version: '2.203', date: '2026-11-18',
     items: [
       { title: 'SLD: kWh meter clear of the cable text', text: 'A kWh meter on a way now has its own row inside the panel, like the ELCB, so it no longer sits on the cable text. On a way with both, the meter is under the ELCB. The meter is drawn a little larger, so "kWh" fits its box. The same applies in the DXF / DWG export.' }

@@ -22,7 +22,7 @@ const ROWS = 300; // panel list rows drawn at once; search narrows it
 /** Design → Panels: create panels quickly by count (levels later), then edit
  * levels, parents and locations in one list and rename by level. Typical
  * floors, repeat group and templates are the same builders as before. */
-export default function PanelsPage({ project, onChange, onCreated, onStatus, onBuilding, initialTab }: {
+export default function PanelsPage({ project, onChange, onCreated, onStatus, onBuilding, initialTab, repeatRoot }: {
   project: Project;
   onChange: (p: Project) => void;
   /** A batch was added: highlight it in the panel tree. */
@@ -30,7 +30,9 @@ export default function PanelsPage({ project, onChange, onCreated, onStatus, onB
   onStatus: (m: string) => void;
   onBuilding: () => void;
   /** The tab to open on (the SLD ribbon's HV supply and RMUs opens Transformers); Quick create without one. */
-  initialTab?: 'tx';
+  initialTab?: 'tx' | 'repeat';
+  /** With the Repeat group tab: the board it starts on (the SLD's right-click menu). */
+  repeatRoot?: string;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'quick');
   const created = (next: Project, message: string) => {
@@ -45,7 +47,7 @@ export default function PanelsPage({ project, onChange, onCreated, onStatus, onB
       {tab === 'naming' && <NamingTab project={project} onChange={onChange} onStatus={onStatus} />}
       {tab === 'list' && <PanelList project={project} onChange={onChange} onStatus={onStatus} onBuilding={onBuilding} />}
       {tab === 'floors' && <BuildHierarchyDialog embedded project={project} onCreate={created} onClose={() => setTab('quick')} onBuilding={onBuilding} />}
-      {(tab === 'repeat' || tab === 'templates') && <div className="bh"><BranchPanel key={tab} mode={tab === 'repeat' ? 'repeat' : 'assemblies'} project={project} onCreate={created} onClose={() => setTab('quick')} /></div>}
+      {(tab === 'repeat' || tab === 'templates') && <div className="bh"><BranchPanel key={tab} mode={tab === 'repeat' ? 'repeat' : 'assemblies'} initialRoot={tab === 'repeat' ? repeatRoot : undefined} project={project} onCreate={created} onClose={() => setTab('quick')} /></div>}
     </Page>
   );
 }

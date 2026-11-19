@@ -101,7 +101,7 @@ export default function CadMenu({ left, top, head, items, label, onPick, onClose
   return (
     <div ref={menu} className="cad-ctx vert cad-menu" role="menu" aria-label={label} data-lvl={0} tabIndex={-1} style={place} onKeyDown={onKey} onMouseDown={(e) => e.stopPropagation()} onContextMenu={(e) => e.preventDefault()}>
       {head && <div className="cad-menu-hd">{HeadIcon && <HeadIcon />}<b>{head.title}</b>{head.detail && <span> · {head.detail}</span>}</div>}
-      {head?.second && <div className="cad-menu-hd2">{head.second}</div>}
+      {head?.second && <div className={`cad-menu-hd2${head.secondTone ? ` ${head.secondTone}` : ''}`}>{head.second}</div>}
       {entries(items, 0, open?.i)}
       {subs && sub1 && sub1 !== '-' && (
         <div ref={list} className="cad-ctx-list cad-menu-list" role="menu" aria-label={sub1.label} data-lvl={1} style={listPlace}>{entries(subs, 1, open2?.i)}</div>

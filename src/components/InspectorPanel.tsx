@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 
 export const INSPECTOR_W = 290;
@@ -14,10 +14,11 @@ function store(key: string, v: unknown) {
 /** The design view's right-hand inspector: drag its left edge to widen it
  * (double-click for the default width), or hide it to give the drawing the
  * room; a thin rail brings it back. Both are this viewer's preferences. */
-export default function InspectorPanel({ label, children }: { label: string; children: ReactNode }) {
+export default function InspectorPanel({ label, children, showRequest }: { label: string; children: ReactNode; /** A new number brings the panel back when it is hidden (the SLD menu's Properties). */ showRequest?: number }) {
   const [hidden, setHidden] = useState(() => stored('inspector.hidden', false));
   const [width, setWidth] = useState(() => Math.max(MIN_W, Math.min(MAX_W, stored('inspector.width', INSPECTOR_W))));
   const hide = (v: boolean) => { setHidden(v); store('inspector.hidden', v); };
+  useEffect(() => { if (showRequest) { setHidden(false); store('inspector.hidden', false); } }, [showRequest]);
 
   if (hidden) {
     return (
