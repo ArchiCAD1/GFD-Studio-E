@@ -132,9 +132,10 @@ export function dmSubstationAreas(type: DmSubstationType, transformers: number):
 let seq = 0;
 const newId = () => `ss-${Date.now().toString(36)}-${(seq++).toString(36)}`;
 
-/** One substation per RMU, with its transformers: from the space plan when it
- * has transformers, otherwise from the SLD's main boards (grouped by their
- * RMU; a main board without an RMU is its own substation). */
+/** The substations with their transformers: from the space plan when it has
+ * transformers (one per RMU), otherwise from the SLD's main boards, grouped by
+ * the substation named on them (Panels → Transformers), else by their RMU; a
+ * main board with neither is its own substation. */
 export function substationsFromProject(project: Project, type: DmSubstationType = 'conventional'): { rooms: DmSubstationRoom[]; source: 'space plan' | 'SLD' | 'none' } {
   const plan = project.spacePlan;
   const groups = new Map<string, { kvas: number[]; buildings: Set<string> }>();
@@ -154,7 +155,7 @@ export function substationsFromProject(project: Project, type: DmSubstationType 
   } else {
     const mains = project.boards.filter((b) => !b.upstreamId && b.sourceKva);
     if (mains.length) source = 'SLD';
-    for (const b of mains) add(b.rmu ?? `Substation ${b.id}`, b.sourceKva!, b.location);
+    for (const b of mains) add(b.substation?.trim() || b.rmu?.trim() || `Substation ${b.id}`, b.sourceKva!, b.location);
   }
   const rooms = [...groups.entries()].map(([name, g]) => {
     const max = Math.max(...g.kvas);

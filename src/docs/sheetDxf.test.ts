@@ -409,6 +409,15 @@ describe('dashed linetypes and rounded corners in sheet DXF', () => {
     expect(e.filter((x) => x.type === 'VERTEX')).toHaveLength(4);
   });
 
+  it('writes a dash-dot element (a substation frame) dash-dot, whatever its length', () => {
+    const data = sheet('<rect x="10" y="10" width="300" height="120" style="stroke-dasharray:12 4 2 4"/><line class="ln" style="stroke-dasharray:12 4 2 4" x1="10" y1="150" x2="12" y2="150"/>');
+    const e = drawn(data);
+    expect(e.filter((x) => x.type === 'POLYLINE' || x.type === 'LINE').map((x) => x.v.get(6))).toEqual(['LV-DASHDOT', 'LV-DASHDOT']);
+    const lines = data.split('\r\n');
+    const at = lines.indexOf('LV-DASHDOT');
+    expect(lines.slice(at + 3, at + 19)).toEqual(['3', 'Dash dot', '72', '65', '73', '4', '40', '5', '49', '3', '49', '-1', '49', '0', '49', '-1']);
+  });
+
   it('keeps dash pieces inside library symbols and for wide busbars', () => {
     const data = sheet('<g class="iec" stroke-dasharray="5 4"><line x1="10" y1="20" x2="300" y2="20"/></g>'
       + '<line class="bus" stroke-dasharray="20 10" style="stroke-width:4px" x1="10" y1="60" x2="300" y2="60"/>');
