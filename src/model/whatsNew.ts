@@ -18,6 +18,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.207', date: '2026-11-18',
+    items: [
+      { title: 'SLD: Show this branch only', text: 'Right-click a board and choose Show this branch only: everything not fed from that board is dimmed. Esc, or Show everything on the empty drawing, ends it. The dimming is on screen only; exports are unchanged.' },
+      { title: 'Board tab: right-click menus', text: 'The Board tab has the right-click menus too, for its ways and its sub-boards (Shift+F10 opens the menu of the selected way). The view stays on that board.' }
+    ]
+  },
+  {
     version: '2.206', date: '2026-11-18',
     items: [
       { title: 'SLD: pick several', text: 'Shift+click loads and boards, or Shift+drag a window on the empty drawing (a plain drag still pans). A right-click on any of them opens one menu for all: Edit together, Change, Copy, Duplicate, Move to board, Delete and Zoom to. Esc clears.' },

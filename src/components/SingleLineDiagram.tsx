@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import CadMenu from './cad/CadMenu';
+import type { CtxItem } from './cad/cadContextMenu';
+import { sldAction, type sldMenu, type SldTarget } from '../model/sldMenu';
 import { incomerDeviceOf, type Board, type Project } from '../types';
 import { loadSymbolOf, SwitchSym, switchKindOf, type SwitchKind } from '../diagram/IecSymbols';
 import { boardSymbolOf } from '../diagram/panelBox';
@@ -55,7 +58,9 @@ export default function SingleLineDiagram({
   onPhase,
   summary,
   allCircuits = false,
-  onDropItem
+  onDropItem,
+  menuFor,
+  onMenu
 }: {
   board: Board;
   voltageV?: number;
@@ -74,6 +79,9 @@ export default function SingleLineDiagram({
   allCircuits?: boolean;
   /** The Board tab: drops and clicks with an armed library item. Without it nothing below is drawn, as on printed sheets. */
   onDropItem?: (item: PaletteItem, target: DropTarget) => void;
+  /** The Board tab's right-click menus (sldMenu.ts, 'board' set): what to show for a target, and a picked row. Without them, no menu. */
+  menuFor?: (t: SldTarget) => ReturnType<typeof sldMenu>;
+  onMenu?: (t: SldTarget, action: string, value?: string) => void;
 }) {
   const split = splitSld(results, (r) => r.feeder);
   const finals = allCircuits ? [] : split.final;
@@ -180,8 +188,56 @@ export default function SingleLineDiagram({
       }
     : {};
 
-  return (
-    <svg ref={svgRef} {...armProps} viewBox={`0 0 ${width} ${H}`} style={{ minWidth, width: '100%', height: 'auto', display: 'block' }} role="img" aria-label={`Single line diagram of ${board.name}`}>
+  // Right-click menus: a way opens its load's menu (a way feeding a board, that board's), the busbar or frame this board's.
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [menu, setMenu] = useState<{ t: SldTarget; x: number; y: number } | null>(null);
+  const menuData = menu && menuFor ? menuFor(menu.t) : null;
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const away = (e: Event) => { if (!(e.target as Element | null)?.closest?.('.cad-menu')) close(); };
+    window.addEventListener('pointerdown', away, true);
+    window.addEventListener('wheel', away, { capture: true, passive: true });
+    window.addEventListener('blur', close);
+    return () => { window.removeEventListener('pointerdown', away, true); window.removeEventListener('wheel', away, true); window.removeEventListener('blur', close); };
+  }, [menu]);
+  const wayTarget = (id: string): SldTarget | null => {
+    const f = project?.feeders.find((x) => x.id === id);
+    return f?.feedsBoardId ? { kind: 'board', id: f.feedsBoardId } : f ? { kind: 'feeder', id } : null;
+  };
+  const openMenu = (t: SldTarget, clientX: number, clientY: number) => {
+    const r = boxRef.current?.getBoundingClientRect();
+    if (r) setMenu({ t, x: clientX - r.left, y: clientY - r.top });
+  };
+  const onContextMenu = (e: React.MouseEvent) => {
+    if (!menuFor || (armed && onDropItem)) return;
+    const el = e.target as Element;
+    const way = el.closest('g[data-way]')?.getAttribute('data-way');
+    const t = way ? wayTarget(way) : el.closest('[data-menu="bus"]') ? ({ kind: 'board', id: board.id } as SldTarget) : null;
+    if (!t) return;
+    e.preventDefault();
+    if (t.kind === 'feeder') onSelect(t.id); // a sub-board is not selected: that would switch the tab to it
+    openMenu(t, e.clientX, e.clientY);
+  };
+  /** Shift+F10 / the menu key: the menu of the selected way, else this board's, at its centre. */
+  const onMenuKey = (e: React.KeyboardEvent) => {
+    if (!menuFor || menu || !((e.shiftKey && e.key === 'F10') || e.key === 'ContextMenu') || (e.target as HTMLElement).closest('input,select,textarea')) return;
+    e.preventDefault();
+    const sel = selected ? wayTarget(selected) : null;
+    const el = sel ? svgRef.current?.querySelector(`g[data-way="${CSS.escape(selected!)}"]`) : svgRef.current?.querySelector('[data-menu="bus"]');
+    const b = (el ?? svgRef.current)?.getBoundingClientRect();
+    if (b) openMenu(sel ?? { kind: 'board', id: board.id }, b.left + b.width / 2, b.top + b.height / 2);
+  };
+  const pickMenu = (x: CtxItem) => {
+    const m = menu;
+    setMenu(null);
+    if (!m) return;
+    const [a, v] = sldAction(x);
+    onMenu?.(m.t, a, v);
+  };
+
+  const svg = (
+    <svg ref={svgRef} {...armProps} onContextMenu={menuFor ? onContextMenu : undefined} viewBox={`0 0 ${width} ${H}`} style={{ minWidth, width: '100%', height: 'auto', display: 'block' }} role="img" aria-label={`Single line diagram of ${board.name}`}>
       {isMain ? (
         <>
           <line x1={cx} y1="0" x2={cx} y2="17" className="ln" />
@@ -216,7 +272,7 @@ export default function SingleLineDiagram({
         </>
       )}
       {summary && (
-        <g className="panel-sum">
+        <g className="panel-sum" data-menu="bus">
           <title>{`${board.id}: TCL ${fmtFixed(summary.tclKw, 2)} kW × DF ${summary.df.toFixed(2)} = MDL ${fmtFixed(summary.mdlKw, 2)} kW`}</title>
           <rect x="8" y="8" width="214" height={sumH} rx="6" className="sum-box" />
           <text x="14" y="21" className="b" style={{ textDecoration: 'underline' }}>{board.id.length > 32 ? `${board.id.slice(0, 31)}…` : board.id}</text>
@@ -225,12 +281,12 @@ export default function SingleLineDiagram({
           ))}
         </g>
       )}
-      <text className="b" x={cx - 16} y="106" textAnchor="end" style={{ fill: 'var(--bus)' }}>
+      <text className="b" x={cx - 16} y="106" textAnchor="end" style={{ fill: 'var(--bus)' }} data-menu="bus">
         {board.id} · {voltageV} V{board.ratedCurrentA ? ` · ${board.ratedCurrentA} A` : ''} busbar
       </text>
       {onDropItem && hover === busKey && <line className="bus-glow" x1={busX1} y1="118" x2={busX2} y2="118" />}
-      <line data-dxf-layer="BUSBAR" x1={busX1} y1="118" x2={busX2} y2="118" style={{ stroke: 'var(--bus)', strokeWidth: 4, strokeLinecap: 'round' }} />
-      {onDropItem && <line className="bus-hit" x1={busX1 - 20} y1="118" x2={busX2 + 20} y2="118" data-drop={busKey} {...dnd(busTarget, busKey)} />}
+      <line data-dxf-layer="BUSBAR" data-menu="bus" x1={busX1} y1="118" x2={busX2} y2="118" style={{ stroke: 'var(--bus)', strokeWidth: 4, strokeLinecap: 'round' }} />
+      {onDropItem && <line className="bus-hit" data-menu="bus" x1={busX1 - 20} y1="118" x2={busX2 + 20} y2="118" data-drop={busKey} {...dnd(busTarget, busKey)} />}
       {drawn.map((r, i) => {
         const x = xs[i];
         const f = r.feeder;
@@ -238,7 +294,7 @@ export default function SingleLineDiagram({
         const sel = selected === f.id;
         const fed = f.feedsBoardId ? project?.boards.find((b) => b.id === f.feedsBoardId) : undefined;
         return (
-          <g key={f.id} tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => onSelect(f.id)} onKeyDown={(e) => e.key === 'Enter' && onSelect(f.id)}
+          <g key={f.id} data-way={f.id} tabIndex={0} style={{ cursor: 'pointer' }} onClick={() => onSelect(f.id)} onKeyDown={(e) => e.key === 'Enter' && onSelect(f.id)}
             {...(onDropItem ? { 'data-drop': `fd:${f.id}`, className: hover === `fd:${f.id}` ? 'drop-ok' : undefined, ...dnd({ type: 'feeder', feederId: f.id }, `fd:${f.id}`) } : {})}>
             <line x1={x} y1="118" x2={x} y2="152" className="ln" />
             <SwitchSym x={x} y={152} kind={switchKindOf(f)} />
@@ -340,5 +396,12 @@ export default function SingleLineDiagram({
         </g>
       )}
     </svg>
+  );
+  if (!menuFor) return svg;
+  return (
+    <div ref={boxRef} style={{ position: 'relative' }} onKeyDown={onMenuKey}>
+      {svg}
+      {menu && menuData && <CadMenu left={menu.x + 4} top={menu.y + 4} head={menuData.head} items={menuData.items} label={menuData.label} onPick={pickMenu} onClose={() => setMenu(null)} />}
+    </div>
   );
 }

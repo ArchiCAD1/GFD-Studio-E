@@ -103,7 +103,7 @@ import { generatorScenario, transformerOutage, type SupplyMode } from './calc/sc
 import { removeTie, TIE_OPERATION, tieRatings, updateTie } from './model/sldEdit';
 import type { ColorBy } from './diagram/heatmap';
 import { applyMove, armHint, boardTakes, dropMany, libraryEntries, stayOnBoard, type DropResult, type DropTarget, type MoveItem, type PaletteItem } from './model/sldEdit';
-import { sldMenu, type SldTarget } from './model/sldMenu';
+import { sldMenu, type SldMenuState, type SldTarget } from './model/sldMenu';
 import { describeBulk } from './model/bulkEdit';
 import { deleteMany, pasteFeeders, type PickItem } from './model/sldMenuEdit';
 import { runSldMenu, type SldMenuCtx } from './components/sld/sldMenuRun';
@@ -382,6 +382,8 @@ export default function App() {
   const [copiedLoads, setCopiedLoads] = useState<string[]>([]); // one clipboard: a board, or one or more loads
   const [editTogether, setEditTogether] = useState<string[] | null>(null);
   const [pasteTarget, setPasteTarget] = useState<string | null>(null);
+  /** A board pasted from the Board tab's menu: the view stays on that board. */
+  const [pasteStay, setPasteStay] = useState<string | null>(null);
   const [createdPanelIds, setCreatedPanelIds] = useState<string[]>([]);
   // Study pages filtered to a board and the boards below it (panel tree).
   const [focus, setFocus] = useState<string | null>(null);
@@ -1052,7 +1054,9 @@ export default function App() {
       const next = deleteBoard(project, id);
       setProject(next);
       setEditBoardId(null);
-      const main = next.boards.find((b) => !b.upstreamId) ?? next.boards[0];
+      // Deleting another board from the Board tab (its menu) leaves the view on the board shown.
+      const kept = view === 'design' && diagramMode === 'board' ? next.boards.find((b) => b.id === activeBoardId) : undefined;
+      const main = kept ?? next.boards.find((b) => !b.upstreamId) ?? next.boards[0];
       if (main) selectBoard(main.id);
       setStatus(`Deleted ${id}`);
     } catch (e) {
@@ -1234,10 +1238,11 @@ export default function App() {
   }
 
   /** The SLD's right-click menus: what a row shows (sldMenu.ts) and what it does (components/sld/sldMenuRun.ts). */
-  const sldMenuFor = (t: SldTarget, v: { grid: 'lines' | 'dots' | 'off'; detail: 'auto' | 'all' }) => sldMenu({
+  const sldMenuState = (v: { grid: 'lines' | 'dots' | 'off'; detail: 'auto' | 'all'; branch?: string }): SldMenuState => ({
     project, calcProject, results: allResults, copiedBoard: copiedBoard ?? undefined, copiedLoads, canUndo: history.canUndo, canRedo: history.canRedo,
-    layers, colorBy, supply: onGenerator ? 'generator' : outageId ? `outage:${outageId}` : 'normal', hasGenerator, outages: tiedRoots, grid: v.grid, detail: v.detail
-  }, t);
+    layers, colorBy, supply: onGenerator ? 'generator' : outageId ? `outage:${outageId}` : 'normal', hasGenerator, outages: tiedRoots, grid: v.grid, detail: v.detail, branch: v.branch
+  });
+  const sldMenuFor = (t: SldTarget, v: { grid: 'lines' | 'dots' | 'off'; detail: 'auto' | 'all'; branch?: string }) => sldMenu(sldMenuState(v), t);
   const sldMenuCtx: SldMenuCtx = {
     project, calcProject, copiedBoard: copiedBoard ?? undefined, copiedLoads,
     status: setStatus, apply: showResult, selectBoard, selectFeeder, editBoard: setEditBoardId, editFeeder,
@@ -1263,6 +1268,17 @@ export default function App() {
     exportSld: () => { setView('design'); setDiagramMode('system'); setShowExport(true); },
     undo: history.undo, redo: history.redo,
     setTie: applyTie, removeTie: (id) => { void confirmRemoveTie(id); }
+  };
+
+  /** The Board tab's menus: the same actions, with the view kept on this board (a sub-board's Edit opens its dialog without switching). */
+  const boardTabMenuFor = (t: SldTarget) => sldMenu(sldMenuState({ grid: 'lines', detail: 'auto' }), t, 'board', board.id);
+  const boardTabMenuCtx: SldMenuCtx = {
+    ...sldMenuCtx,
+    apply: (r) => showResult(r, board.id),
+    selectBoard: (id) => { if (id === board.id) selectBoard(id); },
+    openBoardDiagram: (id) => { selectBoard(id); setDiagramMode('board'); },
+    pasteBoard: (id) => { setPasteStay(board.id); setPasteTarget(id); },
+    moveItem: (item, target) => showResult(applyMove(project, item, target), board.id)
   };
 
   // ⌘Z / Ctrl+Z undo, ⇧⌘Z / Ctrl+Y redo, Delete on the diagram. Typing in a
@@ -1644,7 +1660,8 @@ export default function App() {
                   <BoardSheetView project={project} board={board} results={allResults} selected={panel === 'feeder' ? selected : null} onSelect={selectFeeder} onBoard={selectBoard} onOpenEarthing={() => setDiagramMode('earthing')}
                     onChange={(p) => setProject(p, { step: true })} onStatus={setStatus}
                     diagram={{ incomerLabel: boardIncomerLabel(project, board), summary: project.drawing?.sldStyle === 'standard' ? undefined : { loc: boardLocation(project, board), ...panelSummary(project, board) } }}
-                    onDropItem={(item, target) => dropItem(item, target, board.id)} />
+                    onDropItem={(item, target) => dropItem(item, target, board.id)}
+                    menuFor={boardTabMenuFor} onMenu={(t, action, value) => runSldMenu(boardTabMenuCtx, t, action, value)} />
                   ) : (
                   <SystemDiagram
                     {...canvasDrawing(showExport)}
@@ -1709,7 +1726,7 @@ export default function App() {
                     menuFor={sldMenuFor}
                     onMenu={(t, action, value) => runSldMenu(sldMenuCtx, t, action, value)}
                     onStatus={setStatus}
-                    lengthChecks={!showExport}
+                    screenMarks={!showExport}
                   />
                   )}
                   </div>
@@ -1985,13 +2002,17 @@ export default function App() {
           project={project}
           sourceId={copiedBoard}
           targetId={pasteTarget}
-          onClose={() => setPasteTarget(null)}
+          onClose={() => { setPasteTarget(null); setPasteStay(null); }}
           onPaste={(r) => {
             const res = pasteBoard(project, copiedBoard, pasteTarget, r);
-            setProject(res.project, { step: true });
-            selectBoard(res.rootId);
-            setStatus(res.message);
+            if (pasteStay) showResult({ project: res.project, select: { type: 'board', id: res.rootId }, message: res.message }, pasteStay);
+            else {
+              setProject(res.project, { step: true });
+              selectBoard(res.rootId);
+              setStatus(res.message);
+            }
             setPasteTarget(null);
+            setPasteStay(null);
           }}
         />
       )}

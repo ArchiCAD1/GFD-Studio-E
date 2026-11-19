@@ -330,7 +330,7 @@ export default function SystemDiagram({
   menuFor,
   onMenu,
   onStatus,
-  lengthChecks = false
+  screenMarks = false
 }: {
   project: Project;
   /** The project the results were calculated for (the last run). */
@@ -404,12 +404,13 @@ export default function SystemDiagram({
   /** Change the drawing settings (symbol style, legend): shows their buttons. */
   onDrawing?: (patch: Partial<DrawingInfo>) => void;
   /** The right-click menus (sldMenu.ts): what to show for a target, and a picked row. Without them, no menu. */
-  menuFor?: (t: SldTarget, view: { grid: GridStyle; detail: 'auto' | 'all' }) => ReturnType<typeof sldMenu>;
+  menuFor?: (t: SldTarget, view: { grid: GridStyle; detail: 'auto' | 'all'; branch?: string }) => ReturnType<typeof sldMenu>;
   onMenu?: (t: SldTarget, action: string, value?: string) => void;
   /** The status line: the Move tool's hint and its cancel. */
   onStatus?: (text: string) => void;
-  /** Mark an incomer moved to another source with "len?" (its cable length is still to be checked): the design view only. */
-  lengthChecks?: boolean;
+  /** Marks shown on screen only (off while exporting): the "len?" mark on an incomer moved to another source (its cable
+   * length is still to be checked) and the Show this branch only view. */
+  screenMarks?: boolean;
 }) {
   const iec = (project.drawing?.symbols ?? 'iec') === 'iec';
   // DEWA submission style: panel frames, summary boxes (LOC, TCL, DF, MDL), DEWA wording.
@@ -557,7 +558,12 @@ export default function SystemDiagram({
   },
     [project, calcProject, scenario]
   );
-  const off = (boardId: string) => !!scenario && !scenario.energized.has(boardId);
+  // Show this branch only (menu): what is not fed from that board is drawn as the generator scenario draws a board that lost supply.
+  const [branchOf, setBranchOf] = useState<string | null>(null);
+  const branchShown = screenMarks && branchOf && project.boards.some((b) => b.id === branchOf) ? branchOf : null;
+  const inBranch = useMemo(() => (branchShown ? new Set([branchShown, ...below(project, branchShown)]) : null), [branchShown, project]);
+  useEffect(() => { if (branchOf && !project.boards.some((b) => b.id === branchOf)) setBranchOf(null); }, [branchOf, project]);
+  const off = (boardId: string) => (!!scenario && !scenario.energized.has(boardId)) || (!!inBranch && !inBranch.has(boardId));
   const earthing = useMemo(
     () => (colorBy === 'earth' ? new Map(evaluateEarthingAll(running).map((e) => [e.feeder.id, e])) : undefined),
     [colorBy, running]
@@ -1080,7 +1086,7 @@ export default function SystemDiagram({
   // leaving the window closes it.
   const [menu, setMenu] = useState<{ t: SldTarget; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<{ from: string; to: string; x: number; y: number } | null>(null);
-  const menuData = menu && menuFor ? menuFor(menu.t, { grid, detail }) : null;
+  const menuData = menu && menuFor ? menuFor(menu.t, { grid, detail, branch: branchOf && project.boards.some((b) => b.id === branchOf) ? branchOf : undefined }) : null;
   useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(null);
@@ -1148,6 +1154,8 @@ export default function SystemDiagram({
     else if (a === 'deselect') setPicked([]);
     else if (a === 'similar' && m.t.kind === 'feeder') setPicks(v === 'failing' ? selectAll(project, results, 'failing') : similarLoads(project, m.t.id, v === 'all' ? 'all' : 'board'));
     else if (a === 'below' && m.t.kind === 'board') setPicks(branchItems(project, m.t.id));
+    else if (a === 'branch' && m.t.kind === 'board') { setBranchOf(m.t.id); onStatus?.(`Showing ${m.t.id}'s branch only — Esc or Show everything ends it`); }
+    else if (a === 'showall') setBranchOf(null);
     else if (a === 'select' && v) { const [what, kind] = v.split('|'); if (what === 'loads' || what === 'failing' || what === 'warn' || what === 'kind') setPicks(selectAll(project, results, what, kind)); }
     else if (a === 'moveto' && m.t.kind === 'several') { setMoveQ(''); setMoveList({ item: { kind: 'feeder', id: '' }, several: m.t.items, x: m.x, y: m.y }); }
     else if (a === 'move') startMove(m.t);
@@ -1174,6 +1182,7 @@ export default function SystemDiagram({
       onKeyDown={(e) => {
         if (moveTool && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); endMove(true); return; }
         if (e.key === 'Escape' && picked.length && !menu && !moveList && !(e.target as HTMLElement).closest('input,select,textarea')) { e.preventDefault(); e.stopPropagation(); setPicked([]); return; }
+        if (e.key === 'Escape' && branchOf && !menu && !moveList && !(e.target as HTMLElement).closest('input,select,textarea')) { e.preventDefault(); e.stopPropagation(); setBranchOf(null); return; }
         if (menuFor && onMenu && !menu && picked.length >= 2 && !(e.target as HTMLElement).closest('input,select,textarea,button,[contenteditable="true"]')) {
           // Two or more picked: the keys act on all of them, and the app's single-item keys do not run.
           const several: SldTarget = { kind: 'several', items: picked }, mod = e.ctrlKey || e.metaKey;
@@ -1784,7 +1793,7 @@ export default function SystemDiagram({
                   {feederTags(f.id).map((t, i) => (
                     <text key={t.text} x={n.x} y={y + 177 + ex + (panelPlace ? 13 : 0) + i * 13} textAnchor="middle" className={`res ${t.cls}`}>{t.text}</text>
                   ))}
-                  {lengthChecks && f.lengthToCheck && lenMark(n.x, y + 177 + ex + (panelPlace ? 13 : 0) + feederTags(f.id).length * 13, true)}
+                  {screenMarks && f.lengthToCheck && lenMark(n.x, y + 177 + ex + (panelPlace ? 13 : 0) + feederTags(f.id).length * 13, true)}
                   <circle cx={n.x + (panel && sym ? 30 : 22)} cy={y + 78 + ex} r="4" className="status-dot" style={{ fill: `var(--${status})` }} />
                 </>
                 );
@@ -1793,7 +1802,7 @@ export default function SystemDiagram({
                 feederTags(f.id).map((t, i) => (
                   <text key={t.text} x={n.x + 7} y={y + 72 + tagY + ex + i * 13} className={`res ${t.cls}`}>{t.text}</text>
                 ))}
-              {n.childBoardId && lengthChecks && f.lengthToCheck && lenMark(n.x + 7, y + 72 + tagY + ex + feederTags(f.id).length * 13, false)}
+              {n.childBoardId && screenMarks && f.lengthToCheck && lenMark(n.x + 7, y + 72 + tagY + ex + feederTags(f.id).length * 13, false)}
               {sel && <rect x={n.x - 60} y={y + 8} width="120" height={n.childBoardId ? 50 : 160 + ex} rx="8" className="sel-ring" />}
             </g>
           );

@@ -69,6 +69,10 @@ colour by, scenario and export. Keys on the drawing: **Z** zooms to the selectio
 place it before that one; Esc or a right-click cancels. **Supply from…** and
 **Move to board…** pick the board from a list instead. A board moved to another source
 gets **len?** under its values until its incomer length is checked.
+**Show this branch only** (on a board) dims everything not fed from it, on screen only;
+**Esc**, or **Show everything** on the empty drawing, ends it. The Board tab has the same
+right-click menus for its ways and sub-boards, without the tools that need the whole
+drawing (Move, Supply from…, Zoom to, Select similar); the view stays on that board.
 
 To work on several at once, **Shift+click** loads and boards, or **Shift+drag** a window on
 the empty drawing (a plain drag still pans); **Esc** clears. A right-click on any picked
