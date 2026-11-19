@@ -206,7 +206,7 @@ function supplyMenu(s: SldMenuState, boardId: string) {
     const add = drops.filter(([, , item]) => canDrop(project, item, { type: 'bus', boardId })).map(([l, v]) => row(l, `addsupply|${v}`));
     const detail = [`${b.sourceKva} kVA`, b.sourceImpedancePct !== undefined ? `${b.sourceImpedancePct} %` : undefined, `feeds ${boardId}`].filter(Boolean).join(' · ');
     const items = groups(
-      [row('Edit transformer…', 'edit', { icon: 'edtext' }), row('Transformer & generator sizing', 'txsizing', { icon: 'txsizing' }), scenarioList(s), ...(add.length ? [{ label: 'Add', icon: 'plus' as const, sub: add }] : []), row('HV supply and RMUs…', 'hv', { icon: 'hv' })],
+      [row('Edit transformer…', 'edit', { icon: 'edtext' }), row('Transformer & generator sizing', 'txsizing', { icon: 'txsizing' }), scenarioList(s), ...(add.length ? [{ label: 'Add', icon: 'plus' as const, sub: add }] : []), row('MV supply and RMUs…', 'hv', { icon: 'hv' })],
       [zoom], props()
     );
     return { head: { icon: 'transformer', title: txTag(project, boardId) ?? 'Transformer', detail } satisfies CtxHead, items, label: 'Transformer menu' };
@@ -236,7 +236,7 @@ function canvasMenu(s: SldMenuState) {
   const add: CtxEntry[] = [];
   if (canDrop(project, { kind: 'transformer' }, canvas)) add.push(row('Transformer', 'addsupply|transformer'));
   if (canDrop(project, { kind: 'board', board: 'MC' }, canvas)) add.push(row('Meter cabinet', 'addsupply|mc'));
-  add.push('-', row('HV supply and RMUs…', 'hv', { icon: 'hv' }));
+  add.push('-', row('MV supply and RMUs…', 'hv', { icon: 'hv' }));
   const items = groups(
     [row('Undo', 'undo', { key: 'Ctrl+Z', icon: 'undo', off: !s.canUndo }), row('Redo', 'redo', { key: 'Ctrl+Y', icon: 'redo', off: !s.canRedo })],
     [{ label: 'Add', icon: 'plus', sub: add }],
