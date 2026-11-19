@@ -123,7 +123,7 @@ describe('supply menu', () => {
   it('a transformer', () => {
     const m = menu({ kind: 'supply', boardId: 'MDB-1' });
     expect(m.head).toEqual({ icon: 'transformer', title: 'TX-1', detail: '1000 kVA · 5 % · feeds MDB-1' });
-    expect(labels(m.items)).toEqual(['Edit transformer…', 'Transformer & generator sizing', 'Scenario', 'Add', 'HV supply and RMUs…', '-', 'Zoom to MDB-1', '-', 'Properties']);
+    expect(labels(m.items)).toEqual(['Edit transformer…', 'Transformer & generator sizing', 'Scenario', 'Add', 'MV supply and RMUs…', '-', 'Zoom to MDB-1', '-', 'Properties']);
     expect(labels(sub(m.items, 'Add'))).toEqual(['Generator + ATS', 'Generator + interlocked ACBs']);
   });
   it('Bus coupler is offered when there is another main board to tie to', () => {
@@ -175,7 +175,7 @@ describe('empty drawing menu', () => {
     expect(labels(m.items)).toEqual(['Undo', 'Redo', '-', 'Add', '-', 'Fit', 'Grid', 'Text', 'Values', 'Colour by', 'Scenario', '-', 'Select', '-', 'Export…']);
     expect((m.items[0] as CtxItem).off).toBe(true);
     expect((m.items[1] as CtxItem).off).toBe(true);
-    expect(labels(sub(m.items, 'Add'))).toEqual(['Transformer', 'Meter cabinet', '-', 'HV supply and RMUs…']);
+    expect(labels(sub(m.items, 'Add'))).toEqual(['Transformer', 'Meter cabinet', '-', 'MV supply and RMUs…']);
     const nowOf = (name: string) => (sub(m.items, name) as CtxItem[]).filter((x) => x.now).map((x) => x.label);
     expect(nowOf('Grid')).toEqual(['Dots']);
     expect(nowOf('Text')).toEqual(['Follows the zoom']);

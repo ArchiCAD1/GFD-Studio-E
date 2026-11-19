@@ -25,8 +25,8 @@ export const unitName = (tag: string, u: number, n: number) => (n > 1 ? `${tag}$
 /** Earthing schematic (DEWA practice, no lightning protection).
  *
  * Three systems, never mixed with each other:
- *   HV body (RMU and transformer tanks) · transformer neutral · LV (main board MET).
- * Earthing system "Shared HV body earth" (the only one so far; see EARTHING_SYSTEMS):
+ *   MV body (RMU and transformer tanks) · transformer neutral · LV (main board MET).
+ * Earthing system "Shared MV body earth" (the only one so far; see EARTHING_SYSTEMS):
  * each RMU has 2 body-earth pits and the tank / body earth bar of each
  * transformer it feeds (at most 2) is connected to the RMU earth bar, so the
  * tanks use the RMU pits; each transformer 1 pit for the neutral (never joined
@@ -40,7 +40,7 @@ export const unitName = (tag: string, u: number, n: number) => (n > 1 ? `${tag}$
 /** Earthing systems the schematic can be drawn to. One for now; a new arrangement is added here
  * and selected per project (EarthingPlan.system), so existing projects keep theirs. */
 export const EARTHING_SYSTEMS = [
-  { id: 'shared-hv-body', name: 'Shared HV body earth', description: 'Each RMU has 2 body-earth pits; the tank / body earth bar of each transformer it feeds (max. 2) connects to the RMU earth bar. One neutral pit per transformer. LV earth separate. Pits linked pit to pit.' }
+  { id: 'shared-hv-body', name: 'Shared MV body earth', description: 'Each RMU has 2 body-earth pits; the tank / body earth bar of each transformer it feeds (max. 2) connects to the RMU earth bar. One neutral pit per transformer. LV earth separate. Pits linked pit to pit.' }
 ] as const;
 export type EarthingSystemId = (typeof EARTHING_SYSTEMS)[number]['id'];
 export const earthingSystemOf = (id?: string) => EARTHING_SYSTEMS.find((s) => s.id === id) ?? EARTHING_SYSTEMS[0];

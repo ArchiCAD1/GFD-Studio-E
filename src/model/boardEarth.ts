@@ -10,8 +10,8 @@ import { EARTH_PREFIX, setOf, sheetNumber } from './drawingSet';
  * pit group's test result, the earthing sheet, and the incomer's protective
  * conductor with its adiabatic (I²t) check — the same check as the circuit's
  * earth-fault results. The pit conductors themselves are not checked here: in
- * TN-S they carry no LV fault current, and an HV fault needs the authority's
- * HV earth-fault level. */
+ * TN-S they carry no LV fault current, and an MV fault needs the authority's
+ * MV earth-fault level. */
 
 /** Drawing number of the earthing schematic: its sheet in the drawing set, else the number that sheet
  * will take when added (E-ERT-001 with the default prefix). */

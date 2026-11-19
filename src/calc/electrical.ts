@@ -270,9 +270,9 @@ export function supplyImpedance(faultKa: number, voltageV: number, xr = DEFAULT_
   return { r, x: r * xr };
 }
 
-/** Voltage factor for the HV network feeder impedance, IEC 60909-0 Table 1 (MV, maximum currents). */
+/** Voltage factor for the MV network feeder impedance, IEC 60909-0 Table 1 (MV, maximum currents). */
 export const C_MV = 1.1;
-/** X/R of an HV network feeder when the authority gives none (RQ = 0.1 XQ, IEC 60909-0 §6.2). */
+/** X/R of an MV network feeder when the authority gives none (RQ = 0.1 XQ, IEC 60909-0 §6.2). */
 export const DEFAULT_GRID_XR = 10;
 
 /** Short-circuit power S″kQ (MVA) of a grid source: as stated, else √3 · U · Ik″. */
@@ -291,7 +291,7 @@ export function gridSourceOf(project: Project, board: Board): GridSource | undef
   return (id && list.find((g) => g.id === id)) || list[0];
 }
 
-/** HV network impedance referred to the LV side, ZQt = cQ · U²LV ÷ S″kQ (IEC 60909-0 eq. 3 with
+/** MV network impedance referred to the LV side, ZQt = cQ · U²LV ÷ S″kQ (IEC 60909-0 eq. 3 with
  * tr = UnQ ÷ ULV), split by the network X/R. Undefined without a fault level (infinite network). */
 export function gridImpedance(g: GridSource | undefined, voltageV: number): Impedance | undefined {
   const s = g && gridFaultMva(g);
@@ -375,7 +375,7 @@ function impedanceToBoardOf(project: Project, board: Board, seen: Set<string>): 
     // No transformer: a supply with a stated fault level (authority, or a neighbouring building's main board).
     if (!board.sourceKva || !board.sourceImpedancePct) return board.supply?.faultKa ? supplyImpedance(board.supply.faultKa, project.voltageV) : fallback;
     // A closed coupler joins the busbars: every transformer on them feeds a fault (couplers taken as 0 Ω),
-    // each behind its HV network impedance when the grid fault level is given.
+    // each behind its MV network impedance when the grid fault level is given.
     return mainSourceImpedance(project, board);
   }
 

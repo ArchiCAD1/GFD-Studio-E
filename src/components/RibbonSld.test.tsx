@@ -84,12 +84,12 @@ describe('the SLD tab', () => {
     click(tool('Supply'));
     expect(s.onArm).toHaveBeenLastCalledWith({ kind: 'transformer' }, 'Transformer');
     click(arrow('Supply'));
-    expect(items().map((b) => b.textContent)).toEqual(['Transformer', 'Meter cabinet', 'Bus coupler / tie', 'Generator + ATS', 'Generator + interlocked ACBs', 'HV supply and RMUs…']);
+    expect(items().map((b) => b.textContent)).toEqual(['Transformer', 'Meter cabinet', 'Bus coupler / tie', 'Generator + ATS', 'Generator + interlocked ACBs', 'MV supply and RMUs…']);
     click(item('Generator + interlocked ACBs'));
     expect(s.onArm).toHaveBeenLastCalledWith({ kind: 'generator', changeover: 'ACB' }, 'Generator + interlocked ACBs');
     expect(items()).toEqual([]);
     click(arrow('Supply'));
-    click(item('HV supply and RMUs…'));
+    click(item('MV supply and RMUs…'));
     expect(s.onHvSupply).toHaveBeenCalledTimes(1);
     click(tool('Devices'));
     expect(items().map((b) => b.textContent)).toEqual(['ACB', 'MCCB', 'MCB', 'Isolator', 'kWh meter', 'CT metering', 'Earth leakage (RCD)', 'Local isolator', 'Surge protection (SPD)', 'Power meter (PMU) to BMS', 'Capacitor bank']);

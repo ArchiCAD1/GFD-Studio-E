@@ -106,7 +106,7 @@ export function earthLoopPath(project: Project, boardId: string, seen = new Set<
   if (!board.upstreamId) {
     if (!board.sourceKva || !board.sourceImpedancePct) return { z: { r: 0, x: 0 }, missing: `no source data at ${board.id} (transformer kVA and impedance %)` };
     const zt = transformerImpedance(board.sourceKva, board.sourceImpedancePct, project.voltageV, board.sourceXr ?? DEFAULT_TRANSFORMER_XR);
-    // HV network: in the positive and negative sequence only (the Dyn transformer blocks its zero
+    // MV network: in the positive and negative sequence only (the Dyn transformer blocks its zero
     // sequence), so it adds 2/3 of its impedance to the loop (2 Z1 + Z0) ÷ 3.
     const zq = gridImpedance(gridSourceOf(project, board), project.voltageV);
     return { z: zq ? { r: zt.r + (2 / 3) * zq.r, x: zt.x + (2 / 3) * zq.x } : zt };

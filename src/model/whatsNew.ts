@@ -18,6 +18,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.209', date: '2026-11-19',
+    items: [
+      { title: 'MV, not HV, for the 11 kV side', text: 'The 11 kV supply is now called MV (medium voltage) throughout the app: the MV supply and RMUs card in Panels → Transformers and its item in the SLD ribbon\'s Supply menu, the Shared MV body earth earthing system and the MV BODY note on the earthing schematic, the MV supply row of the revision compare, and the MV network line in the reports. Projects open as before; only the names changed. The DEWA forms keep DEWA\'s own wording, LV/HV-CT.' }
+    ]
+  },
+  {
     version: '2.208', date: '2026-11-19',
     items: [
       { title: 'SLD: the 11 kV ring by substation and RMU', text: 'When a main board names its RMU or its substation (Panels → Transformers), the SLD draws the 11 kV ring from the grid source through each RMU: its ring switches, its tee-offs (switch-fuse with its fuse rating, or breaker with 50/51, 50N/51N) and SPARE for a tee-off with no transformer. Each transformer stands under its tee-off. Each substation gets a dash-dot frame round its RMUs and transformers, titled with its type and building from the Substation area page. Main boards stand by substation, then by RMU. Each grid source has its own ring. The sheets and the DXF / DWG export show the same.' },

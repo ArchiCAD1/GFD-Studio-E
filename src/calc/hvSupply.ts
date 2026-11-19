@@ -1,7 +1,7 @@
 import type { GridSource, Project, Rmu } from '../types';
 import { C_MV, DEFAULT_GRID_XR, gridFaultMva, type Status } from './electrical';
 
-/** HV supply and RMUs: the grid source's fault level and the RMU ratings checked against it. */
+/** MV supply and RMUs: the grid source's fault level and the RMU ratings checked against it. */
 
 /** Up to `d` decimals, trailing zeros dropped (11 kV, 26.2 kA). */
 const num = (v: number, d = 1) => v.toLocaleString('en-US', { maximumFractionDigits: d });
@@ -74,7 +74,7 @@ export function mvNetworkText(project: Project): string | undefined {
   const used = (project.gridSources ?? []).filter((g) => gridFaultMva(g));
   if (!used.length) return undefined;
   const one = (g: GridSource) => `${g.name}${g.operator ? ` (${g.operator})` : ''} ${num(g.kv, 1)} kV, S″kQ ${num(gridFaultMva(g)!, 1)} MVA (${num(gridFaultKa(g)!, 1)} kA), X/R ${num(g.xr && g.xr > 0 ? g.xr : DEFAULT_GRID_XR, 1)}`;
-  return `MV network from the grid fault level: ${used.map(one).join('; ')}; c max = ${C_MV} on the HV side, impedance referred to the LV side through each transformer`;
+  return `MV network from the grid fault level: ${used.map(one).join('; ')}; c max = ${C_MV} on the MV side, impedance referred to the LV side through each transformer`;
 }
 
 /** Short label of a grid source for the SLD: operator, voltage and fault level. */
