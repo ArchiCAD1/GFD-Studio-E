@@ -18,6 +18,13 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.210', date: '2026-11-19',
+    items: [
+      { title: 'SLD PDF: feeder lines, breakers and way numbers print black', text: 'On printed SLD sheets, feeder lines, breaker symbols and load boxes now print black, not grey, and the way numbers print solid black and sharp instead of faded. Secondary texts such as the breaking capacity and the dashed panel frames stay grey.' },
+      { title: 'SLD DXF / DWG: panel frames grey with closer dashes', text: 'The dashed frame round a panel goes on its own grey layer, E-PANEL, instead of the cable layer, and is drawn with half the gap between dashes (3 mm dash, 0.75 mm gap).' }
+    ]
+  },
+  {
     version: '2.208', date: '2026-11-19',
     items: [
       { title: 'SLD: the 11 kV ring by substation and RMU', text: 'When a main board names its RMU or its substation (Panels → Transformers), the SLD draws the 11 kV ring from the grid source through each RMU: its ring switches, its tee-offs (switch-fuse with its fuse rating, or breaker with 50/51, 50N/51N) and SPARE for a tee-off with no transformer. Each transformer stands under its tee-off. Each substation gets a dash-dot frame round its RMUs and transformers, titled with its type and building from the Substation area page. Main boards stand by substation, then by RMU. Each grid source has its own ring. The sheets and the DXF / DWG export show the same.' },
