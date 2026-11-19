@@ -313,6 +313,7 @@ export default function SystemDiagram({
   onEditFeeder,
   onEditBoard,
   onOpenSchedule,
+  onConvertSpare,
   onDropItem,
   onMoveItem,
   onPatchFeeder,
@@ -377,6 +378,8 @@ export default function SystemDiagram({
   onEditBoard?: (id: string) => void;
   /** Opens a DB's load schedule (double-click on the DB's circuit summary). */
   onOpenSchedule?: (boardId: string) => void;
+  /** Converts a panel's spare / space symbol to an active outgoing circuit. */
+  onConvertSpare?: (boardId: string, wayId: string) => void;
   /** Drag and drop from the equipment library; the diagram only reports
    * where an item was dropped. */
   onDropItem?: (item: PaletteItem, target: DropTarget) => void;
@@ -1452,8 +1455,10 @@ export default function SystemDiagram({
           const w = n.way, y = n.busY;
           const poles = sparePoles(w);
           if (w.kind === 'space') return (
-            <g key={`${n.boardId}:${w.id}`} className={`spare-way${off(n.boardId) ? ' off' : ''}`}>
-              <title>{`${n.boardId}: space (empty way, no breaker) — add or delete it on the panel's schedule`}</title>
+            <g key={`${n.boardId}:${w.id}`} className={`spare-way${off(n.boardId) ? ' off' : ''}`} role={onConvertSpare ? 'button' : undefined} tabIndex={onConvertSpare ? 0 : undefined}
+              onClick={onConvertSpare ? click(() => onConvertSpare(n.boardId, w.id)) : undefined}
+              onKeyDown={(e) => { if (onConvertSpare && e.key === 'Enter') { e.stopPropagation(); onConvertSpare(n.boardId, w.id); } }}>
+              <title>{`${n.boardId}: space (empty way, no breaker) — click to convert it to a circuit, or manage it on the panel's schedule`}</title>
               <line x1={n.x} y1={y} x2={n.x} y2={y + 34} className="ln space-ln" />
               <text x={n.x + 10} y={y + 26} className="b">SPACE</text>
               <text x={n.x + 10} y={y + 39} className="acc-t">{poles} · no breaker</text>
@@ -1462,8 +1467,10 @@ export default function SystemDiagram({
           const board = project.boards.find((b) => b.id === n.boardId)!;
           const f = spareBreaker(board, w);
           return (
-            <g key={`${n.boardId}:${w.id}`} className={`spare-way${off(n.boardId) ? ' off' : ''}`}>
-              <title>{`${n.boardId}: spare ${w.ratingA} A ${poles} breaker (nothing connected) — edit or delete it on the panel's schedule`}</title>
+            <g key={`${n.boardId}:${w.id}`} className={`spare-way${off(n.boardId) ? ' off' : ''}`} role={onConvertSpare ? 'button' : undefined} tabIndex={onConvertSpare ? 0 : undefined}
+              onClick={onConvertSpare ? click(() => onConvertSpare(n.boardId, w.id)) : undefined}
+              onKeyDown={(e) => { if (onConvertSpare && e.key === 'Enter') { e.stopPropagation(); onConvertSpare(n.boardId, w.id); } }}>
+              <title>{`${n.boardId}: spare ${w.ratingA} A ${poles} breaker (nothing connected) — click to convert it to a circuit, or manage it on the panel's schedule`}</title>
               <line x1={n.x} y1={y} x2={n.x} y2={y + (iec ? 10 : 18)} className="ln" />
               {iec ? <SwitchSym x={n.x} y={y + 10} kind={switchKindOf(f)} s={SYM_SCALE.switch} /> : <rect x={n.x - 6} y={y + 18} width="12" height="16" className="sym" />}
               {!iec && <line x1={n.x - 5} y1={y + 32} x2={n.x + 5} y2={y + 20} className="ln" />}
