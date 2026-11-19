@@ -35,6 +35,7 @@ import ElcbDialog, { type ElcbTarget, type ElcbValues } from './ElcbDialog';
 import { addBoardElcb, allAutomatic, removeBoardElcb, setRcbo, updateBoardElcb } from '../../model/elcbs';
 import TemplateExportDialog from './TemplateExportDialog';
 import { addSpareWay, deleteSpareWay, spareLabel, spareRef, updateSpareWay } from '../../model/spareWays';
+import { convertSpareWay } from '../../model/wayConversion';
 import { fmtFixed, txt } from '../../util/format';
 import type { RibbonActions } from '../Ribbon';
 
@@ -232,6 +233,15 @@ export default function LoadScheduleView({
     } catch (e) {
       onStatus(e instanceof Error ? e.message : String(e));
     }
+  };
+  const convertWay = async (sp: NonNullable<Board['spareWays']>[number]) => {
+    const label = `${spareLabel(sp).toLowerCase()} ${spareRef(sp)}`;
+    const kept = sp.kind === 'spare' ? 'keep its fitted breaker' : 'add the breaker planned for this space';
+    if (!(await ask(`Convert ${label} to a circuit? It will ${kept} and start with no load until you enter its points.`))) return;
+    const r = convertSpareWay(project, board.id, sp.id);
+    if (r.project !== project) onChange(r.project, { step: true });
+    onStatus(r.message);
+    if (r.id) setEditing({ id: r.id });
   };
   // ELCBs placed by hand and RCBOs (Add → ELCB / RCD): the dialog, and what the menu does to the selected circuit.
   const [elcbDlg, setElcbDlg] = useState<ElcbTarget | null>(null);
@@ -587,6 +597,9 @@ export default function LoadScheduleView({
                           <td /><td />
                           <td><input className="room" value={sp.remarks ?? ''} onChange={(ev) => onChange(updateSpareWay(project, board.id, sp.id, { remarks: ev.target.value || undefined }))} aria-label={`${spareRef(sp)} remarks`} /></td>
                           <td>
+                            <button className="icon-btn" aria-label={`Convert ${spareLabel(sp).toLowerCase()} ${spareRef(sp)} to circuit`} title={`Convert ${spareLabel(sp).toLowerCase()} ${spareRef(sp)} to circuit`} onClick={() => void convertWay(sp)}>
+                              <ListPlus size={14} />
+                            </button>
                             <button className="icon-btn" title={`Delete ${spareLabel(sp).toLowerCase()} ${spareRef(sp)}`} onClick={async () => (await ask(`Delete ${spareLabel(sp).toLowerCase()} ${spareRef(sp)}?`)) && onChange(deleteSpareWay(project, board.id, sp.id).project)}>
                               <Trash2 size={14} />
                             </button>
