@@ -1,6 +1,6 @@
 # SLD by substation, RMU and transformer — proposal (2026-11-18)
 
-Status: **all eight decisions approved with the recommended answers**: 1–7 on 2026-11-18, 8 (the HV overview as a Show menu row, no new tab) on 2026-11-19. Step 1 is being built.
+Status: **all eight decisions approved with the recommended answers**: 1–7 on 2026-11-18, 8 (the HV overview as a Show menu row, no new tab) on 2026-11-19. Step 1 (the ring on the SLD and the two fixes) is in PR 697, v2.208; the normally open point waits for step 4, where it is entered.
 Mockup: `docs/mockups/sld-substation-view-mockup.html` + `.png` (example project: five substations, six RMUs, seven transformers and one board on an authority LV supply).
 Follows [[UI UX proposals - 2026-11-11 - SLD supply sources, RMU and package substations]]: that proposal's D1 (where the upstream chain is drawn) is answered here with "above the main boards, by substation".
 
