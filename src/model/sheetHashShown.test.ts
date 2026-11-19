@@ -42,6 +42,26 @@ describe('sheet fingerprints cover the calculated values a sheet prints', () => 
     expect(sheetHash(all, set, dbSheet)).not.toBe(h);
   });
 
+  it('system sheet with the MV ring: the RMU\'s other transformer and the substation title change the sheet', () => {
+    const ring: Project = { ...sampleProject, boards: [
+      ...sampleProject.boards.map((b) => (b.id === 'MDB-1' ? { ...b, rmu: 'RMU-1', substation: 'SS-1' } : b)),
+      { id: 'MDB-2', name: 'MDB-2', kind: 'MDB', sourceKva: 1000, sourceImpedancePct: 6, rmu: 'RMU-1', substation: 'SS-1' }
+    ] };
+    const sheet: DrawingSheet = { id: 'sld', number: 'E-SLD-002', title: 'MDB-1', kind: 'system', boards: ['MDB-1'], size: 'auto' };
+    const set = { ...empty, sheets: [sheet] };
+    const h = sheetHash(ring, set, sheet);
+    // MDB-2 (not on this sheet) moves to another RMU: the stub "to TX-2 · MDB-2" goes.
+    const moved = { ...ring, boards: ring.boards.map((b) => (b.id === 'MDB-2' ? { ...b, rmu: 'RMU-2' } : b)) };
+    expect(sheetHash(moved, set, sheet)).not.toBe(h);
+    const titled = { ...ring, substations: [{ id: 'a', name: 'SS-1', type: 'pocket' as const, transformers: 2, building: 'Villa cluster' }] };
+    expect(sheetHash(titled, set, sheet)).not.toBe(h);
+    // Issued before version 4: not flagged by the new fields.
+    const v3 = { ...sheet, issuedHash: 'x', issuedHashV: 3 };
+    expect(sheetHash(moved, set, v3)).toBe(sheetHash(ring, set, v3));
+    // Without RMU or substation names the fingerprint is as before.
+    expect(sheetHash(sampleProject, set, sheet)).toBe(sheetHash(sampleProject, set, { ...sheet, issuedHash: 'x', issuedHashV: 3 }));
+  });
+
   it('a sheet issued before version 2 keeps its fingerprint (not flagged by the new fields)', () => {
     const r = addRiserSheet(empty, 'A', 'Tower A');
     const legacy = { ...sheetOf(r), issuedHash: 'x' }; // issued, no version recorded

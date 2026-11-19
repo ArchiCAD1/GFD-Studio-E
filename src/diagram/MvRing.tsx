@@ -1,12 +1,12 @@
 import type { GridSource } from '../types';
 import { Sym, SYM_SCALE } from './symbolLibrary';
-import { HV_ROWS as Y, HV_SLOT, RING_Y, sourceLabels, type HvGeom, type RmuGeom } from './hvArrangement';
+import { MV_ROWS as Y, MV_SLOT, RING_Y, sourceLabels, type MvGeom, type RmuGeom } from './mvArrangement';
 
-/** The 11 kV side of the system SLD in its ring arrangement (see hvArrangement.ts): substation frames, the ring from each
+/** The 11 kV side of the system SLD in its ring arrangement (see mvArrangement.ts): substation frames, the ring from each
  * grid source through the RMUs' ring switches, each RMU's tee-offs down to its transformers, and stubs to what is
  * drawn elsewhere. The transformers themselves are drawn with their main boards, under the tee-offs. */
-export default function HvRing({ geom, rmuTitle, sourceTitle }: {
-  geom: HvGeom;
+export default function MvRing({ geom, rmuTitle, sourceTitle }: {
+  geom: MvGeom;
   /** Tooltip of an RMU: its label, what it feeds and its ratings. */
   rmuTitle: (name: string) => string;
   /** Tooltip of a grid source. */
@@ -14,7 +14,7 @@ export default function HvRing({ geom, rmuTitle, sourceTitle }: {
 }) {
   const s = SYM_SCALE.switch;
   return (
-    <g className="hv-ring">
+    <g className="mvRing-ring">
       {geom.frames.map((f) => (
         <g key={`ss-${f.name}-${f.x1}`} className="ss-frame">
           <title>{`Substation ${f.name}${f.sub ? ` · ${f.sub}` : ''}`}</title>
@@ -24,11 +24,11 @@ export default function HvRing({ geom, rmuTitle, sourceTitle }: {
         </g>
       ))}
       {geom.runs.map((r, i) => (
-        <g key={`run-${i}`} className="hv-run">
+        <g key={`run-${i}`} className="mvRing-run">
           {r.segs.map(([a, b]) => <line key={`${a}-${b}`} x1={a} y1={RING_Y} x2={b} y2={RING_Y} className="ln mv" />)}
           {r.dots.map((x) => <circle key={x} cx={x} cy={RING_Y} r="2.5" className="dot" />)}
           {r.head.kind === 'source' ? (
-            <g className="hv-source">
+            <g className="mvRing-source">
               {sourceTitle(r.source) && <title>{sourceTitle(r.source)}</title>}
               <circle cx={r.head.x} cy={RING_Y} r="11" className="sym" />
               <path d={`M${r.head.x - 5} ${RING_Y} q2.5 -6 5 0 t5 0`} className="ln" />
@@ -42,13 +42,13 @@ export default function HvRing({ geom, rmuTitle, sourceTitle }: {
               })()}
             </g>
           ) : (
-            <g className="hv-stub">
+            <g className="mvRing-stub">
               <circle cx={r.head.x} cy={RING_Y} r="2.5" className="sym" />
               <text className="m" x={r.head.x + 2} y={RING_Y - 6} style={{ fontSize: 10 }}>{r.head.text}</text>
             </g>
           )}
           {r.tail && (
-            <g className={r.tail.kind === 'to' ? 'hv-stub' : 'hv-end'}>
+            <g className={r.tail.kind === 'to' ? 'mvRing-stub' : 'mvRing-end'}>
               {r.tail.kind === 'to'
                 ? <circle cx={r.tail.x} cy={RING_Y} r="2.5" className="sym" />
                 : <path d={`M${r.tail.x - 8} ${RING_Y - 4}L${r.tail.x} ${RING_Y}L${r.tail.x - 8} ${RING_Y + 4}`} className="ln" />}
@@ -78,18 +78,18 @@ function Rmu({ g, s, title }: { g: RmuGeom; s: number; title: string }) {
         <g key={i} className="rmu-ring-sw">
           <line x1={w.x} y1={RING_Y} x2={w.x} y2={Y.ringSw} className="ln mv" />
           <Sym id="isolator" x={w.x} y={Y.ringSw + 16 * s} s={s} />
-          <line x1={w.x} y1={Y.ringSw + HV_SLOT} x2={w.x} y2={Y.bus} className="ln" />
+          <line x1={w.x} y1={Y.ringSw + MV_SLOT} x2={w.x} y2={Y.bus} className="ln" />
         </g>
       ) : (
         <g key={i} className={w.kind === 'tee' ? 'rmu-tee' : 'rmu-ring-spare'}>
           <line x1={w.x} y1={Y.bus} x2={w.x} y2={Y.teeSw} className="ln" />
           <Sym id={w.kind === 'tee' ? teeSym : 'isolator'} x={w.x} y={Y.teeSw + 16 * s} s={s} />
           {w.kind === 'tee' && w.boardId ? (
-            <line x1={w.x} y1={Y.teeSw + HV_SLOT} x2={w.x} y2={Y.boxBottom} className="ln" />
+            <line x1={w.x} y1={Y.teeSw + MV_SLOT} x2={w.x} y2={Y.boxBottom} className="ln" />
           ) : (
             <>
-              <line x1={w.x} y1={Y.teeSw + HV_SLOT} x2={w.x} y2={Y.teeSw + HV_SLOT + 4} className="ln" />
-              <line x1={w.x - 5} y1={Y.teeSw + HV_SLOT + 4} x2={w.x + 5} y2={Y.teeSw + HV_SLOT + 4} className="ln" />
+              <line x1={w.x} y1={Y.teeSw + MV_SLOT} x2={w.x} y2={Y.teeSw + MV_SLOT + 4} className="ln" />
+              <line x1={w.x - 5} y1={Y.teeSw + MV_SLOT + 4} x2={w.x + 5} y2={Y.teeSw + MV_SLOT + 4} className="ln" />
               <text className="m" x={w.x} y={Y.boxBottom - 3} textAnchor="middle" style={{ fontSize: 8 }}>{w.kind === 'tee' ? 'SPARE' : `R${3 + g.ways.slice(0, i).filter((v) => v.kind === 'ring-spare').length}`}</text>
             </>
           )}
@@ -103,7 +103,7 @@ function Rmu({ g, s, title }: { g: RmuGeom; s: number; title: string }) {
         if (stub) {
           const end = w.x + stub.dir * 40;
           return (
-            <g key={`c-${w.x}`} className="hv-stub">
+            <g key={`c-${w.x}`} className="mvRing-stub">
               <path d={`M${w.x} ${Y.boxBottom}V${Y.stub}H${end}`} className="ln mv" />
               <circle cx={end + stub.dir * 2.2} cy={Y.stub} r="2.2" className="sym" />
               <text className="m" x={w.x + stub.dir * 46} y={Y.stub + 4} textAnchor={stub.dir > 0 ? 'start' : 'end'} style={{ fontSize: 10 }}>{stub.text}</text>
@@ -116,7 +116,7 @@ function Rmu({ g, s, title }: { g: RmuGeom; s: number; title: string }) {
   );
 }
 
-/** HV cable from a tee-off to its transformer: straight down, or across at the jog row to a transformer beside it. */
+/** MV cable from a tee-off to its transformer: straight down, or across at the jog row to a transformer beside it. */
 function TeeCable({ x, to }: { x: number; to: number }) {
   return Math.abs(x - to) < 0.5
     ? <line x1={x} y1={Y.boxBottom} x2={x} y2={Y.txTop} className="ln mv" />

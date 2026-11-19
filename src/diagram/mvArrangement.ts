@@ -13,11 +13,11 @@ import { textWidth } from './panelLabels';
 
 /** The ring line, and how much lower every main board's supply rows (transformer, meter cabinet) sit than without it. */
 export const RING_Y = 64;
-export const HV_DY = 108;
+export const MV_DY = 108;
 /** Rows of an RMU and of the substation frame (drawing units, from the top of the SLD). */
-export const HV_ROWS = { frameTop: 8, title: 24, subtitle: 38, boxTop: 72, name: 89, config: 101, ringSw: 78, bus: 116, teeSw: 120, boxBottom: 160, stub: 167, jog: 174, txTop: 78 + HV_DY } as const;
+export const MV_ROWS = { frameTop: 8, title: 24, subtitle: 38, boxTop: 72, name: 89, config: 101, ringSw: 78, bus: 116, teeSw: 120, boxBottom: 160, stub: 167, jog: 174, txTop: 78 + MV_DY } as const;
 /** Switch slot height at switch scale (24 units). */
-export const HV_SLOT = 24;
+export const MV_SLOT = 24;
 /** RMU way pitch, and the box margin past its outer ways. */
 const WAY = 32, BOX_PAD = 16;
 /** Gaps kept between neighbouring substation frames (or RMUs outside a frame), and between RMUs in one frame. */
@@ -30,11 +30,11 @@ const B = 12, M = 11, S = 9;
 /** A main board on an authority LV supply (meter cabinet): its own source, off the 11 kV side. */
 export const authoritySupplied = (b: Board) => !b.upstreamId && !b.sourceKva && !!b.supply;
 /** A main board hanging from the 11 kV side: every main board but one on an authority LV supply. */
-export const onHvSide = (b: Board) => !b.upstreamId && !authoritySupplied(b);
+export const onMvSide = (b: Board) => !b.upstreamId && !authoritySupplied(b);
 const clean = (s?: string) => s?.trim() || undefined;
 
 /** The ring arrangement is drawn once a main board on the 11 kV side names its RMU or its substation. */
-export const hvRingOn = (project: Project) => project.boards.some((b) => onHvSide(b) && (!!clean(b.rmu) || !!clean(b.substation)));
+export const mvRingOn = (project: Project) => project.boards.some((b) => onMvSide(b) && (!!clean(b.rmu) || !!clean(b.substation)));
 
 export interface RmuItem {
   kind: 'rmu';
@@ -53,7 +53,7 @@ export interface RmuItem {
 export interface TapItem { kind: 'tap'; boardId: string; substation?: string }
 export type RingItem = RmuItem | TapItem;
 export interface Ring { source?: GridSource; items: RingItem[] }
-export interface HvPlan {
+export interface MvPlan {
   rings: Ring[];
   /** Main boards left to right: by ring, then substation, then RMU (inside a group in project order); main boards on
    * an authority LV supply last, so the 11 kV side never runs over them. */
@@ -62,8 +62,8 @@ export interface HvPlan {
 
 /** The rings, their RMUs and the main boards' order, from the whole project. A substation sits on the ring of its
  * first RMU; an RMU in the substation of its first transformer; a transformer with no RMU on the first ring. */
-export function hvPlan(project: Project): HvPlan {
-  const mains = project.boards.filter(onHvSide);
+export function mvPlan(project: Project): MvPlan {
+  const mains = project.boards.filter(onMvSide);
   const sources = project.gridSources ?? [];
   const ringOfRmu = (name: string) => { const s = rmuSource(project, name); return s ? Math.max(0, sources.indexOf(s)) : 0; };
   const rmuSs = new Map<string, string | undefined>();
@@ -133,7 +133,7 @@ export interface RunGeom {
   /** Junctions on the ring line: taps, and an RT unit's ring switch where the ring runs on. */
   dots: number[];
 }
-export interface HvGeom {
+export interface MvGeom {
   frameBottom: number;
   runs: RunGeom[];
   rmus: RmuGeom[];
@@ -143,7 +143,7 @@ export interface HvGeom {
   right: number;
 }
 
-export interface HvOptions {
+export interface MvOptions {
   /** The transformer's neutral and body earth labels are drawn under it (the frame goes below them). */
   earth: boolean;
 }
@@ -170,11 +170,11 @@ export function txLabelReach(project: Project, b: Board): number {
 const itemName = (project: Project, it: RingItem) => (it.kind === 'rmu' ? it.name : `${txTag(project, it.boardId) ?? 'Transformer'} · ${it.boardId}`) + (it.substation ? ` · ${it.substation}` : '');
 
 /** A level-0 block (a frame, or an RMU or tap outside one) or a level-1 block (an RMU or tap inside a frame), and
- * the main board whose lead moves it. Used to keep them apart (hvLeads). */
+ * the main board whose lead moves it. Used to keep them apart (mvLeads). */
 interface Block { root: string; left: number; right: number; level: 0 | 1; frame?: number }
 
 /** Where everything on the 11 kV side goes, for the main boards drawn at `x` (board id → incomer x). */
-export function hvGeometry(project: Project, plan: HvPlan, x: Map<string, number>, opts: HvOptions): HvGeom & { blocks: Block[] } {
+export function mvGeometry(project: Project, plan: MvPlan, x: Map<string, number>, opts: MvOptions): MvGeom & { blocks: Block[] } {
   const byId = new Map(project.boards.map((b) => [b.id, b]));
   const runs: RunGeom[] = [], rmus: RmuGeom[] = [], taps: TapGeom[] = [], frames: FrameGeom[] = [], blocks: Block[] = [];
   let right = -Infinity;
@@ -260,7 +260,7 @@ export function hvGeometry(project: Project, plan: HvPlan, x: Map<string, number
       right = Math.max(right, end + 4);
     }
   }
-  return { frameBottom: HV_DY + (opts.earth ? 156 : 138), runs, rmus, taps, frames, right, blocks };
+  return { frameBottom: MV_DY + (opts.earth ? 156 : 138), runs, rmus, taps, frames, right, blocks };
 }
 
 /** Width of the grid source's labels (left-aligned 11 left of its symbol). */
@@ -321,13 +321,13 @@ function rmuGeom(project: Project, it: RmuItem, x: Map<string, number>): RmuGeom
 /** Extra room before main boards (by id) so that frames, RMUs and the ring's labels keep apart, for the main boards
  * laid out at `roots` (left to right). Room added before a board moves it and every board after it; the leftmost
  * clash is cleared first, so no room is added that a later move makes unnecessary. */
-export function hvLeads(project: Project, plan: HvPlan, roots: { id: string; x: number }[], opts: HvOptions): Map<string, number> {
+export function mvLeads(project: Project, plan: MvPlan, roots: { id: string; x: number }[], opts: MvOptions): Map<string, number> {
   const lead = new Map<string, number>();
   const at = new Map(roots.map((r, i) => [r.id, i]));
   const xs = roots.map((r) => r.x);
-  const onSide = new Set(project.boards.filter(onHvSide).map((b) => b.id));
+  const onSide = new Set(project.boards.filter(onMvSide).map((b) => b.id));
   for (let guard = 0; guard < 400; guard++) {
-    const g = hvGeometry(project, plan, new Map(roots.filter((r) => onSide.has(r.id)).map((r) => [r.id, xs[at.get(r.id)!]])), opts);
+    const g = mvGeometry(project, plan, new Map(roots.filter((r) => onSide.has(r.id)).map((r) => [r.id, xs[at.get(r.id)!]])), opts);
     // Boards drawn after the 11 kV side (authority supplies, parts fed from elsewhere) keep clear of it too.
     const others: Block[] = roots.filter((r) => !onSide.has(r.id)).map((r) => ({ root: r.id, left: xs[at.get(r.id)!] - 20, right: xs[at.get(r.id)!] + 20, level: 0 }));
     const outer = [...g.blocks.filter((b) => b.level === 0), ...others].sort((a, b) => at.get(a.root)! - at.get(b.root)! || a.left - b.left);
@@ -346,4 +346,24 @@ export function hvLeads(project: Project, plan: HvPlan, roots: { id: string; x: 
     for (let i = at.get(c.root)!; i < xs.length; i++) xs[i] += c.need;
   }
   return lead;
+}
+
+/** What a system sheet drawing these main boards prints of the MV side, without positions: its rings' ends, its RMUs
+ * with their tee-offs and stubs, its substation titles and transformer numbers. The sheet's fingerprint (drawingSet
+ * sheetHash, version 4) follows it, so a change elsewhere in the project that the sheet shows flags it as changed.
+ * Undefined when the ring arrangement is not drawn. */
+export function mvSheetKey(project: Project, drawn: Board[]): unknown {
+  if (!mvRingOn(project)) return undefined;
+  const plan = mvPlan(project);
+  const ids = new Set(drawn.filter(onMvSide).map((b) => b.id));
+  const order = plan.order.filter((id) => ids.has(id));
+  if (!order.length) return undefined;
+  const g = mvGeometry(project, plan, new Map(order.map((id, i) => [id, i * 1000])), { earth: false });
+  return [
+    g.runs.map((r) => [r.source?.id ?? null, r.head.kind === 'from' ? r.head.text : 'source', r.tail?.text ?? null]),
+    g.rmus.map((m) => [m.item.name, m.item.config ?? null, m.item.ringWays, m.item.tOff ?? null, m.item.fuseA ?? null, m.item.tees.map((t) => t ?? null), m.stubs.map((t) => t.text)]),
+    g.frames.map((f) => [f.name, f.sub ?? null]),
+    g.taps.map((t) => t.boardId),
+    order.map((id) => txTag(project, id) ?? null)
+  ];
 }

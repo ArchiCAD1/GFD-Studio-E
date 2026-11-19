@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import SystemDiagram from './SystemDiagram';
 import { sampleProject } from '../data/sampleProject';
 import { evaluateProject } from '../calc/electrical';
-import { HV_DY } from '../diagram/hvArrangement';
+import { MV_DY } from '../diagram/mvArrangement';
 import type { Board, Project } from '../types';
 
 const noop = () => {};
@@ -24,7 +24,7 @@ describe('SLD: grid source and RMU', () => {
   it('draws one 11 kV line under the utility without RMU or substation names; a meter cabinet has its own source', () => {
     const h = drawn({ ...sampleProject, boards: [meterCabinet, ...sampleProject.boards] });
     expect(texts(h)).toEqual(expect.arrayContaining(['Utility', '11 kV', 'DEWA supply']));
-    expect(h.querySelector('.hv-ring')).toBeNull();
+    expect(h.querySelector('.mvRing-ring')).toBeNull();
     // The main board on the authority supply moves after the transformers, with its own source symbol.
     const sup = h.querySelector('g.tx[data-lv-id="board:MDB-A"]')!;
     const tx = h.querySelector('g.tx[data-lv-id="board:MDB-1"]')!;
@@ -42,7 +42,7 @@ describe('SLD: grid source and RMU', () => {
     expect([...rmu.querySelectorAll('[data-sym]')].map((s) => s.getAttribute('data-sym'))).toEqual(['isolator', 'fusesw', 'isolator']);
     // The transformer stands lower, under the RMU, straight below its tee-off.
     const sym = h.querySelector('g.tx [data-sym="tx"]')!;
-    expect(num(sym, 'data-sym-y')).toBe(92 + HV_DY);
+    expect(num(sym, 'data-sym-y')).toBe(92 + MV_DY);
     expect(num(rmu.querySelectorAll('[data-sym]')[1], 'data-sym-x')).toBe(num(sym, 'data-sym-x'));
   });
 
@@ -54,10 +54,10 @@ describe('SLD: grid source and RMU', () => {
     };
     const h = drawn(p);
     expect(texts(h.querySelector('.ss-frame')!)).toEqual(['SS-1', 'Conventional substation · Ground floor']);
-    const ringEnd = Math.max(...[...h.querySelectorAll('.hv-run line')].map((l) => num(l, 'x2')));
+    const ringEnd = Math.max(...[...h.querySelectorAll('.mvRing-run line')].map((l) => num(l, 'x2')));
     const sup = h.querySelector('g.tx[data-lv-id="board:MDB-A"]')!;
     expect(num(sup.querySelector('circle'), 'cx')).toBeGreaterThan(ringEnd);
-    expect(num(sup.querySelector('circle'), 'cy')).toBe(22 + HV_DY);
+    expect(num(sup.querySelector('circle'), 'cy')).toBe(22 + MV_DY);
   });
 
   it('on a sheet of one main board, draws a stub to the RMU’s other transformer and numbers its own as in the project', () => {
