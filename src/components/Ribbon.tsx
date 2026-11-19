@@ -677,9 +677,9 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
         onClick: () => s?.onCheck(), disabled: !s?.fails && !s?.warns }
     ],
     [
-      { label: 'Supply', icon: TransformerIcon, title: 'Add a transformer: then click the empty canvas, or a main board to give it one — the arrow beside it for a meter cabinet, a generator, a bus coupler or the HV supply',
+      { label: 'Supply', icon: TransformerIcon, title: 'Add a transformer: then click the empty canvas, or a main board to give it one — the arrow beside it for a meter cabinet, a generator, a bus coupler or the MV supply',
         onClick: () => supplyItems[0] && s?.onArm(supplyItems[0].item, supplyItems[0].label), disabled: !s,
-        menu: [...supplyItems.map((e) => armItem(e)), { label: 'HV supply and RMUs…', title: 'Panels → Transformers: the authority HV supply and each RMU', onClick: () => s?.onHvSupply(), sep: true }] },
+        menu: [...supplyItems.map((e) => armItem(e)), { label: 'MV supply and RMUs…', title: 'Panels → Transformers: the authority MV supply and each RMU', onClick: () => s?.onHvSupply(), sep: true }] },
       ...equipment,
       { label: 'Devices', icon: ShieldCheck, title: 'Protection, metering and a capacitor bank from the equipment library: choose one, then click the feeder or busbar it goes on', onClick: () => {}, menuOnly: true, disabled: !s,
         menu: [...lib('Protection').map((e) => armItem(e)), ...lib('Metering & accessories').map((e, i) => armItem(e, i === 0)), ...lib('Loads').filter((e) => e.item.kind === 'capacitor').map((e) => armItem(e, true))] }

@@ -9,7 +9,7 @@ const OPERATORS = ['DEWA', 'ADDC', 'AADC', 'SEWA', 'FEWA', 'EtihadWE', 'Private 
 const num = (v: string) => (v.trim() === '' ? undefined : Number(v));
 const shown = (v: number | undefined, d = 1) => (v === undefined ? '—' : v.toLocaleString('en-US', { maximumFractionDigits: d }));
 
-/** Panels → Transformers: the authority HV supply (its fault level sets the LV fault levels) and each RMU's details. */
+/** Panels → Transformers: the authority MV supply (its fault level sets the LV fault levels) and each RMU's details. */
 export default function HvSupplyCard({ project, onChange }: { project: Project; onChange: (p: Project) => void }) {
   const grids = project.gridSources ?? [];
   const checks = useMemo(() => rmuChecks(project), [project]);
@@ -28,7 +28,7 @@ export default function HvSupplyCard({ project, onChange }: { project: Project; 
 
   return (
     <section className="card">
-      <h4>HV supply and RMUs</h4>
+      <h4>MV supply and RMUs</h4>
       <p className="m">The grid fault level from the authority sets the network impedance in front of each transformer. Without one the MV network is taken as infinite.</p>
       <div className="pp-table">
         <table className="bi-table compact">

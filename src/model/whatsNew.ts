@@ -18,6 +18,12 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.209', date: '2026-11-19',
+    items: [
+      { title: 'MV, not HV, for the 11 kV side', text: 'The 11 kV supply is now called MV (medium voltage) throughout the app: the MV supply and RMUs card in Panels → Transformers and its item in the SLD ribbon\'s Supply menu, the Shared MV body earth earthing system and the MV BODY note on the earthing schematic, the MV supply row of the revision compare, and the MV network line in the reports. Projects open as before; only the names changed. The DEWA forms keep DEWA\'s own wording, LV/HV-CT.' }
+    ]
+  },
+  {
     version: '2.203', date: '2026-11-18',
     items: [
       { title: 'SLD: kWh meter clear of the cable text', text: 'A kWh meter on a way now has its own row inside the panel, like the ELCB, so it no longer sits on the cable text. On a way with both, the meter is under the ELCB. The meter is drawn a little larger, so "kWh" fits its box. The same applies in the DXF / DWG export.' }

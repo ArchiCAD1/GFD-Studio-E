@@ -123,7 +123,7 @@ describe('RMU checks and labels', () => {
   });
 });
 
-describe('HV supply edits', () => {
+describe('MV supply edits', () => {
   it('adds, changes and removes grid sources, clearing RMU links', () => {
     let p = addGridSource(project([tx('MDB-1', 1000, { rmu: 'RMU-1' })]));
     expect(p.gridSources).toEqual([{ id: 'GRID-1', name: 'GRID-1', operator: 'DEWA', kv: 11 }]);
