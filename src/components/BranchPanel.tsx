@@ -10,14 +10,16 @@ import { fmtDate } from '../util/format';
 /** Repeat branch / Assemblies tabs of Build hierarchy: copy a board with
  * everything below it to chosen floors, or insert a saved assembly — renamed
  * by level (SMDB-L1 → SMDB-L5), previewed, checked, created in one step. */
-export default function BranchPanel({ mode, project, onCreate, onClose }: {
+export default function BranchPanel({ mode, project, onCreate, onClose, initialRoot }: {
   mode: 'repeat' | 'assemblies';
   project: Project;
+  /** The board the Repeat branch picker starts on (the SLD's right-click menu); else the first SMDB. */
+  initialRoot?: string;
   onCreate: (next: Project, message: string) => void;
   onClose: () => void;
 }) {
   const sources = project.boards.filter((b) => b.upstreamId);
-  const [sourceId, setSourceId] = useState(sources.find((b) => b.kind === 'SMDB')?.id ?? sources[0]?.id ?? '');
+  const [sourceId, setSourceId] = useState(sources.find((b) => b.id === initialRoot)?.id ?? sources.find((b) => b.kind === 'SMDB')?.id ?? sources[0]?.id ?? '');
   const [assemblies, setAssemblies] = useState<Assembly[]>(() => loadAssemblies());
   const [asmId, setAsmId] = useState(assemblies[0]?.id ?? '');
   const [saveName, setSaveName] = useState('');

@@ -2020,6 +2020,8 @@ svg .ph-tag.click{cursor:pointer}svg .ph-tag.click:hover rect{fill:color-mix(in 
 .cad-menu-hd{display:flex;align-items:center;gap:var(--space-2);min-height:28px;padding:0 var(--space-2);border-bottom:1px solid var(--line);color:var(--mut);font-size:var(--fs-xs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cad-menu-hd b{color:var(--tx);font-size:var(--fs-sm);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cad-menu-hd2{padding:var(--space-1) var(--space-2) 0;color:var(--mut);font-size:var(--fs-xs)}
+.cad-menu-hd2.bad{color:var(--bad)}
+.cad-menu-hd2.warn{color:var(--warn)}
 .cad-coords{position:absolute;left:var(--space-2);top:var(--space-2);font:11px ui-monospace,Menlo,monospace;color:var(--mut);pointer-events:none}
 .cad-empty{display:grid;place-content:center;gap:var(--space-3);padding:var(--space-5);text-align:center;background:var(--bg)}
 .cad-actions{display:flex;gap:var(--space-2);flex-wrap:wrap;justify-content:center}

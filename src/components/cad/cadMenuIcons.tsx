@@ -1,6 +1,6 @@
-import { AlignHorizontalSpaceAround, ArrowLeftRight, ArrowRightToLine, BadgeCheck, Box, BoxSelect, Boxes, BringToFront, Cable, Circle, CirclePlus, CircuitBoard, Clipboard, ClipboardCopy, ClipboardPaste, Cloud, Contrast, Copy, CornerDownLeft, CornerUpRight, Crop, DoorOpen, Dot, Eraser, Expand, ExternalLink, EyeOff, FileCog, FilePlus2, Filter, FlipHorizontal2, Focus, FolderOpen, Frame, Grid2x2, Hand, Hash, History, Keyboard, Layers, LayoutGrid, LayoutPanelLeft, Lightbulb, Link, Link2, List, ListFilter, ListOrdered, Lock, LockOpen, Magnet, MessageSquareText, Minus, MousePointer2, Move, MoveHorizontal, Network, Package, PaintBucket, Paperclip, Pencil, Plus, Printer, Rainbow, RectangleHorizontal, Redo2, RefreshCw, Repeat, Replace, RotateCw, Rows2, Rows3, Ruler, Save, Scaling, Scissors, ScissorsLineDashed, Settings2, Slash, Spline, Square, SquareDashedMousePointer, SquareX, StretchHorizontal, Table2, TableProperties, TextSearch, Trash2, TriangleRight, Type, Undo2, Ungroup, Unlink, Unlink2, Wrench, X, Zap, ZoomIn, type LucideIcon } from 'lucide-react';
+import { CopyPlus, FileDown, Gauge, Grid3x3, LocateFixed, Palette, Power, Scan, ShieldAlert, ShieldCheck, SlidersHorizontal, Tags, TextCursorInput, ToggleRight, UtilityPole, Waves, AlignHorizontalSpaceAround, ArrowLeftRight, ArrowRightToLine, BadgeCheck, Box, BoxSelect, Boxes, BringToFront, Cable, Circle, CirclePlus, CircuitBoard, Clipboard, ClipboardCopy, ClipboardPaste, Cloud, Contrast, Copy, CornerDownLeft, CornerUpRight, Crop, DoorOpen, Dot, Eraser, Expand, ExternalLink, EyeOff, FileCog, FilePlus2, Filter, FlipHorizontal2, Focus, FolderOpen, Frame, Grid2x2, Hand, Hash, History, Keyboard, Layers, LayoutGrid, LayoutPanelLeft, Lightbulb, Link, Link2, List, ListFilter, ListOrdered, Lock, LockOpen, Magnet, MessageSquareText, Minus, MousePointer2, Move, MoveHorizontal, Network, Package, PaintBucket, Paperclip, Pencil, Plus, Printer, Rainbow, RectangleHorizontal, Redo2, RefreshCw, Repeat, Replace, RotateCw, Rows2, Rows3, Ruler, Save, Scaling, Scissors, ScissorsLineDashed, Settings2, Slash, Spline, Square, SquareDashedMousePointer, SquareX, StretchHorizontal, Table2, TableProperties, TextSearch, Trash2, TriangleRight, Type, Undo2, Ungroup, Unlink, Unlink2, Wrench, X, Zap, ZoomIn, type LucideIcon } from 'lucide-react';
 import { OrthoIcon, OsnapIcon, PolarIcon } from '../icons/cadStatusIcons';
-import { EllipseIcon } from '../icons/elecIcons';
+import { BoardPropsIcon, EllipseIcon, TransformerIcon, TxGenSizingIcon } from '../icons/elecIcons';
 import type { CtxIcon } from './cadContextMenu';
 
 /** Design CAD: the icons of the right-click menus, 16 px: the ribbon's icon for the same tool wherever it has one. */
@@ -115,5 +115,24 @@ export const MENU_ICONS: Record<CtxIcon, Render> = {
   osnap: ({ size = 16 }) => <OsnapIcon size={size} />,
   ortho: ({ size = 16 }) => <OrthoIcon size={size} />,
   polar: ({ size = 16 }) => <PolarIcon size={size} />,
-  ellipse: ({ size = 16 }) => <EllipseIcon size={size} strokeWidth={1.8} />
+  ellipse: ({ size = 16 }) => <EllipseIcon size={size} strokeWidth={1.8} />,
+  board: ({ size = 16 }) => <BoardPropsIcon size={size} strokeWidth={1.8} />,
+  transformer: ({ size = 16 }) => <TransformerIcon size={size} strokeWidth={1.8} />,
+  txsizing: ({ size = 16 }) => <TxGenSizingIcon size={size} strokeWidth={1.8} />,
+  copyplus: lu(CopyPlus),
+  sliders: lu(SlidersHorizontal),
+  textcursor: lu(TextCursorInput),
+  locate: lu(LocateFixed),
+  shield: lu(ShieldCheck),
+  shieldalert: lu(ShieldAlert),
+  gauge: lu(Gauge),
+  waves: lu(Waves),
+  power: lu(Power),
+  toggle: lu(ToggleRight),
+  fit: lu(Scan),
+  grid: lu(Grid3x3),
+  tags: lu(Tags),
+  palette: lu(Palette),
+  export: lu(FileDown),
+  hv: lu(UtilityPole)
 };

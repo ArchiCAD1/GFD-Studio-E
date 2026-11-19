@@ -1,0 +1,263 @@
+import type { FeederResult } from '../calc/electrical';
+import { breakerTypeOf } from '../calc/earthing';
+import { failReasons, quickFixes } from '../calc/quickFix';
+import type { SupplyMode } from '../calc/scenario';
+import { groups, type CtxEntry, type CtxHead, type CtxItem } from '../components/cad/cadContextMenu';
+import { COLOR_BY, type ColorBy } from '../diagram/heatmap';
+import { LAYER_LABELS, type ResultLayers } from '../diagram/annotations';
+import { CABLE_TYPE_DEFS, cableTypeOf } from './cableTypes';
+import { isSinglePhase, phaseTag } from './phases';
+import { kindOf } from './renamePanels';
+import { canDrop, TIE_OPERATION, tieRatings, type MoveItem, type PaletteItem } from './sldEdit';
+import { orderTarget } from './sldMenuEdit';
+import { txTag } from './transformers';
+import { isScheduleCircuit } from '../calc/loadSchedule';
+import { METER_TYPES, type Board, type Feeder, type Project } from '../types';
+import { txt } from '../util/format';
+
+/** The right-click menus of the single line diagram (docs/notes/Future development/UI UX proposals - 2026-11-18 - SLD
+ * right-click menu and edit tools.md). Pure: what a board, a load, a transformer, a bus coupler and the empty drawing offer,
+ * built from the project and the page's state. Every row runs an action the page handles (`act: 'sld'`, `arg` = "action" or
+ * "action|value"); a row that does not apply is left off, not greyed. */
+
+export type SldTarget =
+  | { kind: 'board'; id: string }
+  | { kind: 'feeder'; id: string }
+  | { kind: 'supply'; boardId: string }
+  | { kind: 'tie'; id: string }
+  | { kind: 'canvas' };
+
+export interface SldMenuState {
+  project: Project;
+  /** The project the results were calculated for. */
+  calcProject: Project;
+  results: FeederResult[];
+  /** The clipboard: at most one of the two. */
+  copiedBoard?: string;
+  copiedLoad?: string;
+  canUndo: boolean;
+  canRedo: boolean;
+  layers: ResultLayers;
+  colorBy: ColorBy;
+  supply: SupplyMode;
+  hasGenerator: boolean;
+  /** Main boards whose transformer can be taken out (the SLD ribbon's Scenario list). */
+  outages: string[];
+  /** The drawing's own view settings. */
+  grid: 'lines' | 'dots' | 'off';
+  detail: 'auto' | 'all';
+}
+
+/** Every action the menus run (sldMenuRun.ts handles each one). */
+export const SLD_MENU_ACTIONS: readonly string[] = [
+  'edit', 'schedule', 'diagram', 'add', 'copy', 'paste', 'duplicate', 'repeat', 'order', 'rename', 'cabletype', 'lengthchecked', 'delete', 'plan', 'zoom', 'properties',
+  'quickfix', 'editcable', 'change', 'txsizing', 'hv', 'addsupply', 'scenario', 'tieop', 'tierating', 'tieremove',
+  'undo', 'redo', 'fit', 'grid', 'text', 'values', 'colour', 'export'
+];
+
+/** Actions the drawing does itself (its view, its cable editor); the page is not told of them. */
+export const SLD_VIEW_ACTIONS: readonly string[] = ['fit', 'grid', 'text', 'editcable'];
+
+/** A picked row's arg, "action|value", as [action, value]. */
+export const sldAction = (x: CtxItem): [string, string | undefined] => {
+  const [a, ...v] = (x.arg ?? '').split('|');
+  return [a, v.length ? v.join('|') : undefined];
+};
+
+const row = (label: string, arg: string, more: Partial<CtxItem> = {}): CtxItem => ({ label, act: 'sld', arg, ...more });
+
+/** The Scenario list: also on a transformer, a bus coupler and the empty drawing. */
+const scenarioList = (s: SldMenuState): CtxItem => ({
+  label: 'Scenario', icon: 'reverse',
+  sub: [
+    row('Normal supply', 'scenario|normal', { now: s.supply === 'normal' }),
+    row('On generator (mains lost)', 'scenario|generator', { now: s.supply === 'generator', off: !s.hasGenerator }),
+    ...s.outages.map((id) => row(`Transformer of ${id} failed`, `scenario|outage:${id}`, { now: s.supply === `outage:${id}` }))
+  ]
+});
+
+/** Order ▸: one way left or right, first or last on the busbar; each entry only when it moves something. */
+function orderList(project: Project, item: MoveItem, bus: string): CtxItem {
+  const can = (how: 'left' | 'right' | 'first' | 'last') => !!orderTarget(project, item, how);
+  return {
+    label: 'Order', icon: 'reverse',
+    sub: [
+      ...(can('left') ? [row('Move left', 'order|left', { key: 'Alt+←' })] : []),
+      ...(can('right') ? [row('Move right', 'order|right', { key: 'Alt+→' })] : []),
+      '-',
+      ...(can('first') ? [row(`First on ${bus}'s busbar`, 'order|first')] : []),
+      ...(can('last') ? [row(`Last on ${bus}'s busbar`, 'order|last')] : [])
+    ]
+  };
+}
+
+const view = (id: string, zoomLabel = `Zoom to ${id}`): CtxEntry[] => [row('Show on plan', 'plan', { icon: 'locate' }), row(zoomLabel, 'zoom', { key: 'Z', icon: 'zoom' })];
+const props = (): CtxEntry[] => [row('Properties', 'properties', { icon: 'properties' })];
+
+/** The cable types of a board's ways, as the Panels tree's menu offers them. */
+const cableTypeList = (project: Project, b: Board): CtxItem | undefined => {
+  const ways = project.feeders.filter((f) => f.boardId === b.id && !isScheduleCircuit(f));
+  if (!ways.length) return undefined;
+  const same = ways.every((f) => f.cableType === ways[0].cableType) ? ways[0].cableType ?? 'auto' : undefined;
+  return {
+    label: 'Outgoing cable type', icon: 'route',
+    sub: [
+      row('Automatic (fire-rated for life safety)', 'cabletype|auto', { now: same === 'auto' }),
+      ...CABLE_TYPE_DEFS.filter((d) => d.value !== 'XLPE/SWA/PVC').map((d) => row(d.label, `cabletype|${d.value}`, { now: same === d.value }))
+    ]
+  };
+};
+
+function boardMenu(s: SldMenuState, id: string) {
+  const { project } = s;
+  const b = project.boards.find((x) => x.id === id);
+  if (!b) return null;
+  const kva = b.sourceKva ? `${b.sourceKva} kVA transformer` : undefined;
+  const detail = [kindOf(b), b.ratedCurrentA ? `${b.ratedCurrentA} A` : undefined, b.upstreamId ? `from ${b.upstreamId}` : kva].filter(Boolean).join(' · ');
+  const up = b.upstreamId;
+  const copied = s.copiedBoard && s.copiedBoard !== id && project.boards.some((x) => x.id === s.copiedBoard) ? s.copiedBoard : undefined;
+  const load = !copied && s.copiedLoad && project.feeders.some((f) => f.id === s.copiedLoad && !f.feedsBoardId) ? s.copiedLoad : undefined;
+  const incomerChecked = project.feeders.some((f) => f.feedsBoardId === id && f.lengthToCheck);
+  const cables = cableTypeList(project, b);
+  const item: MoveItem = { kind: 'board', id };
+  const items = groups(
+    [row(`Edit ${id}…`, 'edit', { key: 'F2', icon: 'edtext' }), row('Load schedule', 'schedule', { icon: 'schedule' }), row('Board diagram', 'diagram', { key: 'Ctrl+2', icon: 'sld' }),
+      {
+        label: 'Add', icon: 'plus',
+        sub: [row('Load…', 'add|load', { icon: 'circuit' }), row('Motor…', 'add|motor'), row('Solar PV…', 'add|pv'), row('EV charger…', 'add|ev'), row('Feeder cable…', 'add|cable'), '-', row('Sub-board…', 'add|board')]
+      }],
+    [row('Copy with everything below', 'copy', { key: 'Ctrl+C', icon: 'copy' }),
+      ...(copied ? [row(`Paste ${copied} here`, 'paste', { key: 'Ctrl+V', icon: 'paste' })] : load ? [row(`Paste ${load} here`, 'paste', { key: 'Ctrl+V', icon: 'paste' })] : []),
+      ...(up ? [row('Duplicate', 'duplicate', { key: 'Ctrl+D', icon: 'copyplus' }), row('Repeat branch on other floors…', 'repeat', { icon: 'layers' })] : [])],
+    [...(up ? [orderList(project, item, up)] : []),
+      {
+        label: 'Change', icon: 'sliders',
+        sub: [row('Rename…', 'rename', { icon: 'textcursor' }), ...(cables ? [cables] : []), ...(incomerChecked ? [row('Incomer length checked', 'lengthchecked', { icon: 'status' })] : [])]
+      },
+      row(`Delete ${id} and everything below…`, 'delete', { key: 'Del', icon: 'delete', bad: true })],
+    view(id),
+    props()
+  );
+  return { head: { icon: 'board', title: id, detail } satisfies CtxHead, items, label: `${id} menu` };
+}
+
+/** The switching device of a load, as the SLD draws it. */
+const deviceNow = (f: Feeder): 'ACB' | 'MCCB' | 'MCB' | 'ISOL' => {
+  if (f.device === 'ISOL') return 'ISOL';
+  const t = breakerTypeOf(f);
+  return f.device === 'ACB' || t === 'ACB' ? 'ACB' : f.device === 'MCCB' || t === 'MCCB' ? 'MCCB' : 'MCB';
+};
+
+function loadMenu(s: SldMenuState, id: string) {
+  const { project } = s;
+  const f = project.feeders.find((x) => x.id === id);
+  if (!f) return null;
+  const r = s.results.find((x) => x.feeder.id === id);
+  const status = r?.status ?? 'ok';
+  const head: CtxHead = { icon: 'circuit', title: id, detail: `${f.name} · ${txt.power(f.loadKw)} kW · on ${f.boardId}` };
+  if (r && status !== 'ok') {
+    const why = failReasons(s.calcProject, r)[0];
+    head.second = `${status === 'bad' ? 'Fails' : 'To check'}${why ? ` · ${why}` : ''}`;
+    head.secondTone = status;
+  }
+  const fixes = status !== 'ok' ? quickFixes(s.calcProject, f) : [];
+  const dev = deviceNow(f);
+  const rcd = [...new Set([30, 100, 300, ...(f.rcdMa ? [f.rcdMa] : [])])].sort((a, b) => a - b);
+  const typeNow = f.cableType ?? '';
+  const phase = isSinglePhase(f) ? phaseTag(f) : '';
+  const items = groups(
+    [...(fixes.length ? [{
+      label: 'Quick fix', icon: 'tools' as const,
+      sub: fixes.map((x, i) => row(x.label, `quickfix|${i}`, { key: x.after.status === 'ok' ? 'passes' : 'still to check' }))
+    }] : []),
+    row(`Edit ${id}…`, 'edit', { key: 'F2', icon: 'edtext' }), row('Edit cable…', 'editcable', { icon: 'route' }),
+    {
+      label: 'Change', icon: 'sliders',
+      sub: [
+        { label: 'Switching device', icon: 'shield', sub: [['ACB', 'ACB'], ['MCCB', 'MCCB'], ['MCB', 'MCB'], ['Isolator', 'ISOL']].map(([l, v]) => row(l, `change|device|${v}`, { now: dev === v })) },
+        { label: 'Earth leakage', icon: 'shieldalert', sub: [row('None', 'change|rcdMa|', { now: !f.rcdMa }), ...rcd.map((m) => row(`${m} mA`, `change|rcdMa|${m}`, { now: f.rcdMa === m }))] },
+        { label: 'kWh meter', icon: 'gauge', sub: [row('None', 'change|kwhMeter|', { now: !f.kwhMeter }), ...METER_TYPES.map((m) => row(m === 'CT' ? 'CT-operated' : `${m} direct`, `change|kwhMeter|${m}`, { now: f.kwhMeter === m }))] },
+        ...(isSinglePhase(f) ? [{ label: 'Phase', icon: 'waves' as const, sub: (['R', 'Y', 'B'] as const).map((p) => row(p, `change|phase|${p}`, { now: phase === p })) }] : []),
+        {
+          label: 'Cable type', icon: 'route',
+          sub: [row(`Auto — ${cableTypeOf(project, { ...f, cableType: undefined }).label}`, 'change|cableType|', { now: !typeNow }),
+            ...CABLE_TYPE_DEFS.filter((d) => d.value !== 'XLPE/SWA/PVC').map((d) => row(d.label, `change|cableType|${d.value}`, { now: typeNow === d.value }))]
+        },
+        '-',
+        row('Essential (on the generator)', 'change|essential', { icon: 'power', on: !!f.essential }),
+        row('Existing', 'change|existing', { icon: 'history', on: !!f.existing }),
+        row('Local isolator', 'change|localIsolator', { icon: 'toggle', on: !!f.localIsolator })
+      ]
+    }],
+    [row('Copy', 'copy', { key: 'Ctrl+C', icon: 'copy' }), row('Duplicate', 'duplicate', { key: 'Ctrl+D', icon: 'copyplus' }), orderList(project, { kind: 'feeder', id }, f.boardId), row(`Delete ${id}`, 'delete', { key: 'Del', icon: 'delete', bad: true })],
+    view(id),
+    props()
+  );
+  return { head, items, label: `${id} menu` };
+}
+
+function supplyMenu(s: SldMenuState, boardId: string) {
+  const { project } = s;
+  const b = project.boards.find((x) => x.id === boardId);
+  if (!b) return null;
+  const zoom = row(`Zoom to ${boardId}`, 'zoom', { key: 'Z', icon: 'zoom' });
+  if (b.sourceKva) {
+    const drops: [string, string, PaletteItem][] = [['Generator + ATS', 'generator', { kind: 'generator' }], ['Generator + interlocked ACBs', 'generator-acb', { kind: 'generator', changeover: 'ACB' }], ['Bus coupler / tie', 'tie', { kind: 'tie' }]];
+    const add = drops.filter(([, , item]) => canDrop(project, item, { type: 'bus', boardId })).map(([l, v]) => row(l, `addsupply|${v}`));
+    const detail = [`${b.sourceKva} kVA`, b.sourceImpedancePct !== undefined ? `${b.sourceImpedancePct} %` : undefined, `feeds ${boardId}`].filter(Boolean).join(' · ');
+    const items = groups(
+      [row('Edit transformer…', 'edit', { icon: 'edtext' }), row('Transformer & generator sizing', 'txsizing', { icon: 'txsizing' }), scenarioList(s), ...(add.length ? [{ label: 'Add', icon: 'plus' as const, sub: add }] : []), row('HV supply and RMUs…', 'hv', { icon: 'hv' })],
+      [zoom], props()
+    );
+    return { head: { icon: 'transformer', title: txTag(project, boardId) ?? 'Transformer', detail } satisfies CtxHead, items, label: 'Transformer menu' };
+  }
+  if (!b.supply) return null;
+  return {
+    head: { icon: 'board', title: 'Meter cabinet', detail: `${b.supply.fedFrom ?? 'DEWA'} supply · feeds ${boardId}` } satisfies CtxHead,
+    items: groups([row('Edit supply…', 'edit', { icon: 'edtext' })], [zoom], props()),
+    label: 'Meter cabinet menu'
+  };
+}
+
+function tieMenu(s: SldMenuState, id: string) {
+  const t = s.project.ties?.find((x) => x.id === id);
+  if (!t) return null;
+  const items = groups(
+    [row(TIE_OPERATION.open, 'tieop|open', { now: !t.closed }), row(TIE_OPERATION.closed, 'tieop|closed', { now: !!t.closed }),
+      { label: 'Rating', icon: 'gauge', sub: tieRatings(t.ratingA).map((r) => row(r, `tierating|${parseInt(r, 10)}`, { now: parseInt(r, 10) === t.ratingA })) }, scenarioList(s)],
+    [row('Remove this coupler…', 'tieremove', { icon: 'delete', bad: true })]
+  );
+  return { head: { icon: 'join', title: id, detail: `${t.ratingA} A · ${t.a} ↔ ${t.b}` } satisfies CtxHead, items, label: `${id} menu` };
+}
+
+function canvasMenu(s: SldMenuState) {
+  const { project } = s;
+  const canvas = { type: 'canvas' } as const;
+  const add: CtxEntry[] = [];
+  if (canDrop(project, { kind: 'transformer' }, canvas)) add.push(row('Transformer', 'addsupply|transformer'));
+  if (canDrop(project, { kind: 'board', board: 'MC' }, canvas)) add.push(row('Meter cabinet', 'addsupply|mc'));
+  add.push('-', row('HV supply and RMUs…', 'hv', { icon: 'hv' }));
+  const items = groups(
+    [row('Undo', 'undo', { key: 'Ctrl+Z', icon: 'undo', off: !s.canUndo }), row('Redo', 'redo', { key: 'Ctrl+Y', icon: 'redo', off: !s.canRedo })],
+    [{ label: 'Add', icon: 'plus', sub: add }],
+    [row('Fit', 'fit', { key: 'F', icon: 'fit' }),
+      { label: 'Grid', icon: 'grid', sub: [['Lines', 'lines'], ['Dots', 'dots'], ['None', 'off']].map(([l, v]) => row(l, `grid|${v}`, { now: s.grid === v })) },
+      { label: 'Text', icon: 'text', sub: [row('Follows the zoom', 'text|auto', { now: s.detail === 'auto' }), row('All text', 'text|all', { now: s.detail === 'all' })] },
+      { label: 'Values', icon: 'tags', sub: LAYER_LABELS.map(([k, l]) => row(l, `values|${k}`, { on: !!s.layers[k] })) },
+      { label: 'Colour by', icon: 'palette', sub: COLOR_BY.map((c) => row(c.label, `colour|${c.value}`, { now: s.colorBy === c.value })) },
+      scenarioList(s)],
+    [row('Export…', 'export', { icon: 'export' })]
+  );
+  return { head: { icon: 'sld', title: 'System diagram', detail: project.name } satisfies CtxHead, items, label: 'Diagram menu' };
+}
+
+/** The menu of a target: its header, its rows and the label of the menu; null when the target is gone. */
+export function sldMenu(s: SldMenuState, t: SldTarget): { head: CtxHead; items: CtxEntry[]; label: string } | null {
+  switch (t.kind) {
+    case 'board': return boardMenu(s, t.id);
+    case 'feeder': return loadMenu(s, t.id);
+    case 'supply': return supplyMenu(s, t.boardId);
+    case 'tie': return tieMenu(s, t.id);
+    case 'canvas': return canvasMenu(s);
+  }
+}

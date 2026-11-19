@@ -57,6 +57,15 @@ ribbon opens them.
 Click a board or feeder to select it. Double-click it, or press **F2** when
 focused, to edit it.
 
+Right-click a board, a load, a transformer, a bus coupler or the empty drawing
+for its menu, or press **Shift+F10** (or the menu key) for the selection. The
+menu lists what can be done there: edit, load schedule, add, copy, paste,
+duplicate, order on the busbar, change a load's switching device, earth leakage,
+kWh meter, phase or cable type, rename a board, delete, show on plan, zoom to
+and properties. On the empty drawing it holds undo, add, fit, grid, text, values,
+colour by, scenario and export. Keys on the drawing: **Z** zooms to the selection,
+**Alt+Left** and **Alt+Right** move it along its busbar, **Ctrl+D** duplicates it.
+
 <a id="SLD-050"></a>
 ## Build the panel hierarchy
 
