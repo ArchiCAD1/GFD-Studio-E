@@ -66,6 +66,7 @@ const EquipmentScheduleView = lazy(() => documents().then((m) => ({ default: m.E
 const ReportView = lazy(() => documents().then((m) => ({ default: m.ReportView })));
 const LoadScheduleView = lazy(() => import('./components/docs/LoadScheduleView'));
 import { refreshBoard } from './model/schedule';
+import { convertSpareWay } from './model/wayConversion';
 const DatabaseView = lazy(() => import('./components/docs/DatabaseView'));
 const DesignReferencesView = lazy(() => import('./components/docs/DesignReferencesView'));
 import { pullLibrary } from './database/librarySync';
@@ -1678,6 +1679,18 @@ export default function App() {
                     onEditFeeder={editFeeder}
                     onEditBoard={(id) => { selectBoard(id); setEditBoardId(id); }}
                     onOpenSchedule={(id) => { setActiveBoardId(id); setView('load-schedule'); }}
+                    onConvertSpare={async (boardId, wayId) => {
+                      const source = project.boards.find((b) => b.id === boardId)?.spareWays?.find((w) => w.id === wayId);
+                      if (!source) { setStatus('That spare / space is no longer on the board'); return; }
+                      const what = source.kind === 'spare' ? 'spare' : 'space';
+                      const poles = source.phase === 'RYB' ? 'TP' : 'SP';
+                      if (!(await askUser({ title: `Convert ${what} to a circuit?`, message: `${boardId}: ${source.ratingA} A ${poles}. The new circuit starts with no load; enter its load and cable length after converting.`, confirmLabel: 'Convert' }))) return;
+                      const r = convertSpareWay(project, boardId, wayId);
+                      if (r.project === project) { setStatus(r.message); return; }
+                      setProject(r.project, { step: true });
+                      if (r.id) { setSelected(r.id); setActiveBoardId(boardId); setPanel('feeder'); }
+                      setStatus(`${r.message} (undo with ⌘Z)`);
+                    }}
                     colorBy={colorBy}
                     scenario={genScenario}
                     chain={chain}
