@@ -5,7 +5,7 @@ import type { ResultLayers } from '../../diagram/annotations';
 import { renamePanels, renameProblems } from '../../model/renamePanels';
 import type { DropResult, DropTarget, MoveItem, PaletteItem } from '../../model/sldEdit';
 import type { SldTarget } from '../../model/sldMenu';
-import { changeFeeder, duplicateBoard, duplicateFeeder, orderTarget, pasteFeeder } from '../../model/sldMenuEdit';
+import { changeFeeder, changeFeeders, duplicateBoard, duplicateFeeder, duplicateMany, moveMany, orderTarget, pasteFeeders, type PickItem } from '../../model/sldMenuEdit';
 import type { Feeder, Project } from '../../types';
 
 /** What the SLD menus' rows do (sldMenu.ts lists them): each action calls the page through this interface, so the page
@@ -15,7 +15,7 @@ export interface SldMenuCtx {
   project: Project;
   calcProject: Project;
   copiedBoard?: string;
-  copiedLoad?: string;
+  copiedLoads?: string[];
   status: (m: string) => void;
   /** One undo step, the result's selection and its message. */
   apply: (r: DropResult) => void;
@@ -29,6 +29,12 @@ export interface SldMenuCtx {
   addBoard: (boardId: string) => void;
   copyBoard: (id: string) => void;
   copyLoad: (id: string) => void;
+  /** Several loads on the clipboard, in order. */
+  copyLoads: (ids: string[]) => void;
+  /** Edit together…: the dialog for these loads. */
+  openTogether: (ids: string[]) => void;
+  /** Delete several: asks once, then one undo step. */
+  deleteMany: (items: PickItem[]) => void;
   /** Today's paste dialog for a copied board. */
   pasteBoard: (boardId: string) => void;
   repeatBranch: (boardId: string) => void;
@@ -67,9 +73,30 @@ const SUPPLY_ITEMS: Record<string, PaletteItem> = {
   generator: { kind: 'generator' }, 'generator-acb': { kind: 'generator', changeover: 'ACB' }, tie: { kind: 'tie' }, transformer: { kind: 'transformer' }, mc: { kind: 'board', board: 'MC' }
 };
 
+/** The rows of the several-picked menu (the drawing itself does Zoom, Deselect and the Move to list). */
+function runSeveral(ctx: SldMenuCtx, items: PickItem[], action: string, value?: string): void {
+  const { project } = ctx;
+  const ids = items.filter((x) => x.kind === 'feeder').map((x) => x.id);
+  switch (action) {
+    case 'together': if (ids.length) ctx.openTogether(ids); return;
+    case 'change': {
+      if (value === undefined) return;
+      const i = value.indexOf('|'), field = i < 0 ? value : value.slice(0, i), v = i < 0 ? undefined : value.slice(i + 1);
+      const r = changeFeeders(project, ids, field, v);
+      ctx.apply(r.project === project ? r : { ...r, message: `${r.message} (undo with ⌘Z)` });
+      return;
+    }
+    case 'copy': if (ids.length && ids.length === items.length) ctx.copyLoads(ids); return;
+    case 'duplicate': { const r = duplicateMany(project, items); ctx.apply(r.project === project ? r : { ...r, message: `${r.message} (undo with ⌘Z)` }); return; }
+    case 'moveto': { if (value) { const r = moveMany(project, items, value); ctx.apply(r.project === project ? r : { ...r, message: `${r.message} (undo with ⌘Z)` }); } return; }
+    case 'delete': ctx.deleteMany(items); return;
+  }
+}
+
 /** Runs a picked row. `t` is what was right-clicked, `value` what follows the action in the row's arg. */
 export function runSldMenu(ctx: SldMenuCtx, t: SldTarget, action: string, value?: string): void {
   const { project } = ctx;
+  if (t.kind === 'several') { runSeveral(ctx, t.items, action, value); return; }
   const boardId = t.kind === 'board' ? t.id : t.kind === 'supply' ? t.boardId : undefined;
   const feederId = t.kind === 'feeder' ? t.id : undefined;
   const picked: { kind: 'board' | 'feeder'; id: string } | undefined = boardId ? { kind: 'board', id: boardId } : feederId ? { kind: 'feeder', id: feederId } : undefined;
@@ -87,7 +114,7 @@ export function runSldMenu(ctx: SldMenuCtx, t: SldTarget, action: string, value?
     case 'copy': if (t.kind === 'board') ctx.copyBoard(t.id); else if (feederId) ctx.copyLoad(feederId); return;
     case 'paste':
       if (t.kind !== 'board') return;
-      if (ctx.copiedBoard) ctx.pasteBoard(t.id); else if (ctx.copiedLoad) ctx.apply(pasteFeeder(project, ctx.copiedLoad, { type: 'bus', boardId: t.id }));
+      if (ctx.copiedBoard) ctx.pasteBoard(t.id); else if (ctx.copiedLoads?.length) ctx.apply(pasteFeeders(project, ctx.copiedLoads, { type: 'bus', boardId: t.id }));
       return;
     case 'duplicate':
       if (t.kind === 'board') ctx.apply(duplicateBoard(project, t.id)); else if (feederId) ctx.apply(duplicateFeeder(project, feederId));
