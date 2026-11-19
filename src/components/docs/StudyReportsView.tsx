@@ -51,6 +51,7 @@ async function captureSld(drawing: Project, data: CalcData, key: StudyReportKind
       <SystemDiagram
         project={drawing}
         calcProject={data.project}
+        wholeProject={data.project}
         results={data.results}
         annotations={buildAnnotations(data.project, data.results)}
         layers={sld.layers}
@@ -424,6 +425,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
             <SystemDiagram
               project={drawing}
               calcProject={run.project}
+              wholeProject={calc}
               results={run.results}
               annotations={buildAnnotations(run.project, run.results)}
               layers={studyInfo(previewKey).sld!.layers}

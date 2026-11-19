@@ -116,6 +116,8 @@ export interface LayoutOptions {
   /** DEWA style: how far left and right of its incomer line the frame of a board with no outgoing ways (not a main
    * board) reaches, by id. It is wider than the board's one slot, so the frames beside it on its level keep clear of it. */
   endFrameX?: Map<string, { left: number; right: number }>;
+  /** Main boards (no upstream) left to right, by id; those not listed follow in project order. */
+  rootOrder?: string[];
 }
 
 export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions = {}): SystemLayout {
@@ -241,7 +243,10 @@ export function layoutSystem(project: Project, extraY = 0, opts: LayoutOptions =
 
   const roots: BoardNode[] = [];
   let left = MARGIN_X;
-  const rootBoards = [...project.boards.filter((b) => !b.upstreamId), ...project.boards.filter((b) => b.upstreamId && !byId.has(b.upstreamId))];
+  const mains = project.boards.filter((b) => !b.upstreamId);
+  const rank = new Map(opts.rootOrder?.map((id, i) => [id, i]));
+  if (rank.size) mains.sort((a, b) => (rank.get(a.id) ?? rank.size) - (rank.get(b.id) ?? rank.size));
+  const rootBoards = [...mains, ...project.boards.filter((b) => b.upstreamId && !byId.has(b.upstreamId))];
   for (const b of rootBoards) {
     if (placed.has(b.id)) continue;
     left += opts.rootLeadX?.get(b.id) ?? 0;

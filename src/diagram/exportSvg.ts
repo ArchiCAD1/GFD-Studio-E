@@ -183,7 +183,8 @@ export function svgToDxf(svgMarkup: string, height: number, block = false): DxfP
     const push = (p: DxfPrimitive) => {
       if (!dashed || (p.type !== 'line' && p.type !== 'polyline')) { emit(p); return; }
       // One entity per dashed element; the sheet picks its linetype. Wide busbars and symbols keep pieces.
-      if (!inIec && !p.width) { emit({ ...p, dashed: true }); return; }
+      // A long dash, a gap, a short dash and a gap is a dash-dot line (a substation frame).
+      if (!inIec && !p.width) { emit({ ...p, dashed: pattern.length === 4 && pattern[2] < pattern[0] / 2 ? 'dashdot' : true }); return; }
       const points: [number, number][] = p.type === 'line' ? [[p.x1, p.y1], [p.x2, p.y2]] : p.points;
       const closed = p.type === 'polyline' && p.closed;
       // Dash in SVG user space, then transform each endpoint. Using only an

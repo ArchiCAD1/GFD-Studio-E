@@ -49,6 +49,18 @@ describe('DM-D-013 minimum substation and LV room areas', () => {
     expect(sld.rooms).toHaveLength(sampleProject.boards.filter((b) => !b.upstreamId && b.sourceKva).length);
   });
 
+  it('from the SLD: one substation per substation name, else per RMU, else per transformer', () => {
+    const mdb = (id: string, extra: object) => ({ id, name: id, kind: 'MDB' as const, sourceKva: 1000, ...extra });
+    const p = { ...sampleProject, boards: [
+      mdb('MDB-1', { rmu: 'RMU-1', substation: 'SS-1' }), mdb('MDB-2', { rmu: 'RMU-1', substation: 'SS-1' }),
+      // Two RMUs in one substation: one room, not two.
+      mdb('MDB-3', { rmu: 'RMU-2', substation: 'SS-2' }), mdb('MDB-4', { rmu: 'RMU-3', substation: ' SS-2 ' }),
+      mdb('MDB-5', { rmu: 'RMU-4' }), mdb('MDB-6', {})
+    ], feeders: [] };
+    const r = substationsFromProject(p);
+    expect(r.rooms.map((x) => [x.name, x.transformers])).toEqual([['SS-1', 2], ['SS-2', 2], ['RMU-4', 1], ['Substation MDB-6', 1]]);
+  });
+
   it('the form: one page per substation, in English, with the notes and the undertaking', () => {
     const html = buildDmFormHtml(sampleProject, [
       { id: 'a', name: 'SS-1', type: 'conventional', transformers: 8, remarks: 'Room at ground floor' },

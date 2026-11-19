@@ -2,6 +2,7 @@ import type { Board, Feeder, Project } from '../types';
 import { boardsInSupplyOrder, boardSummary, boardTotals } from '../calc/summary';
 import { earthingLayout } from './earthingPlan';
 import { earthingDrawing, type EarthingSheet } from '../diagram/earthingDrawing';
+import { mvSheetKey } from '../diagram/mvArrangement';
 import { boardEarth } from './boardEarth';
 import { subtree } from '../calc/pfc';
 import { SHEET_MM } from '../docs/sldSheet';
@@ -541,9 +542,10 @@ export function statusColor(status?: string): string {
 
 /** Fingerprint version: 2 adds the calculated values a sheet prints (TCL and demand on risers; the
  * earthing layout with pit tests; a DB's fault level, current and earthing path); 3 adds what a plan
- * sheet draws. A sheet keeps the version it was issued with, so older issues are not flagged as
- * changed by the new fields. */
-export const SHEET_HASH_V = 3;
+ * sheet draws; 4 adds what a system sheet prints of the MV ring (its RMUs' tee-offs and stubs, the
+ * ring's neighbours, substation titles, transformer numbers). A sheet keeps the version it was
+ * issued with, so older issues are not flagged as changed by the new fields. */
+export const SHEET_HASH_V = 4;
 
 /** What a plan sheet draws (fingerprint version 3), as src/docs/planLayout.ts chooses it: its scale, the level's name and
  * rooms, then the layout's own content. A wiring tag's length counts the wired circuit's points on every level. */
@@ -608,9 +610,11 @@ export function sheetHash(p: Project, set: DrawingSet, s: DrawingSheet): string 
     : s.kind === 'riser' ? { boards: p.boards.map((b) => [b.id, b.upstreamId, b.level, b.ratedCurrentA, b.sourceKva, b.standby, ...(s.riserStyle ? [b.kind, b.incomerDevice, b.busbarMaterial] : [])]), feeders: [p.feeders.filter((f) => f.feedsBoardId).map((f) => [f.feedsBoardId, f.cores, f.cableCsaMm2, f.lengthM, f.parallel, f.cableType, ...(s.riserStyle ? [f.breakerRatingA, f.breakerIcuKa, f.breakerType] : [])]), p.busRisers, p.building, s.riserStyle, ...(s.riserStyle === 'byLevel' ? [set.riserBreaks?.[s.buildingId ?? '']] : [])] }
     : sheetProject(p, set, s);
   const extra = v >= 3 && s.kind === 'plan' ? planValues(p, s) : v >= 2 ? shownValues(p, s) : undefined;
+  // The MV ring as the sheet prints it (only where it is drawn: other sheets keep their hash).
+  const ring = v >= 4 && s.kind === 'system' ? mvSheetKey(p, (d as Project).boards) : undefined;
   // A sheet that draws a transformer also draws its grid source and RMU (only where they are set: older sheets keep their hash).
   const hv = (p.gridSources?.length || p.rmus?.length) && (d.boards as unknown[]).some((b) => !!b && typeof b === 'object' && !Array.isArray(b) && !(b as Board).upstreamId && !!(b as Board).sourceKva);
-  const txt = JSON.stringify([d.boards, d.feeders, ...(hv ? [[p.gridSources ?? null, p.rmus ?? null]] : []), s.title, s.size, s.tags, s.notes, s.clouds, s.arrows, s.markups, ...(s.part !== undefined ? [s.part] : []), ...(extra !== undefined ? [extra] : []), ...(s.schedule ? ['schedule'] : []), ...(s.tables?.length ? [s.tables] : [])]); // part / extra / schedule / tables only where set: older sheets keep their hash
+  const txt = JSON.stringify([d.boards, d.feeders, ...(hv ? [[p.gridSources ?? null, p.rmus ?? null]] : []), s.title, s.size, s.tags, s.notes, s.clouds, s.arrows, s.markups, ...(s.part !== undefined ? [s.part] : []), ...(extra !== undefined ? [extra] : []), ...(s.schedule ? ['schedule'] : []), ...(s.tables?.length ? [s.tables] : []), ...(ring !== undefined ? [ring] : [])]); // part / extra / schedule / tables / ring only where set: older sheets keep their hash
   let h = 2166136261;
   for (let i = 0; i < txt.length; i++) { h ^= txt.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(36);

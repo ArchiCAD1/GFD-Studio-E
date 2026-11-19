@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { newProject, type Board, type Project } from '../types';
 import { faultCurrentKA, gridImpedance, impedanceToBoard, transformerImpedance, zMagnitude } from './electrical';
 import { earthLoopToBoard } from './earthing';
-import { gridFaultKa, gridLabel, mvNetworkText, rmuChecks, rmuLabel, rmuRatings, rmuWays } from './hvSupply';
+import { gridFaultKa, gridLabel, mvNetworkText, rmuChecks, rmuLabel, rmuRatings, rmuTeeOffs, rmuWays } from './hvSupply';
 import { fingerprint } from './runs';
 import { addGridSource, removeGridSource, updateGridSource, updateRmu } from '../model/hvSupply';
 import { checkReferences } from '../model/integrity';
@@ -93,6 +93,11 @@ describe('RMU checks and labels', () => {
   it('counts the ring and tee-off ways', () => {
     expect(rmuWays('RRTT')).toEqual({ ring: 2, tOff: 2 });
     expect(rmuWays('rrt')).toEqual({ ring: 2, tOff: 1 });
+  });
+
+  it('takes how many transformers an RMU feeds from its tee-offs, 2 with no configuration entered', () => {
+    const p = base([{ name: 'RMU-1', config: 'RRT' }, { name: 'RMU-2', config: 'RRTTT' }, { name: 'RMU-3', config: 'RT' }, { name: 'RMU-4' }]);
+    expect(['RMU-1', 'RMU-2', 'RMU-3', 'RMU-4', 'RMU-9'].map((n) => rmuTeeOffs(p, n))).toEqual([1, 3, 1, 2, 2]);
   });
 
   it('checks tee-off ways, rated voltage and the short-time rating at the supply duration', () => {

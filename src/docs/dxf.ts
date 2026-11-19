@@ -4,11 +4,11 @@
 /** Width is a physical stroke width for lines/polylines, and an exact fitted
  * baseline length for text. All widths are in the same drawing units as x/y. */
 export type DxfPrimitive = (
-  | { type: 'line'; layer: string; x1: number; y1: number; x2: number; y2: number; width?: number; linetype?: string; dashed?: boolean }
-  | { type: 'polyline'; layer: string; points: [number, number][]; closed?: boolean; width?: number; linetype?: string; dashed?: boolean; /** Bulge of the segment that starts at each vertex (tan of a quarter of its arc angle). */ bulges?: number[] }
+  | { type: 'line'; layer: string; x1: number; y1: number; x2: number; y2: number; width?: number; linetype?: string; dashed?: Dashed }
+  | { type: 'polyline'; layer: string; points: [number, number][]; closed?: boolean; width?: number; linetype?: string; dashed?: Dashed; /** Bulge of the segment that starts at each vertex (tan of a quarter of its arc angle). */ bulges?: number[] }
   /** A filled area: 3 or 4 corners in perimeter order. */
   | { type: 'solid'; layer: string; points: [number, number][] }
-  | { type: 'circle'; layer: string; x: number; y: number; r: number; linetype?: string; dashed?: boolean }
+  | { type: 'circle'; layer: string; x: number; y: number; r: number; linetype?: string; dashed?: Dashed }
   | { type: 'text'; layer: string; x: number; y: number; height: number; text: string; align?: 'left' | 'center' | 'right'; rotation?: number; width?: number }
   | { type: 'insert'; layer: string; name: string; x: number; y: number; scale?: number; rotation?: number; block: DxfBlock; attribs: DxfAttrib[]; extent?: [[number, number], [number, number]] }
 ) & {
@@ -39,12 +39,15 @@ export const DXF_LAYERS: Record<string, number> = {
   TITLE: 7
 };
 
-/** Linetypes the writer can define: dash and gap lengths in drawing units (mm on a sheet). `dashed` on a primitive
- * marks an element to be drawn dashed; the caller that knows the paper scale picks the name. */
+/** Linetypes the writer can define: dash and gap lengths in drawing units (mm on a sheet), 0 a dot. `dashed` on a
+ * primitive marks an element to be drawn dashed ('dashdot': dash and dot, as a substation frame); the caller that
+ * knows the paper scale picks the name. */
 export const LINETYPES: Record<string, { description: string; pattern: number[] }> = {
   'LV-DASHED': { description: 'Dashed', pattern: [3, -1.5] },
-  'LV-DASHED2': { description: 'Dashed (short)', pattern: [1.5, -0.75] }
+  'LV-DASHED2': { description: 'Dashed (short)', pattern: [1.5, -0.75] },
+  'LV-DASHDOT': { description: 'Dash dot', pattern: [3, -1, 0, -1] }
 };
+export type Dashed = true | 'dashdot';
 
 const n = (v: number) => (Math.abs(v) < 1e-9 ? '0' : v.toFixed(4).replace(/\.?0+$/, ''));
 /** DXF text can't hold newlines; R12 is not Unicode, so keep printable ASCII
