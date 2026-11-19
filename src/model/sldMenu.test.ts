@@ -32,7 +32,7 @@ describe('board menu', () => {
       'Edit SMDB-FF…', 'Load schedule', 'Board diagram', 'Add', '-',
       'Copy with everything below', 'Duplicate', 'Repeat branch on other floors…', '-',
       'Move', 'Supply from…', 'Order', 'Change', 'Delete SMDB-FF and everything below…', '-',
-      'Show on plan', 'Zoom to SMDB-FF', '-', 'Properties'
+      'Show on plan', 'Zoom to SMDB-FF', 'Show this branch only', '-', 'Select everything below', '-', 'Properties'
     ]);
     expect(labels(sub(m.items, 'Add'))).toEqual(['Load…', 'Motor…', 'Solar PV…', 'EV charger…', 'Feeder cable…', '-', 'Sub-board…']);
     expect(labels(sub(m.items, 'Order'))).toEqual(['Move left', 'Move right', '-', "First on MDB-1's busbar", "Last on MDB-1's busbar"]);
@@ -52,7 +52,7 @@ describe('board menu', () => {
     expect(labels(menu({ kind: 'board', id: 'SMDB-FF' }).items)).not.toContain('Paste SMDB-GF here');
     const b = menu({ kind: 'board', id: 'SMDB-FF' }, state(project, { copiedBoard: 'SMDB-GF' }));
     expect(labels(b.items)).toContain('Paste SMDB-GF here');
-    expect(labels(menu({ kind: 'board', id: 'SMDB-FF' }, state(project, { copiedLoad: 'GF-HVAC' })).items)).toContain('Paste GF-HVAC here');
+    expect(labels(menu({ kind: 'board', id: 'SMDB-FF' }, state(project, { copiedLoads: ['GF-HVAC'] })).items)).toContain('Paste GF-HVAC here');
     // Not on the copied board or when it is gone; below it is fine, as with the ribbon's Paste (a copy, not a move).
     expect(labels(menu({ kind: 'board', id: 'SMDB-GF' }, state(project, { copiedBoard: 'SMDB-GF' })).items).join()).not.toContain('Paste');
     expect(labels(menu({ kind: 'board', id: 'DB-GF1' }, state(project, { copiedBoard: 'SMDB-GF' })).items)).toContain('Paste SMDB-GF here');
@@ -77,7 +77,7 @@ describe('load menu', () => {
   it('lists its groups in order, with the load in the header', () => {
     const m = menu({ kind: 'feeder', id: 'FF-LAB' });
     expect(m.head).toEqual({ icon: 'circuit', title: 'FF-LAB', detail: 'Lab · 50.00 kW · on SMDB-FF' });
-    expect(labels(m.items)).toEqual(['Edit FF-LAB…', 'Edit cable…', 'Change', '-', 'Copy', 'Duplicate', 'Move', 'Move to board…', 'Order', 'Delete FF-LAB', '-', 'Show on plan', 'Zoom to FF-LAB', '-', 'Properties']);
+    expect(labels(m.items)).toEqual(['Edit FF-LAB…', 'Edit cable…', 'Change', '-', 'Copy', 'Duplicate', 'Move', 'Move to board…', 'Order', 'Delete FF-LAB', '-', 'Show on plan', 'Zoom to FF-LAB', '-', 'Select similar', '-', 'Properties']);
     expect(labels(sub(m.items, 'Change'))).toEqual(['Switching device', 'Earth leakage', 'kWh meter', 'Cable type', '-', 'Essential (on the generator)', 'Existing', 'Local isolator']);
   });
   it('marks the current device, leakage, meter and switches', () => {
@@ -172,7 +172,7 @@ describe('empty drawing menu', () => {
   it('lists its groups, with the page state marked', () => {
     const m = menu({ kind: 'canvas' }, state(project, { canUndo: false, grid: 'dots', detail: 'auto', colorBy: 'vd' }));
     expect(m.head).toEqual({ icon: 'sld', title: 'System diagram', detail: project.name });
-    expect(labels(m.items)).toEqual(['Undo', 'Redo', '-', 'Add', '-', 'Fit', 'Grid', 'Text', 'Values', 'Colour by', 'Scenario', '-', 'Export…']);
+    expect(labels(m.items)).toEqual(['Undo', 'Redo', '-', 'Add', '-', 'Fit', 'Grid', 'Text', 'Values', 'Colour by', 'Scenario', '-', 'Select', '-', 'Export…']);
     expect((m.items[0] as CtxItem).off).toBe(true);
     expect((m.items[1] as CtxItem).off).toBe(true);
     expect(labels(sub(m.items, 'Add'))).toEqual(['Transformer', 'Meter cabinet', '-', 'HV supply and RMUs…']);
@@ -225,5 +225,104 @@ describe('every menu', () => {
   it('gives nothing for a board or a load that is gone', () => {
     expect(sldMenu(state(), { kind: 'board', id: 'NOPE' })).toBeNull();
     expect(sldMenu(state(), { kind: 'feeder', id: 'NOPE' })).toBeNull();
+  });
+});
+
+describe('several picked menu', () => {
+  const three: SldTarget = { kind: 'several', items: [{ kind: 'feeder', id: 'FF-OFF' }, { kind: 'feeder', id: 'FF-IT' }, { kind: 'feeder', id: 'FF-LAB' }] };
+  it('lists its groups with the header for loads of one board', () => {
+    const m = menu(three);
+    expect(m.head).toEqual({ icon: 'selectall', title: '3 picked', detail: '3 loads on SMDB-FF' });
+    expect(labels(m.items)).toEqual(['Edit together…', 'Change', '-', 'Copy', 'Duplicate', '-', 'Move to board…', 'Delete 3…', 'Zoom to the picked', '-', 'Select similar', 'Deselect all']);
+    expect(find(m.items, 'Delete 3…')).toMatchObject({ bad: true, key: 'Del', arg: 'delete' });
+    expect(find(m.items, 'Edit together…')!.arg).toBe('together');
+  });
+  it('counts loads and boards in the header; boards leave Edit together out of loads and Copy off', () => {
+    const m = menu({ kind: 'several', items: [{ kind: 'feeder', id: 'FF-OFF' }, { kind: 'feeder', id: 'GF-LTG' }, { kind: 'board', id: 'SMDB-GF' }] });
+    expect(m.head.detail).toBe('2 loads, 1 board');
+    expect(labels(m.items)).not.toContain('Copy');
+    expect(labels(m.items)).toContain('Duplicate');
+    const boards = menu({ kind: 'several', items: [{ kind: 'board', id: 'SMDB-GF' }, { kind: 'board', id: 'SMDB-FF' }] });
+    expect(labels(boards.items)).not.toContain('Edit together…');
+    expect(labels(boards.items)).not.toContain('Change');
+    expect(boards.head.detail).toBe('2 boards');
+    expect(labels(menu({ kind: 'several', items: [{ kind: 'board', id: 'MDB-1' }, { kind: 'board', id: 'MCC-1' }] }).items)).toContain('Duplicate'); // MCC-1 has a board above it
+  });
+  it('Change ticks a value only where all agree; Phase only when all are single-phase', () => {
+    const m = menu(three);
+    const change = sub(m.items, 'Change');
+    expect(labels(change)).not.toContain('Phase');
+    expect((sub(change, 'Switching device') as CtxItem[]).filter((x) => x.now).length).toBeLessThanOrEqual(1);
+    const p: Project = { ...project, feeders: project.feeders.map((f) => (['FF-OFF', 'FF-IT'].includes(f.id) ? { ...f, essential: true, rcdMa: 30 } : f)) };
+    const c2 = sub(menu({ kind: 'several', items: [{ kind: 'feeder', id: 'FF-OFF' }, { kind: 'feeder', id: 'FF-IT' }] }, state(p)).items, 'Change');
+    expect((find(c2, 'Essential (on the generator)') as CtxItem).on).toBe(true);
+    expect((find(c2, 'Existing') as CtxItem).on).toBe(false);
+    expect((sub(c2, 'Earth leakage') as CtxItem[]).filter((x) => x.now).map((x) => x.label)).toEqual(['30 mA']);
+    const mixed = sub(menu(three, state(p)).items, 'Change');
+    expect((find(mixed, 'Essential (on the generator)') as CtxItem).on).toBe(false);
+    expect((sub(mixed, 'Earth leakage') as CtxItem[]).filter((x) => x.now)).toEqual([]);
+  });
+  it('a single item or a gone one has no several menu', () => {
+    expect(sldMenu(state(), { kind: 'several', items: [{ kind: 'feeder', id: 'FF-OFF' }] })).toBeNull();
+    expect(sldMenu(state(), { kind: 'several', items: [{ kind: 'feeder', id: 'FF-OFF' }, { kind: 'feeder', id: 'NOPE' }] })).toBeNull();
+  });
+  it('every row runs an action the page handles', () => {
+    for (const x of allItems(menu(three).items)) if (!x.sub) expect(SLD_MENU_ACTIONS).toContain(sldAction(x)[0]);
+  });
+});
+
+describe('select tools in the menus', () => {
+  it('a load offers Select similar, with the failing list only when something fails', () => {
+    const list = sub(menu({ kind: 'feeder', id: 'FF-LTG' }).items, 'Select similar');
+    expect(labels(list)).toEqual(['Same load type on SMDB-FF', 'Same load type everywhere']);
+    expect(list.map((x) => (x as CtxItem).arg)).toEqual(['similar|board', 'similar|all']);
+    expect(labels(sub(menu({ kind: 'feeder', id: 'FF-LTG' }, state(failing)).items, 'Select similar'))).toContain('Every failing circuit');
+  });
+  it('a board offers Select everything below only when something is below', () => {
+    expect(find(menu({ kind: 'board', id: 'SMDB-FF' }).items, 'Select everything below')).toMatchObject({ arg: 'below', icon: 'similar' });
+    expect(find(menu({ kind: 'board', id: 'DB-GF1' }).items, 'Select everything below')).toBeUndefined();
+  });
+  it('the empty drawing offers Select with the kinds present', () => {
+    const list = sub(menu({ kind: 'canvas' }).items, 'Select');
+    expect(labels(list)).toEqual(['All loads', 'Boards of one kind']);
+    expect(sub(list, 'Boards of one kind').map((x) => (x as CtxItem).arg)).toEqual(expect.arrayContaining(['select|kind|MDB', 'select|kind|SMDB']));
+    const f = sub(menu({ kind: 'canvas' }, state(failing)).items, 'Select');
+    expect(labels(f)).toContain('Every failing circuit');
+  });
+  it('Paste names one load or the count', () => {
+    expect(labels(menu({ kind: 'board', id: 'SMDB-FF' }, state(project, { copiedLoads: ['GF-HVAC', 'GF-LTG', 'GF-SKT'] })).items)).toContain('Paste 3 loads here');
+  });
+});
+
+describe('Show this branch only and the Board tab', () => {
+  const rows = (t: SldTarget, s: SldMenuState = state(), where?: 'system' | 'board', here?: string) => labels(sldMenu(s, t, where, here)!.items);
+  it('a board offers Show this branch only until its branch is the one shown', () => {
+    expect(rows({ kind: 'board', id: 'SMDB-FF' })).toContain('Show this branch only');
+    expect(rows({ kind: 'board', id: 'SMDB-FF' }, state(project, { branch: 'SMDB-FF' }))).not.toContain('Show this branch only');
+    expect(rows({ kind: 'board', id: 'SMDB-FF' }, state(project, { branch: 'MDB-1' }))).toContain('Show this branch only');
+    expect(find(menu({ kind: 'board', id: 'SMDB-FF' }).items, 'Show this branch only')).toMatchObject({ arg: 'branch', icon: 'isolate' });
+  });
+  it('the empty drawing offers Show everything only while a branch is shown', () => {
+    expect(rows({ kind: 'canvas' })).not.toContain('Show everything');
+    const m = sldMenu(state(project, { branch: 'SMDB-FF' }), { kind: 'canvas' })!;
+    expect(find(m.items, 'Show everything')).toMatchObject({ arg: 'showall', icon: 'isolate' });
+  });
+  it('on the Board tab the system-only rows are left off a load', () => {
+    const l = rows({ kind: 'feeder', id: 'FF-LAB' }, state(), 'board', 'SMDB-FF');
+    for (const x of ['Edit cable…', 'Move', 'Move to board…', 'Zoom to FF-LAB', 'Select similar']) expect(l).not.toContain(x);
+    for (const x of ['Edit FF-LAB…', 'Change', 'Copy', 'Duplicate', 'Order', 'Delete FF-LAB', 'Show on plan', 'Properties']) expect(l).toContain(x);
+  });
+  it('on the Board tab this board loses Board diagram too, a sub-board keeps it but not Add and Properties', () => {
+    const own = rows({ kind: 'board', id: 'SMDB-FF' }, state(), 'board', 'SMDB-FF');
+    for (const x of ['Board diagram', 'Move', 'Supply from…', 'Zoom to SMDB-FF', 'Show this branch only', 'Select everything below']) expect(own).not.toContain(x);
+    for (const x of ['Edit SMDB-FF…', 'Load schedule', 'Add', 'Duplicate', 'Order', 'Change', 'Show on plan', 'Properties']) expect(own).toContain(x);
+    const subBoard = rows({ kind: 'board', id: 'SMDB-FF' }, state(), 'board', 'MDB-1');
+    expect(subBoard).toContain('Board diagram');
+    for (const x of ['Add', 'Properties', 'Move', 'Supply from…', 'Zoom to SMDB-FF']) expect(subBoard).not.toContain(x);
+    expect(subBoard).toContain('Edit SMDB-FF…');
+  });
+  it('the system menus are as before by default', () => {
+    expect(rows({ kind: 'feeder', id: 'FF-LAB' })).toEqual(rows({ kind: 'feeder', id: 'FF-LAB' }, state(), 'system'));
+    expect(rows({ kind: 'feeder', id: 'FF-LAB' })).toContain('Edit cable…');
   });
 });

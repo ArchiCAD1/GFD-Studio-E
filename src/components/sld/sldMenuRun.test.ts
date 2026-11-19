@@ -23,6 +23,7 @@ describe('the SLD menu runner', () => {
     switch (action) {
       case 'edit': case 'schedule': case 'diagram': case 'copy': case 'paste': case 'duplicate': case 'repeat': case 'lengthchecked': case 'delete': case 'plan': case 'zoom': case 'properties': return [board, undefined];
       case 'add': return [board, 'load'];
+      case 'together': return [{ kind: 'several', items: [load, { kind: 'feeder', id: 'FF-IT' }] }, undefined];
       case 'order': return [load, 'left'];
       case 'rename': return [board, 'SMDB-FF-X'];
       case 'cabletype': return [board, 'auto'];
@@ -62,7 +63,7 @@ describe('the SLD menu runner', () => {
   });
   it('Paste opens the board dialog, or pastes the copied load at once', () => {
     expect(run(board, 'paste')).toEqual([['pasteBoard', 'SMDB-FF']]);
-    const calls = run(board, 'paste', undefined, { copiedBoard: undefined, copiedLoad: 'GF-HVAC' });
+    const calls = run(board, 'paste', undefined, { copiedBoard: undefined, copiedLoads: ['GF-HVAC'] });
     expect(calls[0][0]).toBe('apply');
     expect((calls[0][1] as { message: string }).message).toContain('copy of GF-HVAC');
     expect(run(load, 'paste')).toEqual([]);
@@ -112,5 +113,39 @@ describe('the SLD menu runner', () => {
   it('a bus coupler row sets the operation or the rating', () => {
     expect(run({ kind: 'tie', id: 'BC-1' }, 'tieop', 'open')).toEqual([['setTie', 'BC-1', { closed: false }]]);
     expect(run({ kind: 'tie', id: 'BC-1' }, 'tierating', '1600')).toEqual([['setTie', 'BC-1', { ratingA: 1600 }]]);
+  });
+  describe('several picked', () => {
+    const two: SldTarget = { kind: 'several', items: [{ kind: 'feeder', id: 'FF-OFF' }, { kind: 'feeder', id: 'FF-IT' }] };
+    const mixed: SldTarget = { kind: 'several', items: [{ kind: 'feeder', id: 'FF-OFF' }, { kind: 'board', id: 'SMDB-GF' }] };
+    it('Edit together opens the dialog with the load ids only', () => {
+      expect(run(two, 'together')).toEqual([['openTogether', ['FF-OFF', 'FF-IT']]]);
+      expect(run(mixed, 'together')).toEqual([['openTogether', ['FF-OFF']]]);
+    });
+    it('Change is one result for all of them, naming undo', () => {
+      const calls = run(two, 'change', 'rcdMa|30');
+      expect(calls).toHaveLength(1);
+      const r = calls[0][1] as { project: Project; message: string };
+      expect(['FF-OFF', 'FF-IT'].map((id) => r.project.feeders.find((f) => f.id === id)?.rcdMa)).toEqual([30, 30]);
+      expect(r.message).toBe('2 loads: earth leakage 30 mA (undo with ⌘Z)');
+    });
+    it('Copy takes loads only; Duplicate and Move to board are one result each', () => {
+      expect(run(two, 'copy')).toEqual([['copyLoads', ['FF-OFF', 'FF-IT']]]);
+      expect(run(mixed, 'copy')).toEqual([]);
+      const dup = run(two, 'duplicate');
+      expect(dup).toHaveLength(1);
+      expect((dup[0][1] as { message: string }).message).toBe('Duplicated 2 loads (undo with ⌘Z)');
+      const mv = run(two, 'moveto', 'MCC-1');
+      expect(mv).toHaveLength(1);
+      expect((mv[0][1] as { project: Project }).project.feeders.filter((f) => f.boardId === 'MCC-1').map((f) => f.id)).toEqual(expect.arrayContaining(['FF-OFF', 'FF-IT']));
+      expect(run(two, 'moveto')).toEqual([]);
+    });
+    it('Delete asks the page once with everything picked', () => {
+      expect(run(mixed, 'delete')).toEqual([['deleteMany', (mixed as { items: unknown }).items]]);
+    });
+    it('Paste puts every copied load in one result', () => {
+      const calls = run(board, 'paste', undefined, { copiedBoard: undefined, copiedLoads: ['GF-HVAC', 'GF-LTG'] });
+      expect(calls).toHaveLength(1);
+      expect((calls[0][1] as { message: string }).message).toBe('Pasted 2 loads at the end of SMDB-FF');
+    });
   });
 });

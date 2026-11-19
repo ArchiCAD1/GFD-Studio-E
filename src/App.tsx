@@ -103,8 +103,9 @@ import { generatorScenario, transformerOutage, type SupplyMode } from './calc/sc
 import { removeTie, TIE_OPERATION, tieRatings, updateTie } from './model/sldEdit';
 import type { ColorBy } from './diagram/heatmap';
 import { applyMove, armHint, boardTakes, dropMany, libraryEntries, stayOnBoard, type DropResult, type DropTarget, type MoveItem, type PaletteItem } from './model/sldEdit';
-import { sldMenu, type SldTarget } from './model/sldMenu';
-import { pasteFeeder } from './model/sldMenuEdit';
+import { sldMenu, type SldMenuState, type SldTarget } from './model/sldMenu';
+import { describeBulk } from './model/bulkEdit';
+import { deleteMany, pasteFeeders, type PickItem } from './model/sldMenuEdit';
 import { runSldMenu, type SldMenuCtx } from './components/sld/sldMenuRun';
 import { getArmedItem, setArmedItem } from './diagram/dragItem';
 import EquipmentPalette from './components/EquipmentPalette';
@@ -120,6 +121,7 @@ const CadPage = lazy(() => import('./components/cad/CadPage'));
 const WhatsNewDialog = lazy(() => import('./components/WhatsNewDialog'));
 const OutputDialogs = lazy(() => import('./components/docs/OutputDialogs').then((m) => ({ default: m.OutputHost })));
 const PasteBoardDialog = onDemand(() => import('./components/PasteBoardDialog'));
+const EditTogetherDialog = onDemand(() => import('./components/sld/EditTogetherDialog'));
 const EnclosureSizing = lazy(() => import('./components/EnclosureSizing'));
 const EarthingView = onDemand(() => import('./components/EarthingView'), <p className="m">Loading…</p>);
 const RiserView = onDemand(() => import('./components/RiserView'), <p className="m">Loading…</p>);
@@ -377,8 +379,11 @@ export default function App() {
   const inboxHere = inbox.filter((x) => x.key === inboxKey).map((x) => x.item);
   // Copy / paste of a board with everything below it.
   const [copiedBoard, setCopiedBoard] = useState<string | null>(null);
-  const [copiedLoad, setCopiedLoad] = useState<string | null>(null); // one clipboard: a board or a load
+  const [copiedLoads, setCopiedLoads] = useState<string[]>([]); // one clipboard: a board, or one or more loads
+  const [editTogether, setEditTogether] = useState<string[] | null>(null);
   const [pasteTarget, setPasteTarget] = useState<string | null>(null);
+  /** A board pasted from the Board tab's menu: the view stays on that board. */
+  const [pasteStay, setPasteStay] = useState<string | null>(null);
   const [createdPanelIds, setCreatedPanelIds] = useState<string[]>([]);
   // Study pages filtered to a board and the boards below it (panel tree).
   const [focus, setFocus] = useState<string | null>(null);
@@ -1049,7 +1054,9 @@ export default function App() {
       const next = deleteBoard(project, id);
       setProject(next);
       setEditBoardId(null);
-      const main = next.boards.find((b) => !b.upstreamId) ?? next.boards[0];
+      // Deleting another board from the Board tab (its menu) leaves the view on the board shown.
+      const kept = view === 'design' && diagramMode === 'board' ? next.boards.find((b) => b.id === activeBoardId) : undefined;
+      const main = kept ?? next.boards.find((b) => !b.upstreamId) ?? next.boards[0];
       if (main) selectBoard(main.id);
       setStatus(`Deleted ${id}`);
     } catch (e) {
@@ -1170,6 +1177,13 @@ export default function App() {
     setProject(removeTie(project, id), { step: true });
     setStatus(`Removed bus coupler ${id}`);
   }
+  /** Delete several picked boards and loads: one question, one undo step. */
+  async function confirmDeleteMany(items: PickItem[]) {
+    const boards = items.filter((x) => x.kind === 'board').length, loads = items.length - boards;
+    const what = [loads ? `${loads} load${loads === 1 ? '' : 's'}` : '', boards ? `${boards} board${boards === 1 ? '' : 's'} with everything below ${boards === 1 ? 'it' : 'them'}` : ''].filter(Boolean).join(' and ');
+    if (!(await askUser({ title: `Delete ${what}?`, confirmLabel: `Delete ${items.length}`, danger: true }))) return;
+    showResult(deleteMany(project, items));
+  }
   async function confirmDeleteFeeder(id: string) {
     if (await askUser({ title: `Delete feeder ${id}?`, confirmLabel: 'Delete feeder', danger: true })) deleteFeeder(id);
   }
@@ -1224,18 +1238,21 @@ export default function App() {
   }
 
   /** The SLD's right-click menus: what a row shows (sldMenu.ts) and what it does (components/sld/sldMenuRun.ts). */
-  const sldMenuFor = (t: SldTarget, v: { grid: 'lines' | 'dots' | 'off'; detail: 'auto' | 'all' }) => sldMenu({
-    project, calcProject, results: allResults, copiedBoard: copiedBoard ?? undefined, copiedLoad: copiedLoad ?? undefined, canUndo: history.canUndo, canRedo: history.canRedo,
-    layers, colorBy, supply: onGenerator ? 'generator' : outageId ? `outage:${outageId}` : 'normal', hasGenerator, outages: tiedRoots, grid: v.grid, detail: v.detail
-  }, t);
+  const sldMenuState = (v: { grid: 'lines' | 'dots' | 'off'; detail: 'auto' | 'all'; branch?: string }): SldMenuState => ({
+    project, calcProject, results: allResults, copiedBoard: copiedBoard ?? undefined, copiedLoads, canUndo: history.canUndo, canRedo: history.canRedo,
+    layers, colorBy, supply: onGenerator ? 'generator' : outageId ? `outage:${outageId}` : 'normal', hasGenerator, outages: tiedRoots, grid: v.grid, detail: v.detail, branch: v.branch
+  });
+  const sldMenuFor = (t: SldTarget, v: { grid: 'lines' | 'dots' | 'off'; detail: 'auto' | 'all'; branch?: string }) => sldMenu(sldMenuState(v), t);
   const sldMenuCtx: SldMenuCtx = {
-    project, calcProject, copiedBoard: copiedBoard ?? undefined, copiedLoad: copiedLoad ?? undefined,
+    project, calcProject, copiedBoard: copiedBoard ?? undefined, copiedLoads,
     status: setStatus, apply: showResult, selectBoard, selectFeeder, editBoard: setEditBoardId, editFeeder,
     openSchedule: (id) => { setActiveBoardId(id); setView('load-schedule'); },
     openBoardDiagram: () => setDiagramMode('board'),
     addLoad: (id, preset) => { setActiveBoardId(id); openAddFeeder(preset); },
     addBoard: (id) => { setActiveBoardId(id); setBoardPreset(undefined); setShowBoardForm(true); },
-    copyBoard, copyLoad,
+    copyBoard, copyLoad, copyLoads,
+    openTogether: setEditTogether,
+    deleteMany: (items) => { void confirmDeleteMany(items); },
     pasteBoard: (id) => { setActiveBoardId(id); setPasteTarget(id); },
     repeatBranch: (id) => { setRepeatRoot(id); setPanelsTx(Date.now()); setView('panels'); },
     moveItem, setCableType: setBoardCableType, lengthChecked: setLengthChecked, fixFeeder,
@@ -1251,6 +1268,17 @@ export default function App() {
     exportSld: () => { setView('design'); setDiagramMode('system'); setShowExport(true); },
     undo: history.undo, redo: history.redo,
     setTie: applyTie, removeTie: (id) => { void confirmRemoveTie(id); }
+  };
+
+  /** The Board tab's menus: the same actions, with the view kept on this board (a sub-board's Edit opens its dialog without switching). */
+  const boardTabMenuFor = (t: SldTarget) => sldMenu(sldMenuState({ grid: 'lines', detail: 'auto' }), t, 'board', board.id);
+  const boardTabMenuCtx: SldMenuCtx = {
+    ...sldMenuCtx,
+    apply: (r) => showResult(r, board.id),
+    selectBoard: (id) => { if (id === board.id) selectBoard(id); },
+    openBoardDiagram: (id) => { selectBoard(id); setDiagramMode('board'); },
+    pasteBoard: (id) => { setPasteStay(board.id); setPasteTarget(id); },
+    moveItem: (item, target) => showResult(applyMove(project, item, target), board.id)
   };
 
   // ⌘Z / Ctrl+Z undo, ⇧⌘Z / Ctrl+Y redo, Delete on the diagram. Typing in a
@@ -1320,10 +1348,10 @@ export default function App() {
       } else if (mod && e.key.toLowerCase() === 'v' && view === 'design' && panel === 'board' && board && copiedBoard && !!t?.closest('.sysdiag')) {
         e.preventDefault();
         setPasteTarget(board.id);
-      } else if (mod && e.key.toLowerCase() === 'v' && view === 'design' && copiedLoad && !!t?.closest('.sysdiag') && (panel === 'board' ? !!board : !!selectedFeeder)) {
+      } else if (mod && e.key.toLowerCase() === 'v' && view === 'design' && copiedLoads.length > 0 && !!t?.closest('.sysdiag') && (panel === 'board' ? !!board : !!selectedFeeder)) {
         // A copied load goes at the end of the selected board, or before the selected load.
         e.preventDefault();
-        showResult(pasteFeeder(project, copiedLoad, panel === 'feeder' && selectedFeeder ? { type: 'feeder', feederId: selectedFeeder.id } : { type: 'bus', boardId: board!.id }));
+        showResult(pasteFeeders(project, copiedLoads, panel === 'feeder' && selectedFeeder ? { type: 'feeder', feederId: selectedFeeder.id } : { type: 'bus', boardId: board!.id }));
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && view === 'design' && !!t?.closest('.sysdiag')) {
         e.preventDefault();
         deleteSelection();
@@ -1350,14 +1378,15 @@ export default function App() {
 
   function copyBoard(id: string) {
     setCopiedBoard(id);
-    setCopiedLoad(null);
+    setCopiedLoads([]);
     setStatus(`Copied ${id} with everything below it — select the board to paste it on and press Paste (⌘V / Ctrl+V)`);
   }
 
-  function copyLoad(id: string) {
-    setCopiedLoad(id);
+  function copyLoad(id: string) { copyLoads([id]); }
+  function copyLoads(ids: string[]) {
+    setCopiedLoads(ids);
     setCopiedBoard(null);
-    setStatus(`Copied ${id} — select a board or a load and press Paste (⌘V / Ctrl+V)`);
+    setStatus(`Copied ${ids.length === 1 ? ids[0] : `${ids.length} loads`} — select a board or a load and press Paste (⌘V / Ctrl+V)`);
   }
 
   function addBoard(b: Board, incomer: Feeder) {
@@ -1631,7 +1660,8 @@ export default function App() {
                   <BoardSheetView project={project} board={board} results={allResults} selected={panel === 'feeder' ? selected : null} onSelect={selectFeeder} onBoard={selectBoard} onOpenEarthing={() => setDiagramMode('earthing')}
                     onChange={(p) => setProject(p, { step: true })} onStatus={setStatus}
                     diagram={{ incomerLabel: boardIncomerLabel(project, board), summary: project.drawing?.sldStyle === 'standard' ? undefined : { loc: boardLocation(project, board), ...panelSummary(project, board) } }}
-                    onDropItem={(item, target) => dropItem(item, target, board.id)} />
+                    onDropItem={(item, target) => dropItem(item, target, board.id)}
+                    menuFor={boardTabMenuFor} onMenu={(t, action, value) => runSldMenu(boardTabMenuCtx, t, action, value)} />
                   ) : (
                   <SystemDiagram
                     {...canvasDrawing(showExport)}
@@ -1696,7 +1726,7 @@ export default function App() {
                     menuFor={sldMenuFor}
                     onMenu={(t, action, value) => runSldMenu(sldMenuCtx, t, action, value)}
                     onStatus={setStatus}
-                    lengthChecks={!showExport}
+                    screenMarks={!showExport}
                   />
                   )}
                   </div>
@@ -1972,13 +2002,29 @@ export default function App() {
           project={project}
           sourceId={copiedBoard}
           targetId={pasteTarget}
-          onClose={() => setPasteTarget(null)}
+          onClose={() => { setPasteTarget(null); setPasteStay(null); }}
           onPaste={(r) => {
             const res = pasteBoard(project, copiedBoard, pasteTarget, r);
-            setProject(res.project, { step: true });
-            selectBoard(res.rootId);
-            setStatus(res.message);
+            if (pasteStay) showResult({ project: res.project, select: { type: 'board', id: res.rootId }, message: res.message }, pasteStay);
+            else {
+              setProject(res.project, { step: true });
+              selectBoard(res.rootId);
+              setStatus(res.message);
+            }
             setPasteTarget(null);
+            setPasteStay(null);
+          }}
+        />
+      )}
+      {editTogether && (
+        <EditTogetherDialog
+          project={project}
+          ids={editTogether}
+          onClose={() => setEditTogether(null)}
+          onApply={(r) => {
+            setProject(r.project, { step: true });
+            setEditTogether(null);
+            setStatus(`Edited ${r.changed} load${r.changed === 1 ? '' : 's'}: ${describeBulk(r.edit, r.label)} (undo with ⌘Z)`);
           }}
         />
       )}
