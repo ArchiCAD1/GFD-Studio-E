@@ -24,6 +24,13 @@ export const RELEASES: Release[] = [
     ]
   },
   {
+    version: '2.205', date: '2026-11-18',
+    items: [
+      { title: 'SLD: Move (M)', text: 'Choose Move on a board or a load (or press M), then click the busbar or the load it goes to. The place lights up, or the label says why it can\'t go there. Esc or a right-click cancels.' },
+      { title: 'SLD: Supply from… and Move to board…', text: 'A list of boards for a board or a load whose new place is off screen. A board moved on the drawing now gets its incomer flagged for a length check, shown as len? under its values on the drawing.' }
+    ]
+  },
+  {
     version: '2.204', date: '2026-11-18',
     items: [
       { title: 'SLD: right-click menus', text: 'Right-click a board, a load, a transformer, a bus coupler or the empty drawing on the SLD for its menu (Shift+F10, or the menu key, opens it for the selection). Each menu lists what you can do there: edit, load schedule, add, copy and paste, rename, delete, show on plan, properties, and the drawing\'s view settings on the empty drawing.' },

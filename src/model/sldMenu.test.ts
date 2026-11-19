@@ -31,7 +31,7 @@ describe('board menu', () => {
     expect(labels(m.items)).toEqual([
       'Edit SMDB-FF…', 'Load schedule', 'Board diagram', 'Add', '-',
       'Copy with everything below', 'Duplicate', 'Repeat branch on other floors…', '-',
-      'Order', 'Change', 'Delete SMDB-FF and everything below…', '-',
+      'Move', 'Supply from…', 'Order', 'Change', 'Delete SMDB-FF and everything below…', '-',
       'Show on plan', 'Zoom to SMDB-FF', '-', 'Properties'
     ]);
     expect(labels(sub(m.items, 'Add'))).toEqual(['Load…', 'Motor…', 'Solar PV…', 'EV charger…', 'Feeder cable…', '-', 'Sub-board…']);
@@ -42,7 +42,7 @@ describe('board menu', () => {
     const m = menu({ kind: 'board', id: 'MDB-1' });
     expect(m.head.detail).toBe('MDB · 1600 A · 1000 kVA transformer');
     const l = labels(m.items);
-    for (const x of ['Duplicate', 'Repeat branch on other floors…', 'Order']) expect(l).not.toContain(x);
+    for (const x of ['Duplicate', 'Repeat branch on other floors…', 'Move', 'Supply from…', 'Order']) expect(l).not.toContain(x);
   });
   it('Order shows only the moves that change something', () => {
     expect(labels(sub(menu({ kind: 'board', id: 'SMDB-GF' }).items, 'Order'))).toEqual(['Move right', '-', "Last on MDB-1's busbar"]);
@@ -77,7 +77,7 @@ describe('load menu', () => {
   it('lists its groups in order, with the load in the header', () => {
     const m = menu({ kind: 'feeder', id: 'FF-LAB' });
     expect(m.head).toEqual({ icon: 'circuit', title: 'FF-LAB', detail: 'Lab · 50.00 kW · on SMDB-FF' });
-    expect(labels(m.items)).toEqual(['Edit FF-LAB…', 'Edit cable…', 'Change', '-', 'Copy', 'Duplicate', 'Order', 'Delete FF-LAB', '-', 'Show on plan', 'Zoom to FF-LAB', '-', 'Properties']);
+    expect(labels(m.items)).toEqual(['Edit FF-LAB…', 'Edit cable…', 'Change', '-', 'Copy', 'Duplicate', 'Move', 'Move to board…', 'Order', 'Delete FF-LAB', '-', 'Show on plan', 'Zoom to FF-LAB', '-', 'Properties']);
     expect(labels(sub(m.items, 'Change'))).toEqual(['Switching device', 'Earth leakage', 'kWh meter', 'Cable type', '-', 'Essential (on the generator)', 'Existing', 'Local isolator']);
   });
   it('marks the current device, leakage, meter and switches', () => {

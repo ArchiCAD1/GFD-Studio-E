@@ -133,6 +133,17 @@ describe('moving on the diagram', () => {
     expect(layoutSystem(r.project).boards.find((b) => b.board.id === 'DB-GF1')!.depth).toBe(2);
   });
 
+  it('flags a moved board\'s incomer for a length check only when its busbar changes', () => {
+    const inc = (p: Project) => p.feeders.find((f) => f.id === 'INC-DBGF1')!;
+    const r = applyMove(sampleProject, { kind: 'board', id: 'DB-GF1' }, bus('SMDB-FF'));
+    expect(inc(r.project).lengthToCheck).toBe(true);
+    expect(r.message).toMatch(/ — check the incomer cable length$/);
+    const same = applyMove(sampleProject, { kind: 'board', id: 'DB-GF1' }, bus('SMDB-GF'));
+    expect(inc(same.project).lengthToCheck).toBeUndefined();
+    expect(same.message).not.toMatch(/check the incomer/);
+    expect(applyMove(sampleProject, { kind: 'feeder', id: 'GF-HVAC' }, bus('SMDB-FF')).message).not.toMatch(/check the incomer/);
+  });
+
   it('never moves a board under itself, and main boards have nothing to move', () => {
     expect(canMove(sampleProject, { kind: 'board', id: 'SMDB-GF' }, bus('DB-GF1'))).toBe(false);
     expect(canMove(sampleProject, { kind: 'board', id: 'SMDB-GF' }, bus('SMDB-GF'))).toBe(false);

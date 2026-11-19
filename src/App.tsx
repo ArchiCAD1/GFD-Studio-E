@@ -1695,6 +1695,8 @@ export default function App() {
                     }}
                     menuFor={sldMenuFor}
                     onMenu={(t, action, value) => runSldMenu(sldMenuCtx, t, action, value)}
+                    onStatus={setStatus}
+                    lengthChecks={!showExport}
                   />
                   )}
                   </div>
