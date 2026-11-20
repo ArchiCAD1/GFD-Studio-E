@@ -195,18 +195,18 @@ describe('a copy of the project file in the project folder on save (decision 1, 
   it('writes the copy into the projectFile folder, named as the project file', async () => {
     rememberFolder('copy1', { root: '/jobs/P2611_Villa', unticked: [] });
     const saveCopy = vi.fn(async () => ({ file: 'x' }));
-    expect(await copyProjectFileToFolder(p, 'villa-copy1.lvds', diskWith(saveCopy))).toBeUndefined();
-    expect(saveCopy).toHaveBeenCalledWith({ root: '/jobs/P2611_Villa', relDir: '03_Project_File', fileName: 'villa-copy1.lvds', sourceFile: 'villa-copy1.lvds' });
+    expect(await copyProjectFileToFolder(p, 'villa-copy1.gfde', diskWith(saveCopy))).toBeUndefined();
+    expect(saveCopy).toHaveBeenCalledWith({ root: '/jobs/P2611_Villa', relDir: '03_Project_File', fileName: 'villa-copy1.gfde', sourceFile: 'villa-copy1.gfde' });
   });
   it('does nothing without a project folder on this computer', async () => {
     const saveCopy = vi.fn(async () => ({ file: 'x' }));
-    expect(await copyProjectFileToFolder(p, 'villa-copy1.lvds', diskWith(saveCopy))).toBeUndefined();
+    expect(await copyProjectFileToFolder(p, 'villa-copy1.gfde', diskWith(saveCopy))).toBeUndefined();
     expect(saveCopy).not.toHaveBeenCalled();
   });
   it('reports a failed copy once, without failing the save', async () => {
     rememberFolder('copy1', { root: '/jobs/P2611_Villa', unticked: [] });
     const saveCopy = vi.fn(async () => { throw new Error("Error invoking remote method 'projectFolders:saveCopy': Error: The project folder is not on this computer."); });
-    expect(await copyProjectFileToFolder(p, 'villa-copy1.lvds', diskWith(saveCopy))).toBe('The copy in the project folder was not saved: The project folder is not on this computer.');
-    expect(await copyProjectFileToFolder(p, 'villa-copy1.lvds', diskWith(saveCopy))).toBeUndefined();
+    expect(await copyProjectFileToFolder(p, 'villa-copy1.gfde', diskWith(saveCopy))).toBe('The copy in the project folder was not saved: The project folder is not on this computer.');
+    expect(await copyProjectFileToFolder(p, 'villa-copy1.gfde', diskWith(saveCopy))).toBeUndefined();
   });
 });

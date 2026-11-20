@@ -36,7 +36,7 @@ async function liveWhileOpen(...names: string[]) {
   return JSON.parse(readFileSync(out, 'utf-8'));
 }
 
-beforeAll(() => { work = mkdtempSync(path.join(tmpdir(), 'lvds-web-update-')); });
+beforeAll(() => { work = mkdtempSync(path.join(tmpdir(), 'gfde-web-update-')); });
 afterAll(() => rmSync(work, { recursive: true, force: true }));
 
 describe('new web builds going live while a page is open', () => {

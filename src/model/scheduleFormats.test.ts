@@ -11,7 +11,7 @@ beforeEach(() => localStorage.clear());
 
 describe('schedule formats library', () => {
   it('is one of the synced libraries', () => {
-    expect(FORMATS_KEY).toBe('lvds.scheduleFormats');
+    expect(FORMATS_KEY).toBe('gfde.scheduleFormats');
     expect(LIBRARY_KEYS).toContain(FORMATS_KEY);
   });
   it('loads what was saved, drops bad entries and survives broken JSON', () => {

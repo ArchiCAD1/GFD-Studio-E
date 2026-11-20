@@ -14,7 +14,7 @@ type Pt = [number, number];
 // The patterns themselves: src/model/cadHatch.ts.
 export { HATCH_IDS, HATCH_PATTERNS, type HatchPattern, type HatchSpec } from './cadHatch';
 export const HATCH_START: HatchSpec = { pattern: 'ansi31', scale: 3, angle: 0 };
-export const HATCH_LAYER = 'LV-HATCH', ANNO = 'LV-ANNO';
+export const HATCH_LAYER = 'GFDE-HATCH', ANNO = 'GFDE-ANNO';
 
 /** Text height on paper (mm) and the scale the plan is annotated for. */
 export interface AnnoSettings { textMm: number; scale: number }
@@ -70,7 +70,7 @@ export function islandsIn(items: SketchItem[], outer: { pts: Pt[]; circle?: { c:
   }
   return { holes, ids };
 }
-/** The hatch as a drawn object on LV-HATCH: a closed polyline (or circle) with its pattern, its islands and (once
+/** The hatch as a drawn object on GFDE-HATCH: a closed polyline (or circle) with its pattern, its islands and (once
  * associative) the ids of the objects it follows. */
 export function hatchItem(o: { pts: Pt[]; circle?: { c: Pt; r: number }; holes?: Pt[][] }, spec: HatchSpec, assoc?: string[]): Omit<SketchItem, 'id'> {
   const extra = { ...(o.holes?.length ? { holes: o.holes } : {}), ...(assoc?.length ? { assoc } : {}) };

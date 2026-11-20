@@ -58,7 +58,7 @@ describe('revisions in the project file', () => {
   it('a file from before version 4 (whole copies) opens as before and is version 4 from then on', () => {
     const old = { ...issued(network(10, 'shallow'), 2), schemaVersion: 3 };
     const text = JSON.stringify(old);
-    const opened = migrateProject(JSON.parse(text) as Project, 'old.lvds');
+    const opened = migrateProject(JSON.parse(text) as Project, 'old.gfde');
     expect(opened.schemaVersion).toBe(CURRENT_SCHEMA);
     expect(opened.revisions).toEqual(old.revisions);
     expect(hasPackedRevisions(packRevisions(opened))).toBe(true);
@@ -104,16 +104,16 @@ describe('where a project is stored (web version: this browser\'s storage)', () 
   it('saved packed, opened whole', async () => {
     const p = issued(network(20, 'deep'), 4);
     const { file } = await saveProjectFile(undefined, p);
-    const stored = localStorage.getItem(`lvds.project.${file}`)!;
+    const stored = localStorage.getItem(`gfde.project.${file}`)!;
     expect(hasPackedRevisions(JSON.parse(stored))).toBe(true);
     expect(stored.length).toBeLessThan(JSON.stringify(p).length / 2);
-    expect(await loadProject(file)).toEqual(p);
+    expect(await loadProject(file)).toEqual({ ...p, format: 'gfde.project' });
   });
 
   it('the recovery copy too', async () => {
     const p = { ...issued(network(20, 'deep'), 4), id: 'job' };
     expect(await writeRecovery({ at: 1, project: p })).toBe(true);
-    expect(hasPackedRevisions((JSON.parse(localStorage.getItem('lvds.recovery.job')!) as { project: unknown }).project)).toBe(true);
+    expect(hasPackedRevisions((JSON.parse(localStorage.getItem('gfde.recovery.job')!) as { project: unknown }).project)).toBe(true);
     expect((await readRecoveries())[0].project).toEqual(p);
     await clearRecovery('job');
   });

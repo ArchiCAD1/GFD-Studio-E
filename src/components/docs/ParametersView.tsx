@@ -84,8 +84,8 @@ export default function ParametersView({ project, onChange, onStatus, onTitleBlo
               onBlur={(e) => setNotes(e.target.value.split('\n').map((l) => l.trimEnd()).filter(Boolean))} />
             <div className="row my">
               <button className="chip" onClick={() => setNotes([...notes, ...DEWA_GENERAL_NOTES.filter((n) => !notes.includes(n))])}>+ Standard DEWA notes</button>
-              <button className="chip" onClick={() => { try { localStorage.setItem('lvds.sldNotes', JSON.stringify(notes)); void pushLibrary(); } catch { /* ignore */ } }} disabled={!notes.length} title="Keep these notes for your next projects">Save as my notes</button>
-              <button className="chip" onClick={() => { try { const n = JSON.parse(localStorage.getItem('lvds.sldNotes') ?? '[]'); if (Array.isArray(n) && n.length) setNotes(n.map(String)); } catch { /* ignore */ } }} title="Replace with your saved notes">Use my notes</button>
+              <button className="chip" onClick={() => { try { localStorage.setItem('gfde.sldNotes', JSON.stringify(notes)); void pushLibrary(); } catch { /* ignore */ } }} disabled={!notes.length} title="Keep these notes for your next projects">Save as my notes</button>
+              <button className="chip" onClick={() => { try { const n = JSON.parse(localStorage.getItem('gfde.sldNotes') ?? '[]'); if (Array.isArray(n) && n.length) setNotes(n.map(String)); } catch { /* ignore */ } }} title="Replace with your saved notes">Use my notes</button>
               <label className="row"><input type="checkbox" checked={project.drawing?.abbreviations !== false} onChange={(e) => onChange({ ...project, drawing: { ...project.drawing, abbreviations: e.target.checked ? undefined : false } })} /> Abbreviations table on the sheets</label>
             </div>
             {notes.length > 0 && <ol className="param-notes">{notes.map((n, i) => <li key={i}>{fillParams(n, project)}</li>)}</ol>}

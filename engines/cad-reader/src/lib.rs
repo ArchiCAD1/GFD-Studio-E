@@ -1,8 +1,8 @@
-//! LV Design Studio CAD reader: a DWG / DXF floor plan (bytes) → the model-space entities a plan read needs, as JSON.
+//! GFD Studio E CAD reader: a DWG / DXF floor plan (bytes) → the model-space entities a plan read needs, as JSON.
 //!
 //! Built once to WebAssembly (`npm run build:cad`) and run by the desktop app and the CLI. 2D plan geometry only:
 //! lines, arcs, polylines (with bulges), hatch outer boundaries, texts and blocks with their attributes, each with its
-//! layer, handle and LVDS tag (extended data). The plan logic itself (rooms, routes, trays) stays in TypeScript.
+//! layer, handle and GFDE tag (extended data). The plan logic itself (rooms, routes, trays) stays in TypeScript.
 
 pub mod doc;
 
@@ -13,8 +13,10 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use std::io::Cursor;
 
-/// Extended-data application LV Design Studio tags drawing objects with ("route:<id>", "tray:<name>", …).
-const TAG_APP: &str = "LVDS";
+/// Extended-data application GFD Studio E tags drawing objects with ("route:<id>", "tray:<name>", …).
+const TAG_APP: &str = "GFDE";
+// Read existing drawings without changing their bytes; new drawings use GFDE.
+const LEGACY_TAG_APP: &str = "LVDS";
 
 #[derive(Serialize)]
 #[serde(tag = "k", rename_all = "lowercase")]
@@ -41,9 +43,9 @@ fn handle(c: &EntityCommon) -> String {
     format!("{:X}", c.handle.value())
 }
 
-/// The LVDS tag of an entity: the first string of its LVDS extended data.
+/// The GFDE tag of an entity: the first string of its GFDE extended data.
 fn tag(c: &EntityCommon) -> Option<String> {
-    c.extended_data.get_record(TAG_APP)?.values.iter().find_map(|v| match v {
+    c.extended_data.get_record(TAG_APP).or_else(|| c.extended_data.get_record(LEGACY_TAG_APP))?.values.iter().find_map(|v| match v {
         acadrust::xdata::XDataValue::String(s) => Some(s.clone()),
         _ => None,
     })

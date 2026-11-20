@@ -8,7 +8,7 @@ import type { SketchItem } from '../types';
 const def: CadBlockDef = { name: 'LIGHT', items: [
   { id: 'c', kind: 'circle', layer: '0', pts: [[0, 0]], r: 100 },
   { id: 'a1', kind: 'attdef', layer: '0', pts: [[150, 0]], tag: 'CIRCUIT', prompt: 'Circuit', text: 'L1', h: 50 },
-  { id: 'a2', kind: 'attdef', layer: 'LV-ANNO', pts: [[150, -80]], tag: 'WATTS', prompt: 'Load (W)', text: '36', h: 40, att: { invisible: true } },
+  { id: 'a2', kind: 'attdef', layer: 'GFDE-ANNO', pts: [[150, -80]], tag: 'WATTS', prompt: 'Load (W)', text: '36', h: 40, att: { invisible: true } },
   { id: 'a3', kind: 'attdef', layer: '0', pts: [[0, 150]], tag: 'TYPE', text: 'LED', h: 40, att: { constant: true } },
   { id: 'a4', kind: 'attdef', layer: '0', pts: [[0, -150]], tag: 'MOUNT', text: 'CEILING', h: 40, att: { preset: true } }
 ] };

@@ -102,7 +102,7 @@ One topic per PR. Phase 1 keeps the current R12 format and changes nothing on sc
 - **D2 – column text size.**
   - (a) Match the PDF: 1.8 mm caps (an ISO 3098 size) at 3.6 mm pitch. Same columns and continuation sheets as the PDF. *Recommended.*
   - (b) Keep 2.5 mm caps at 5.0 mm pitch. Fewer lines per column, so more continuation sheets than the PDF.
-- **D3 – linetypes.** LV-prefixed names (`LV-DASHED` …), so they cannot clash with a DASHED of different length in a drawing the sheet is inserted into, and patterns sized for paper. *Recommended.* The alternative is plain names, scaled with the drawing.
+- **D3 – linetypes.** LV-prefixed names (`GFDE-DASHED` …), so they cannot clash with a DASHED of different length in a drawing the sheet is inserted into, and patterns sized for paper. *Recommended.* The alternative is plain names, scaled with the drawing.
 - **D4 – sizes between sheets.**
   - (a) Keep fitting to the paper, as the PDF does.
   - (b) Model space at real size with a paper layout (F7). *Recommended, after Phase 2.*

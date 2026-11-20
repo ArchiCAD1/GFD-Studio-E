@@ -143,8 +143,8 @@ describe('layout templates', () => {
   });
 
   it('is kept in the library and loaded back from this computer\'s copy', () => {
-    expect(LIBRARY_KEYS).toContain('lvds.layoutTemplates');
-    expect(LIBRARY_KEYS).toContain('lvds.pageSetups');
+    expect(LIBRARY_KEYS).toContain('gfde.layoutTemplates');
+    expect(LIBRARY_KEYS).toContain('gfde.pageSetups');
     const store = new Map<string, string>();
     vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) });
     expect(loadLayoutTemplates()).toEqual([]);

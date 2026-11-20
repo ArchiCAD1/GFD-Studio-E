@@ -165,7 +165,7 @@ export function useCadRefs({ project, view, tabOf, change, say }: {
     const name = xrefFile(x.path, x.name);
     const tab = tabOf(name);
     if (tab) return { g: refGeometryOf(tab), path: tab.path };
-    const readBytes = window.lvds?.cadFile?.readBytes;
+    const readBytes = window.gfde?.cadFile?.readBytes;
     if (!readBytes) return null;
     const known = pathOfPlan(project.id, name);
     for (const path of [...(known ? [known] : []), ...xrefCandidates(x.path, x.name, hostPath)]) {

@@ -120,7 +120,7 @@ table.pens select{background:var(--p2);border:1px solid var(--field-line);border
         <label>Orientation</label><select id="orient"><option selected>Landscape</option><option>Portrait</option></select>
         <label>Scale</label><select id="scale"><option>1:50</option><option selected>1:100</option><option>1:200</option><option>1:500</option><option>Fit to the sheet (NTS)</option></select>
         <label>Plot area</label><select id="area"><option selected>The whole sheet</option><option>The plan only (no frame)</option><option>A window (pick two corners)</option></select>
-        <label>Pen table</label><select id="penSel"><option selected>LVDS Electrical (default)</option><option>ABC Architects.ctb (imported)</option><option>monochrome.ctb (imported)</option></select>
+        <label>Pen table</label><select id="penSel"><option selected>GFDE Electrical (default)</option><option>ABC Architects.ctb (imported)</option><option>monochrome.ctb (imported)</option></select>
         <label>Lineweights</label><select><option selected>Print them (from the pen table)</option><option>All one thin line</option></select>
       </div>
       <label class="chk"><input type="checkbox" checked id="stamp"> Plot stamp in the margin (file, date, revision, user)</label>
@@ -130,7 +130,7 @@ table.pens select{background:var(--p2);border:1px solid var(--field-line);border
 
     <!-- 2 Pen table -->
     <div class="side new" id="pPens" hidden>
-      <h4>Pen table <small id="penName">LVDS Electrical (default)</small></h4>
+      <h4>Pen table <small id="penName">GFDE Electrical (default)</small></h4>
       <div class="sec">The app's lines</div>
       <table class="pens" id="pens"></table>
       <div class="sec">The architect's drawing</div>

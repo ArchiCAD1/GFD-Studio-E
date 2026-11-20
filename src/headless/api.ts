@@ -44,7 +44,7 @@ function readBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
 /** A new API token: 32 random bytes, URL-safe base64 (43 characters). */
 export const newApiToken = () => crypto.randomBytes(32).toString('base64url');
 
-/** Where `lvds serve` writes its token for local clients: in the app's data folder, readable by this user only. */
+/** Where `gfde serve` writes its token for local clients: in the app's data folder, readable by this user only. */
 export const apiTokenFile = () => path.join(appDataDir(), 'api-token');
 
 /** Compare the presented token with the server's in constant time (hashing first gives equal lengths). */
@@ -65,10 +65,10 @@ export function createApi(ctx: ToolContext, version: string, token: string): htt
     const site = req.headers['sec-fetch-site'];
     if (req.headers.origin !== undefined || (site !== undefined && site !== 'none')) return send(res, 403, { error: 'Requests from web pages are not accepted' });
     if (req.method !== 'GET' && req.method !== 'POST') return send(res, 405, { error: 'Use GET or POST' }, { Allow: 'GET, POST' });
-    if (!tokenMatches(bearer(req.headers.authorization), token)) return send(res, 401, { error: 'Missing or wrong API token. Send Authorization: Bearer <token> (see "lvds help serve").' }, { 'WWW-Authenticate': 'Bearer' });
+    if (!tokenMatches(bearer(req.headers.authorization), token)) return send(res, 401, { error: 'Missing or wrong API token. Send Authorization: Bearer <token> (see "gfde help serve").' }, { 'WWW-Authenticate': 'Bearer' });
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     const tools = offeredTools(ctx);
-    if (url.pathname === '/api' || url.pathname === '/api/') return send(res, 200, { name: 'LV Design Studio local API', version, readOnly: !ctx.write, tools: '/api/tools' });
+    if (url.pathname === '/api' || url.pathname === '/api/') return send(res, 200, { name: 'GFD Studio E local API', version, readOnly: !ctx.write, tools: '/api/tools' });
     if (url.pathname === '/api/tools' && req.method === 'GET') {
       return send(res, 200, tools.map((t) => ({ name: t.name, title: t.title, description: t.description, changesProject: !!t.writes, input: z.toJSONSchema(z.object(t.input), { io: 'input' }) })));
     }
@@ -94,10 +94,10 @@ export function writeApiToken(token: string, file = apiTokenFile()): string {
   return file;
 }
 
-/** Starts the API with a token: LVDS_API_TOKEN when set (for a fixed client setup), else a new random one written to apiTokenFile(). */
+/** Starts the API with a token: GFDE_API_TOKEN when set (for a fixed client setup), else a new random one written to apiTokenFile(). */
 export function startApi(ctx: ToolContext, version: string, port: number): Promise<{ server: http.Server; tokenFile?: string }> {
-  const fixed = process.env.LVDS_API_TOKEN?.trim();
-  if (fixed !== undefined && fixed.length < 32) return Promise.reject(new Error('LVDS_API_TOKEN must be at least 32 characters (e.g. from: openssl rand -base64 32)'));
+  const fixed = (process.env.GFDE_API_TOKEN ?? process.env.LVDS_API_TOKEN)?.trim(); // existing local integrations
+  if (fixed !== undefined && fixed.length < 32) return Promise.reject(new Error('GFDE_API_TOKEN must be at least 32 characters (e.g. from: openssl rand -base64 32)'));
   const token = fixed || newApiToken();
   const server = createApi(ctx, version, token);
   return new Promise((resolve, reject) => {

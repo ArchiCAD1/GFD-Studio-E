@@ -36,7 +36,7 @@ function restore(saved: unknown, initial: Vals): Vals {
 
 /** Card inputs kept as typed text (so "0." can be typed), remembered per card. */
 function useInputs(card: string, initial: Vals): [Vals, (k: string, v: string) => void, Reset] {
-  const key = `lvds.quick.${card}`;
+  const key = `gfde.quick.${card}`;
   const [vals, setVals] = useState<Vals>(() => {
     try {
       return restore(JSON.parse(localStorage.getItem(key) ?? 'null'), initial);
@@ -118,7 +118,7 @@ function Card({ id, tab, title, children, result, formula, aside, onReset, error
 }
 
 const TABS: [string, string][] = [['power', 'Power & current'], ['cable', "Cable & breaker"], ['vd', "Voltage drop"], ['tx', "Transformer"], ['motor', "Motor"], ['pfc', "PF correction"], ['fault', "Fault level"], ['lux', "Lighting lux"], ['ohm', "Ohm's law"], ['energy', "Energy & cost"], ['units', "Units"]];
-const TAB_KEY = 'lvds.quick.tab';
+const TAB_KEY = 'gfde.quick.tab';
 function useTab(): [string, (t: string) => void] {
   const [tab, setTab] = useState(() => {
     try {

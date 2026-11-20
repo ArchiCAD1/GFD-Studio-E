@@ -6,6 +6,7 @@ import { PHASE_LABEL, QUICK_PATHS, startChecklist, WORKFLOW, type ChecklistItem 
 import { Page } from './ui';
 import { SHORTCUTS } from './CommandPalette';
 import { errorLogText, readErrorLog } from '../util/errorLog';
+import { BRAND } from '../brand';
 
 type Go = (v: MainView | 'settings') => void;
 
@@ -45,7 +46,13 @@ function ErrorLogNote() {
 export default function HelpView({ project, run, stale, saved, onGo, onWhatsNew }: { project: Project; run?: CalcRun; stale: StudyKey[]; saved: boolean; onGo: Go; onWhatsNew?: () => void }) {
   const phases = ['Setup', 'Design', 'Check', 'Deliver'] as const;
   return (
-    <Page title="Help — how to use LV Design Studio" actions={onWhatsNew && <button className="chip" onClick={onWhatsNew}>What's new</button>} intro="The whole job from start to finish, or just the one calculation you need. Click any step or task to open it.">
+    <Page title="Help — how to use GFD Studio E" actions={onWhatsNew && <button className="chip" onClick={onWhatsNew}>What's new</button>} intro="The whole job from start to finish, or just the one calculation you need. Click any step or task to open it.">
+      <section className="card u-mb-3" aria-label="About GFD Studio E">
+        <h4>{BRAND.name} <span className="m">v{__APP_VERSION__}</span></h4>
+        <p>{BRAND.owner} · Founded by {BRAND.founder}</p>
+        <p className="m">Projects save as .{BRAND.projectExtension}. Existing project and backup files can be imported from the Projects page and Checkpoints.</p>
+        <p className="m">Product identity and GFD modifications © 2026 {BRAND.owner}. Third-party copyright and licence notices are included with the application.</p>
+      </section>
       <div className="help-grid">
         <section className="card">
           <h4>Project workflow — start to finish</h4>

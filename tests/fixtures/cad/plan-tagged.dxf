@@ -4761,7 +4761,7 @@ AcDbSymbolTableRecord
 100
 AcDbRegAppTableRecord
   2
-LVDS
+GFDE
  70
      0
   0
@@ -12283,7 +12283,7 @@ AcDbLine
  31
 0.0
 1001
-LVDS
+GFDE
 1000
 route:F-03
   0

@@ -2,7 +2,7 @@
 // What a built desktop package holds, read from its files; the app is not started. Fails when files the app never
 // uses are back or a file it needs is missing. Only a real package shows what electron-builder does with the
 // settings in package.json; tests/packageContents.test.ts checks the settings themselves.
-//   node scripts/check-package.mjs "release/mac-arm64/LV Design Studio.app"
+//   node scripts/check-package.mjs "release/mac-arm64/GFD Studio E.app"
 //   node scripts/check-package.mjs release/win-unpacked
 
 import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, statSync } from 'node:fs';
@@ -10,8 +10,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 
-const CAD_ENGINE = 'electron/cad/lvds_cad_reader_bg.wasm';
-const NEEDED = ['package.json', 'dist/index.html', 'dist/third-party-licences.md', 'dist-electron/exceljs.cjs', 'dist-electron/third-party-licences.md', 'electron/main.cjs', CAD_ENGINE];
+const CAD_ENGINE = 'electron/cad/gfde_cad_reader_bg.wasm';
+export const PRODUCT_NOTICES = ['LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE.md', 'docs/provenance/README.md', 'docs/provenance/UPSTREAM-NOTICE.md'];
+const NEEDED = [...PRODUCT_NOTICES, 'package.json', 'dist/index.html', 'dist/third-party-licences.md', 'dist-electron/exceljs.cjs', 'dist-electron/third-party-licences.md', 'electron/main.cjs', CAD_ENGINE];
 // English only, as Chromium names it on each system. "en-US" is the one file Chromium needs on Windows and Linux;
 // British English stays so a computer set to it keeps its 24-hour times and day-first dates.
 export const MAC_LANGUAGES = ['en.lproj', 'en_GB.lproj'];
@@ -21,9 +22,9 @@ export const MAX_ASAR_MB = 20;
 // Electron's licence texts: beside the app on Windows and Linux, inside it on a Mac (scripts/mac-licences.cjs).
 export const NOTICES = ['LICENSE.electron.txt', 'LICENSES.chromium.html'];
 export const MAC_NOTICES = ['LICENSE.electron.txt', 'LICENSES.chromium.html.gz'];
-// The lvds command (command line, MCP server, local API) beside the app, in resources/lvds: the one-file build with
-// the licence texts of its libraries, and a launcher per system that runs it with the app as Node (build/lvds).
-export const LVDS_FILES = ['lvds', 'lvds.cmd', 'lvds.mjs', 'third-party-licences.md'];
+// The gfde command (command line, MCP server, local API) beside the app, in resources/gfde: the one-file build with
+// the licence texts of its libraries, and a launcher per system that runs it with the app as Node (build/gfde).
+export const GFDE_FILES = ['gfde', 'gfde.cmd', 'gfde.mjs', 'third-party-licences.md', 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE.md', 'docs'];
 
 /** Every file inside an app.asar, from its header. Chromium pickle: [4][header size][payload size][string length][JSON header] */
 export function asarFiles(asar) {
@@ -46,12 +47,12 @@ export function asarFiles(asar) {
 }
 
 /** What is wrong with a package. languages: { [place]: { found: file names, expected: file names } }; badNotices: licence texts missing or unreadable;
- * lvds: { found: file names in resources/lvds, launcherRuns: whether the lvds launcher may be run (always true on Windows) }. */
-export function packageProblems({ files, asarMb, languages, badNotices, lvds }) {
+ * gfde: { found: file names in resources/gfde, launcherRuns: whether the gfde launcher may be run (always true on Windows) }. */
+export function packageProblems({ files, asarMb, languages, badNotices, gfde }) {
   const problems = [];
   for (const f of badNotices) problems.push(`The licence text ${f} is missing or unreadable`);
-  for (const f of LVDS_FILES) if (!lvds.found.includes(f)) problems.push(`resources/lvds/${f} is missing: the installed app would be without its lvds command and MCP server`);
-  if (lvds.found.includes('lvds') && !lvds.launcherRuns) problems.push('resources/lvds/lvds is not marked as a program that can be run');
+  for (const f of GFDE_FILES) if (!gfde.found.includes(f)) problems.push(`resources/gfde/${f} is missing: the installed app would be without its gfde command and MCP server`);
+  if (gfde.found.includes('gfde') && !gfde.launcherRuns) problems.push('resources/gfde/gfde is not marked as a program that can be run');
   const modules = files.filter((f) => f.split('/').includes('node_modules'));
   if (modules.length) problems.push(`node_modules is back in app.asar: ${modules.length} files, such as ${modules[0]}`);
   for (const f of files) if (f.endsWith('.wasm') && f !== CAD_ENGINE) problems.push(`A second CAD engine or other WebAssembly file is in app.asar: ${f}`);
@@ -83,11 +84,11 @@ export function badNoticesIn(dir, names) {
   });
 }
 
-/** The lvds files of a package. Windows keeps no "may be run" mark on a file, so there the launcher counts as runnable. */
-function lvdsOf(resources) {
-  const dir = join(resources, 'lvds');
+/** The gfde files of a package. Windows keeps no "may be run" mark on a file, so there the launcher counts as runnable. */
+function gfdeOf(resources) {
+  const dir = join(resources, 'gfde');
   const found = existsSync(dir) ? readdirSync(dir) : [];
-  const launcherRuns = process.platform === 'win32' || (found.includes('lvds') && (statSync(join(dir, 'lvds')).mode & 0o111) !== 0);
+  const launcherRuns = process.platform === 'win32' || (found.includes('gfde') && (statSync(join(dir, 'gfde')).mode & 0o111) !== 0);
   return { found, launcherRuns };
 }
 
@@ -98,8 +99,11 @@ function main() {
   const asar = join(resources, 'app.asar');
   const files = asarFiles(asar);
   const asarMb = statSync(asar).size / 1024 / 1024;
-  const badNotices = target.endsWith('.app') ? badNoticesIn(join(target, 'Contents/Resources'), MAC_NOTICES) : badNoticesIn(target, NOTICES);
-  const problems = packageProblems({ files, asarMb, languages: languagesOf(target), badNotices, lvds: lvdsOf(resources) });
+  const badNotices = [
+    ...(target.endsWith('.app') ? badNoticesIn(join(target, 'Contents/Resources'), MAC_NOTICES) : badNoticesIn(target, NOTICES)),
+    ...badNoticesIn(join(resources, 'gfde'), ['LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE.md', 'docs/provenance/README.md', 'docs/provenance/UPSTREAM-NOTICE.md']).map((file) => `gfde/${file}`)
+  ];
+  const problems = packageProblems({ files, asarMb, languages: languagesOf(target), badNotices, gfde: gfdeOf(resources) });
   for (const p of problems) console.log(`error: ${p}`);
   console.log(`Package ${target}: app.asar ${asarMb.toFixed(1)} MB, ${files.length} files, ${problems.length} problem${problems.length === 1 ? '' : 's'}.`);
   process.exit(problems.length ? 1 : 0);

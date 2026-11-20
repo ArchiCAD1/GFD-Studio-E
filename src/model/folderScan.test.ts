@@ -11,7 +11,7 @@ const check = req('../../electron/ipcValidate.cjs') as { scanRoot: (v: unknown) 
 
 let dir: string, job: string;
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'lvds-scan-'));
+  dir = mkdtempSync(join(tmpdir(), 'gfde-scan-'));
   job = join(dir, '2309_Jumeirah Park Villas');
   for (const p of ['A-Admin/Minutes', 'B-Received/Arch/Rev A 12-03', 'C-Calc/VD', 'C-Calc/SC', '.git/objects', '$RECYCLE.BIN', '@eaDir']) mkdirSync(join(job, p), { recursive: true });
   writeFileSync(join(job, 'C-Calc/VD/DB-01 VD.pdf'), 'secret');

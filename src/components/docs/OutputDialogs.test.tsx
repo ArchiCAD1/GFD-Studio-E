@@ -50,7 +50,7 @@ describe('Output → Plot', () => {
   });
 
   it('to a printer: copies, and the settings kept as the sheet\'s page setup', async () => {
-    vi.stubGlobal('lvds', { files: { printers: async () => printers, printHtml: vi.fn() } });
+    vi.stubGlobal('gfde', { files: { printers: async () => printers, printHtml: vi.fn() } });
     const onChange = vi.fn();
     act(() => root.render(<PlotDialog project={p} sheet={sheets[0]} onChange={onChange} onStatus={() => {}} onClose={() => {}} />));
     await flush();
@@ -87,7 +87,7 @@ describe('Output → Page setups', () => {
 
 describe('Output → Printers', () => {
   it('lists the computer\'s printers beside the built-in PDF and keeps the one plots go to', async () => {
-    vi.stubGlobal('lvds', { files: { printers: async () => printers, printHtml: vi.fn() } });
+    vi.stubGlobal('gfde', { files: { printers: async () => printers, printHtml: vi.fn() } });
     const onStatus = vi.fn();
     act(() => root.render(<PrintersDialog onStatus={onStatus} onClose={() => {}} />));
     await flush();
@@ -142,7 +142,7 @@ describe('Output → Page setups: import, export and the library', () => {
     await act(async () => { button('Export…').click(); });
     const [name, text, filter, ext] = files.saveText.mock.calls[files.saveText.mock.calls.length - 1] as unknown as [string, string, string, string];
     expect([name, filter, ext]).toEqual([`${two.name.replace(/[^a-z0-9]+/gi, '-').replace(/(^-|-$)/g, '')} page setups.json`, 'Page setups', 'json']);
-    expect(JSON.parse(text)).toMatchObject({ kind: 'lvds.pageSetups', setups: [{ id: 'ps1' }, { id: 'ps2' }] });
+    expect(JSON.parse(text)).toMatchObject({ kind: 'gfde.pageSetups', setups: [{ id: 'ps1' }, { id: 'ps2' }] });
     expect(onStatus).toHaveBeenCalledWith('Saved x');
     open(p);
     expect((button('Export…') as HTMLButtonElement).disabled).toBe(true);
@@ -169,7 +169,7 @@ describe('Output → Page setups: import, export and the library', () => {
     const { onStatus } = open(two);
     act(() => { button('Save to library').click(); });
     expect(onStatus).toHaveBeenLastCalledWith('Page setup A1 1:100 PDF saved to your library');
-    expect(JSON.parse(localStorage.getItem('lvds.pageSetups')!).setups.map((x: { name: string }) => x.name)).toEqual(['A1 1:100 PDF']);
+    expect(JSON.parse(localStorage.getItem('gfde.pageSetups')!).setups.map((x: { name: string }) => x.name)).toEqual(['A1 1:100 PDF']);
     expect(document.querySelector('[aria-label="Library page setups"]')).toBeNull(); // the project has it already
     saveToSetupLibrary(setupsFile(two, ['ps2']));
     act(() => root.unmount()); root = createRoot(host);

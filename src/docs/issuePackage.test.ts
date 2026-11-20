@@ -27,7 +27,7 @@ describe('issue package', () => {
     expect(s).toContain('E-001');
     expect(s).toContain(`snapshot ${meta.snapshot}`);
     expect(APP_VERSION).toBe(displayVersion(pkg.version));
-    expect(s).toContain(`LV Design Studio ${displayVersion(pkg.version)}`);
+    expect(s).toContain(`GFD Studio E ${displayVersion(pkg.version)}`);
   });
 
   it('unresolved checks list every non-passing cell, fails first, none of them passes', () => {
@@ -52,7 +52,7 @@ describe('issue package', () => {
     const sections = sectionsFor();
     const html = packageCoverHtml(sampleProject, meta, [{ title: 'Project summary', pages: 2 }, { title: 'Electrical studies', pages: 10 }, { title: 'Load schedule — DB-GF1', pages: 1 }], 2, sections);
     expect(html).toContain(meta.snapshot);
-    expect(html).toContain(`LV Design Studio ${APP_VERSION}`);
+    expect(html).toContain(`GFD Studio E ${APP_VERSION}`);
     expect(html).toMatch(/Project summary<\/td><td class="num">3–4</);
     expect(html).toMatch(/Electrical studies<\/td><td class="num">5–14</);
     expect(html).toMatch(/Load schedule — DB-GF1<\/td><td class="num">15</);

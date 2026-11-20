@@ -27,8 +27,8 @@ describe('beta release metadata', () => {
 
   it('uses deterministic installer names for the two supported beta platforms', () => {
     expect(names).toEqual({
-      windows: `LV-Design-Studio-${version}-win-x64.exe`,
-      macos: `LV-Design-Studio-${version}-mac-arm64.dmg`,
+      windows: `GFD-Studio-E-${version}-win-x64.exe`,
+      macos: `GFD-Studio-E-${version}-mac-arm64.dmg`,
       checksums: 'SHA256SUMS.txt'
     });
   });
@@ -76,7 +76,7 @@ describe('beta release metadata', () => {
   });
 
   it('does not need secrets or mutate the repository to derive a version', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lvds-beta-version-'));
+    const dir = mkdtempSync(join(tmpdir(), 'gfde-beta-version-'));
     try {
       const file = join(dir, 'package.json');
       writeFileSync(file, JSON.stringify({ version: '2.143.0' }));

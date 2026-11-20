@@ -35,7 +35,7 @@ export function cadFileMenu(p: Project, cad: CadState, apply: Apply, status: (m:
     let v: CadView | null;
     try {
       v = !replace && file && isSample(file) ? await sampleDrawing(file)
-        : !replace && path && window.lvds?.cadFile?.readBytes ? await reopenDrawing(path)
+        : !replace && path && window.gfde?.cadFile?.readBytes ? await reopenDrawing(path)
         : await chooseDrawing();
     } catch (e) { const msg = e instanceof Error ? e.message : String(e); cad.say(msg); status(msg); return; }
     if (!v) return;

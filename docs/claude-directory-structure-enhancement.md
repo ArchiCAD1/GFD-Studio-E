@@ -2,7 +2,7 @@
 
 ## Request
 
-Review the current LV Design Studio repository and propose a practical directory structure enhancement. Include the earlier suggestions for calculation efficiency, larger panel networks, responsiveness, offline storage and report output quality.
+Review the current GFD Studio E repository and propose a practical directory structure enhancement. Include the earlier suggestions for calculation efficiency, larger panel networks, responsiveness, offline storage and report output quality.
 
 This is a desktop-first electrical engineering application that also has an installable offline browser version. Projects must remain usable with local files and without a cloud service.
 

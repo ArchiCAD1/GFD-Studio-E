@@ -104,7 +104,7 @@ def header(c: canvas.Canvas, section: str, title: str, page: int, total: int) ->
     c.rect(0, PH - 38, PW, 38, fill=1, stroke=0)
     set_fill(c, WHITE)
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(26, PH - 23, "LV DESIGN STUDIO")
+    c.drawString(26, PH - 23, "GFD STUDIO E")
     c.setFont("Helvetica", 8.5)
     c.drawRightString(PW - 26, PH - 23, f"{section}  |  {title}")
     set_fill(c, MID)
@@ -207,7 +207,7 @@ def cover(c: canvas.Canvas, manual: str, subtitle: str, image: Path,
     c.rect(0, 0, PW, PH, fill=1, stroke=0)
     set_fill(c, WHITE)
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(34, PH - 44, "LV DESIGN STUDIO")
+    c.drawString(34, PH - 44, "GFD STUDIO E")
     c.setFont("Helvetica-Bold", 31)
     c.drawString(34, PH - 92, manual)
     c.setFont("Helvetica", 13)
@@ -228,7 +228,7 @@ def cover(c: canvas.Canvas, manual: str, subtitle: str, image: Path,
             c.setFont("Helvetica", 7.4)
             c.drawString(x + 26, y - 12 - j * 9, line)
     c.setFont("Helvetica", 7)
-    c.drawRightString(PW - 34, 18, f"{doc_id}  |  24 October 2026")
+    c.drawRightString(PW - 34, 18, f"{doc_id}  |  GFD edition 20 November 2026")
 
 
 def draw_tabs(c: canvas.Canvas, labels: Sequence[str], active: int,
@@ -309,8 +309,9 @@ def arrow(c: canvas.Canvas, x1: float, y1: float, x2: float, y2: float) -> None:
 def load_manual(path: Path) -> None:
     total = 6
     c = canvas.Canvas(str(path), pagesize=PAGE, pageCompression=1)
-    c.setTitle("LV Design Studio - Load Schedule visual user manual")
-    c.setAuthor("LV Design Studio")
+    c.setTitle("GFD Studio E - Load Schedule visual user manual")
+    c.setAuthor("Gerardo Faustin Designs Limited")
+    c.setCreator("GFD Studio E manual generator")
 
     cover(
         c,
@@ -318,7 +319,7 @@ def load_manual(path: Path) -> None:
         "Visual user manual - enter circuits, balance phases, review demand, and export",
         grayscale(SCREEN_LOAD),
         ["Open the correct panel", "Complete the DB schedule", "Review MD and phase balance", "Export submission forms"],
-        "MAN-LS-001",
+        "GFDE-MAN-LS-001",
     )
     c.showPage()
 
@@ -327,14 +328,7 @@ def load_manual(path: Path) -> None:
                   "The numbered markers identify the controls used most often.")
     box = image_fit(c, grayscale(SCREEN_LOAD), 28, 83, PW - 56, PH - 205)
     captured_callouts(c, box, SCREEN_LOAD_META)
-    mini_legend(c, [
-        (1, "Schedule button in Detailed design"),
-        (2, "Panel tree - choose the board"),
-        (3, "Panel selector and current form"),
-        (4, "Form groups and panel tabs"),
-        (5, "Excel, PDF, and submission exports"),
-        (6, "Editable schedule or MD grid"),
-    ], 34, 65, PW - 68, columns=3)
+    mini_legend(c, [(item["number"], item["label"]) for item in json.loads(SCREEN_LOAD_META.read_text())["callouts"]], 34, 65, PW - 68, columns=3)
     c.showPage()
 
     header(c, "LOAD SCHEDULE", "Choose the correct form", 3, total)
@@ -459,8 +453,9 @@ def load_manual(path: Path) -> None:
 def sld_manual(path: Path) -> None:
     total = 6
     c = canvas.Canvas(str(path), pagesize=PAGE, pageCompression=1)
-    c.setTitle("LV Design Studio - SLD visual user manual")
-    c.setAuthor("LV Design Studio")
+    c.setTitle("GFD Studio E - SLD visual user manual")
+    c.setAuthor("Gerardo Faustin Designs Limited")
+    c.setCreator("GFD Studio E manual generator")
 
     cover(
         c,
@@ -468,7 +463,7 @@ def sld_manual(path: Path) -> None:
         "Visual user manual - build the network, check calculations, and create drawing sheets",
         grayscale(SCREEN_SLD),
         ["Build the panel hierarchy", "Add and edit feeders", "Run and review checks", "Create and export sheets"],
-        "MAN-SLD-001",
+        "GFDE-MAN-SLD-001",
     )
     c.showPage()
 
@@ -477,12 +472,7 @@ def sld_manual(path: Path) -> None:
                   "The numbered markers identify the controls used to build and check the network.")
     box = image_fit(c, grayscale(SCREEN_SLD), 28, 83, PW - 56, PH - 205)
     captured_callouts(c, box, SCREEN_SLD_META)
-    mini_legend(c, [
-        (1, "SLD and selection controls"), (2, "Panel tree"),
-        (3, "System, board, earthing, and riser views"), (4, "Drawing display tools"),
-        (5, "Interactive SLD canvas"), (6, "Board properties or circuit results"),
-        (7, "System, bus, and feeder results"), (8, "Export and drawing sheets"),
-    ], 34, 65, PW - 68, columns=4)
+    mini_legend(c, [(item["number"], item["label"]) for item in json.loads(SCREEN_SLD_META.read_text())["callouts"]], 34, 65, PW - 68, columns=4)
     c.showPage()
 
     header(c, "SLD", "Build the network", 3, total)
@@ -606,8 +596,8 @@ def sld_manual(path: Path) -> None:
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     TMP.mkdir(parents=True, exist_ok=True)
-    load_manual(OUT / "LV-Design-Studio-Load-Schedule-Visual-User-Manual.pdf")
-    sld_manual(OUT / "LV-Design-Studio-SLD-Visual-User-Manual.pdf")
+    load_manual(OUT / "GFD-Studio-E-Load-Schedule-Visual-User-Manual.pdf")
+    sld_manual(OUT / "GFD-Studio-E-SLD-Visual-User-Manual.pdf")
 
 
 if __name__ == "__main__":

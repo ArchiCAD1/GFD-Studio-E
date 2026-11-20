@@ -51,7 +51,7 @@ const DRAFTING = ['Draw', 'Modify', 'Blocks', 'Layers', 'Properties', 'Measure a
 const ELEC = 'Electrical, ELV & sheets';
 const ANNOTATE = ['Text', 'Dimensions', 'Leaders and tags', 'Markup'];
 /** The drawing's layers as the page tells the ribbon: two drawn layers, one frozen; nothing picked. */
-const INFO = { blocks: ['DB-A', 'DB-B'], layers: [{ name: 'LV-SKETCH', color: '#ffffff', on: true, freeze: false, lock: false }, { name: 'E-POWER', color: '#00ffff', on: false, freeze: false, lock: true }, { name: 'E-OLD', on: true, freeze: true, lock: false }], current: 'LV-SKETCH', picked: 0, props: {} };
+const INFO = { blocks: ['DB-A', 'DB-B'], layers: [{ name: 'GFDE-SKETCH', color: '#ffffff', on: true, freeze: false, lock: false }, { name: 'E-POWER', color: '#00ffff', on: false, freeze: false, lock: true }, { name: 'E-OLD', on: true, freeze: true, lock: false }], current: 'GFDE-SKETCH', picked: 0, props: {} };
 /** A split tool's arrow, then an item of its list. */
 const fromList = (tool: string, item: string) => { click(document.querySelector(`#ribbon-tools button[title="${tool}: more options"]`)!); click([...document.querySelectorAll('[role="menuitem"]')].find((b) => b.textContent === item)!); };
 const click = (b: Element) => act(() => { (b as HTMLButtonElement).click(); });
@@ -64,7 +64,7 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
     show();
     expect(selected()).toBe('LVCAD');
     pick(ELEC);
-    expect(localStorage.getItem('lvds.cadSub')).toBe('elec');
+    expect(localStorage.getItem('gfde.cadSub')).toBe('elec');
     act(() => root.unmount());
     root = createRoot(host);
     const again = show();
@@ -75,13 +75,13 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
     expect(selected()).toBe('LVCAD');
     again.rerender({ tool: 'tray' });
     expect(selected()).toBe(ELEC);
-    localStorage.setItem('lvds.cadSub', 'page'); // a sub-tab of v2.053: the one with the sheet set now
+    localStorage.setItem('gfde.cadSub', 'page'); // a sub-tab of v2.053: the one with the sheet set now
     act(() => root.unmount());
     root = createRoot(host);
     show();
     expect(selected()).toBe(ELEC);
     pick('Annotate');
-    expect(localStorage.getItem('lvds.cadSub')).toBe('annotate');
+    expect(localStorage.getItem('gfde.cadSub')).toBe('annotate');
   });
 
   it('has the drafting panels in the order the user chose, Annotate on its own sub-tab; with labels the panels take six sub-tabs; each tool is on one', () => {
@@ -194,10 +194,10 @@ describe('Design CAD ribbon: sub-tabs by use', () => {
   it('shows the current layer and lists the drawn layers to make another current (not a frozen one)', () => {
     const { cad } = show();
     const list = document.querySelector('.ribbon-layer') as HTMLButtonElement;
-    expect(list.querySelector('.nm')!.textContent).toBe('LV-SKETCH');
+    expect(list.querySelector('.nm')!.textContent).toBe('GFDE-SKETCH');
     click(list);
     const rows = [...document.querySelectorAll('[role="menu"][aria-label="Layers"] [role="menuitemradio"]')] as HTMLButtonElement[];
-    expect(rows.map((b) => [b.textContent, b.getAttribute('aria-checked'), b.disabled])).toEqual([['LV-SKETCH', 'true', false], ['E-POWER', 'false', false], ['E-OLD', 'false', true]]);
+    expect(rows.map((b) => [b.textContent, b.getAttribute('aria-checked'), b.disabled])).toEqual([['GFDE-SKETCH', 'true', false], ['E-POWER', 'false', false], ['E-OLD', 'false', true]]);
     click(rows[1]);
     expect(cad.onCommand).toHaveBeenLastCalledWith('CLAYER E-POWER');
     click(list);
@@ -390,7 +390,7 @@ describe('Design CAD ribbon: sheets and layouts', () => {
 
   it('opens the active sheet PDF preview in the desktop app', () => {
     const previewPdf = vi.fn();
-    vi.stubGlobal('lvds', { files: { pdfBytes: vi.fn() } });
+    vi.stubGlobal('gfde', { files: { pdfBytes: vi.fn() } });
     try {
       show({}, { view: 'drawings', sheets: sheets({ ui: sheetUi({ actions: { current: { ...NO_SHEET_ACTIONS, previewPdf } } }) }) });
       pick('Output');

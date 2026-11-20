@@ -58,7 +58,7 @@ export interface Preferences {
 
 export const DEFAULT_PREFS: Preferences = { profile: {}, defaults: {}, app: { autosaveMin: 2 } };
 
-const KEY = 'lvds.preferences';
+const KEY = 'gfde.preferences';
 
 export function loadPrefs(): Preferences {
   try {

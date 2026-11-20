@@ -51,17 +51,37 @@ export const metaOf = (file: string, p: Project, updatedAt = Date.parse(p.update
   tags: p.tags?.length ? p.tags : undefined
 });
 
-const bridge = () => (typeof window !== 'undefined' && window.lvds ? window.lvds : undefined);
+const bridge = () => (typeof window !== 'undefined' && window.gfde ? window.gfde : undefined);
 export const inDesktop = () => !!bridge();
 
 // ---- Browser storage (no desktop app) --------------------------------------
 
-const INDEX = 'lvds.projects';
-const fileKey = (file: string) => `lvds.project.${file}`;
+const INDEX = 'gfde.projects';
+const fileKey = (file: string) => `gfde.project.${file}`;
 const readIndex = (): ProjectMeta[] => {
   try { return JSON.parse(localStorage.getItem(INDEX) ?? '[]') as ProjectMeta[]; } catch { return []; }
 };
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'untitled';
+
+/** A legacy save adopts the native extension; a new name never replaces another project,
+ * including data left outside the index after an interrupted save. */
+async function browserFileName(file: string | undefined, p: Project): Promise<string> {
+  if (file && /\.gfde$/i.test(file)) return file;
+  const base = file ? file.replace(/\.(lvds|json)$/i, '') : `${slug(p.name)}-${(p.id ?? String(Date.now())).replace(/[^a-z0-9]/gi, '').slice(0, 8)}`;
+  const source = file?.toLowerCase();
+  const taken = new Set(readIndex().map((m) => m.file.toLowerCase()).filter((f) => f !== source));
+  const stemTaken = async (stem: string) => {
+    for (const ext of ['gfde', 'lvds', 'json']) {
+      const candidate = `${stem}.${ext}`;
+      if (candidate.toLowerCase() === source) continue;
+      if (taken.has(candidate.toLowerCase()) || await webGet(fileKey(candidate)) !== null) return true;
+    }
+    return false;
+  };
+  let stem = base, n = 2;
+  while (await stemTaken(stem)) stem = `${base}-${n++}`;
+  return `${stem}.gfde`;
+}
 
 export async function listProjects(): Promise<ProjectMeta[]> {
   const b = bridge();
@@ -106,9 +126,11 @@ export async function saveProjectFile(file: string | undefined, p: Project, opts
     const r = await b.projects.save(file, packRevisions(p), opts.expected ?? undefined, opts.force);
     return r.conflict ? { conflict: true, file: r.file, disk: r.disk } : { file: r.file, stamp: r.stamp };
   }
-  const f = file ?? `${slug(p.name)}-${(p.id ?? String(Date.now())).replace(/[^a-z0-9]/gi, '').slice(0, 8)}.json`;
-  await webSet(fileKey(f), JSON.stringify(packRevisions(p))); // throws when the browser cannot store it
-  localStorage.setItem(INDEX, JSON.stringify([metaOf(f, p, Date.now()), ...readIndex().filter((m) => m.file !== f)]));
+  const f = await browserFileName(file, p);
+  await webSet(fileKey(f), JSON.stringify({ ...packRevisions(p), format: 'gfde.project' })); // throws when the browser cannot store it
+  localStorage.setItem(INDEX, JSON.stringify([metaOf(f, p, Date.now()), ...readIndex().filter((m) => m.file !== f && m.file !== file)]));
+  // Retain the old payload as a recoverable original; only its active list/recent entry moves.
+  if (file && file !== f) replaceRecentFile(file, f);
   return { file: f };
 }
 
@@ -130,7 +152,7 @@ export async function deleteProjectFile(file: string): Promise<void> {
 export const TRASH_DAYS = 30;
 export interface TrashedProject { trashFile: string; file: string; name: string; id?: string; deletedAt: number; daysLeft: number }
 type WebTrashed = TrashedProject & { text: string };
-const TRASH = 'lvds.trash';
+const TRASH = 'gfde.trash';
 const readTrash = async (): Promise<WebTrashed[]> => {
   try {
     const now = Date.now();
@@ -156,7 +178,8 @@ export async function restoreProject(trashFile: string): Promise<string> {
   if (!t) throw new Error('That project is no longer in the trash');
   const taken = new Set(readIndex().map((m) => m.file));
   let file = t.file, n = 2;
-  while (taken.has(file)) file = `${t.file.replace(/\.json$/i, '')}-${n++}.json`;
+  const ext = /\.(gfde|lvds|json)$/i.exec(t.file)?.[0] ?? '.gfde';
+  while (taken.has(file) || await webGet(fileKey(file)) !== null) file = `${t.file.replace(/\.(gfde|lvds|json)$/i, '')}-${n++}${ext}`;
   const p = JSON.parse(t.text) as Project;
   await webSet(fileKey(file), t.text);
   localStorage.setItem(INDEX, JSON.stringify([metaOf(file, p, Date.now()), ...readIndex()]));
@@ -182,9 +205,9 @@ export interface Recovery {
   fileChangedSince?: boolean;
 }
 
-const RECOVERY = 'lvds.recovery'; // older: a single copy for whatever project autosaved last
-const RECOVERY_IDS = 'lvds.recovery.ids';
-const recoveryKey = (id: string) => `lvds.recovery.${id}`;
+const RECOVERY = 'gfde.recovery'; // older: a single copy for whatever project autosaved last
+const RECOVERY_IDS = 'gfde.recovery.ids';
+const recoveryKey = (id: string) => `gfde.recovery.${id}`;
 const recoveryId = (r: Recovery) => r.projectId ?? r.project.id;
 const readIds = (): string[] => { try { return (JSON.parse(localStorage.getItem(RECOVERY_IDS) ?? '[]') as string[]).filter((x) => typeof x === 'string'); } catch { return []; } };
 
@@ -257,9 +280,15 @@ export async function clearRecovery(projectId: string | undefined): Promise<void
 
 // ---- Recently opened ---------------------------------------------------------
 
-const RECENT = 'lvds.recent';
+const RECENT = 'gfde.recent';
 export function recentFiles(): string[] {
   try { return (JSON.parse(localStorage.getItem(RECENT) ?? '[]') as string[]).filter((f) => typeof f === 'string'); } catch { return []; }
+}
+function replaceRecentFile(file: string, native: string): void {
+  const recent = recentFiles();
+  if (!recent.includes(file)) return;
+  const list = [...new Set(recent.map((f) => f === file ? native : f))].slice(0, 8);
+  try { localStorage.setItem(RECENT, JSON.stringify(list)); } catch { /* preference only */ }
 }
 export function touchRecent(file: string, remove = false): string[] {
   const list = [...(remove ? [] : [file]), ...recentFiles().filter((f) => f !== file)].slice(0, 8);

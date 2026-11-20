@@ -23,7 +23,7 @@ export function buildReviewDocx(doc: ReviewDoc): Document {
   });
   children.push(new Paragraph({ spacing: { before: 300 }, children: [new TextRun({ text: doc.footer, size: 16, color: '5B6B82' })] }));
   return new Document({
-    creator: 'LV Design Studio', title: doc.title, styles: { default: { document: { run: { font: 'Arial', size: 20 } } } },
+    creator: 'GFD Studio E', title: doc.title, styles: { default: { document: { run: { font: 'Arial', size: 20 } } } },
     sections: [{ properties: { page: { size: { orientation: PageOrientation.LANDSCAPE }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } }, children }]
   });
 }

@@ -85,7 +85,7 @@ export function matchedProps(from: SketchItem, to: SketchItem): SketchItem {
 /** The layers a drawing's objects can go on: those of what is drawn here, then the app's usual ones, then the layers
  * added in the layer palette that hold nothing yet (src/model/cadLayerState.ts). */
 export function drawnLayers(items: SketchItem[], added: string[] = []): string[] {
-  const out = [...new Set([...items.map((it) => it.layer), 'LV-SKETCH', 'LV-ANNO', 'LV-HATCH'])];
+  const out = [...new Set([...items.map((it) => it.layer), 'GFDE-SKETCH', 'GFDE-ANNO', 'GFDE-HATCH'])];
   for (const l of added) if (!out.some((x) => x.toLowerCase() === l.toLowerCase())) out.push(l);
   return out;
 }

@@ -8,7 +8,7 @@ design → CAD for drawings, CAD → design for measured quantities — without 
 
 ## Rules
 
-- **CAD work is kept.** An update replaces only objects LV Design Studio tagged, and only for the boards and
+- **CAD work is kept.** An update replaces only objects GFD Studio E tagged, and only for the boards and
   feeders that changed. Anything drawn by hand in CAD is never touched.
 - **Nothing from CAD changes the design silently.** Pulled values arrive as a reviewable list of changes
   ("F-03 length 42 m → 57.3 m"); the engineer accepts them, then the calculations re-run.
@@ -17,19 +17,19 @@ design → CAD for drawings, CAD → design for measured quantities — without 
 ## Milestones
 
 ### 3. Equipment tags (foundation) — done (PR #256)
-Every exported DXF object carries extended data `LVDS` = `feeder:<id>` / `board:<id>` (R12 XDATA + APPID
+Every exported DXF object carries extended data `GFDE` = `feeder:<id>` / `board:<id>` (R12 XDATA + APPID
 table), taken from the diagram groups that already hold these IDs. Works in plain DXF export too and survives
 saving as DWG. Live link gains a read: which tagged equipment is in the open drawing.
 
 ### 4. Update in OpenCADStudio (design → CAD) — done
 Regenerate the sheet, open it beside the drawing, compare per tag, copy the changed boards/feeders across and
 erase their old objects; close the temporary sheet. Untagged objects are left in place. Changes are judged
-against what LV Design Studio last sent to that drawing (not its CAD state), so a tagged object the engineer
+against what GFD Studio E last sent to that drawing (not its CAD state), so a tagged object the engineer
 edited is kept unless its board or feeder changed. Frame, title block and notes carry `sheet:<n>` so revisions
 and schedules refresh too. First sheet only; continuation sheets are reopened.
 
 ### 5. Tag on the floor plan — routes done
-Cable routes: select lines / arcs / polylines in OpenCADStudio, choose the feeder in LV Design Studio, *Link
+Cable routes: select lines / arcs / polylines in OpenCADStudio, choose the feeder in GFD Studio E, *Link
 selection* (tag `route:<feeder id>`); *Unlink selection* removes it. Board symbols: found by a TAG / BOARD /
 PANEL attribute naming the board, or linked by hand the same way (tag `place:<board id>`).
 
@@ -113,8 +113,8 @@ With the layer map, routes and trays need no picking (2D plan geometry only):
 - Cable lengths and tray routes dialogs show the layer table (shared with rooms) and save the map on apply.
 
 ## 9. Layer-map templates — done
-A layer mapping can be saved under the architect's or consultant's name ("ABC Architects") in the LV Database
-(Library.json, `lvds.cadLayerTemplates`, synced like the other libraries). Every layer table (rooms, cable lengths,
+A layer mapping can be saved under the architect's or consultant's name ("ABC Architects") in the GFD Studio E Database
+(Library.json, `gfde.cadLayerTemplates`, synced like the other libraries). Every layer table (rooms, cable lengths,
 tray routes) has the template bar: pick a template, or save the current mapping; when a saved template knows at least
 two and half of a plan's layers, it is offered ("Use ABC Architects (12 of 14 layers)"). Applying sets the roles of
 the layers it knows (any case) and leaves the others. Layer guesses also read RM as ROOM.
@@ -124,7 +124,7 @@ OpenCADStudio's bundled *Python Scripting* plugin (sandboxed RustPython: drawing
 input; a native Rust add-in would need a rebuild per OCS release) runs the LV script pack in `opencadstudio/`:
 `lv_summary.py` (linked routes / trays / boards with plan lengths, as a table), `lv_room_areas.py` (m² labels,
 zones and twins skipped), `lv_tag_trays.py` (selected runs + a "TRAY A" label → `tray:A`), `lv_board_check.py`,
-`lv_untag.py`. Re-runs replace their own labels / table (marked with LVDS "area-label" / "summary-table").
+`lv_untag.py`. Re-runs replace their own labels / table (marked with GFDE "area-label" / "summary-table").
 The app ships them (`opencadstudio/**` in the package) and copies them out with *Copy LV scripts for
 OpenCADStudio…*.
 

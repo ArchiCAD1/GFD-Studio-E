@@ -4,7 +4,7 @@ Status: **L1 and L2 approved by the user on 2026-11-12** ("Ok go ahead with L1 a
 
 Mockup: `docs/mockups/sld-cad-link-mockup.html` (image: `sld-cad-link-mockup.png`).
 
-![What links the SLD and the plan today, and the proposed links](../../mockups/sld-cad-link-mockup.png)
+![What links the SLD and the plan today, and the proposed links](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-cad-link-mockup.png)
 
 ## Today
 
@@ -130,7 +130,7 @@ Status: **suggestions only, awaiting the user's decision**.
 
 Mockup: `docs/mockups/sld-sheet-drafting-mockup.html` (image: `sld-sheet-drafting-mockup.png`).
 
-![An SLD sheet today, and the proposed items P1 to P5](../../mockups/sld-sheet-drafting-mockup.png)
+![An SLD sheet today, and the proposed items P1 to P5](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-sheet-drafting-mockup.png)
 
 ### Today
 

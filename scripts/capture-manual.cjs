@@ -7,6 +7,11 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'docs/manual/visuals.json'), 'utf8'));
 const entry = path.join(root, 'dist/index.html');
+const product = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+
+app.setName(product.productName);
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('ozone-override-screen-size', `${manifest.viewport.width},${manifest.viewport.height}`);
 
 app.setPath('userData', path.join(root, 'tmp/manual-capture/user-data'));
 app.commandLine.appendSwitch('disable-background-networking');
@@ -16,13 +21,16 @@ let win;
 
 async function capture(shot) {
   await win.loadFile(entry, { query: { manualCapture: '1', manualView: shot.view, manualBoard: shot.board } });
-  await win.webContents.insertCSS('.web-banner,.top>button[title^="Download"]{display:none!important}*{caret-color:transparent!important}');
   await win.webContents.executeJavaScript(`new Promise((resolve, reject) => {
     const until = Date.now() + 15000;
     const check = async () => {
       const el = document.querySelector('[data-doc-id="${shot.readyTarget}"]');
       if (el && el.getBoundingClientRect().width > 20) {
         if (document.fonts?.ready) await document.fonts.ready;
+        // Documentation-only overlays are suppressed without clicking controls.
+        const captureStyle = document.createElement('style');
+        captureStyle.textContent = '.web-banner,.modal-backdrop:has(.whats-new),.top>button[title^="Download"]{display:none!important}*{caret-color:transparent!important}';
+        document.head.append(captureStyle);
         document.querySelectorAll('*').forEach((node) => {
           if (node.children.length === 0 && node.textContent?.trim().startsWith('Web version')) node.style.visibility = 'hidden';
         });
@@ -46,7 +54,19 @@ async function capture(shot) {
   const metadataPath = path.join(root, shot.metadata);
   fs.mkdirSync(path.dirname(imagePath), { recursive: true });
   fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
-  fs.writeFileSync(imagePath, (await win.webContents.capturePage()).toPNG());
+  const captured = await win.webContents.capturePage();
+  const size = captured.getSize();
+  if (size.width !== manifest.viewport.width || size.height !== manifest.viewport.height) throw new Error(`Capture viewport is ${size.width}x${size.height}, expected ${manifest.viewport.width}x${manifest.viewport.height}`);
+  const screenshot = captured.toPNG();
+  fs.writeFileSync(imagePath, screenshot);
+  if (shot.productImage) {
+    const productImage = path.join(root, shot.productImage);
+    fs.mkdirSync(path.dirname(productImage), { recursive: true });
+    fs.writeFileSync(productImage, screenshot);
+  }
+  metadata.productName = product.productName;
+  metadata.appVersion = product.version;
+  metadata.captureSource = 'offline documentation capture of committed demonstration data';
   fs.writeFileSync(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
   process.stdout.write(`Captured ${shot.id}: ${path.relative(root, imagePath)}\n`);
 }
@@ -62,12 +82,13 @@ app.whenReady().then(async () => {
       height: manifest.viewport.height,
       useContentSize: true,
       backgroundColor: '#ffffff',
-      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true, session: captureSession }
+      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true, offscreen: true, session: captureSession }
     });
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     for (const shot of manifest.shots) await capture(shot);
   } catch (error) {
     console.error(error);
+    if (win && !win.isDestroyed()) console.error(await win.webContents.executeJavaScript('document.body.innerText.slice(0, 3000)').catch(() => 'Renderer unavailable'));
     if (win && !win.isDestroyed()) win.destroy();
     app.exit(1);
     return;

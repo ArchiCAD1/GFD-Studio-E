@@ -4,7 +4,7 @@ Status: **proposal, waiting for the user's decisions.** Nothing is built.
 
 Mockup: `docs/mockups/sld-symbols-mockup.html` (image: `sld-symbols-mockup.png`).
 
-![SLD symbols today and proposed](../../mockups/sld-symbols-mockup.png)
+![SLD symbols today and proposed](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-symbols-mockup.png)
 
 The user's request: list the SLD symbols in use and say which can be enhanced. They do not like the ELCB symbol: fitted into the breaker it overlaps, and the drawing does not look like a standard design drawing.
 

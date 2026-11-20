@@ -22,50 +22,50 @@ const key = (el: HTMLElement, k: string) => act(() => { el.dispatchEvent(new Key
 
 function render(rows: LayerRow[], over: Partial<Parameters<typeof LayerPalette>[0]> = {}) {
   const props = {
-    file: 'GF.dwg', rows, current: 'LV-SKETCH', states: [], isolated: false,
+    file: 'GF.dwg', rows, current: 'GFDE-SKETCH', states: [], isolated: false,
     onApply: vi.fn(), onNew: vi.fn(() => 'Layer1'), onRename: vi.fn((): string | undefined => undefined), onDelete: vi.fn(), onCurrent: vi.fn(),
     onIsolate: vi.fn(), onUnisolate: vi.fn(), onSaveState: vi.fn(), onRestoreState: vi.fn(), onDeleteState: vi.fn(), onClose: vi.fn(), ...over
   };
   act(() => root.render(<LayerPalette {...props} />));
   return props;
 }
-const rowsOf = (styles = {}, added: string[] = []) => layerRows({ view, layersOn: Uint8Array.from([1, 0]), sketch: [{ id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [1, 0]] }], styles, added });
+const rowsOf = (styles = {}, added: string[] = []) => layerRows({ view, layersOn: Uint8Array.from([1, 0]), sketch: [{ id: 'S1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[0, 0], [1, 0]] }], styles, added });
 
 describe('Layer palette', () => {
   it('one table: drawn layers, then the architect\'s, with their state; the help is in the column tooltips', () => {
-    render(rowsOf({ 'LV-ANNO': { noPrint: true, freeze: true } }));
-    expect(names()).toEqual(['LV-SKETCH', 'LV-ANNO', 'LV-HATCH', 'A-WALL', 'A-DOOR']);
+    render(rowsOf({ 'GFDE-ANNO': { noPrint: true, freeze: true } }));
+    expect(names()).toEqual(['GFDE-SKETCH', 'GFDE-ANNO', 'GFDE-HATCH', 'A-WALL', 'A-DOOR']);
     expect([...document.querySelectorAll('.cad-lp-grp')].map((g) => g.textContent)).toEqual(['Drawn in the app', 'Architect\'s drawing']);
-    expect([btn('LV-SKETCH prints').getAttribute('aria-pressed'), btn('LV-ANNO prints').getAttribute('aria-pressed')]).toEqual(['true', 'false']);
-    expect(btn('LV-ANNO frozen').getAttribute('aria-pressed')).toBe('true');
+    expect([btn('GFDE-SKETCH prints').getAttribute('aria-pressed'), btn('GFDE-ANNO prints').getAttribute('aria-pressed')]).toEqual(['true', 'false']);
+    expect(btn('GFDE-ANNO frozen').getAttribute('aria-pressed')).toBe('true');
     expect(btn('A-DOOR on').getAttribute('aria-pressed')).toBe('false');
     expect(document.querySelector('[aria-label="A-WALL prints"]')).toBeNull(); // the architect's: On, Freeze, Lock, colour
     expect(q('th[title^="Untick Print to keep a layer on screen but off the plan sheets."]').textContent).toBe('Pr');
-    expect(q('[aria-label="LV-SKETCH is current"]')).not.toBeNull();
-    expect(status()).toBe('Current layer: LV-SKETCH · 5 layers');
+    expect(q('[aria-label="GFDE-SKETCH is current"]')).not.toBeNull();
+    expect(status()).toBe('Current layer: GFDE-SKETCH · 5 layers');
   });
 
   it('a toggle on a selected row goes to every row selected (shift and ctrl/cmd add rows)', () => {
     const p = render(rowsOf());
-    click(name('LV-ANNO'));
+    click(name('GFDE-ANNO'));
     click(name('A-WALL'), { shiftKey: true });
     expect(status()).toContain('3 selected');
-    act(() => { btn('LV-HATCH locked').click(); });
-    expect(p.onApply).toHaveBeenLastCalledWith([expect.objectContaining({ name: 'LV-ANNO' }), expect.objectContaining({ name: 'LV-HATCH' }), expect.objectContaining({ name: 'A-WALL' })], { lock: true });
-    click(name('LV-SKETCH'), { metaKey: true });
-    act(() => { btn('LV-ANNO frozen').click(); }); // the current layer is left out of a freeze
-    expect(vi.mocked(p.onApply).mock.calls[1][0].map((r: LayerRow) => r.name)).toEqual(['LV-ANNO', 'LV-HATCH', 'A-WALL']);
-    expect(status()).toContain('LV-SKETCH is the current layer; it cannot be frozen.');
+    act(() => { btn('GFDE-HATCH locked').click(); });
+    expect(p.onApply).toHaveBeenLastCalledWith([expect.objectContaining({ name: 'GFDE-ANNO' }), expect.objectContaining({ name: 'GFDE-HATCH' }), expect.objectContaining({ name: 'A-WALL' })], { lock: true });
+    click(name('GFDE-SKETCH'), { metaKey: true });
+    act(() => { btn('GFDE-ANNO frozen').click(); }); // the current layer is left out of a freeze
+    expect(vi.mocked(p.onApply).mock.calls[1][0].map((r: LayerRow) => r.name)).toEqual(['GFDE-ANNO', 'GFDE-HATCH', 'A-WALL']);
+    expect(status()).toContain('GFDE-SKETCH is the current layer; it cannot be frozen.');
     // A row not selected: the change is its own, and it becomes the selection.
     act(() => { btn('A-DOOR on').click(); });
     expect(p.onApply).toHaveBeenLastCalledWith([expect.objectContaining({ name: 'A-DOOR' })], { on: true });
-    expect(status()).toBe('Current layer: LV-SKETCH · 5 layers');
+    expect(status()).toBe('Current layer: GFDE-SKETCH · 5 layers');
   });
 
   it('renames by double-click or F2, not the app\'s or the architect\'s layers; deletes only an empty layer not current', () => {
     const p = render(rowsOf({}, ['E-LIGHT']));
-    act(() => { name('LV-ANNO').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); });
-    expect(status()).toContain('LV-ANNO is one of the app\'s own layers; it keeps its name.');
+    act(() => { name('GFDE-ANNO').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); });
+    expect(status()).toContain('GFDE-ANNO is one of the app\'s own layers; it keeps its name.');
     click(name('A-WALL'));
     key(name('A-WALL'), 'F2');
     expect(status()).toContain('The architect\'s layers keep their names.');
@@ -77,9 +77,9 @@ describe('Layer palette', () => {
     expect(p.onRename).toHaveBeenCalledWith('E-LIGHT', 'E-LIGHT-SW');
     expect(document.querySelector('[aria-label="Layer name"]')).toBeNull();
     // Delete: an app layer says why not; an empty layer goes.
-    click(name('LV-SKETCH'));
+    click(name('GFDE-SKETCH'));
     act(() => { btn('Delete layer').click(); });
-    expect(status()).toContain('LV-SKETCH is one of the app\'s own layers.');
+    expect(status()).toContain('GFDE-SKETCH is one of the app\'s own layers.');
     expect(p.onDelete).not.toHaveBeenCalled();
     click(name('E-LIGHT'));
     key(name('E-LIGHT'), 'Delete');
@@ -102,10 +102,10 @@ describe('Layer palette', () => {
     const filter = q('[aria-label="Filter layers"]') as HTMLInputElement;
     type(filter, 'A-*');
     expect(names()).toEqual(['A-WALL', 'A-DOOR']);
-    expect(status()).toBe('Current layer: LV-SKETCH · 6 layers · 2 shown by filter');
+    expect(status()).toBe('Current layer: GFDE-SKETCH · 6 layers · 2 shown by filter');
     type(filter, '');
     act(() => { [...document.querySelectorAll<HTMLButtonElement>('[aria-label="Layer filters"] button')].find((b) => b.textContent === 'In use')!.click(); });
-    expect(names()).toEqual(['LV-SKETCH', 'A-WALL', 'A-DOOR']);
+    expect(names()).toEqual(['GFDE-SKETCH', 'A-WALL', 'A-DOOR']);
     act(() => { [...document.querySelectorAll<HTMLButtonElement>('[aria-label="Layer filters"] button')].find((b) => b.textContent === 'All')!.click(); });
     act(() => { name('E-LIGHT').previousElementSibling!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); });
     expect(p.onCurrent).toHaveBeenCalledWith('E-LIGHT');

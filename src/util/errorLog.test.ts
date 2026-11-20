@@ -2,13 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { errorLogText, errorText, logError, readErrorLog, watchForErrors } from './errorLog';
 
-const bridge = window as unknown as { lvds?: unknown };
+const bridge = window as unknown as { gfde?: unknown };
 
 beforeEach(() => localStorage.clear());
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
-  delete bridge.lvds;
+  delete bridge.gfde;
 });
 
 describe('the error log', () => {
@@ -56,11 +56,11 @@ describe('the error log', () => {
   });
 
   it('reads damaged or foreign storage as no entries', () => {
-    localStorage.setItem('lvds.errorLog', '{not json');
+    localStorage.setItem('gfde.errorLog', '{not json');
     expect(readErrorLog()).toEqual([]);
-    localStorage.setItem('lvds.errorLog', '{"a":1}');
+    localStorage.setItem('gfde.errorLog', '{"a":1}');
     expect(readErrorLog()).toEqual([]);
-    localStorage.setItem('lvds.errorLog', '[null,{"message":3},{"message":"good"}]');
+    localStorage.setItem('gfde.errorLog', '[null,{"message":3},{"message":"good"}]');
     expect(readErrorLog().map((e) => e.message)).toEqual(['good']);
   });
 
@@ -73,17 +73,17 @@ describe('the error log', () => {
 
   it('also writes to the desktop app\'s log file, when there is one', async () => {
     const error = vi.fn().mockResolvedValue(true);
-    bridge.lvds = { log: { error } };
+    bridge.gfde = { log: { error } };
     const entry = logError('app', new Error('for the file'));
     expect(error).toHaveBeenCalledWith(errorText(entry));
     expect(errorText(entry)).toContain('(desktop)');
   });
 
   it('does not mind a desktop log that fails or an older desktop build without one', async () => {
-    bridge.lvds = { log: { error: vi.fn().mockRejectedValue(new Error('refused')) } };
+    bridge.gfde = { log: { error: vi.fn().mockRejectedValue(new Error('refused')) } };
     expect(() => logError('app', new Error('file refused'))).not.toThrow();
     await new Promise((r) => { setTimeout(r); }); // a rejection left unhandled would fail this test
-    bridge.lvds = {};
+    bridge.gfde = {};
     expect(() => logError('app', new Error('older build'))).not.toThrow();
     expect(readErrorLog()).toHaveLength(2);
   });
@@ -93,7 +93,7 @@ describe('an entry as text', () => {
   it('has all that is needed to trace it, once', () => {
     const entry = logError('page', new Error('Cable size missing'), '\n    at CableTable');
     const text = errorText(entry);
-    expect(text).toContain(`LV Design Studio ${__APP_VERSION__} (web)`);
+    expect(text).toContain(`GFD Studio E ${__APP_VERSION__} (web)`);
     expect(text).toContain(entry.at);
     expect(text).toContain('page');
     expect(text.match(/Cable size missing/g)).toHaveLength(1); // the stack starts with the message

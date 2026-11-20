@@ -4,12 +4,12 @@
 
 ## Purpose
 
-Add a crawlable, public explanation of LV Design Studio without changing the existing application layout, wording, navigation or interaction flow.
+Add a crawlable, public explanation of GFD Studio E without changing the existing application layout, wording, navigation or interaction flow.
 
 ## Approved approach
 
-- Keep the browser application at `/LV-Design-Suit/`.
-- Add a separate static page at `/LV-Design-Suit/about/`.
+- Keep the browser application at `/GFD-Studio-E/`.
+- Add a separate static page at `/GFD-Studio-E/about/`.
 - Use a neutral black-and-white layout, the existing project icon and no third-party artwork.
 - Explain the project, its main capabilities, local/offline data model, open-source licences and engineering limitations.
 - Link to the browser application, source repository, privacy guidance, calculation methods and architecture page.

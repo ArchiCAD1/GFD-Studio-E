@@ -21,7 +21,7 @@ export function buildLightningWorkbook(project: Project): ExcelJS.Workbook {
   const i: LpsInputs = project.lightning ?? { lengthM: 0, widthM: 0, heightM: 0, method: 'mesh' };
   const r = lightningProtection(i);
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
 
   const inp = wb.addWorksheet('Inputs');
   inp.columns = [{ width: 44 }, { width: 28 }, { width: 10 }];

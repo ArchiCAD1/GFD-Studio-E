@@ -196,7 +196,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
    * schedule in scope (MD forms for MDB / SMDB / MCC / EMCC and circuit
    * schedules for DB / EDB). Every page is stamped with the snapshot ID and app version. */
   async function exportPack() {
-    const toBytes = window.lvds?.files?.pdfBytes;
+    const toBytes = window.gfde?.files?.pdfBytes;
     const snap = run; // frozen here: later edits can't mix into this package
     if (!(await confirmIssues())) return;
     if (!snap || !data || !sections.length) return;
@@ -271,7 +271,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
         blocked={blockedWhy ?? (!sections.length ? 'Choose at least one study on the Studies tab.' : undefined)}>
         <button className="chip" disabled={blocked || !sections.length || !!busy} onClick={exportExcel} title={blockedWhy ?? 'Excel: the result tables of each study (no SLDs, no method text)'}>{busy === 'xlsx' ? 'Exporting…' : 'Excel'}</button>
         <button className="chip" disabled={blocked || !sections.length || !!busy} onClick={exportWord} title={blockedWhy ?? 'Word (.docx): editable report — method, summary and tables (no SLDs)'}>{busy === 'docx' ? 'Exporting…' : 'Word'}</button>
-        <button className="chip" disabled={blocked || !sections.length || !!busy} onClick={exportPack} title={blockedWhy ?? 'One PDF from the last calculation run: cover + project summary + this report with SLDs + every available panel schedule in scope, including MCC and EMCC MD forms; snapshot ID on every page'}>{busy === 'pack' ? 'Building…' : window.lvds?.files?.pdfBytes ? 'Issue package (PDF)' : 'Issue package · desktop app'}</button>
+        <button className="chip" disabled={blocked || !sections.length || !!busy} onClick={exportPack} title={blockedWhy ?? 'One PDF from the last calculation run: cover + project summary + this report with SLDs + every available panel schedule in scope, including MCC and EMCC MD forms; snapshot ID on every page'}>{busy === 'pack' ? 'Building…' : window.gfde?.files?.pdfBytes ? 'Issue package (PDF)' : 'Issue package · desktop app'}</button>
         <button className="chip primary" disabled={blocked || !sections.length || !!busy} onClick={exportPdf} title={blockedWhy ?? `PDF: method, summary and tables of each study${setup.sld ? ', with an SLD of the chosen boards showing its results' : ''}`}>
           {busy === 'pdf' ? 'Exporting…' : setup.separate && sections.length > 1 ? `Export ${sections.length} PDFs` : 'Export PDF'}
         </button>

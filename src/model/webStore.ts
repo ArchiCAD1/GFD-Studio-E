@@ -7,7 +7,10 @@
  * What was already in localStorage is still read, and moves over the next time it is written. The desktop app does
  * not come here: it keeps project files on disk. */
 
-const DB = 'lvds-web', STORE = 'kv';
+import { deletedStorageKey, legacyStorageKey, openExistingDatabase } from './legacyStorage';
+
+const DB = 'gfde-web', STORE = 'kv';
+let legacyOpening: Promise<IDBDatabase | undefined> | undefined;
 
 let opening: Promise<IDBDatabase | undefined> | undefined;
 function db(): Promise<IDBDatabase | undefined> {
@@ -35,26 +38,47 @@ const run = <T,>(d: IDBDatabase, mode: IDBTransactionMode, fn: (s: IDBObjectStor
 /** The text kept under a key, or null. */
 export async function webGet(key: string): Promise<string | null> {
   const d = await db();
+  let deleted = false;
   if (d) {
     const v = await run<unknown>(d, 'readonly', (s) => s.get(key));
     if (typeof v === 'string') return v;
+    if (v === null) deleted = true; // deletion tombstone: never resurrect a legacy copy
   }
-  return localStorage.getItem(key); // kept here before, or no IndexedDB
+  const current = localStorage.getItem(key);
+  if (current !== null) return current;
+  if (deleted) return null;
+  if (localStorage.getItem(deletedStorageKey(key))) return null;
+  const oldKey = legacyStorageKey(key);
+  if (!oldKey) return null;
+  let value = localStorage.getItem(oldKey);
+  const old = await (legacyOpening ??= openExistingDatabase('lvds-web', STORE));
+  if (old) {
+    try { const stored = await run<unknown>(old, 'readonly', (s) => s.get(oldKey)); if (typeof stored === 'string') value = stored; } catch { /* localStorage remains a fallback */ }
+  }
+  if (value !== null && d) {
+    try { await run(d, 'readwrite', (s) => s.put(value, key)); } catch { /* still readable from the original */ }
+  }
+  return value;
 }
 
 /** Keeps a text under a key. Throws when the browser cannot store it (out of space). */
 export async function webSet(key: string, text: string): Promise<void> {
   const d = await db();
-  if (!d) { localStorage.setItem(key, text); return; }
+  if (!d) { localStorage.setItem(key, text); localStorage.removeItem(deletedStorageKey(key)); return; }
   await run(d, 'readwrite', (s) => s.put(text, key));
   localStorage.removeItem(key); // the copy from before, if any: its space is free again
+  localStorage.removeItem(deletedStorageKey(key));
 }
 
 export async function webRemove(key: string): Promise<void> {
   const d = await db();
-  if (d) await run(d, 'readwrite', (s) => s.delete(key));
+  if (d) {
+    if (legacyStorageKey(key)) await run(d, 'readwrite', (s) => s.put(null, key));
+    else await run(d, 'readwrite', (s) => s.delete(key));
+  }
   localStorage.removeItem(key);
+  if (!d && legacyStorageKey(key)) localStorage.setItem(deletedStorageKey(key), '1');
 }
 
 /** Tests: forget the open database. */
-export function resetWebStore(): void { opening = undefined; }
+export function resetWebStore(): void { opening = undefined; legacyOpening = undefined; }

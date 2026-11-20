@@ -103,7 +103,7 @@ export function unpackRevisions<T>(project: T): T {
   const live = rest as Rec;
   const store = revisionStore as Partial<Store> | undefined;
   if (store !== undefined && (!isObj(store) || !Array.isArray(store.items))) throw damaged('its store is not a list');
-  if (store && typeof store.format === 'number' && store.format > FORMAT) throw new Error('This project was saved by a newer version of LV Design Studio. Update the app to read it.');
+  if (store && typeof store.format === 'number' && store.format > FORMAT) throw new Error('This project was saved by a newer version of GFD Studio E. Update the app to read it.');
   const items = store?.items ?? [];
   const itemOf = (n: unknown): unknown => {
     if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n >= items.length) throw damaged('a revision points outside its store');
@@ -111,7 +111,7 @@ export function unpackRevisions<T>(project: T): T {
   };
   const revisions = (live.revisions as unknown[]).map((rev) => {
     if (!isObj(rev) || !isPacked(rev.snapshot)) return rev;
-    if (rev.snapshot.$packed > FORMAT) throw new Error('This project was saved by a newer version of LV Design Studio. Update the app to read it.');
+    if (rev.snapshot.$packed > FORMAT) throw new Error('This project was saved by a newer version of GFD Studio E. Update the app to read it.');
     const snapshot: Rec = {};
     for (const [key, p] of Object.entries(rev.snapshot.sections)) {
       if (!Array.isArray(p)) throw damaged(`section ${key}`);

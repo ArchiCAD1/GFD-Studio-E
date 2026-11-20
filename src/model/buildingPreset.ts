@@ -172,7 +172,7 @@ export interface BuildingPreset {
   bundle: BuildingBundle;
 }
 
-export const BUILDING_PRESETS_KEY = 'lvds.buildingPresets';
+export const BUILDING_PRESETS_KEY = 'gfde.buildingPresets';
 const newId = () => `bp-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 export function presetFromBuilding(info: BuildingInfo, buildingId: string, name: string, opts: BundleOptions & { note?: string }, now = new Date()): BuildingPreset {
@@ -208,7 +208,7 @@ export function presetNameIssue(name: string, list: BuildingPreset[], exceptId?:
 }
 
 export function exportBuildingPresets(list: BuildingPreset[]): string {
-  return JSON.stringify({ kind: 'lvds-building-presets', exportedAt: new Date().toISOString(), presets: list }, null, 2);
+  return JSON.stringify({ kind: 'gfde-building-presets', exportedAt: new Date().toISOString(), presets: list }, null, 2);
 }
 
 /** Reads an exported file; a preset whose id or name is taken comes in as a new copy. */
@@ -234,7 +234,7 @@ export function importBuildingPresets(text: string, existing: BuildingPreset[]):
 
 // ---- Flat / tenant layout library ------------------------------------------------
 
-const UNIT_TYPES_KEY = 'lvds.unitTypes';
+const UNIT_TYPES_KEY = 'gfde.unitTypes';
 const key = (s: string) => s.trim().toLowerCase();
 
 /** Your flat layouts: UnitTypes.xlsx (database), else the copy on this computer. */

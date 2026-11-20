@@ -59,12 +59,12 @@ export default function EngineCompare({ project }: { project: Project }) {
   }
 
   async function choosePython() {
-    await window.lvds.settings.choosePython();
+    await window.gfde.settings.choosePython();
     setProbe(null);
     setProbe(await probeEngines(true));
   }
 
-  const hasBridge = typeof window !== 'undefined' && !!window.lvds;
+  const hasBridge = typeof window !== 'undefined' && !!window.gfde;
 
   return (
     <div className="tw">

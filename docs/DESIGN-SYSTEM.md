@@ -1,6 +1,6 @@
-# Design system — LV Design Studio
+# Design system — GFD Studio E
 
-Tokens live in **`src/theme/tokens.css`** (loaded before `src/styles.css`). Figma mirror: [LV Design Suite — Design System](https://www.figma.com/design/QbuEPgIWcPo129tBQDwjhX); see `FIGMA-INTEGRATION.md`.
+Tokens live in **`src/theme/tokens.css`** (loaded before `src/styles.css`). Figma mirror: [GFD Studio E — Design System](https://www.figma.com/design/QbuEPgIWcPo129tBQDwjhX); see `FIGMA-INTEGRATION.md`.
 
 Principles, for engineering software used for hours at a time:
 
@@ -88,7 +88,7 @@ Figma has matching component sets for Button, Input, Status badge, Tab, Nav item
 
 ## Theme switching
 
-`Preferences → Appearance & saving`: **Colour theme** — Dark (default), Light, Match system — and **Colour palette** — Graphite (default), Blueprint. Stored in `lvds.preferences.app.theme` and `.palette` on this computer. Neither is part of the project file, so sharing a project never changes a colleague's theme.
+`Preferences → Appearance & saving`: **Colour theme** — Dark (default), Light, Match system — and **Colour palette** — Graphite (default), Blueprint. Stored in `gfde.preferences.app.theme` and `.palette` on this computer. Neither is part of the project file, so sharing a project never changes a colleague's theme.
 
 `src/theme/theme.ts` sets `<html data-theme="light">` (dark = no attribute) and `<html data-palette="blueprint">` (Graphite = no attribute). `withPrintTheme()` wraps export code so `printableSvg()` always reads the default Graphite dark palette and maps it to print colours. Exported SVG/PDF/DXF are byte-identical whichever theme is on screen (verified, see `UI-TEST-RESULTS.md`).
 

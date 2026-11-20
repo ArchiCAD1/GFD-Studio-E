@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://pdhruv15.github.io/LV-Design-Studio/sitemap.xml
+Sitemap: https://archicad1.github.io/GFD-Studio-E/sitemap.xml

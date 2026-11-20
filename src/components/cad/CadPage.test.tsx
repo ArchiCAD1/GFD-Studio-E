@@ -60,13 +60,13 @@ const onPrefs = vi.fn((_p: { draft: DraftSettings; autosaveMin: number }) => {})
 const shown = (i: number) => archOnOf(project, state.view!.file, state.view!.info.layers)[i];
 beforeEach(() => {
   host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); project = villa; onChange.mockClear(); onUndo.mockClear();
-  (window as { lvds?: unknown }).lvds = { cadFile: {
-    engine: async () => bytes('electron/cad/lvds_cad_reader_bg.wasm'),
+  (window as { gfde?: unknown }).gfde = { cadFile: {
+    engine: async () => bytes('electron/cad/gfde_cad_reader_bg.wasm'),
     sampleBytes: vi.fn(async (name: string) => ({ file: name, bytes: bytes(`electron/samples/${name}`) })),
     openBytes: vi.fn(async () => ({ file: 'plan.dwg', path: '/plans/plan.dwg', bytes: bytes('tests/fixtures/cad/plan-2018.dwg') }))
   } };
 });
-afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; delete (window as { lvds?: unknown }).lvds; });
+afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; delete (window as { gfde?: unknown }).gfde; });
 
 function Host({ start = villa, show, gripMax, undoLabel }: { start?: Project; show?: (s: CadShow) => void; gripMax?: number; undoLabel?: string }) {
   const cad = useCad('p1');
@@ -309,7 +309,7 @@ describe('CAD view', () => {
 
   it('wires the circuits on the level, takes one off with Wire one, sends the length to the schedule and saves the wiring', async () => {
     const saveBinary = vi.fn(async () => '/plans/out.dxf');
-    (window as unknown as { lvds: { files?: unknown } }).lvds.files = { saveBinary };
+    (window as unknown as { gfde: { files?: unknown } }).gfde.files = { saveBinary };
     const start: Project = {
       ...villa,
       boards: villa.boards.map((b) => (b.id === 'DB-GF1' ? { ...b, planPoint: { x: 1, y: 1 }, level: { building: 'V', level: 'GF' } } : b)),
@@ -345,7 +345,7 @@ describe('CAD view', () => {
 
   it('draws polygons, circles by 2 or 3 points or a diameter, arcs by start, centre and end, ellipses and revision clouds, and saves them as such', async () => {
     const saveBinary = vi.fn(async () => '/plans/out.dxf');
-    (window as unknown as { lvds: { files?: unknown } }).lvds.files = { saveBinary };
+    (window as unknown as { gfde: { files?: unknown } }).gfde.files = { saveBinary };
     const X = 200000;
     act(() => root.render(<Host />));
     await flush();
@@ -357,7 +357,7 @@ describe('CAD view', () => {
     const esc = () => act(() => state.setTool('none'));
     // A hexagon of radius 1000 m round (X, 0): six sides typed first.
     await command('POL'); await command('6'); await at(X, 0); await at(X + 1000, 0);
-    expect(last()).toMatchObject({ kind: 'pline', layer: 'LV-SKETCH', closed: true });
+    expect(last()).toMatchObject({ kind: 'pline', layer: 'GFDE-SKETCH', closed: true });
     expect(last().pts.map(near)).toEqual([[X + 1000, 0], [X + 500, 866.025404], [X - 500, 866.025404], [X - 1000, 0], [X - 500, -866.025404], [X + 500, -866.025404]]);
     // Circles: by the ends of a diameter (2P), by three points (3P), by the centre and a diameter typed (D).
     esc(); await command('C'); await command('2P');
@@ -383,9 +383,9 @@ describe('CAD view', () => {
     await command('A');
     expect(document.querySelector('.cad-hist')?.textContent).toContain('Specify arc length in drawing units');
     await command('500'); await at(X, 21000); await at(X + 3000, 23000);
-    expect(last()).toMatchObject({ kind: 'pline', layer: 'LV-ANNO', closed: true, cloud: 500, pts: [[X, 21000], [X + 3000, 21000], [X + 3000, 23000], [X, 23000]] });
+    expect(last()).toMatchObject({ kind: 'pline', layer: 'GFDE-ANNO', closed: true, cloud: 500, pts: [[X, 21000], [X + 3000, 21000], [X + 3000, 23000], [X, 23000]] });
     esc(); await command('REVCLOUD'); await command('P'); await at(X, 25000); await at(X + 2000, 25000); await at(X + 1000, 27000); await command('');
-    expect(last()).toMatchObject({ kind: 'pline', layer: 'LV-ANNO', closed: true, cloud: 500, pts: [[X, 25000], [X + 2000, 25000], [X + 1000, 27000]] });
+    expect(last()).toMatchObject({ kind: 'pline', layer: 'GFDE-ANNO', closed: true, cloud: 500, pts: [[X, 25000], [X + 2000, 25000], [X + 1000, 27000]] });
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toMatch(/^Revision cloud, arcs [\d.]+ m long · ⌘Z to undo$/);
     // Saved: an ELLIPSE, and the clouds as polylines with their arcs (bulges, group 42).
     esc(); await saveCmd('save');
@@ -397,7 +397,7 @@ describe('CAD view', () => {
 
   it('places an ELV device and saves the drawing as DXF with the devices on their layers', async () => {
     const saveBinary = vi.fn(async () => '/plans/out.dxf');
-    (window as unknown as { lvds: { files?: unknown } }).lvds.files = { saveBinary };
+    (window as unknown as { gfde: { files?: unknown } }).gfde.files = { saveBinary };
     act(() => root.render(<Host />));
     await flush();
     act(() => { state.setDevice('smoke-detector'); state.setTool('dev'); state.toggle('osnap'); });
@@ -420,7 +420,7 @@ describe('CAD view', () => {
     await command('l');
     await clickAt(1000, 1000);
     await clickAt(4000, 1000);
-    expect(sk()[0]).toMatchObject({ kind: 'line', layer: 'LV-SKETCH' });
+    expect(sk()[0]).toMatchObject({ kind: 'line', layer: 'GFDE-SKETCH' });
     expect(sk()[0].pts[1][0] - sk()[0].pts[0][0]).toBeCloseTo(3000, 0);
     await command('@0,2000'); // relative point from the last one
     expect(sk()[1].pts[1][1] - sk()[1].pts[0][1]).toBeCloseTo(2000, 6);
@@ -436,12 +436,12 @@ describe('CAD view', () => {
     await command('t');
     await clickAt(2000, 3000);
     await command('DB ROOM');
-    expect(sk()[4]).toMatchObject({ kind: 'text', text: 'DB ROOM', layer: 'LV-ANNO' });
+    expect(sk()[4]).toMatchObject({ kind: 'text', text: 'DB ROOM', layer: 'GFDE-ANNO' });
     await command('dim');
     await clickAt(1000, 500);
     await clickAt(4000, 500);
     await clickAt(2500, 200);
-    expect(sk()[5]).toMatchObject({ kind: 'dim', layer: 'LV-ANNO' });
+    expect(sk()[5]).toMatchObject({ kind: 'dim', layer: 'GFDE-ANNO' });
     expect(Number(sk()[5].text)).toBeCloseTo(3, 1);
   });
 
@@ -450,7 +450,7 @@ describe('CAD view', () => {
     // "DB ROOM" 250 high (2.5 mm at 1:100, its capitals): 7 letters 0.84 × 250 wide from the left end of its baseline at
     // (X, 0); its middle 3.5 letters in.
     const mid = 3.5 * CHAR_W * 250;
-    const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'T1', kind: 'text', layer: 'LV-ANNO', pts: [[X, 0]], text: 'DB ROOM', h: 250 }] }] };
+    const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'T1', kind: 'text', layer: 'GFDE-ANNO', pts: [[X, 0]], text: 'DB ROOM', h: 250 }] }] };
     act(() => root.render(<Host start={start} />));
     await flush();
     act(() => state.toggle('osnap'));
@@ -491,9 +491,9 @@ describe('CAD view', () => {
     // "SOCKETS" centred on (X, 3000), its left edge 3.5 letters left of it.
     const half = 3.5 * CHAR_W * 250;
     const start: Project = { ...villa, cadSketch: [{ file: F, items: [
-      { id: 'T1', kind: 'text', layer: 'LV-ANNO', pts: [[X, 0]], text: 'db room', h: 250 },
-      { id: 'T2', kind: 'text', layer: 'LV-ANNO', pts: [[X + 400, 1000]], text: 'L1', h: 250 },
-      { id: 'T3', kind: 'text', layer: 'LV-ANNO', pts: [[X, 3000]], text: 'SOCKETS', h: 250, just: 'MC' }
+      { id: 'T1', kind: 'text', layer: 'GFDE-ANNO', pts: [[X, 0]], text: 'db room', h: 250 },
+      { id: 'T2', kind: 'text', layer: 'GFDE-ANNO', pts: [[X + 400, 1000]], text: 'L1', h: 250 },
+      { id: 'T3', kind: 'text', layer: 'GFDE-ANNO', pts: [[X, 3000]], text: 'SOCKETS', h: 250, just: 'MC' }
     ] }] };
     act(() => root.render(<Host start={start} />));
     await flush();
@@ -564,7 +564,7 @@ describe('CAD view', () => {
 
   it('TFRAME and TMASK on the texts picked; TCOUNT places numbered texts, takes one back and renumbers; KEYNOTE bubbles with a legend', async () => {
     const X = 200000, F = 'sample-villa-gf.dxf';
-    const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'T1', kind: 'text', layer: 'LV-ANNO', pts: [[X, 0]], text: 'L1', h: 250 }] }] };
+    const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'T1', kind: 'text', layer: 'GFDE-ANNO', pts: [[X, 0]], text: 'L1', h: 250 }] }] };
     act(() => root.render(<Host start={start} />));
     await flush();
     act(() => state.toggle('osnap'));
@@ -600,7 +600,7 @@ describe('CAD view', () => {
     await clickAt(X + 3000, 5000);
     await clickAt(X + 6000, 5000);
     expect(items().slice(1).map((it) => it.text)).toEqual(['L01', 'L02', 'L03']);
-    expect(items()[1]).toMatchObject({ just: 'MC', layer: 'LV-ANNO', h: 250 });
+    expect(items()[1]).toMatchObject({ just: 'MC', layer: 'GFDE-ANNO', h: 250 });
     expect(items()[1].pts[0][0]).toBeCloseTo(X, 6);
     await command('u');
     expect(items().slice(1).map((it) => it.text)).toEqual(['L01', 'L02']);
@@ -685,7 +685,7 @@ describe('CAD view', () => {
 
   it('saves what was drawn into the DXF', async () => {
     const saveBinary = vi.fn(async () => '/plans/out.dxf');
-    (window as unknown as { lvds: { files?: unknown } }).lvds.files = { saveBinary };
+    (window as unknown as { gfde: { files?: unknown } }).gfde.files = { saveBinary };
     act(() => root.render(<Host />));
     await flush();
     act(() => state.toggle('osnap'));
@@ -695,8 +695,8 @@ describe('CAD view', () => {
     await saveCmd('save');
     await flush();
     const text = new TextDecoder().decode((saveBinary.mock.calls[0] as unknown as [{ bytes: Uint8Array }])[0].bytes);
-    expect(text).toContain('LV-SKETCH');
-    expect(document.querySelector('.cad-hist')?.textContent).toMatch(/1 drawn object on LV-SKETCH \/ LV-ANNO/);
+    expect(text).toContain('GFDE-SKETCH');
+    expect(document.querySelector('.cad-hist')?.textContent).toMatch(/1 drawn object on GFDE-SKETCH \/ GFDE-ANNO/);
   });
 
   it('opens a DWG from the desktop dialog with OPEN', async () => {
@@ -705,7 +705,7 @@ describe('CAD view', () => {
     await command('open');
     await flush();
     expect(state.view?.file).toBe('plan.dwg');
-    expect(localStorage.getItem('lvds.cad.p1')).toBe('/plans/plan.dwg');
+    expect(localStorage.getItem('gfde.cad.p1')).toBe('/plans/plan.dwg');
   });
 
   it('lists the plan of each level; opening one for a level makes the drawing that level\'s plan', async () => {
@@ -793,7 +793,7 @@ describe('CAD view', () => {
 
   it('draws a power tray run without a route, then changes its width and service and saves it into the DXF', async () => {
     const saveBinary = vi.fn(async () => '/plans/out.dxf');
-    (window as unknown as { lvds: { files?: unknown } }).lvds.files = { saveBinary };
+    (window as unknown as { gfde: { files?: unknown } }).gfde.files = { saveBinary };
     act(() => root.render(<Host />));
     await flush();
     act(() => state.toggle('osnap'));
@@ -1027,7 +1027,7 @@ describe('CAD view', () => {
   });
 
   it('edits what was drawn: Trim at a drawn line, Extend to one, Offset by a typed distance, Fillet into a sharp corner', async () => {
-    const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+    const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'GFDE-SKETCH', pts: [a, b] });
     // Well clear of the plan, so only the drawn lines are edges.
     const X = 200000, Y = 0;
     const start: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [
@@ -1063,7 +1063,7 @@ describe('CAD view', () => {
   });
 
   it('picks drawn objects with a window: their toolbar joins them; a grip drag moves an end; mirror keeps the originals', async () => {
-    const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+    const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'GFDE-SKETCH', pts: [a, b] });
     const X = 200000;
     const start: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', [X, 0], [X + 4000, 0]), line('S2', [X + 4000, 0], [X + 4000, 3000])] }] };
     act(() => root.render(<Host start={start} />));
@@ -1076,7 +1076,7 @@ describe('CAD view', () => {
     // The properties palette counts them by kind.
     expect([...document.querySelectorAll('[aria-label="Objects shown"] option')].map((o) => o.textContent)).toEqual(['All (2)', 'Line (2)']);
     await act(async () => { [...bar()!.querySelectorAll('button')].find((b) => b.textContent === 'Join')!.click(); });
-    expect(project.cadSketch![0].items).toEqual([{ id: 'S1', kind: 'pline', layer: 'LV-SKETCH', pts: [[X, 0], [X + 4000, 0], [X + 4000, 3000]] }]);
+    expect(project.cadSketch![0].items).toEqual([{ id: 'S1', kind: 'pline', layer: 'GFDE-SKETCH', pts: [[X, 0], [X + 4000, 0], [X + 4000, 3000]] }]);
     await clickAt(X + 2000, 0); // select it: its grips show
     expect(bar()!.textContent).toMatch(/^Polyline · 7\.00 m/);
     const [gx, gy] = screenOf(X + 4000, 3000), [tx, ty] = screenOf(X + 4000, 5000);
@@ -1100,7 +1100,7 @@ describe('CAD view', () => {
   });
 
   it('grips on every drawn object picked: dragging one of the second object edits that object; past the limit there are none', async () => {
-    const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+    const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'GFDE-SKETCH', pts: [a, b] });
     const X = 200000;
     const start: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', [X, 0], [X + 4000, 0]), line('S2', [X, 3000], [X + 4000, 3000])] }] };
     const dragGrip = async (from: [number, number], to: [number, number]) => {
@@ -1135,7 +1135,7 @@ describe('CAD view', () => {
   it('layer manager: a drawn layer locked cannot be picked; properties of an object and Match properties', async () => {
     const line = (id: string, layer: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer, pts: [a, b] });
     const X = 200000;
-    const start: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', 'LV-SKETCH', [X, 0], [X + 4000, 0]), line('S2', 'LV-ANNO', [X, 2000], [X + 4000, 2000])] }] };
+    const start: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', 'GFDE-SKETCH', [X, 0], [X + 4000, 0]), line('S2', 'GFDE-ANNO', [X, 2000], [X + 4000, 2000])] }] };
     act(() => root.render(<Host start={start} />));
     await flush();
     act(() => state.toggle('osnap'));
@@ -1146,24 +1146,24 @@ describe('CAD view', () => {
     await command('LM');
     // The layer palette docks beside the drawing: one table, drawn layers first.
     await until(() => !!document.querySelector('[aria-label="Layer palette"]'));
-    expect(document.querySelector('[aria-label="Layers"]')!.textContent).toMatch(/^NameOnFrLkColourLinetypeWeightPr#Drawn in the appLV-SKETCH/);
-    expect(document.querySelector('[aria-label="Layer palette"] [role="status"]')!.textContent).toMatch(/^Current layer: LV-SKETCH · \d+ layers$/);
-    act(() => { (document.querySelector('[aria-label="LV-ANNO locked"]') as HTMLButtonElement).click(); });
-    act(() => { (document.querySelector('[aria-label="LV-SKETCH linetype"]') as HTMLButtonElement).click(); });
-    act(() => { [...document.querySelectorAll<HTMLButtonElement>('[aria-label="LV-SKETCH linetype list"] [role="option"]')].find((b) => b.textContent === 'Dashed')!.click(); });
-    expect(project.cadLayerStyle).toEqual({ 'sample-villa-gf.dxf': { 'LV-ANNO': { lock: true }, 'LV-SKETCH': { lt: 'dashed' } } });
+    expect(document.querySelector('[aria-label="Layers"]')!.textContent).toMatch(/^NameOnFrLkColourLinetypeWeightPr#Drawn in the appGFDE-SKETCH/);
+    expect(document.querySelector('[aria-label="Layer palette"] [role="status"]')!.textContent).toMatch(/^Current layer: GFDE-SKETCH · \d+ layers$/);
+    act(() => { (document.querySelector('[aria-label="GFDE-ANNO locked"]') as HTMLButtonElement).click(); });
+    act(() => { (document.querySelector('[aria-label="GFDE-SKETCH linetype"]') as HTMLButtonElement).click(); });
+    act(() => { [...document.querySelectorAll<HTMLButtonElement>('[aria-label="GFDE-SKETCH linetype list"] [role="option"]')].find((b) => b.textContent === 'Dashed')!.click(); });
+    expect(project.cadLayerStyle).toEqual({ 'sample-villa-gf.dxf': { 'GFDE-ANNO': { lock: true }, 'GFDE-SKETCH': { lt: 'dashed' } } });
     // Index colour by number: open the colour cell, type 8, Enter.
-    act(() => { (document.querySelector('[aria-label="LV-SKETCH colour"]') as HTMLButtonElement).click(); });
-    const num = document.querySelector('[aria-label="LV-SKETCH colour index number"]') as HTMLInputElement;
+    act(() => { (document.querySelector('[aria-label="GFDE-SKETCH colour"]') as HTMLButtonElement).click(); });
+    const num = document.querySelector('[aria-label="GFDE-SKETCH colour index number"]') as HTMLInputElement;
     act(() => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(num, '8'); num.dispatchEvent(new Event('input', { bubbles: true })); });
     act(() => { num.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
-    expect(project.cadLayerStyle!['sample-villa-gf.dxf']['LV-SKETCH']).toEqual({ lt: 'dashed', color: 'idx:8' });
-    expect(document.querySelector('[aria-label="LV-SKETCH colour"]')!.textContent).toBe('Grey (8)');
+    expect(project.cadLayerStyle!['sample-villa-gf.dxf']['GFDE-SKETCH']).toEqual({ lt: 'dashed', color: 'idx:8' });
+    expect(document.querySelector('[aria-label="GFDE-SKETCH colour"]')!.textContent).toBe('Grey (8)');
     // And from the grid: colour 130, applied with OK.
-    act(() => { (document.querySelector('[aria-label="LV-SKETCH colour"]') as HTMLButtonElement).click(); });
+    act(() => { (document.querySelector('[aria-label="GFDE-SKETCH colour"]') as HTMLButtonElement).click(); });
     act(() => { (document.querySelector('[role="dialog"] [aria-label="Colour 130"]') as HTMLButtonElement).click(); });
     act(() => { [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find((b) => b.textContent === 'OK')!.click(); });
-    expect(project.cadLayerStyle!['sample-villa-gf.dxf']['LV-SKETCH'].color).toBe('idx:130');
+    expect(project.cadLayerStyle!['sample-villa-gf.dxf']['GFDE-SKETCH'].color).toBe('idx:130');
     act(() => { (document.querySelector('[aria-label="Close the layer palette"]') as HTMLButtonElement).click(); });
     expect(document.querySelector('[aria-label="Layer palette"]')).toBeNull();
     await clickAt(X + 2000, 2000); // on the locked layer: not picked
@@ -1177,13 +1177,13 @@ describe('CAD view', () => {
     pick('Object lineweight', '0.5');
     expect(project.cadSketch![0].items[0]).toMatchObject({ color: '#ff3b30', lw: 0.5 });
     await command('LM');
-    act(() => { (document.querySelector('[aria-label="LV-ANNO locked"]') as HTMLButtonElement).click(); });
+    act(() => { (document.querySelector('[aria-label="GFDE-ANNO locked"]') as HTMLButtonElement).click(); });
     await command('LM'); // LM again closes it
     expect(document.querySelector('[aria-label="Layer palette"]')).toBeNull();
     await command('MP');
     await clickAt(X + 2000, 0);
     await clickAt(X + 2000, 2000);
-    expect(project.cadSketch![0].items[1]).toMatchObject({ layer: 'LV-SKETCH', color: '#ff3b30', lw: 0.5 });
+    expect(project.cadSketch![0].items[1]).toMatchObject({ layer: 'GFDE-SKETCH', color: '#ff3b30', lw: 0.5 });
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toBe('MATCHPROP  Properties copied to the line · ⌘Z to undo');
   });
 
@@ -1196,8 +1196,8 @@ describe('CAD view', () => {
     const last = () => onChange.mock.calls[onChange.mock.calls.length - 1][1];
     const said = () => document.querySelector('.cad-hist')!.textContent;
     // The ribbon is told the drawn layers, the current one and the properties of new objects.
-    expect(state.ribbonInfo).toMatchObject({ current: 'LV-SKETCH', picked: 0, props: {} });
-    expect(state.ribbonInfo!.layers.map((l) => l.name)).toEqual(expect.arrayContaining(['LV-SKETCH', 'E-LIGHT']));
+    expect(state.ribbonInfo).toMatchObject({ current: 'GFDE-SKETCH', picked: 0, props: {} });
+    expect(state.ribbonInfo!.layers.map((l) => l.name)).toEqual(expect.arrayContaining(['GFDE-SKETCH', 'E-LIGHT']));
     expect(state.ribbonInfo!.layers.map((l) => l.name)).not.toContain('A-WALL'); // the architect's cannot be current
     await command('LAYOFF');
     expect(said()).toBe('LAYOFF  Pick an object on the layer first, then LAYOFF.');
@@ -1212,7 +1212,7 @@ describe('CAD view', () => {
     expect(project.cadLayerFile).toEqual({ [F]: { current: 'E-LIGHT' } });
     await command('LAYFRZ');
     expect(said()).toBe('LAYFRZ  Nothing to change (E-LIGHT is the current layer: not frozen).');
-    await command('CLAYER LV-SKETCH');
+    await command('CLAYER GFDE-SKETCH');
     await command('LAYFRZ');
     expect(last()).toBe('LAYFRZ  Layer E-LIGHT frozen · ⌘Z to undo');
     expect(state.selected).toBeNull(); // out of sight: no longer picked
@@ -1235,7 +1235,7 @@ describe('CAD view', () => {
     await command('');
     act(() => state.setTool('none'));
     const items = () => project.cadSketch![0].items;
-    expect(items()[1]).toMatchObject({ kind: 'line', layer: 'LV-SKETCH', lw: 0.5 });
+    expect(items()[1]).toMatchObject({ kind: 'line', layer: 'GFDE-SKETCH', lw: 0.5 });
     // Objects picked: the same list changes them, and the ribbon shows theirs.
     await clickAt(X + 1500, 1000);
     expect(state.ribbonInfo).toMatchObject({ picked: 1, props: { lw: 0.5 } });
@@ -1274,7 +1274,7 @@ describe('CAD view', () => {
     expect(document.querySelector('[aria-label="Layer palette"] [role="status"]')!.textContent).toMatch(/^Current layer: E-LIGHT · \d+ layers$/);
     act(() => { (document.querySelector('[aria-label="E-LIGHT frozen"]') as HTMLButtonElement).click(); });
     expect(document.querySelector('[aria-label="Layer palette"] [role="status"]')!.textContent).toContain('E-LIGHT is the current layer; it cannot be frozen.');
-    await command('CLAYER LV-SKETCH');
+    await command('CLAYER GFDE-SKETCH');
     expect(project.cadLayerFile).toBeUndefined();
     act(() => { (document.querySelector('[aria-label="E-LIGHT frozen"]') as HTMLButtonElement).click(); });
     expect(project.cadLayerStyle).toEqual({ [F]: { 'E-LIGHT': { freeze: true } } });
@@ -1287,7 +1287,7 @@ describe('CAD view', () => {
     await command('LAYISO');
     expect(last()).toMatch(/^LAYISO {2}E-LIGHT kept on, \d+ other layers off \(LAYUNISO puts them back\) · ⌘Z to undo$/);
     expect(shown(wall)).toBe(0);
-    expect(project.cadLayerStyle![F]['LV-SKETCH']).toEqual({ hidden: true });
+    expect(project.cadLayerStyle![F]['GFDE-SKETCH']).toEqual({ hidden: true });
     await command('LAYUNISO');
     expect(shown(wall)).toBe(1);
     expect(project.cadLayerStyle).toBeUndefined();
@@ -1319,7 +1319,7 @@ describe('CAD view', () => {
 
   it('properties palette: shown with a drawing open, defaults with nothing picked, geometry of a line edited in one undo step; Ctrl/Cmd+1 hides it', async () => {
     const X = 200000, F = 'sample-villa-gf.dxf';
-    const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[X, 0], [X + 4000, 0]] }] }] };
+    const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'S1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X, 0], [X + 4000, 0]] }] }] };
     act(() => root.render(<Host start={start} />));
     await flush();
     act(() => state.toggle('osnap'));
@@ -1337,7 +1337,7 @@ describe('CAD view', () => {
     act(() => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, String((X + 6000) / 1000)); input.dispatchEvent(new Event('input', { bubbles: true })); });
     act(() => { input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
     expect(onChange.mock.calls.length).toBe(calls + 1);
-    expect(project.cadSketch![0].items[0]).toEqual({ id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[X, 0], [X + 6000, 0]] });
+    expect(project.cadSketch![0].items[0]).toEqual({ id: 'S1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X, 0], [X + 6000, 0]] });
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toBe(`Line: end x ${((X + 6000) / 1000).toFixed(2)} · ⌘Z to undo`);
     // Ctrl/Cmd+1 hides and shows it.
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '1', metaKey: true, bubbles: true })); });
@@ -1348,7 +1348,7 @@ describe('CAD view', () => {
 
   it('hatches a closed object, adds a leader with its text, a room tag and a north arrow', async () => {
     const X = 200000;
-    const start: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [{ id: 'S1', kind: 'pline', layer: 'LV-SKETCH', closed: true, pts: [[X, 0], [X + 4000, 0], [X + 4000, 3000], [X, 3000]] }] }] };
+    const start: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [{ id: 'S1', kind: 'pline', layer: 'GFDE-SKETCH', closed: true, pts: [[X, 0], [X + 4000, 0], [X + 4000, 3000], [X, 3000]] }] }] };
     act(() => root.render(<Host start={start} />));
     await flush();
     act(() => state.toggle('osnap'));
@@ -1357,7 +1357,7 @@ describe('CAD view', () => {
     await command('H');
     expect(document.body.textContent).toContain('Hatch H');
     await clickAt(X + 1000, 1000);
-    expect(items()[1]).toEqual({ id: 'S2', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: items()[0].pts, hatch: { pattern: 'ansi31', scale: 3, angle: 0 }, assoc: ['S1'] });
+    expect(items()[1]).toEqual({ id: 'S2', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: items()[0].pts, hatch: { pattern: 'ansi31', scale: 3, angle: 0 }, assoc: ['S1'] });
     expect(last()).toBe('Hatch ANSI31, 12.00 m² · associative · ⌘Z to undo');
     await command('LE');
     await clickAt(X + 2000, 1500);
@@ -1392,7 +1392,7 @@ describe('CAD view', () => {
 
   it('saves the drawing as DWG with what was drawn, and the DWG opens again with it', async () => {
     const saveBinary = vi.fn(async () => '/plans/out.dwg');
-    (window as unknown as { lvds: { files?: unknown } }).lvds.files = { saveBinary };
+    (window as unknown as { gfde: { files?: unknown } }).gfde.files = { saveBinary };
     act(() => root.render(<Host />));
     await flush();
     act(() => state.toggle('osnap'));
@@ -1406,7 +1406,7 @@ describe('CAD view', () => {
     expect(new TextDecoder().decode(call.bytes.slice(0, 4))).toBe('AC10');
     const back = await openDrawing('out.dwg', call.bytes);
     expect(back.info.format).toBe('DWG');
-    expect(back.info.layers.some((l) => l.name === 'LV-SKETCH' && l.count === 4)).toBe(true); // the rectangle drawn
+    expect(back.info.layers.some((l) => l.name === 'GFDE-SKETCH' && l.count === 4)).toBe(true); // the rectangle drawn
     expect(back.info.segments).toBe(state.view!.info.segments + 4);
   });
 });
@@ -1422,7 +1422,7 @@ describe('file tabs', () => {
   const menu = () => document.querySelector('.cad-tab-menu');
   const hist = () => document.querySelector('.cad-hist')?.textContent;
   const GF = 'sample-villa-gf.dxf', FF = 'sample-villa-ff.dxf';
-  const sampleReads = () => (window.lvds!.cadFile!.sampleBytes as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+  const sampleReads = () => (window.gfde!.cadFile!.sampleBytes as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
   const twoPlans: Project = {
     ...villa,
     building: { ...villa.building!, buildings: [{ id: 'V', name: 'Villa', levels: [{ id: 'GF', name: 'Ground', kind: 'ground', heightM: 4 }, { id: 'FF', name: 'First', kind: 'typical', heightM: 4 }] }] },
@@ -1466,7 +1466,7 @@ describe('file tabs', () => {
   });
 
   it('× closes a drawing, showing the next; the last leaves the page that offers to open one, with Reopen', async () => {
-    (window.lvds!.cadFile as { readBytes?: unknown }).readBytes = vi.fn(async (p: string) => ({ file: 'plan.dwg', path: p, bytes: bytes('tests/fixtures/cad/plan-2018.dwg') }));
+    (window.gfde!.cadFile as { readBytes?: unknown }).readBytes = vi.fn(async (p: string) => ({ file: 'plan.dwg', path: p, bytes: bytes('tests/fixtures/cad/plan-2018.dwg') }));
     act(() => root.render(<Host />));
     await flush();
     await openAnother();
@@ -1743,10 +1743,10 @@ describe('file tabs', () => {
   it('References: attaches a drawing under the plan, lists it, turns its layers off, clips, binds and detaches it', async () => {
     act(() => root.render(<Host />));
     await flush();
-    const lvds = (window as unknown as { lvds: { cadFile: { openBytes: ReturnType<typeof vi.fn> }; files?: unknown } }).lvds;
-    lvds.cadFile.openBytes.mockResolvedValueOnce({ file: 'STR-GF.dxf', path: '/refs/STR-GF.dxf', bytes: bytes('electron/samples/sample-villa-ff.dxf') });
+    const gfde = (window as unknown as { gfde: { cadFile: { openBytes: ReturnType<typeof vi.fn> }; files?: unknown } }).gfde;
+    gfde.cadFile.openBytes.mockResolvedValueOnce({ file: 'STR-GF.dxf', path: '/refs/STR-GF.dxf', bytes: bytes('electron/samples/sample-villa-ff.dxf') });
     const saveBinary = vi.fn(async () => '/plans/out.dxf');
-    lvds.files = { saveBinary };
+    gfde.files = { saveBinary };
     const last = () => onChange.mock.calls[onChange.mock.calls.length - 1][1];
     const refs = () => project.cadRefs?.['sample-villa-gf.dxf'] ?? [];
     await command('XA');
@@ -1799,7 +1799,7 @@ describe('file tabs', () => {
   it('References: one named inside the opened drawing is looked for beside the plan and shown; one detached is not looked for again', async () => {
     act(() => root.render(<Host />));
     await flush();
-    const cadFile = (window as unknown as { lvds: { cadFile: { openBytes: ReturnType<typeof vi.fn>; readBytes?: unknown } } }).lvds.cadFile;
+    const cadFile = (window as unknown as { gfde: { cadFile: { openBytes: ReturnType<typeof vi.fn>; readBytes?: unknown } } }).gfde.cadFile;
     cadFile.openBytes.mockResolvedValueOnce({ file: 'GF.dxf', path: '/jobs/A/Arch/GF.dxf', bytes: bytes('tests/fixtures/cad/xref-host.dxf') });
     const readBytes = vi.fn(async (p: string) => (p === '/jobs/A/Structure/STR-GF.dxf' ? { file: 'STR-GF.dxf', path: p, bytes: bytes('electron/samples/sample-villa-ff.dxf') } : null));
     cadFile.readBytes = readBytes;
@@ -1811,18 +1811,18 @@ describe('file tabs', () => {
     const refs = () => project.cadRefs?.['gf.dxf'] ?? [];
     expect(refs()).toEqual([expect.objectContaining({ name: 'STR-GF', file: 'STR-GF.dxf', type: 'overlay', at: [500, 0], found: true })]);
     expect(onChange.mock.calls[onChange.mock.calls.length - 1][1]).toBe('XREF  Found inside GF.dxf and shown under it: STR-GF (/jobs/A/Structure/STR-GF.dxf) · ⌘Z to undo');
-    expect(localStorage.getItem('lvds.cad.paths.p1')).toContain('/jobs/A/Structure/STR-GF.dxf');
+    expect(localStorage.getItem('gfde.cad.paths.p1')).toContain('/jobs/A/Structure/STR-GF.dxf');
     await command('XR');
     expect(document.querySelector('[aria-label="References"]')!.textContent).toMatch(/STR-GFLoaded/);
     act(() => button('Detach').click());
     expect(refs()).toEqual([]);
-    expect(JSON.parse(localStorage.getItem('lvds.cad.refsOff.p1.gf.dxf')!)).toEqual(['STR-GF']);
+    expect(JSON.parse(localStorage.getItem('gfde.cad.refsOff.p1.gf.dxf')!)).toEqual(['STR-GF']);
   });
 
   it('References: one named inside the opened drawing and not found says so', async () => {
     act(() => root.render(<Host />));
     await flush();
-    const cadFile = (window as unknown as { lvds: { cadFile: { openBytes: ReturnType<typeof vi.fn>; readBytes?: unknown } } }).lvds.cadFile;
+    const cadFile = (window as unknown as { gfde: { cadFile: { openBytes: ReturnType<typeof vi.fn>; readBytes?: unknown } } }).gfde.cadFile;
     cadFile.openBytes.mockResolvedValueOnce({ file: 'GF.dxf', path: '/jobs/A/Arch/GF.dxf', bytes: bytes('tests/fixtures/cad/xref-host.dxf') });
     cadFile.readBytes = vi.fn(async () => null);
     await command('open');
@@ -2134,7 +2134,7 @@ describe('file tabs', () => {
   });
 
   it('Layouts made with +: VPORTS 4, VPFIT, VPSCALE, Page setup (paper and orientation), Save as template and New layout from it', async () => {
-    localStorage.removeItem('lvds.layoutTemplates');
+    localStorage.removeItem('gfde.layoutTemplates');
     act(() => root.render(<Host start={{ ...villa, building: undefined }} />));
     await flush();
     const v = await openDrawing('paper-layouts.dxf', bytes('tests/fixtures/cad/paper-layouts.dxf'));
@@ -2174,7 +2174,7 @@ describe('file tabs', () => {
     await command('LAYOUT S');
     setField('Template name', 'My A1 portrait');
     act(() => button('Save as template').click());
-    expect(JSON.parse(localStorage.getItem('lvds.layoutTemplates')!).map((t: { name: string; paper: number[] }) => [t.name, t.paper])).toEqual([['My A1 portrait', [594, 841]]]);
+    expect(JSON.parse(localStorage.getItem('gfde.layoutTemplates')!).map((t: { name: string; paper: number[] }) => [t.name, t.paper])).toEqual([['My A1 portrait', [594, 841]]]);
     act(() => button('Close').click());
     await command('LAYOUT T');
     act(() => button('New layout').click());
@@ -2503,10 +2503,10 @@ describe('file tabs', () => {
   });
 
   it('LAYOUT I: the layouts of another drawing, picked in a dialog, are added to this one; a name taken becomes the next LayoutN; the other drawing is closed', async () => {
-    localStorage.removeItem('lvds.layoutTemplates');
+    localStorage.removeItem('gfde.layoutTemplates');
     act(() => root.render(<Host start={{ ...villa, building: undefined }} />));
     await flush();
-    const cadFile = (window as unknown as { lvds: { cadFile: { openBytes: ReturnType<typeof vi.fn> } } }).lvds.cadFile;
+    const cadFile = (window as unknown as { gfde: { cadFile: { openBytes: ReturnType<typeof vi.fn> } } }).gfde.cadFile;
     const other = () => cadFile.openBytes.mockResolvedValueOnce({ file: 'paper-layouts.dxf', path: '/jobs/paper-layouts.dxf', bytes: bytes('tests/fixtures/cad/paper-layouts.dxf') });
     const key = state.view!.file.toLowerCase(), mine = () => project.cadLayouts![key];
     const ltabs = () => [...document.querySelectorAll('[aria-label="Model and layouts"] [role="tab"]')].map((t) => t.textContent);
@@ -2536,7 +2536,7 @@ describe('file tabs', () => {
     expect(mine()[0].viewports).toHaveLength(1);
     expect(lastMsg()).toBe('LAYOUT  1 layout from paper-layouts.dxf: Layout2 · ⌘Z to undo');
     expect(state.layout).toBe('dwg:Layout2');
-    expect(localStorage.getItem('lvds.layoutTemplates')).toBeNull(); // not kept as a template
+    expect(localStorage.getItem('gfde.layoutTemplates')).toBeNull(); // not kept as a template
     // Again, both, and kept as templates too.
     other();
     await command('LAYOUT I');
@@ -2546,7 +2546,7 @@ describe('file tabs', () => {
     expect(ltabs()).toEqual(['Model', 'Layout1', 'Layout2', 'Layout3', 'A1 Lighting']);
     expect(lastMsg()).toBe('LAYOUT  2 layouts from paper-layouts.dxf: Layout3, A1 Lighting · ⌘Z to undo');
     expect(mine()[2]).toMatchObject({ name: 'A1 Lighting', paper: [841, 594] });
-    expect(JSON.parse(localStorage.getItem('lvds.layoutTemplates')!).map((t: { name: string }) => t.name).sort()).toEqual(['A1 Lighting', 'Layout1']);
+    expect(JSON.parse(localStorage.getItem('gfde.layoutTemplates')!).map((t: { name: string }) => t.name).sort()).toEqual(['A1 Lighting', 'Layout1']);
     // The tab menu and the paper's menu offer it too.
     act(() => [...document.querySelectorAll<HTMLButtonElement>('.cad-ltab')].find((b) => b.textContent === 'Model')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 50, clientY: 500 })));
     expect([...document.querySelectorAll('[role="menuitem"]')].map((b) => b.firstChild?.textContent?.trim()).slice(0, 3)).toEqual(['New layout', 'From template…', 'From another drawing…']);
@@ -2583,8 +2583,8 @@ describe('file tabs', () => {
     expect(overlay()!.querySelectorAll('.drawn path')).toHaveLength(1);
     // The plot carries the same design.
     const pdfBytes = vi.fn(async (_a: { html: string; cssPages?: boolean }) => new Uint8Array([37, 80, 68, 70]));
-    const lvds = (window as unknown as { lvds: { files?: unknown } }).lvds;
-    lvds.files = { pdfBytes, saveBinary: vi.fn(async () => '/out/Layout2.pdf') };
+    const gfde = (window as unknown as { gfde: { files?: unknown } }).gfde;
+    gfde.files = { pdfBytes, saveBinary: vi.fn(async () => '/out/Layout2.pdf') };
     await command('PLOT');
     act(() => button('Plot PDF').click());
     await until(() => pdfBytes.mock.calls.length === 1);
@@ -2655,7 +2655,7 @@ describe('CAD page actions from the ribbon', () => {
 });
 
 describe('CAD command line', () => {
-  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'GFDE-SKETCH', pts: [a, b] });
   const X = 200000;
   const two: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', [X, 0], [X + 4000, 0]), line('S2', [X + 6000, 1000], [X + 6000, 5000])] }] };
   const hist = () => document.querySelector('.cad-hist')!.textContent;
@@ -2725,7 +2725,7 @@ describe('CAD command line', () => {
     await clickAt(X + 2000, 0);
     expect(hist()).toBe('OFFSET  Specify through point:');
     await clickAt(X + 1000, 750);
-    expect(items()[1].layer).toBe('LV-SKETCH');
+    expect(items()[1].layer).toBe('GFDE-SKETCH');
     expect(items()[1].pts.flat().map((v) => Math.round(v))).toEqual([X, 750, X + 4000, 750]);
     expect(last()).toBe('OFFSET  Line copied 0.75 m to the side (through the point) · ⌘Z to undo');
   });
@@ -2972,7 +2972,7 @@ describe('CAD command line', () => {
     expect(hist()).toBe('DIMCONTINUE  No dimension on this drawing to go on from: draw one first (DIM or DLI).');
     await command('DLI');
     await clickAt(X, 10000); await clickAt(X + 3000, 11000); await clickAt(X + 1500, 13000);
-    expect(items()[2]).toMatchObject({ kind: 'dim', layer: 'LV-ANNO', dir: 0, text: '3.00' });
+    expect(items()[2]).toMatchObject({ kind: 'dim', layer: 'GFDE-ANNO', dir: 0, text: '3.00' });
     expect(last()).toContain('Linear dimension');
     expect(dimMeasure(items()[2])).toBeCloseTo(3000, 3);
     await command('DCO');
@@ -3021,7 +3021,7 @@ describe('CAD command line', () => {
   });
 
   it('edit dialogs come back in view when the place they kept is off the window', async () => {
-    localStorage.setItem('lvds.cad.dlg.scale', JSON.stringify({ left: 5000, top: -40 }));
+    localStorage.setItem('gfde.cad.dlg.scale', JSON.stringify({ left: 5000, top: -40 }));
     await start();
     await command('SC');
     const d = document.querySelector('[role="dialog"][aria-label="Scale"]') as HTMLElement;
@@ -3229,7 +3229,7 @@ describe('Design CAD File: Save, Save As, Close and Drafting settings', () => {
   it('Save the first time is Save As (name, format and version); after that Save writes over that copy, keeping a .bak', async () => {
     const saveBinary = vi.fn(async () => '/plans/villa-copy.dxf');
     const overwriteBinary = vi.fn(async ({ file }: { file: string }) => file);
-    (window as unknown as { lvds: { files?: unknown } }).lvds.files = { saveBinary, overwriteBinary };
+    (window as unknown as { gfde: { files?: unknown } }).gfde.files = { saveBinary, overwriteBinary };
     act(() => root.render(<Host />));
     await flush();
     act(() => state.toggle('osnap'));
@@ -3320,7 +3320,7 @@ describe('Design CAD File: Save, Save As, Close and Drafting settings', () => {
 
   it('WBLOCK saves the objects picked as a DXF of their own; with none picked it says what to do', async () => {
     const saveBinary = vi.fn(async () => '/plans/objects.dxf');
-    (window as unknown as { lvds: { files?: unknown } }).lvds.files = { saveBinary };
+    (window as unknown as { gfde: { files?: unknown } }).gfde.files = { saveBinary };
     act(() => root.render(<Host />));
     await flush();
     await command('WBLOCK');
@@ -3337,7 +3337,7 @@ describe('Design CAD File: Save, Save As, Close and Drafting settings', () => {
     const out = (saveBinary.mock.calls[0] as unknown as [{ defaultName: string; bytes: Uint8Array }])[0];
     expect(out.defaultName).toBe('sample-villa-gf - objects.dxf');
     const back = await openDrawing('objects.dxf', out.bytes);
-    expect(back.info.layers.find((l) => l.name === 'LV-SKETCH')?.count).toBe(4);
+    expect(back.info.layers.find((l) => l.name === 'GFDE-SKETCH')?.count).toBe(4);
     expect(back.info.segments).toBe(4);
   });
 });
@@ -3384,7 +3384,7 @@ describe('Design CAD properties dock', () => {
     press('Dock on the right');
     expect(document.querySelector('.cad-work')!.lastElementChild).toBe(dock());
     expect(document.querySelector('.cad-work')!.firstElementChild).toBe(info()); // the drawing column swaps over
-    expect(JSON.parse(localStorage.getItem('lvds.cad.dock')!)).toMatchObject({ side: 'right' });
+    expect(JSON.parse(localStorage.getItem('gfde.cad.dock')!)).toMatchObject({ side: 'right' });
     act(() => root.unmount());
     root = createRoot(host);
     act(() => root.render(<Host />));
@@ -3434,7 +3434,7 @@ describe('title block drawing (Project → Title block → Edit in CAD)', () => 
 describe('clipboard of drawn objects', () => {
   const GF = 'sample-villa-gf.dxf', X = 200000;
   const start: Project = { ...villa, cadSketch: [{ file: GF, items: [
-    { id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[X, 0], [X + 4000, 0]] },
+    { id: 'S1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X, 0], [X + 4000, 0]] },
     { id: 'S2', kind: 'circle', layer: 'E-POWER', pts: [[X + 2000, 1000]], r: 500 }
   ] }], cadLayerStyle: { [GF]: { 'E-POWER': { color: '1', lw: 0.35 } } } };
   const key = (k: string, mods: KeyboardEventInit = {}, on: Element = document.body) => act(() => { on.dispatchEvent(new KeyboardEvent('keydown', { key: k, ctrlKey: true, bubbles: true, cancelable: true, ...mods })); });
@@ -3561,11 +3561,11 @@ describe('CAD 2D gap plan: zoom, quick select and radial / angular dimensions', 
 
   it('QSELECT picks drawn objects by kind, layer and a measure through its dialog; SELECTSIMILAR those like the ones picked', async () => {
     const start: Project = { ...villa, cadSketch: [{ file: F, items: [
-      { id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[X, 0], [X + 1000, 0]] },
-      { id: 'S2', kind: 'line', layer: 'LV-SKETCH', pts: [[X, 500], [X + 2000, 500]] },
-      { id: 'S3', kind: 'line', layer: 'LV-ANNO', pts: [[X, 1000], [X + 1000, 1000]] },
-      { id: 'C1', kind: 'circle', layer: 'LV-SKETCH', pts: [[X + 5000, 0]], r: 300 },
-      { id: 'T1', kind: 'text', layer: 'LV-ANNO', pts: [[X, 3000]], text: 'DB-1', h: 250 }
+      { id: 'S1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X, 0], [X + 1000, 0]] },
+      { id: 'S2', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X, 500], [X + 2000, 500]] },
+      { id: 'S3', kind: 'line', layer: 'GFDE-ANNO', pts: [[X, 1000], [X + 1000, 1000]] },
+      { id: 'C1', kind: 'circle', layer: 'GFDE-SKETCH', pts: [[X + 5000, 0]], r: 300 },
+      { id: 'T1', kind: 'text', layer: 'GFDE-ANNO', pts: [[X, 3000]], text: 'DB-1', h: 250 }
     ] }] };
     act(() => root.render(<Host start={start} />));
     await flush();
@@ -3575,8 +3575,8 @@ describe('CAD 2D gap plan: zoom, quick select and radial / angular dimensions', 
     expect([...document.querySelectorAll('[aria-label="Object type"] option')].map((o) => o.textContent)).toEqual(['Multiple (5)', 'Line (3)', 'Circle (1)', 'Text (1)']);
     setSelect('Object type', 'Line');
     expect([...document.querySelectorAll('[aria-label="Property"] option')].map((o) => o.textContent)).toEqual(['Layer', 'Colour', 'Linetype', 'Lineweight', 'Start X', 'Start Y', 'End X', 'End Y', 'Length', 'Angle']);
-    expect([...document.querySelectorAll('[aria-label="Value"] option')].map((o) => o.textContent)).toEqual(['LV-ANNO', 'LV-SKETCH']);
-    setSelect('Value', 'LV-SKETCH');
+    expect([...document.querySelectorAll('[aria-label="Value"] option')].map((o) => o.textContent)).toEqual(['GFDE-ANNO', 'GFDE-SKETCH']);
+    setSelect('Value', 'GFDE-SKETCH');
     expect(document.querySelector('.cad-dlg-ft .m')!.textContent).toBe('2 objects');
     act(() => button('OK').click());
     expect(last()).toBe('QSELECT  2 objects selected');
@@ -3593,7 +3593,7 @@ describe('CAD 2D gap plan: zoom, quick select and radial / angular dimensions', 
     act(() => button('OK').click());
     expect(last()).toBe('QSELECT  1 object selected');
     expect(state.selected).toBe('sk:S2');
-    // SELECTSIMILAR with S1 picked: every line on LV-SKETCH.
+    // SELECTSIMILAR with S1 picked: every line on GFDE-SKETCH.
     act(() => state.setSelected(null));
     await clickAt(X + 500, 0);
     expect(state.selected).toBe('sk:S1');
@@ -3617,9 +3617,9 @@ describe('CAD 2D gap plan: zoom, quick select and radial / angular dimensions', 
 
   it('DIMRADIUS, DIMDIAMETER and DIMANGULAR draw dimensions from a circle, two lines, or a vertex and two points', async () => {
     const start: Project = { ...villa, cadSketch: [{ file: F, items: [
-      { id: 'C1', kind: 'circle', layer: 'LV-SKETCH', pts: [[X, 0]], r: 500 },
-      { id: 'L1', kind: 'line', layer: 'LV-SKETCH', pts: [[X + 5000, 0], [X + 7000, 0]] },
-      { id: 'L2', kind: 'line', layer: 'LV-SKETCH', pts: [[X + 5000, 0], [X + 5000, 2000]] }
+      { id: 'C1', kind: 'circle', layer: 'GFDE-SKETCH', pts: [[X, 0]], r: 500 },
+      { id: 'L1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X + 5000, 0], [X + 7000, 0]] },
+      { id: 'L2', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X + 5000, 0], [X + 5000, 2000]] }
     ] }] };
     act(() => root.render(<Host start={start} />));
     await flush();
@@ -3698,8 +3698,8 @@ describe('CAD 2D gap plan: TEXTEDIT, a double-click on a text or dimension to ty
   const items = () => sketchOf(project, F);
   // "DB ROOM" at (X, 0); a 3 m dimension of a style in mm above it; a text on a locked layer.
   const start: Project = { ...villa, cadSketch: [{ file: F, items: [
-    { id: 'T1', kind: 'text', layer: 'LV-ANNO', pts: [[X, 0]], text: 'DB ROOM', h: 250 },
-    { id: 'D1', kind: 'dim', layer: 'LV-ANNO', pts: [[X, 2000], [X + 3000, 2000], [X + 1500, 2500]], dir: 0, h: 200, look: { arrow: 'tick', size: 100, off: 50, ext: 80, unit: 'mm', decimals: 0 } },
+    { id: 'T1', kind: 'text', layer: 'GFDE-ANNO', pts: [[X, 0]], text: 'DB ROOM', h: 250 },
+    { id: 'D1', kind: 'dim', layer: 'GFDE-ANNO', pts: [[X, 2000], [X + 3000, 2000], [X + 1500, 2500]], dir: 0, h: 200, look: { arrow: 'tick', size: 100, off: 50, ext: 80, unit: 'mm', decimals: 0 } },
     { id: 'T2', kind: 'text', layer: 'LV-LOCKED', pts: [[X, 4000]], text: 'FIXED', h: 250 }
   ] }], cadLayerStyle: { [F]: { 'LV-LOCKED': { lock: true } } } };
 
@@ -3843,7 +3843,7 @@ describe('CAD 2D gap plan: MTEXT, notes in a box with their lines wrapped to its
     if (el instanceof HTMLSelectElement) { el.value = value; el.dispatchEvent(new Event('change', { bubbles: true })); }
     else { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, value); el.dispatchEvent(new Event('input', { bubbles: true })); }
   });
-  const N1: SketchItem = { id: 'N1', kind: 'mtext', layer: 'LV-ANNO', pts: [[X, 6000]], h: 250, w: 3000, note: [{ runs: [{ s: 'GENERAL NOTES', b: true }] }, { runs: [{ s: 'LSZH cables' }] }] };
+  const N1: SketchItem = { id: 'N1', kind: 'mtext', layer: 'GFDE-ANNO', pts: [[X, 6000]], h: 250, w: 3000, note: [{ runs: [{ s: 'GENERAL NOTES', b: true }] }, { runs: [{ s: 'LSZH cables' }] }] };
   // A note of two lines in a 3 m box at (X, 6000), and one on a locked layer below it.
   const start: Project = { ...villa, cadSketch: [{ file: F, items: [N1, { ...N1, id: 'N2', layer: 'LV-LOCKED', pts: [[X, 3000]] }] }], cadLayerStyle: { [F]: { 'LV-LOCKED': { lock: true } } } };
 
@@ -3878,7 +3878,7 @@ describe('CAD 2D gap plan: MTEXT, notes in a box with their lines wrapped to its
     await keyWords('Enter', { metaKey: true });
     expect(editor()).toBeNull();
     expect(items().filter((it) => it.kind === 'mtext' && it.id === 'S1')).toEqual([{
-      id: 'S1', kind: 'mtext', layer: 'LV-ANNO', pts: [[X + 1500, 0]], h: 350, w: 3000, just: 'TC',
+      id: 'S1', kind: 'mtext', layer: 'GFDE-ANNO', pts: [[X + 1500, 0]], h: 350, w: 3000, just: 'TC',
       note: [{ runs: [{ s: 'GENERAL NOTES', b: true }] }, { runs: [{ s: 'All cables to be ' }, { s: 'LSZH', u: true }, { s: ' unless noted' }] }]
     }]);
     expect(onChange).toHaveBeenCalledTimes(1);
@@ -3929,7 +3929,7 @@ describe('CAD 2D gap plan: MTEXT, notes in a box with their lines wrapped to its
     await command('x');
     await clickAt(X + 500, 5900);
     expect(last()).toBe(`EXPLODE  ${lines.length} texts · ⌘Z to undo`);
-    expect(items().filter((it) => it.layer === 'LV-ANNO').map((it) => [it.kind, it.text])).toEqual(lines.map((l) => ['text', l.text]));
+    expect(items().filter((it) => it.layer === 'GFDE-ANNO').map((it) => [it.kind, it.text])).toEqual(lines.map((l) => ['text', l.text]));
   });
 
   it('right-click on a note: Edit text, Width… (typed in metres) and Justify ▸; a note on a locked layer is refused', async () => {
@@ -3981,9 +3981,9 @@ describe('CAD 2D gap plan: DRAWORDER and TEXTTOFRONT, the order the drawn object
   const options = () => [...document.querySelectorAll('[role="menu"][aria-label="Draw order"] button')] as HTMLButtonElement[];
   // A solid hatch, a line beside it and a text over the hatch, drawn in that order (the text on top).
   const start: Project = { ...villa, cadSketch: [{ file: F, items: [
-    { id: 'H', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: [[X, 0], [X + 4000, 0], [X + 4000, 3000], [X, 3000]], hatch: { pattern: 'solid', scale: 3, angle: 0 } },
-    { id: 'L', kind: 'line', layer: 'LV-SKETCH', pts: [[X + 5000, 0], [X + 8000, 0]] },
-    { id: 'T', kind: 'text', layer: 'LV-ANNO', pts: [[X + 1000, 1000]], text: 'DB', h: 250 }
+    { id: 'H', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: [[X, 0], [X + 4000, 0], [X + 4000, 3000], [X, 3000]], hatch: { pattern: 'solid', scale: 3, angle: 0 } },
+    { id: 'L', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X + 5000, 0], [X + 8000, 0]] },
+    { id: 'T', kind: 'text', layer: 'GFDE-ANNO', pts: [[X + 1000, 1000]], text: 'DB', h: 250 }
   ] }] };
 
   it('DR: pick the objects, Enter, then Front, Back, Above or Under (the reference clicked); one undo step each', async () => {
@@ -4071,7 +4071,7 @@ describe('CAD 2D gap plan: POINT, DIVIDE, MEASURE and the point style', () => {
   const X = 200000, F = 'sample-villa-gf.dxf';
   const points = () => sketchOf(project, F).filter((it) => it.kind === 'point').map((it) => [Math.round(it.pts[0][0] - X), Math.round(it.pts[0][1])]);
   // A 10 m line.
-  const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'L', kind: 'line', layer: 'LV-SKETCH', pts: [[X, 0], [X + 10000, 0]] }] }] };
+  const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'L', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X, 0], [X + 10000, 0]] }] }] };
 
   it('PO draws a point at each click until Enter; DIV and ME set points out along the object clicked', async () => {
     act(() => root.render(<Host start={start} />));
@@ -4164,9 +4164,9 @@ describe('CAD 2D gap plan: BLOCK, a block from drawn objects', () => {
   };
   // A rectangle with a text in it (a board symbol), and a line apart from them.
   const start: Project = { ...villa, cadSketch: [{ file: F, items: [
-    { id: 'R', kind: 'pline', layer: 'LV-SKETCH', closed: true, pts: [[X, 0], [X + 400, 0], [X + 400, 300], [X, 300]] },
-    { id: 'T', kind: 'text', layer: 'LV-ANNO', pts: [[X + 50, 100]], text: 'DB', h: 100 },
-    { id: 'L', kind: 'line', layer: 'LV-SKETCH', pts: [[X + 2000, 0], [X + 3000, 0]] }
+    { id: 'R', kind: 'pline', layer: 'GFDE-SKETCH', closed: true, pts: [[X, 0], [X + 400, 0], [X + 400, 300], [X, 300]] },
+    { id: 'T', kind: 'text', layer: 'GFDE-ANNO', pts: [[X + 50, 100]], text: 'DB', h: 100 },
+    { id: 'L', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X + 2000, 0], [X + 3000, 0]] }
   ] }] };
 
   it('-BLOCK: the name, the base point, the objects, Enter: the block is defined and the objects become one insert, which picks and explodes as one', async () => {
@@ -4284,9 +4284,9 @@ describe('CAD 2D gap plan: INSERT and the Blocks palette', () => {
     const [sx, sy] = screenOf(x, y);
     await act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('contextmenu', { clientX: sx, clientY: sy, button: 2, bubbles: true, cancelable: true })); });
   };
-  const def: CadBlockDef = { name: 'DB-A', units: 4, items: [{ id: 'r', kind: 'pline', layer: '0', closed: true, pts: [[0, 0], [400, 0], [400, 300], [0, 300]] }, { id: 't', kind: 'text', layer: 'LV-ANNO', pts: [[50, 100]], text: 'DB', h: 100 }] };
+  const def: CadBlockDef = { name: 'DB-A', units: 4, items: [{ id: 'r', kind: 'pline', layer: '0', closed: true, pts: [[0, 0], [400, 0], [400, 300], [0, 300]] }, { id: 't', kind: 'text', layer: 'GFDE-ANNO', pts: [[50, 100]], text: 'DB', h: 100 }] };
   // A 10 m line, and one block defined.
-  const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'L', kind: 'line', layer: 'LV-SKETCH', pts: [[X, 0], [X + 10000, 0]] }] }], cadBlockDefs: [{ file: F, defs: [def] }] };
+  const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'L', kind: 'line', layer: 'GFDE-SKETCH', pts: [[X, 0], [X + 10000, 0]] }] }], cadBlockDefs: [{ file: F, defs: [def] }] };
 
   it('I opens the palette; a block clicked waits at the cursor and goes where the click is, scaled and turned as set; Repeat keeps placing; Explode places its objects', async () => {
     act(() => root.render(<Host start={start} />));
@@ -4316,7 +4316,7 @@ describe('CAD 2D gap plan: INSERT and the Blocks palette', () => {
     expect(inserts()[0].pts[0].map(Math.round)).toEqual([X + 3000, 2000]);
     expect(onChange.mock.calls[0][1]).toMatch(/^INSERT {2}"DB-A" at /);
     expect(state.tool).toBe('none');
-    expect(JSON.parse(localStorage.getItem('lvds.cad.recentBlocks')!).map((d: CadBlockDef) => d.name)).toEqual(['DB-A']);
+    expect(JSON.parse(localStorage.getItem('gfde.cad.recentBlocks')!).map((d: CadBlockDef) => d.name)).toEqual(['DB-A']);
     // Repeat placement: a click for each; Esc stops.
     await tick('Repeat placement');
     await pickBlock('DB-A');
@@ -4401,7 +4401,7 @@ describe('CAD 2D gap plan: block attributes (ATTDEF, INSERT prompts, ATTEDIT)', 
     { id: 'a2', kind: 'attdef', layer: '0', pts: [[200, -150]], tag: 'WATTS', prompt: 'Load (W)', text: '36', h: 80, att: { invisible: true } },
     { id: 'a3', kind: 'attdef', layer: '0', pts: [[0, 200]], tag: 'TYPE', text: 'LED', h: 80, att: { constant: true } }
   ] };
-  const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'R', kind: 'pline', layer: 'LV-SKETCH', closed: true, pts: [[X, 0], [X + 400, 0], [X + 400, 300], [X, 300]] }] }], cadBlockDefs: [{ file: F, defs: [light] }] };
+  const start: Project = { ...villa, cadSketch: [{ file: F, items: [{ id: 'R', kind: 'pline', layer: 'GFDE-SKETCH', closed: true, pts: [[X, 0], [X + 400, 0], [X + 400, 300], [X, 300]] }] }], cadBlockDefs: [{ file: F, defs: [light] }] };
 
   it('ATTDEF draws an attribute definition (shown as its tag); BLOCK takes it; the Properties palette edits an insert\'s values', async () => {
     act(() => root.render(<Host start={start} />));
@@ -4485,7 +4485,7 @@ describe('CAD 2D gap plan: block attributes (ATTDEF, INSERT prompts, ATTEDIT)', 
 });
 
 describe('right-click menus, phase 1: the tools behind them', () => {
-  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'GFDE-SKETCH', pts: [a, b] });
   const X = 200000;
   const two: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', [X, 0], [X + 4000, 0]), line('S2', [X + 6000, 1000], [X + 6000, 5000])] }] };
   const hist = () => document.querySelector('.cad-hist')!.textContent;
@@ -4587,7 +4587,7 @@ describe('right-click menus, phase 1: the tools behind them', () => {
 });
 
 describe('right-click menus, stage 2: one order, new look, new tools', () => {
-  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'GFDE-SKETCH', pts: [a, b] });
   const X = 200000;
   const two: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', [X, 0], [X + 4000, 0]), line('S2', [X + 6000, 1000], [X + 6000, 5000])] }] };
   const hist = () => document.querySelector('.cad-hist')!.textContent;
@@ -4600,7 +4600,7 @@ describe('right-click menus, stage 2: one order, new look, new tools', () => {
     await start(two, 'Offset');
     await clickAt(X + 2000, 0);
     await right(X + 2000, 0);
-    expect(objectMenu()!.querySelector('.cad-menu-hd')!.textContent).toBe('Line · 4.00 m · LV-SKETCH');
+    expect(objectMenu()!.querySelector('.cad-menu-hd')!.textContent).toBe('Line · 4.00 m · GFDE-SKETCH');
     expect(menuRows('[aria-label="Edit drawn objects"]')).toEqual(expect.arrayContaining(['Line tools', 'Clipboard', 'Undo Offset', 'Redo', 'Erase', 'Move', 'Copy selection', 'Scale', 'Properties', 'Options…']));
     expect(menuRow('Undo Offset').disabled).toBe(false);
     expect(menuRow('Redo').disabled).toBe(true);
@@ -4652,7 +4652,7 @@ describe('right-click menus, stage 2: one order, new look, new tools', () => {
     await clickAt(X + 2000, 0);
     await key({ key: 'F10', shiftKey: true });
     expect(objectMenu()).not.toBeNull();
-    expect(objectMenu()!.querySelector('.cad-menu-hd')!.textContent).toBe('Line · 4.00 m · LV-SKETCH');
+    expect(objectMenu()!.querySelector('.cad-menu-hd')!.textContent).toBe('Line · 4.00 m · GFDE-SKETCH');
     expect(state.selected).toBe('sk:S1'); // the pick stays
     await key({ key: 'Escape' });
     expect(objectMenu()).toBeNull();
@@ -4981,7 +4981,7 @@ describe('right-click menus, phase 4: texts, dimensions, hatches, polylines, hot
 
   it('a hatch with islands: Edit hatch…, Set origin and Remove islands join Hatch scale, Hatch angle and Recreate boundary', async () => {
     const hole: [number, number][] = [[X + 1000, 41000], [X + 2000, 41000], [X + 2000, 42000]];
-    await start([{ id: 'H1', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: [[X, 40000], [X + 4000, 40000], [X + 4000, 44000], [X, 44000]], hatch: { pattern: 'ansi31', scale: 1, angle: 0 }, holes: [hole] }]);
+    await start([{ id: 'H1', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: [[X, 40000], [X + 4000, 40000], [X + 4000, 44000], [X, 44000]], hatch: { pattern: 'ansi31', scale: 1, angle: 0 }, holes: [hole] }]);
     await clickAt(X + 4000, 42000);
     await right(X + 4000, 42000);
     const labels = () => [...document.querySelectorAll<HTMLButtonElement>('[role="menu"] button')].map((b) => rowLabel(b) ?? '');
@@ -5219,7 +5219,7 @@ describe('edit block in place (REFEDIT, REFCLOSE)', () => {
 
 describe('Design CAD hatch package: islands, associative hatches, HATCHEDIT and BOUNDARY', () => {
   const X = 200000, F = 'sample-villa-gf.dxf';
-  const sq = (id: string, x0: number, y0: number, x1: number, y1: number): SketchItem => ({ id, kind: 'pline', layer: 'LV-SKETCH', closed: true, pts: [[X + x0, y0], [X + x1, y0], [X + x1, y1], [X + x0, y1]] });
+  const sq = (id: string, x0: number, y0: number, x1: number, y1: number): SketchItem => ({ id, kind: 'pline', layer: 'GFDE-SKETCH', closed: true, pts: [[X + x0, y0], [X + x1, y0], [X + x1, y1], [X + x0, y1]] });
   const withItems = (...it: SketchItem[]): Project => ({ ...villa, cadSketch: [{ file: F, items: it }] });
   const items = () => project.cadSketch![0].items;
   const last = () => onChange.mock.calls[onChange.mock.calls.length - 1][1];
@@ -5242,7 +5242,7 @@ describe('Design CAD hatch package: islands, associative hatches, HATCHEDIT and 
     expect(document.body.textContent).toContain('Find islands');
     await clickAt(X + 6000, 1000);
     expect(last()).toBe('Hatch ANSI31, 96.00 m² · 1 island · associative · ⌘Z to undo');
-    expect(items()[2]).toMatchObject({ kind: 'pline', layer: 'LV-HATCH', holes: [island.pts], assoc: ['S1', 'S2'] });
+    expect(items()[2]).toMatchObject({ kind: 'pline', layer: 'GFDE-HATCH', holes: [island.pts], assoc: ['S1', 'S2'] });
     // With both ticks off: the whole outline, tied to nothing.
     for (const l of ['Find islands', 'Associative']) await act(async () => { (document.querySelector(`input[aria-label="${l}"]`) as HTMLInputElement).click(); });
     await clickAt(X + 6000, 1000);
@@ -5252,7 +5252,7 @@ describe('Design CAD hatch package: islands, associative hatches, HATCHEDIT and 
   });
 
   it('HATCH finds an area closed by drawn lines when there is no closed object or room', async () => {
-    const line = (id: string, a: [number, number], b: [number, number]): SketchItem => ({ id, kind: 'line', layer: 'LV-SKETCH', pts: [[X + a[0], a[1]], [X + b[0], b[1]]] });
+    const line = (id: string, a: [number, number], b: [number, number]): SketchItem => ({ id, kind: 'line', layer: 'GFDE-SKETCH', pts: [[X + a[0], a[1]], [X + b[0], b[1]]] });
     await begin(withItems(line('L1', [0, 0], [10000, 0]), line('L2', [10000, 0], [10000, 10000]), line('L3', [10000, 10000], [0, 10000]), line('L4', [0, 10000], [0, 0])));
     await command('H');
     await clickAt(X + 5000, 5000);
@@ -5333,7 +5333,7 @@ describe('Design CAD hatch package: islands, associative hatches, HATCHEDIT and 
     expect(hist()).toBe('Command: BOUNDARY  Pick internal point or [Islands] <Islands on>:');
     await clickAt(X + 6000, 1000);
     expect(last()).toBe('BOUNDARY  1 polyline and 1 island made · ⌘Z to undo');
-    expect(items().slice(2).map((x) => [x.kind, x.closed, x.layer])).toEqual([['pline', true, 'LV-SKETCH'], ['pline', true, 'LV-SKETCH']]);
+    expect(items().slice(2).map((x) => [x.kind, x.closed, x.layer])).toEqual([['pline', true, 'GFDE-SKETCH'], ['pline', true, 'GFDE-SKETCH']]);
     expect(items()[2].pts).toEqual(outer.pts);
     expect(items()[3].pts).toEqual(island.pts);
     await command('I');
@@ -5512,7 +5512,7 @@ describe('CAD 2D gap plan: MLEADER, a multileader (several leaders, one note)', 
     await act(async () => { document.querySelector('canvas.cad-over')!.dispatchEvent(new MouseEvent('dblclick', { clientX: sx, clientY: sy, button: 0, bubbles: true })); });
   };
   const ml = (id: string, land: [number, number], tips: [number, number][], text: string): SketchItem => ({
-    id, kind: 'mleader', layer: 'LV-ANNO', pts: [land, ...tips], h: 250, note: [{ runs: [{ s: text }] }], ml: { style: 'Standard', arrow: 'filled', size: 300, land: 250, gap: 100 }
+    id, kind: 'mleader', layer: 'GFDE-ANNO', pts: [land, ...tips], h: 250, note: [{ runs: [{ s: text }] }], ml: { style: 'Standard', arrow: 'filled', size: 300, land: 250, gap: 100 }
   });
   const M1 = ml('M1', [X + 2000, 7000], [[X, 7000]], 'L1-01'), M2 = ml('M2', [X + 2600, 5000], [[X + 400, 4600]], 'L1-02'), M3 = ml('M3', [X + 3400, 3000], [[X + 800, 3200]], 'L1-03');
   const start: Project = { ...villa, cadSketch: [{ file: F, items: [M1, M2, M3] }] };
@@ -5532,7 +5532,7 @@ describe('CAD 2D gap plan: MLEADER, a multileader (several leaders, one note)', 
     await keyWords('Enter', { metaKey: true });
     expect(editor()).toBeNull();
     expect(items()).toEqual([{
-      id: 'S1', kind: 'mleader', layer: 'LV-ANNO', pts: [[X + 2000, 7500], [X, 7000]], h: 250, note: [{ runs: [{ s: 'DB-L1-01/L3' }] }],
+      id: 'S1', kind: 'mleader', layer: 'GFDE-ANNO', pts: [[X + 2000, 7500], [X, 7000]], h: 250, note: [{ runs: [{ s: 'DB-L1-01/L3' }] }],
       ml: { style: 'Standard', arrow: 'filled', size: 300, land: 250, gap: 100 }
     }]);
     expect(onChange).toHaveBeenCalledTimes(1);

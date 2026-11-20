@@ -16,12 +16,12 @@ const secret: Project = {
   ...sampleProject, name: 'Al Noor Tower for Zenith Holdings', createdBy: 'Ravi Kumar', updatedBy: 'Ravi Kumar',
   info: { ...sampleProject.info, owner: 'Zenith Holdings LLC', consultant: 'Northline Consultants', contractor: 'Bluepeak Contracting', plotNo: '6741234', area: 'Marina District', tel: '04-5550199', mdDemandFactor: 0.8 }
 };
-const FILE = 'Zenith Al Noor Tower.lvds';
+const FILE = 'Zenith Al Noor Tower.gfde';
 const WORDS = ['Zenith', 'Al Noor', 'Northline', 'Bluepeak', '6741234', 'Marina District', 'Ravi Kumar', '5550199'];
 
 let folder: string;
 beforeAll(() => {
-  folder = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-privacy-'));
+  folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-privacy-'));
   fs.writeFileSync(path.join(folder, FILE), JSON.stringify(secret));
   fs.writeFileSync(path.join(folder, 'Villa.json'), JSON.stringify(sampleProject));
 });
@@ -117,15 +117,15 @@ describe('MCP server with names hidden', () => {
 describe('command line', () => {
   const run = async (argv: string[]) => {
     const out: string[] = [], err: string[] = [];
-    const code = await main(argv, '1.0', { out: (s) => out.push(s), err: (s) => err.push(s) }, { execPath: '/usr/local/bin/node', script: '/x/lvds.mjs', electron: false });
+    const code = await main(argv, '1.0', { out: (s) => out.push(s), err: (s) => err.push(s) }, { execPath: '/usr/local/bin/node', script: '/x/gfde.mjs', electron: false });
     return { code, out: out.join('\n'), err: err.join('\n') };
   };
   it('mcp-config: names hidden unless --show-names', async () => {
     const hidden = await run(['mcp-config']);
-    expect(JSON.parse(hidden.out).mcpServers['lv-design-studio'].args).toEqual(['/x/lvds.mjs', 'mcp']);
+    expect(JSON.parse(hidden.out).mcpServers['gfd-studio-e'].args).toEqual(['/x/gfde.mjs', 'mcp']);
     expect(hidden.err).toMatch(/hidden from the AI program/);
     const shown = await run(['mcp-config', '--write', '--show-names']);
-    expect(JSON.parse(shown.out).mcpServers['lv-design-studio'].args).toEqual(['/x/lvds.mjs', 'mcp', '--write', '--show-names']);
+    expect(JSON.parse(shown.out).mcpServers['gfd-studio-e'].args).toEqual(['/x/gfde.mjs', 'mcp', '--write', '--show-names']);
     expect(shown.err).toMatch(/are sent to the AI program/);
   });
 });

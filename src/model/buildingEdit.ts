@@ -1,7 +1,7 @@
 import { buildingInfoOf } from '../calc/building';
 import type { BuildingLevel, LevelKind, Project, ProjectBuilding } from '../types';
 
-/** Adding buildings and levels to Building information without the app (lvds add-building / add-level), so a rooms
+/** Adding buildings and levels to Building information without the app (gfde add-building / add-level), so a rooms
  * package can be accepted into a project that does not have its building yet. Levels are kept bottom to top. */
 
 const lower = (s: string) => s.trim().toLowerCase();

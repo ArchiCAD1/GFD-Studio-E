@@ -43,7 +43,7 @@ export default function ReviewView({ project, me = "", run, stale = [], onChange
     setBusy(kind);
     try {
       const d = clar ? buildClarificationDoc(project, { ...setup, title: setup.title }) : doc(), name = safeFileName(`${project.name} ${d.title}`);
-      const toBytes = window.lvds?.files?.pdfBytes;
+      const toBytes = window.gfde?.files?.pdfBytes;
       const withSheets = kind === 'pdf' && !clar && !!toBytes && setup.sections.includes('diagrams') && !!project.drawingSet?.sheets.length;
       if (withSheets) {
         const pages = await prepareSheets(project, project.drawingSet!, run);

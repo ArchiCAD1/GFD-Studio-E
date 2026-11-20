@@ -12,14 +12,14 @@ import { areRealDirs, MAX_PROJECT_BYTES, openToAppend, readFileLimited, realDirs
  * - never over a file that changed since it was read (another save in between);
  * - written like the app writes it: a temporary file, flushed, then renamed over the old one, and read back;
  * - the previous version kept as a backup, and every change logged, so undo_change can put it back.
- * Backups and the log live in <projects folder>/.lvds-agent/, which must be a real folder (not a link). Anyone with
+ * Backups and the log live in <projects folder>/.gfde-agent/, which must be a real folder (not a link). Anyone with
  * the folder (or a sync) can change the log, so each line is checked, and undo reads only the backup that change made,
  * found by the change's id: never a path written in the log. */
 
 const sha = (text: string) => crypto.createHash('sha256').update(text).digest('hex');
-const AGENT = '.lvds-agent';
+const AGENT = '.gfde-agent';
 export const agentDir = (folder: string) => path.join(folder, AGENT);
-/** .lvds-agent, or a folder in it, made when missing; each must be a real folder, not a link. */
+/** .gfde-agent, or a folder in it, made when missing; each must be a real folder, not a link. */
 export const realAgentDir = (folder: string, ...sub: string[]) => realDirs(folder, AGENT, ...sub);
 const logFile = (folder: string) => path.join(agentDir(folder), 'log.jsonl');
 const stemOf = (name: string) => name.replace(PROJECT_FILE, '');
@@ -50,7 +50,7 @@ export interface ChangeEntry {
 export class WriteRefused extends Error {}
 
 function writeAtomic(full: string, text: string): void {
-  const tmp = `${full}.tmp-lvds-${process.pid}-${Date.now()}`;
+  const tmp = `${full}.tmp-gfde-${process.pid}-${Date.now()}`;
   const fd = fs.openSync(tmp, 'wx'); // a new file: never through a link planted at that name
   try { fs.writeFileSync(fd, text, 'utf-8'); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
   fs.renameSync(tmp, full);
@@ -60,7 +60,7 @@ function writeAtomic(full: string, text: string): void {
 
 /** Why the project cannot be written now, or undefined. */
 export function writeBlocked(project: Project, file: string, readText: string): string | undefined {
-  if (unsavedCopyInApp(project.id)) return `${path.basename(file)} is open in LV Design Studio with unsaved changes. Save (or discard) them in the app first, then try again.`;
+  if (unsavedCopyInApp(project.id)) return `${path.basename(file)} is open in GFD Studio E with unsaved changes. Save (or discard) them in the app first, then try again.`;
   let now: Buffer | undefined;
   try { now = readFileLimited(file, MAX_PROJECT_BYTES, true); } catch { return `${path.basename(file)} can no longer be read.`; }
   if (!now || sha(now.toString('utf-8')) !== sha(readText)) return `${path.basename(file)} changed while this was being prepared (saved from the app or a sync). Run it again on the current file.`;
@@ -132,7 +132,7 @@ export function commitText(folder: string, file: string, readText: string, text:
 /** Writes the project as the app does (2-space JSON), with a uid on every new or copied board and circuit. */
 export function commitProject(folder: string, file: string, readText: string, next0: Project, tool: string, summary: string, client?: string) {
   const next = withUids(next0);
-  return commitText(folder, file, readText, JSON.stringify(packRevisions(next), null, 2), tool, summary, next, undefined, client);
+  return commitText(folder, file, readText, JSON.stringify({ ...packRevisions(next), format: 'gfde.project' }, null, 2), tool, summary, next, undefined, client);
 }
 
 /** Puts back the version from before a change. Only when the file is still exactly what that change wrote, and the

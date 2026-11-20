@@ -55,7 +55,7 @@ describe('Plot dialogs', () => {
   });
 
   it('page setup warns when the drawn text was made for another scale than the sheet\'s', () => {
-    const lit = { ...placeLvPoint(villa, { building: 'V', level: 'GF' }, 'ltg', 'DB-GF1-Y1', 6, 5).project, cadPlans: [{ building: 'V', level: 'GF', file: 'GF.dwg', units: 4 }], cadSketch: [{ file: 'GF.dwg', items: [{ id: 'S1', kind: 'text' as const, layer: 'LV-ANNO', pts: [[2000, 2000]] as [number, number][], text: 'PLANT', h: 250 }] }] };
+    const lit = { ...placeLvPoint(villa, { building: 'V', level: 'GF' }, 'ltg', 'DB-GF1-Y1', 6, 5).project, cadPlans: [{ building: 'V', level: 'GF', file: 'GF.dwg', units: 4 }], cadSketch: [{ file: 'GF.dwg', items: [{ id: 'S1', kind: 'text' as const, layer: 'GFDE-ANNO', pts: [[2000, 2000]] as [number, number][], text: 'PLANT', h: 250 }] }] };
     const { set, ids } = addPlanSheets(setOf(lit), lit, 'lighting');
     const sheet = set.sheets.find((s) => s.id === ids[0])!;
     act(() => root.render(<PageSetupDialog project={{ ...lit, drawingSet: set }} sheet={sheet} onSave={() => {}} onClose={() => {}} />));
@@ -92,7 +92,7 @@ describe('Plot dialogs', () => {
     const p: Project = onSave.mock.calls[0][0];
     expect(pensFor(p)).toMatchObject({ trays: { w: 0.7, grey: 100 }, devices: { w: 0.25, grey: 60 } });
     act(() => { button('Save as new').click(); });
-    expect(onSave.mock.calls[1][0].plot.tables.map((t: { name: string }) => t.name)).toEqual(['LVDS Electrical (copy)']);
+    expect(onSave.mock.calls[1][0].plot.tables.map((t: { name: string }) => t.name)).toEqual(['GFDE Electrical (copy)']);
   });
 
   // Plot style table files as the model tests build them: a text header, then the styles as text compressed with zlib.
@@ -127,9 +127,9 @@ describe('Plot dialogs', () => {
     const p: Project = onSave.mock.calls[0][0];
     expect(onSave.mock.calls[0][0].plot.tables[0]).toMatchObject({ name: 'Office', stb: { file: 'Office.stb', by: {} } });
     expect(onSave.mock.calls[0][1]).toBe('Office.stb imported as a pen table: give its styles to the kinds of line · ⌘Z to undo');
-    expect(tablesOf(p).map((t) => t.name)).toEqual(['LVDS Electrical', 'Office']);
+    expect(tablesOf(p).map((t) => t.name)).toEqual(['GFDE Electrical', 'Office']);
     act(() => root.render(<PenTableDialog project={p} onSave={onSave} onClose={() => {}} />)); // the page passes the saved project back
-    expect(options('Table')).toEqual(['LVDS Electrical', 'Office (from Office.stb)']);
+    expect(options('Table')).toEqual(['GFDE Electrical', 'Office (from Office.stb)']);
     expect(sel('Table').value).toBe('pt1');
     expect(document.querySelector('[aria-label="Pens"] thead')!.textContent).toBe('LinePlot styleWidth (mm)Ink');
     expect(options(`${PEN_LABEL.trays} plot style`)).toEqual(['—', 'Normal', 'Fine', 'Heavy', 'Hair']);
@@ -186,6 +186,6 @@ describe('Plot dialogs', () => {
     const { set, ids } = addPlanSheets(setOf(lit), lit, 'lighting');
     const p = withTable(withTable({ ...lit, drawingSet: set }, { ...DEFAULT_PENS, id: 'pt1', name: 'Heavy', ctb: 'Heavy.ctb' }), { ...DEFAULT_PENS, id: 'pt2', name: 'Office', stb: { file: 'Office.stb', styles: [], by: {} } });
     act(() => root.render(<PageSetupDialog project={p} sheet={set.sheets.find((s) => s.id === ids[0])!} onSave={vi.fn()} onClose={() => {}} />));
-    expect(options('Pen table')).toEqual(['LVDS Electrical', 'Heavy (CTB)', 'Office (STB)']);
+    expect(options('Pen table')).toEqual(['GFDE Electrical', 'Heavy (CTB)', 'Office (STB)']);
   });
 });

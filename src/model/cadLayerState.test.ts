@@ -8,7 +8,7 @@ import type { Project, SketchItem } from '../types';
 
 const F = 'GF.dwg';
 const line = (id: string, layer: string): SketchItem => ({ id, kind: 'line', layer, pts: [[0, 0], [1, 0]] });
-const base: Project = { ...sampleProject, cadLayerStyle: undefined, cadLayerFile: undefined, cadSketch: [{ file: F, items: [line('S1', 'LV-SKETCH'), line('S2', 'E-LIGHT')] }] };
+const base: Project = { ...sampleProject, cadLayerStyle: undefined, cadLayerFile: undefined, cadSketch: [{ file: F, items: [line('S1', 'GFDE-SKETCH'), line('S2', 'E-LIGHT')] }] };
 const rows = (p: Project, archOn: Record<string, boolean> = { 'A-WALL': true, 'A-DOOR': true }): (LayerRef & LayerSnap)[] => {
   const st = layerStylesOf(p, F);
   return [
@@ -18,31 +18,31 @@ const rows = (p: Project, archOn: Record<string, boolean> = { 'A-WALL': true, 'A
 };
 
 describe('layer palette: data per drawing file', () => {
-  it('an older project opens as before: LV-SKETCH current, no states, nothing isolated', () => {
+  it('an older project opens as before: GFDE-SKETCH current, no states, nothing isolated', () => {
     expect(layerFileOf(sampleProject, F)).toEqual({});
-    expect(currentLayerOf(sampleProject, F)).toBe('LV-SKETCH');
+    expect(currentLayerOf(sampleProject, F)).toBe('GFDE-SKETCH');
     expect(sampleProject.cadLayerFile).toBeUndefined();
   });
 
-  it('keeps the current layer per drawing (case ignored); LV-SKETCH again clears it', () => {
+  it('keeps the current layer per drawing (case ignored); GFDE-SKETCH again clears it', () => {
     const a = withCurrentLayer(base, F, 'E-LIGHT');
     expect(currentLayerOf(a, 'gf.DWG')).toBe('E-LIGHT');
-    expect(currentLayerOf(a, 'FF.dwg')).toBe('LV-SKETCH');
-    expect(withCurrentLayer(a, F, 'lv-sketch').cadLayerFile).toBeUndefined();
+    expect(currentLayerOf(a, 'FF.dwg')).toBe('GFDE-SKETCH');
+    expect(withCurrentLayer(a, F, 'gfde-sketch').cadLayerFile).toBeUndefined();
   });
 
   it('a new layer is the next free LayerN and lists while empty; deleting it removes it and its style', () => {
-    const name = newLayerName(['LV-SKETCH', 'layer1']);
+    const name = newLayerName(['GFDE-SKETCH', 'layer1']);
     expect(name).toBe('Layer2');
     const a = withLayerStyle(withNewLayer(base, F, name), F, name, { color: 'idx:3' });
-    expect(drawnLayers(sketchOf(a, F), layerFileOf(a, F).layers)).toEqual(['LV-SKETCH', 'E-LIGHT', 'LV-ANNO', 'LV-HATCH', 'Layer2']);
+    expect(drawnLayers(sketchOf(a, F), layerFileOf(a, F).layers)).toEqual(['GFDE-SKETCH', 'E-LIGHT', 'GFDE-ANNO', 'GFDE-HATCH', 'Layer2']);
     const b = withoutLayer(a, F, 'LAYER2');
     expect(b.cadLayerFile).toBeUndefined();
     expect(b.cadLayerStyle).toBeUndefined();
   });
 
   it('filters with * and ?, or by any part of the name', () => {
-    expect(['E-LIGHT-SW', 'A-LIGHTING', 'LV-SKETCH', 'E-TRAY'].filter((n) => matchesFilter(n, '*LIGHT*'))).toEqual(['E-LIGHT-SW', 'A-LIGHTING']);
+    expect(['E-LIGHT-SW', 'A-LIGHTING', 'GFDE-SKETCH', 'E-TRAY'].filter((n) => matchesFilter(n, '*LIGHT*'))).toEqual(['E-LIGHT-SW', 'A-LIGHTING']);
     expect(matchesFilter('E-TRAY', 'e-?ray')).toBe(true);
     expect(matchesFilter('E-TRAY', 'E-*X')).toBe(false);
     expect(matchesFilter('E-TRAY', 'tra')).toBe(true);
@@ -52,47 +52,57 @@ describe('layer palette: data per drawing file', () => {
 });
 
 describe('layer palette: rename and delete', () => {
+  it('preserves existing legacy layers and their reserved-name protection', () => {
+    const legacy = withCurrentLayer({ ...sampleProject, cadSketch: [{ file: F, items: [line('L1', 'LV-SKETCH')] }] }, F, 'LV-SKETCH');
+    expect(currentLayerOf(legacy, F)).toBe('LV-SKETCH');
+    expect(sketchOf(legacy, F)[0].layer).toBe('LV-SKETCH');
+    for (const name of ['LV-SKETCH', 'lv-anno', 'LV-HATCH']) {
+      expect(renameRefusal({ name, group: 'drawn' })).toMatch(/one of the app's own layers/);
+    }
+    expect(drawnLayers(sketchOf(legacy, F))).toEqual(expect.arrayContaining(['LV-SKETCH', 'GFDE-SKETCH', 'GFDE-ANNO', 'GFDE-HATCH']));
+  });
+
   it('only drawn layers that are not the app\'s own can be renamed', () => {
     expect(renameRefusal({ name: 'A-WALL', group: 'arch' })).toBe('The architect\'s layers keep their names.');
     expect(renameRefusal({ name: 'STR|A-WALL', group: 'ref' })).toBe('A reference\'s layers keep their names.');
-    for (const n of ['LV-SKETCH', 'lv-anno', 'LV-HATCH', 'E-TRAY', 'E-CABLE']) expect(renameRefusal({ name: n, group: 'drawn' })).toMatch(/one of the app's own layers/);
+    for (const n of ['GFDE-SKETCH', 'gfde-anno', 'GFDE-HATCH', 'E-TRAY', 'E-CABLE']) expect(renameRefusal({ name: n, group: 'drawn' })).toMatch(/one of the app's own layers/);
     expect(renameRefusal({ name: 'E-LIGHT', group: 'drawn' })).toBeUndefined();
   });
 
   it('a rename moves the objects, style, current layer, states, Isolate\'s set and viewport freezes', () => {
     let p = withCurrentLayer(withLayerStyle(base, F, 'E-LIGHT', { lt: 'dashed', freeze: false, lock: true }), F, 'E-LIGHT');
     p = withSavedState(p, F, 'Check', rows(p));
-    p = isolate(p, F, rows(p), ['LV-SKETCH']).project;
-    p = { ...p, cadPlans: [{ building: 'B', level: 'GF', file: F }], drawingSet: { sheets: [{ id: 's1', kind: 'plan', buildingId: 'B', levelId: 'GF', viewports: [{ id: 'vp1', box: [0, 0, 10, 10], at: [0, 0], scale: 100, frozen: ['e-light', 'LV-ANNO'] }] }] } as unknown as Project['drawingSet'] };
+    p = isolate(p, F, rows(p), ['GFDE-SKETCH']).project;
+    p = { ...p, cadPlans: [{ building: 'B', level: 'GF', file: F }], drawingSet: { sheets: [{ id: 's1', kind: 'plan', buildingId: 'B', levelId: 'GF', viewports: [{ id: 'vp1', box: [0, 0, 10, 10], at: [0, 0], scale: 100, frozen: ['e-light', 'GFDE-ANNO'] }] }] } as unknown as Project['drawingSet'] };
     const r = renameLayer(p, F, 'E-LIGHT', 'E-LIGHT-SW', ['A-WALL']);
     if ('error' in r) throw new Error(r.error);
     const q = r.project;
-    expect(sketchOf(q, F).map((it) => it.layer)).toEqual(['LV-SKETCH', 'E-LIGHT-SW']);
+    expect(sketchOf(q, F).map((it) => it.layer)).toEqual(['GFDE-SKETCH', 'E-LIGHT-SW']);
     expect(layerStylesOf(q, F)['E-LIGHT-SW']).toMatchObject({ lt: 'dashed', lock: true });
     expect(layerStylesOf(q, F)['E-LIGHT']).toBeUndefined();
     expect(currentLayerOf(q, F)).toBe('E-LIGHT-SW');
     expect(Object.keys(layerFileOf(q, F).states![0].layers)).toContain('E-LIGHT-SW');
     expect(layerFileOf(q, F).iso).toContain('E-LIGHT-SW');
-    expect(q.drawingSet!.sheets[0].viewports![0].frozen).toEqual(['E-LIGHT-SW', 'LV-ANNO']);
+    expect(q.drawingSet!.sheets[0].viewports![0].frozen).toEqual(['E-LIGHT-SW', 'GFDE-ANNO']);
   });
 
   it('refuses a name in use, an app layer\'s name, a blank one and bad characters', () => {
     expect(renameLayer(base, F, 'E-LIGHT', 'a-wall', ['A-WALL', 'E-LIGHT'])).toEqual({ error: 'There is already a layer a-wall.' });
-    expect(renameLayer(base, F, 'E-LIGHT', 'LV-ANNO', [])).toEqual({ error: 'There is already a layer LV-ANNO.' });
+    expect(renameLayer(base, F, 'E-LIGHT', 'GFDE-ANNO', [])).toEqual({ error: 'There is already a layer GFDE-ANNO.' });
     expect(renameLayer(base, F, 'E-LIGHT', '  ', [])).toEqual({ error: 'A layer needs a name.' });
     expect('error' in renameLayer(base, F, 'E-LIGHT', 'E|X', [])).toBe(true);
-    expect('error' in renameLayer(base, F, 'LV-SKETCH', 'MINE', [])).toBe(true);
+    expect('error' in renameLayer(base, F, 'GFDE-SKETCH', 'MINE', [])).toBe(true);
     // Its own name in another case is fine.
     const r = renameLayer(base, F, 'E-LIGHT', 'e-light', ['E-LIGHT']);
     expect('project' in r && sketchOf(r.project, F)[1].layer).toBe('e-light');
   });
 
   it('deletes only an empty drawn layer that is not current, and says why otherwise', () => {
-    expect(deleteRefusal({ name: 'A-WALL', group: 'arch' }, 0, 'LV-SKETCH')).toBe('A-WALL: the architect\'s layers cannot be deleted.');
-    expect(deleteRefusal({ name: 'LV-HATCH', group: 'drawn' }, 0, 'LV-SKETCH')).toBe('LV-HATCH is one of the app\'s own layers.');
+    expect(deleteRefusal({ name: 'A-WALL', group: 'arch' }, 0, 'GFDE-SKETCH')).toBe('A-WALL: the architect\'s layers cannot be deleted.');
+    expect(deleteRefusal({ name: 'GFDE-HATCH', group: 'drawn' }, 0, 'GFDE-SKETCH')).toBe('GFDE-HATCH is one of the app\'s own layers.');
     expect(deleteRefusal({ name: 'E-X', group: 'drawn' }, 0, 'e-x')).toBe('E-X is the current layer; set another one current first.');
-    expect(deleteRefusal({ name: 'E-X', group: 'drawn' }, 2, 'LV-SKETCH')).toBe('E-X has 2 objects on it; erase or move them first.');
-    expect(deleteRefusal({ name: 'E-X', group: 'drawn' }, 0, 'LV-SKETCH')).toBeUndefined();
+    expect(deleteRefusal({ name: 'E-X', group: 'drawn' }, 2, 'GFDE-SKETCH')).toBe('E-X has 2 objects on it; erase or move them first.');
+    expect(deleteRefusal({ name: 'E-X', group: 'drawn' }, 0, 'GFDE-SKETCH')).toBeUndefined();
   });
 });
 
@@ -131,19 +141,19 @@ describe('layer palette: freeze, on, isolate and states', () => {
   });
 
   it('Isolate turns every other layer off in one change and keeps which; Unisolate turns those back on', () => {
-    const start = applyLayerPatch(base, F, [{ name: 'LV-HATCH', group: 'drawn' }], { on: false });
+    const start = applyLayerPatch(base, F, [{ name: 'GFDE-HATCH', group: 'drawn' }], { on: false });
     const iso = isolate(start, F, rows(start), ['e-light']);
-    expect(iso.off).toBe(4); // LV-SKETCH, LV-ANNO, A-WALL, A-DOOR (LV-HATCH was off already)
+    expect(iso.off).toBe(4); // GFDE-SKETCH, GFDE-ANNO, A-WALL, A-DOOR (GFDE-HATCH was off already)
     expect(layerFileOf(iso.project, F).archOn).toEqual({ 'A-WALL': false, 'A-DOOR': false });
-    expect([...layerFileOf(iso.project, F).iso!].sort()).toEqual(['A-DOOR', 'A-WALL', 'LV-ANNO', 'LV-SKETCH']);
-    expect(Object.entries(layerStylesOf(iso.project, F)).filter(([, s]) => s.hidden).map(([k]) => k).sort()).toEqual(['LV-ANNO', 'LV-HATCH', 'LV-SKETCH']);
+    expect([...layerFileOf(iso.project, F).iso!].sort()).toEqual(['A-DOOR', 'A-WALL', 'GFDE-ANNO', 'GFDE-SKETCH']);
+    expect(Object.entries(layerStylesOf(iso.project, F)).filter(([, s]) => s.hidden).map(([k]) => k).sort()).toEqual(['GFDE-ANNO', 'GFDE-HATCH', 'GFDE-SKETCH']);
     const back = unisolate(iso.project, F, rows(iso.project, { 'A-WALL': false, 'A-DOOR': false }))!;
-    expect(back).toEqual(start); // LV-HATCH stays off: Isolate did not turn it off
+    expect(back).toEqual(start); // GFDE-HATCH stays off: Isolate did not turn it off
     expect(unisolate(back, F, rows(back))).toBeUndefined();
   });
 
   it('Unisolate keeps what changed after Isolate: a colour, a lock', () => {
-    const iso = isolate(base, F, rows(base), ['LV-SKETCH']).project;
+    const iso = isolate(base, F, rows(base), ['GFDE-SKETCH']).project;
     const edited = applyLayerPatch(iso, F, [{ name: 'E-LIGHT', group: 'drawn' }, { name: 'A-DOOR', group: 'arch', drawingOn: true }], { color: 'idx:3', lock: true });
     const back = unisolate(edited, F, rows(edited, { 'A-WALL': false, 'A-DOOR': false }))!;
     expect(layerStylesOf(back, F)).toEqual({ 'E-LIGHT': { color: 'idx:3', lock: true }, 'A-DOOR': { color: 'idx:3', lock: true } });
@@ -186,12 +196,12 @@ describe('layer palette: freeze, on, isolate and states', () => {
 
   it('a layer command by picking changes only the layers not already so, and never freezes the current layer', () => {
     const r = rows(base);
-    expect(layersToChange(r, ['e-light', 'A-WALL'], { on: false }, 'LV-SKETCH').rows.map((x) => x.name)).toEqual(['E-LIGHT', 'A-WALL']);
+    expect(layersToChange(r, ['e-light', 'A-WALL'], { on: false }, 'GFDE-SKETCH').rows.map((x) => x.name)).toEqual(['E-LIGHT', 'A-WALL']);
     const locked = rows(withLayerStyle(base, F, 'E-LIGHT', { lock: true }));
-    expect(layersToChange(locked, ['E-LIGHT'], { lock: true }, 'LV-SKETCH').rows).toEqual([]); // already locked
-    expect(layersToChange(locked, ['E-LIGHT'], { lock: false }, 'LV-SKETCH').rows.map((x) => x.name)).toEqual(['E-LIGHT']);
-    expect(layersToChange(r, ['LV-SKETCH', 'E-LIGHT'], { freeze: true }, 'LV-SKETCH')).toMatchObject({ rows: [{ name: 'E-LIGHT' }], skipped: 'LV-SKETCH' });
-    expect(layersToChange(r, ['LV-SKETCH'], { on: false }, 'LV-SKETCH').rows.map((x) => x.name)).toEqual(['LV-SKETCH']); // off is allowed
+    expect(layersToChange(locked, ['E-LIGHT'], { lock: true }, 'GFDE-SKETCH').rows).toEqual([]); // already locked
+    expect(layersToChange(locked, ['E-LIGHT'], { lock: false }, 'GFDE-SKETCH').rows.map((x) => x.name)).toEqual(['E-LIGHT']);
+    expect(layersToChange(r, ['GFDE-SKETCH', 'E-LIGHT'], { freeze: true }, 'GFDE-SKETCH')).toMatchObject({ rows: [{ name: 'E-LIGHT' }], skipped: 'GFDE-SKETCH' });
+    expect(layersToChange(r, ['GFDE-SKETCH'], { on: false }, 'GFDE-SKETCH').rows.map((x) => x.name)).toEqual(['GFDE-SKETCH']); // off is allowed
   });
 
   it('keeps the colour, linetype and lineweight of new objects per drawing file; ByLayer drops one', () => {

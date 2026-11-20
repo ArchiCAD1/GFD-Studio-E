@@ -32,7 +32,7 @@ export function buildLightningDocx(project: Project, keys?: LpsSectionKey[]): Do
     }
     for (const t of b.notes ?? []) children.push(new Paragraph({ children: [new TextRun({ text: t, size: 18 })] }));
   }
-  return new Document({ creator: 'LV Design Studio', title: `${project.name} — Lightning protection`, sections: [{ children }] });
+  return new Document({ creator: 'GFD Studio E', title: `${project.name} — Lightning protection`, sections: [{ children }] });
 }
 
 export async function lightningDocxBytes(project: Project, keys?: LpsSectionKey[]): Promise<Uint8Array> {

@@ -164,7 +164,7 @@ export function ReuseDialog({ project, onAdd, onClose, onStatus }: {
                 <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importFile(f); }} />
                 <button className="chip" onClick={() => fileRef.current?.click()}>Import…</button>
                 <button className="chip" disabled={!presets.length} onClick={exportAll}>Export all</button>
-                <span className="m">{window.lvds ? 'Presets are kept in Library.json with your other libraries.' : 'Presets are kept in this browser — export them to keep a copy.'}</span>
+                <span className="m">{window.gfde ? 'Presets are kept in Library.json with your other libraries.' : 'Presets are kept in this browser — export them to keep a copy.'}</span>
               </div>
             </>
           ) : (
@@ -183,7 +183,7 @@ export function ReuseDialog({ project, onAdd, onClose, onStatus }: {
                   </tbody>
                 </table>
               )}
-              {window.lvds && <div className="bi-actions"><button className="chip" disabled={busy} onClick={() => void openProject()}>Open another file…</button></div>}
+              {window.gfde && <div className="bi-actions"><button className="chip" disabled={busy} onClick={() => void openProject()}>Open another file…</button></div>}
             </>
           )}
           <div className="modal-actions"><span className="sp" /><button className="chip" onClick={onClose}>Close</button></div>
@@ -249,8 +249,8 @@ export async function saveUnitTypesToLibrary(units: UnitType[], onStatus: (m: st
   const libTypes = new Set(catalog().roomTypes.map((t) => t.id));
   const unknown = libTypes.size ? [...new Set(units.flatMap((u) => u.rooms.map((x) => x.type)))].filter((t) => !libTypes.has(t)) : [];
   const tail = unknown.length ? ` — room types not in your room type library: ${list(unknown)} (save the room types too)` : '';
-  if (window.lvds?.database.write) {
-    try { await window.lvds.database.write('unitTypes', unitTypeRows(r.list)); onStatus(`Saved ${r.added.length + r.updated.length} layouts to UnitTypes.xlsx (database) — backup in Backups/${tail}`); }
+  if (window.gfde?.database.write) {
+    try { await window.gfde.database.write('unitTypes', unitTypeRows(r.list)); onStatus(`Saved ${r.added.length + r.updated.length} layouts to UnitTypes.xlsx (database) — backup in Backups/${tail}`); }
     catch (e) { onStatus(`Could not write UnitTypes.xlsx: ${(e as Error).message}`); }
   } else onStatus(saveLocalUnitTypeLibrary(r.list) ? `Saved ${r.added.length + r.updated.length} layouts to your library on this computer${tail}` : 'Could not store the library');
 }

@@ -113,8 +113,8 @@ export async function finishPdf(doc: PDFDocument, o: FinishOptions): Promise<Uin
   doc.setTitle(o.title, { showInWindowTitleBar: true });
   if (o.author) doc.setAuthor(o.author);
   if (o.subject) doc.setSubject(o.subject);
-  doc.setCreator('LV Design Studio');
-  doc.setProducer('LV Design Studio');
+  doc.setCreator('GFD Studio E');
+  doc.setProducer('GFD Studio E');
   return doc.save({ useObjectStreams: true });
 }
 

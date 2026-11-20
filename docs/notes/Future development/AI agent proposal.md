@@ -1,6 +1,6 @@
-# Proposal: AI Agent for LV Design Studio
+# Proposal: AI Agent for GFD Studio E
 
-**Goal:** let an AI assistant (Claude, or a free local model on the Mac) build and check a full building electrical design *inside* LV Design Studio, with the engineer approving the result.
+**Goal:** let an AI assistant (Claude, or a free local model on the Mac) build and check a full building electrical design *inside* GFD Studio E, with the engineer approving the result.
 
 ---
 
@@ -10,7 +10,7 @@
 flowchart LR
     E["👷 Engineer<br/>gives the brief"] --> A["🤖 AI agent<br/>(Claude or local LLM)"]
     A -->|"calls tools"| T["🔌 Agent door<br/>(MCP tool list)"]
-    T --> S["⚙️ LV Design Studio<br/>existing calculations"]
+    T --> S["⚙️ GFD Studio E<br/>existing calculations"]
     S -->|"short results"| A
     A --> R["📋 Draft design<br/>+ failure list"]
     R --> E2{"👷 Engineer<br/>approves?"}

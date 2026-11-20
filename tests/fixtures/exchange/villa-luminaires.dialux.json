@@ -1,5 +1,5 @@
 {
-  "schema": "lvds.exchange",
+  "schema": "gfde.exchange",
   "version": 1,
   "kind": "fixtures",
   "source": { "app": "dialux", "file": "Villa GF.evo", "revision": "1" },

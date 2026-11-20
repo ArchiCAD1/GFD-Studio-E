@@ -1,0 +1,15 @@
+{
+  "productName": "GFD Studio E",
+  "packageName": "gfd-studio-e",
+  "publisher": "Gerardo Faustin Designs Limited",
+  "founder": "Gerardo Moises Faustin",
+  "appId": "com.gfdstudio.e",
+  "repository": "https://github.com/ArchiCAD1/GFD-Studio-E",
+  "command": "gfde",
+  "projectExtension": "gfde",
+  "projectFormat": "gfde.project",
+  "backupExtension": "gfde-backup",
+  "specificationExtension": "gfde-spec",
+  "exchangeSchema": "gfde.exchange",
+  "designSchema": "gfde.design"
+}

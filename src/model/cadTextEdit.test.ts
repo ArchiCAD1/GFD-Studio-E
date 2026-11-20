@@ -3,17 +3,17 @@ import type { SketchItem } from '../types';
 import { dimLabel, dimOf, MEASURED, shapesOut, withText } from './cadSketch';
 
 // TEXTEDIT (S5 of the Design CAD 2D gap plan): what typing over a text or dimension makes of it.
-const text: SketchItem = { id: 't', kind: 'text', layer: 'LV-ANNO', pts: [[0, 0]], text: 'DB ROOM', h: 250 };
+const text: SketchItem = { id: 't', kind: 'text', layer: 'GFDE-ANNO', pts: [[0, 0]], text: 'DB ROOM', h: 250 };
 // Two points 3 m apart (drawing units mm), of a style in mm with no decimals, and one drawn before styles.
-const styled: SketchItem = { id: 'd', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [3000, 0], [1500, 500]], dir: 0, h: 200, look: { arrow: 'tick', size: 100, off: 50, ext: 80, unit: 'mm', decimals: 0 } };
-const old: SketchItem = { id: 'o', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [3000, 0], [1500, 500]], text: '3.00' };
+const styled: SketchItem = { id: 'd', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [3000, 0], [1500, 500]], dir: 0, h: 200, look: { arrow: 'tick', size: 100, off: 50, ext: 80, unit: 'mm', decimals: 0 } };
+const old: SketchItem = { id: 'o', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [3000, 0], [1500, 500]], text: '3.00' };
 
 describe('withText', () => {
   it('a text takes what is typed, and keeps its own when nothing is', () => {
     expect(withText(text, 'MAIN DB').text).toBe('MAIN DB');
     expect(withText(text, '   ')).toBe(text);
     expect(withText(text, 'DB ROOM')).toBe(text);
-    const line: SketchItem = { id: 'l', kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [1, 1]] };
+    const line: SketchItem = { id: 'l', kind: 'line', layer: 'GFDE-SKETCH', pts: [[0, 0], [1, 1]] };
     expect(withText(line, 'x')).toBe(line);
   });
 

@@ -400,11 +400,11 @@ describe('dashed linetypes and rounded corners in sheet DXF', () => {
     const data = sheet('<g stroke-dasharray="5 4"><line class="ln" x1="10" y1="20" x2="300" y2="20"/><line class="ln" x1="10" y1="30" x2="11" y2="30"/>'
       + '<rect x="10" y="50" width="200" height="80"/><circle cx="350" cy="30" r="2"/><circle cx="350" cy="90" r="30"/></g>');
     const e = drawn(data);
-    expect(e.filter((x) => x.type === 'LINE').map((x) => x.v.get(6))).toEqual(['LV-DASHED', 'LV-DASHED2']);
-    expect(e.filter((x) => x.type === 'CIRCLE').map((x) => x.v.get(6))).toEqual(['LV-DASHED2', 'LV-DASHED']);
+    expect(e.filter((x) => x.type === 'LINE').map((x) => x.v.get(6))).toEqual(['GFDE-DASHED', 'GFDE-DASHED2']);
+    expect(e.filter((x) => x.type === 'CIRCLE').map((x) => x.v.get(6))).toEqual(['GFDE-DASHED2', 'GFDE-DASHED']);
     const poly = e.filter((x) => x.type === 'POLYLINE');
     expect(poly).toHaveLength(1);
-    expect(poly[0].v.get(6)).toBe('LV-DASHED');
+    expect(poly[0].v.get(6)).toBe('GFDE-DASHED');
     expect(num(poly[0], 70)).toBe(129); // closed + pattern continuous round the vertices
     expect(e.filter((x) => x.type === 'VERTEX')).toHaveLength(4);
   });
@@ -412,9 +412,9 @@ describe('dashed linetypes and rounded corners in sheet DXF', () => {
   it('writes a dash-dot element (a substation frame) dash-dot, whatever its length', () => {
     const data = sheet('<rect x="10" y="10" width="300" height="120" style="stroke-dasharray:12 4 2 4"/><line class="ln" style="stroke-dasharray:12 4 2 4" x1="10" y1="150" x2="12" y2="150"/>');
     const e = drawn(data);
-    expect(e.filter((x) => x.type === 'POLYLINE' || x.type === 'LINE').map((x) => x.v.get(6))).toEqual(['LV-DASHDOT', 'LV-DASHDOT']);
+    expect(e.filter((x) => x.type === 'POLYLINE' || x.type === 'LINE').map((x) => x.v.get(6))).toEqual(['GFDE-DASHDOT', 'GFDE-DASHDOT']);
     const lines = data.split('\r\n');
-    const at = lines.indexOf('LV-DASHDOT');
+    const at = lines.indexOf('GFDE-DASHDOT');
     expect(lines.slice(at + 3, at + 19)).toEqual(['3', 'Dash dot', '72', '65', '73', '4', '40', '5', '49', '3', '49', '-1', '49', '0', '49', '-1']);
   });
 
@@ -422,13 +422,13 @@ describe('dashed linetypes and rounded corners in sheet DXF', () => {
     const data = sheet('<g class="panel-frame"><rect class="frame-ln" x="10" y="10" width="300" height="120" style="stroke-dasharray:5px, 4px"/>'
       + '<path class="ln" d="M5 6 q3 4 0 8"/></g>');
     const e = drawn(data);
-    const frame = e.find((x) => x.type === 'POLYLINE' && x.v.get(6) === 'LV-PANEL')!;
+    const frame = e.find((x) => x.type === 'POLYLINE' && x.v.get(6) === 'GFDE-PANEL')!;
     expect(frame.v.get(8)).toBe('E-PANEL');
     expect(e.filter((x) => x.type === 'POLYLINE' && x.v.get(8) === 'E-CABLE')).toHaveLength(1);
     const lines = data.split('\r\n');
     const layer = lines.findIndex((l, i) => l === 'E-PANEL' && lines[i - 2] === 'LAYER');
     expect(lines.slice(layer + 3, layer + 5)).toEqual(['62', '8']);
-    const at = lines.indexOf('LV-PANEL');
+    const at = lines.indexOf('GFDE-PANEL');
     expect(lines.slice(at + 7, at + 15)).toEqual(['73', '2', '40', '3.75', '49', '3', '49', '-0.75']);
   });
 
@@ -436,7 +436,7 @@ describe('dashed linetypes and rounded corners in sheet DXF', () => {
     const data = sheet('<g class="iec" stroke-dasharray="5 4"><line x1="10" y1="20" x2="300" y2="20"/></g>'
       + '<line class="bus" stroke-dasharray="20 10" style="stroke-width:4px" x1="10" y1="60" x2="300" y2="60"/>');
     const e = drawn(data);
-    expect(data).not.toContain('LV-DASHED');
+    expect(data).not.toContain('GFDE-DASHED');
     expect(e.filter((x) => x.type === 'POLYLINE').length).toBeGreaterThan(10);
     expect(e.filter((x) => x.type === 'SOLID').length).toBeGreaterThan(5);
     expect(data).not.toContain('$LTSCALE');
@@ -444,9 +444,9 @@ describe('dashed linetypes and rounded corners in sheet DXF', () => {
 
   it('defines exactly the linetypes in use, with their dash and gap lengths', () => {
     const lines = sheet('<line class="ln" stroke-dasharray="5 4" x1="10" y1="20" x2="300" y2="20"/><line class="ln" stroke-dasharray="5 4" x1="10" y1="30" x2="11" y2="30"/>').split('\r\n');
-    const at = lines.indexOf('LV-DASHED');
-    expect(lines.slice(at - 3, at + 15)).toEqual(['0', 'LTYPE', '2', 'LV-DASHED', '70', '0', '3', 'Dashed', '72', '65', '73', '2', '40', '4.5', '49', '3', '49', '-1.5']);
-    expect(lines.slice(lines.indexOf('LV-DASHED2') + 7, lines.indexOf('LV-DASHED2') + 15)).toEqual(['73', '2', '40', '2.25', '49', '1.5', '49', '-0.75']);
+    const at = lines.indexOf('GFDE-DASHED');
+    expect(lines.slice(at - 3, at + 15)).toEqual(['0', 'LTYPE', '2', 'GFDE-DASHED', '70', '0', '3', 'Dashed', '72', '65', '73', '2', '40', '4.5', '49', '3', '49', '-1.5']);
+    expect(lines.slice(lines.indexOf('GFDE-DASHED2') + 7, lines.indexOf('GFDE-DASHED2') + 15)).toEqual(['73', '2', '40', '2.25', '49', '1.5', '49', '-0.75']);
     expect(lines.slice(lines.indexOf('LTYPE') + 1, lines.indexOf('LTYPE') + 3)).toEqual(['70', '3']);
     expect(lines).toContain('$LTSCALE');
   });
@@ -470,7 +470,7 @@ describe('dashed linetypes and rounded corners in sheet DXF', () => {
     });
     const dxf = toDxf(solid);
     expect(dxf).toContain('\r\n42\r\n');
-    expect(dxf).not.toContain('LV-DASHED');
+    expect(dxf).not.toContain('GFDE-DASHED');
     // a mirrored transform reverses the arcs
     const mirrored = svgToDxf('<svg><rect transform="scale(-1 1)" x="-50" y="10" width="40" height="20" rx="4"/></svg>', 100)[0] as typeof p;
     expect(Math.sign(mirrored.bulges![1])).toBe(-Math.sign(p.bulges![1]));

@@ -12,7 +12,7 @@ export async function readRefFile(projectId: string | undefined, file: string): 
     if (!v) return null;
     try { return refGeometryOf(v); } finally { v.close(); }
   }
-  const path = pathOfPlan(projectId, file), bytes = path ? await window.lvds?.cadFile?.readBytes?.(path) : null;
+  const path = pathOfPlan(projectId, file), bytes = path ? await window.gfde?.cadFile?.readBytes?.(path) : null;
   if (!bytes) return null;
   return readRefGeometry(bytes.file, bytes.bytes, (await fileStamp(path)) ?? undefined);
 }

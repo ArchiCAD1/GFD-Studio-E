@@ -13,7 +13,7 @@ const DB = require('../../electron/database.cjs') as { setFolder: (d: string | n
 
 /** Symbolic links need permission on Windows; skip there when they cannot be made. */
 const canLink = (() => {
-  const d = mkdtempSync(join(tmpdir(), 'lvds-link-'));
+  const d = mkdtempSync(join(tmpdir(), 'gfde-link-'));
   try { symlinkSync(join(d, 'x'), join(d, 'y')); return true; } catch { return false; } finally { rmSync(d, { recursive: true, force: true }); }
 })();
 const it_ = canLink ? it : it.skip; // skipped where symbolic links cannot be created (Windows without the right)
@@ -21,7 +21,7 @@ const it_ = canLink ? it : it.skip; // skipped where symbolic links cannot be cr
 let root: string, folder: string, outside: string, victim: string;
 const VICTIM = 'outside the projects folder — must never change';
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'lvds-safefs-'));
+  root = mkdtempSync(join(tmpdir(), 'gfde-safefs-'));
   folder = join(root, 'projects');
   outside = join(root, 'outside');
   mkdirSync(folder);
@@ -74,7 +74,7 @@ describe('saving a project', () => {
       const rec = join(root, 'recovery');
       P.writeRecovery(rec, { projectId: 'p1', project: { id: 'p1', boards: [] }, at: 1 });
       expect(statSync(join(rec, 'p1.json')).mode & 0o777).toBe(0o600);
-      const t = S.makePrivateTempDir('lvds-test-', root);
+      const t = S.makePrivateTempDir('gfde-test-', root);
       expect(statSync(t).mode & 0o777).toBe(0o700);
       S.removeDir(t);
       expect(existsSync(t)).toBe(false);
@@ -151,7 +151,7 @@ describe('trash', () => {
   });
 });
 
-describe('LV Database', () => {
+describe('GFD Studio E Database', () => {
   it_('refuses a linked workbook or Backups folder', async () => {
     const db = join(root, 'db');
     DB.setFolder(db);

@@ -10,7 +10,7 @@ const holds = (l: CadLayerStats) => [
 ].filter(Boolean).join(' · ');
 
 /** The layers of a floor plan, what each holds, and what each is (room outline, room name, tray…), with the layer
- * templates saved per architect or consultant (LV Database): apply one, or save this mapping as one. */
+ * templates saved per architect or consultant (GFD Studio E Database): apply one, or save this mapping as one. */
 export default function CadLayerTable({ layers, roles, onChange, onApplyMap }: {
   layers: CadLayerStats[];
   roles: CadLayerMap[];
@@ -31,7 +31,7 @@ export default function CadLayerTable({ layers, roles, onChange, onApplyMap }: {
     const list = withTemplate(templates, n, roles);
     if (!saveLayerTemplates(list)) { setNote('Could not save the template.'); return; }
     setTemplates(list); setName('');
-    setNote(`${replacing ? 'Updated' : 'Saved'} layer template “${n}” in the LV Database — it is offered for this architect’s plans in every project.`);
+    setNote(`${replacing ? 'Updated' : 'Saved'} layer template “${n}” in the GFD Studio E Database — it is offered for this architect’s plans in every project.`);
   }
 
   return (

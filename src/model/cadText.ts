@@ -153,7 +153,7 @@ export type TextFrame = 'circle' | 'box' | 'hexagon';
 export const TEXT_FRAMES: { id: TextFrame | 'none'; label: string }[] = [{ id: 'none', label: 'None' }, { id: 'circle', label: 'Circle' }, { id: 'box', label: 'Box' }, { id: 'hexagon', label: 'Hexagon' }];
 export const parseFrame = (s: string): TextFrame | 'none' | undefined => ({ C: 'circle', CIRCLE: 'circle', B: 'box', BOX: 'box', H: 'hexagon', HEXAGON: 'hexagon', N: 'none', NONE: 'none' } as Record<string, TextFrame | 'none'>)[s.trim().toUpperCase()];
 /** Layer of the masks written into a DXF / DWG (solid hatches under the texts; set it to the paper colour there). */
-export const MASK_LAYER = 'LV-MASK';
+export const MASK_LAYER = 'GFDE-MASK';
 /** The text's frame as drawn: a circle about its centre, or a closed outline (drawing units). */
 export function textFrameOf(it: SketchItem): { circle?: { c: Pt; r: number }; pts?: Pt[] } | undefined {
   if (!it.frame || it.kind !== 'text') return undefined;

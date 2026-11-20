@@ -668,12 +668,12 @@ flowchart LR
 | App shell & navigation | Dashboard & readiness | projects list and project dashboard; to-do navigation | `src/App.tsx:App` |
 | App shell & navigation | Dashboard & readiness | Overview and Projects views, breadcrumb, onGo navigation | `src/App.tsx:1601` |
 | ELV systems | App shell & navigation | ELV page sends packages to the inbox | `src/App.tsx:App` |
-| App shell & navigation | Headless CLI & MCP | ?lvds-export switches to the headless renderer | `src/main.tsx` |
+| App shell & navigation | Headless CLI & MCP | ?gfde-export switches to the headless renderer | `src/main.tsx` |
 | Component database & library | App shell & navigation | database sync on start and on each Excel save | `src/App.tsx:receiveDatabase` |
 | Component database & library | App shell & navigation | Database view in the left menu | `src/App.tsx:DatabaseView` |
 | App shell & navigation | Quick calcs & existing checks | routes Quick calcs | `src/App.tsx:App` |
 | App shell & navigation | Quick calcs & existing checks | view 'calculators' renders QuickCalcs | `src/App.tsx:QuickCalcs` |
-| Desktop wrapper (Electron) | App shell & navigation | window.lvds bridge, will-prevent-unload dialog, error log file | `electron/main.cjs` |
+| Desktop wrapper (Electron) | App shell & navigation | window.gfde bridge, will-prevent-unload dialog, error log file | `electron/main.cjs` |
 | Desktop wrapper (Electron) | App shell & navigation | data link | `electron/errorLog.cjs:watchWindow` |
 | Project data & storage | Parameters & design rules | Project settings modal edits the design basis; feeder presets merged on open | `src/components/ProjectSettings.tsx:ProjectSettings` |
 | Project data & storage | Parameters & design rules | parameters stored on Project; newProject defaults | `src/types.ts:newProject` |
@@ -740,7 +740,7 @@ flowchart LR
 | Desktop wrapper (Electron) | Load flow engines | Python process runner, IPC validation, Python path setting | `electron/engineRunner.cjs:runJsonProcess` |
 | Desktop wrapper (Electron) | Dashboard & readiness | projects list meta for the dashboard | `electron/projectFiles.cjs:listProjectsMeta` |
 | Desktop wrapper (Electron) | Headless CLI & MCP | headless DXF sheets / PDF reports through the app renderer | `electron/headlessExport.cjs:run / src/headless/electronExport.ts:runInRenderer` |
-| Desktop wrapper (Electron) | Headless CLI & MCP | hidden Electron export window, --lvds-headless-export in main.cjs, recovery folder and settings read | `electron/headlessExport.cjs:run` |
+| Desktop wrapper (Electron) | Headless CLI & MCP | hidden Electron export window, --gfde-headless-export in main.cjs, recovery folder and settings read | `electron/headlessExport.cjs:run` |
 | Voltage drop | Headless CLI & MCP | vdPct/vdTotalPct per circuit, quick voltage drop | `src/headless/tools.ts:circuitRow` |
 | Voltage drop | Headless CLI & MCP | vdPct / vdTotalPct in results; VD report via export tools | `src/headless/tools.ts:299` |
 | Protection coordination | Headless CLI & MCP | selectivity failures in run_checks; no TCC data | `src/headless/tools.ts:circuitIssues` |
@@ -934,7 +934,7 @@ flowchart LR
 | Busbar & busway | Revisions & changes | busRisers, busbarData, busbarIcwKa tracked | `src/model/revisions.ts` |
 | Transformer & generator | UPS & solar PV | standby generator kVA for the leading-kvar check | `src/calc/ups.ts:checkUpsLeading` |
 | Parameters & design rules | UPS & solar PV | project voltage for the PV AC current | `src/components/studies/SolarStudy.tsx:SolarStudy` |
-| UPS & solar PV | Load flow engines | PV feeder as sgen (Python) / Generator (OpenDSS) | `engines/python/lvds_engine.py:397` |
+| UPS & solar PV | Load flow engines | PV feeder as sgen (Python) / Generator (OpenDSS) | `engines/python/gfde_engine.py:397` |
 | UPS & solar PV | Equipment, BOQ & pricing | PV modules, inverters, DC isolators, SPDs, connectors in the BOM | `src/calc/bom.ts:263` |
 | UPS & solar PV | Equipment, BOQ & pricing | PV modules, inverters, strings from sizePv | `src/calc/bom.ts:buildBom:263` |
 | UPS & solar PV | Reports & exports | UPS and PV PDF reports in the export centre | `src/components/docs/exportCatalogue.ts:114` |
@@ -1042,7 +1042,7 @@ flowchart LR
 | Parameters & design rules | Reports & exports | study settings and design criteria with app-default flags | `src/docs/designBasis.ts:buildDesignBasis` |
 | Revisions & changes | Reports & exports | current revision on cover, stamps, variation register | `src/docs/report.ts:reportHead` |
 | Reports & exports | Dashboard & readiness | project summary in issue package and export centre | `src/components/docs/StudyReportsView.tsx:exportPack` |
-| Revisions & changes | Project data & storage | revisions, baseline, modifications, variations saved in project file; checkpoints in .lvds-backup | `src/model/projectBackup.ts:buildBackup` |
+| Revisions & changes | Project data & storage | revisions, baseline, modifications, variations saved in project file; checkpoints in .gfde-backup | `src/model/projectBackup.ts:buildBackup` |
 | Load schedule & panels | Revisions & changes | circuit references, schedule circuits, board totals for sheet items | `src/model/sheetChanges.ts:sheetItems` |
 | Revisions & changes | Review, submissions & authority rules | review report modification summary and impact; VO PDF offered as submission | `src/docs/reviewReport.ts` |
 | Revisions & changes | Review, submissions & authority rules | baseline revision, impact and modification records for review report and proposals | `src/docs/reviewReport.ts:buildReviewDoc` |

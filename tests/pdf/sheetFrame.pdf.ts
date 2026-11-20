@@ -13,7 +13,7 @@ import { buildSldSheetHtml } from '../../src/docs/sldSheet';
  * measured on the page: every line meets the next, and none is drawn twice (a thin border beside the frame's heavy one). */
 
 const electron = createRequire(import.meta.url)('electron') as unknown as string;
-const dir = mkdtempSync(path.join(tmpdir(), 'lvds-sheet-frame-'));
+const dir = mkdtempSync(path.join(tmpdir(), 'gfde-sheet-frame-'));
 afterAll(() => { if (!process.env.KEEP_PDF) rmSync(dir, { recursive: true, force: true }); });
 
 const SCALE = 2, PX = (72 / 25.4) * SCALE; // pixels per mm

@@ -1,6 +1,6 @@
 # Figma integration (free plan)
 
-**Design file:** [LV Design Suite — Design System](https://www.figma.com/design/QbuEPgIWcPo129tBQDwjhX) (Drafts of the project owner's Figma account)
+**Design file:** [GFD Studio E — Design System](https://www.figma.com/design/QbuEPgIWcPo129tBQDwjhX) (Drafts of the project owner's Figma account)
 
 ## What was set up
 

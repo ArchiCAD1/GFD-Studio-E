@@ -5,7 +5,7 @@ Phase 2 of the drafting list the user gave on 2026-11-06. On 2026-11-06 the user
 ## Built
 
 - **Layer manager (LM, and View → Layer manager).** It is kept per drawing file.
-  - **The app's drawn layers** (LV-SKETCH, LV-ANNO, LV-HATCH, E-TRAY, E-CABLE and any others in use): on, lock, colour, linetype and lineweight.
+  - **The app's drawn layers** (GFDE-SKETCH, GFDE-ANNO, GFDE-HATCH, E-TRAY, E-CABLE and any others in use): on, lock, colour, linetype and lineweight.
   - **The architect's layers:** on (the same switch as the Layers panel) and a screen colour of their own.
   - **Lock:** objects on a locked layer can be seen and snapped to, but not picked or edited. Hidden objects cannot be picked either.
 - **Linetypes:** Continuous, Dashed, Hidden, Center, Dot, Dash dot and Phantom. The dashes are in paper mm at 1:100, and a pattern too fine to see at the current zoom shows continuous, as CAD does.

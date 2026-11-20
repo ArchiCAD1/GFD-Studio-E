@@ -79,4 +79,4 @@ Retest (2026-10-13, sample project, 1440 × 900): drawing tab crisp, pits grey; 
 - Working view shows the schematic only: legend and notes (with the pit schedule) appear on the exported / drawing-set sheet, not on screen.
 - Retest: sample project, Earthing tab dark with grid, text readable, pit editor unchanged; typecheck, lint, tests pass.
 
-Project: [[LV Design Studio]] · Module: [[Diagrams]]
+Project: [[GFD Studio E]] · Module: [[Diagrams]]

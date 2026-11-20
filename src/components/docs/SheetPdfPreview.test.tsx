@@ -31,7 +31,7 @@ it('plots just the selected sheet and saves the bytes shown in the preview', asy
     return { promise: Promise.resolve({ getPage, numPages: 2 }), destroy };
   });
   mocks.saveBinary.mockResolvedValue('Saved sheet.pdf');
-  vi.stubGlobal('lvds', { files: { pdfBytes: toBytes } });
+  vi.stubGlobal('gfde', { files: { pdfBytes: toBytes } });
   const host = document.createElement('div');
   document.body.appendChild(host);
   const root = createRoot(host);

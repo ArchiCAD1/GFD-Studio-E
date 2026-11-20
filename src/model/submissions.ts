@@ -126,7 +126,7 @@ export function submissionCounts(p: Project, today: string): SubmissionCounts {
 
 /** A submission ready to record after an export: the document filled in, the rest to complete. */
 export interface SubmissionOffer { kind: SubKind; title: string; docs: SubDoc[]; purpose?: string }
-const OFFER = 'lvds:offer-submission';
+const OFFER = 'gfde:offer-submission';
 /** Asks the app to offer "Record as submission" for a document just saved. */
 export function offerSubmission(o: SubmissionOffer): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent<SubmissionOffer>(OFFER, { detail: o }));

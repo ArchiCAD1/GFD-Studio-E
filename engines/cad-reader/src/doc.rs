@@ -1234,7 +1234,7 @@ fn entity_of(sh: &ShapeOut) -> Option<EntityType> {
         "hatch" if sh.loops.iter().any(|l| l.len() >= 3) => {
             let mut h = if sh.solid || sh.lines.is_empty() { Hatch::solid() } else {
                 // Named for its pattern (ANSI31, BRICK…), with its angle and scale; its lines are written as drawn.
-                let mut pat = HatchPattern::new(if sh.name.trim().is_empty() { "LVDS_REF" } else { sh.name.trim() });
+                let mut pat = HatchPattern::new(if sh.name.trim().is_empty() { "GFDE_REF" } else { sh.name.trim() });
                 for l in &sh.lines { pat.add_line(HatchPatternLine { angle: l.angle, base_point: Vector2::new(l.base.0, l.base.1), offset: Vector2::new(l.offset.0, l.offset.1), dash_lengths: l.dashes.clone() }); }
                 let mut h = Hatch::with_pattern(pat);
                 h.pattern_type = HatchPatternType::Custom;
@@ -1740,7 +1740,7 @@ mod tests {
     }
 
     /// A plan whose drawing names a reference (STR-GF, saved as ..\\Structure\\STR-GF.dxf): written as DXF and read again,
-    /// the reference is still listed. LVDS_WRITE_XREF_FIXTURE writes tests/fixtures/cad/xref-host.dxf (page tests).
+    /// the reference is still listed. GFDE_WRITE_XREF_FIXTURE writes tests/fixtures/cad/xref-host.dxf (page tests).
     /// Bind: a reference's fills go into the saved copy as hatches, solid or with their pattern lines, and are read again.
     #[test]
     fn hatch_shapes_saved() {
@@ -1860,7 +1860,7 @@ mod tests {
         doc.add_entity(EntityType::Line(Line::from_points(Vector3::new(0.0, 0.0, 0.0), Vector3::new(10000.0, 0.0, 0.0)))).unwrap();
         doc.add_entity(EntityType::Insert(Insert::new("STR-GF", Vector3::new(500.0, 0.0, 0.0)))).unwrap();
         let bytes = acadrust::DxfWriter::new(&doc).write_to_vec().unwrap();
-        if let Ok(path) = std::env::var("LVDS_WRITE_XREF_FIXTURE") { std::fs::write(path, &bytes).unwrap(); }
+        if let Ok(path) = std::env::var("GFDE_WRITE_XREF_FIXTURE") { std::fs::write(path, &bytes).unwrap(); }
         let back = read(bytes).unwrap().0;
         let x = xrefs_of(&back);
         assert_eq!(x.len(), 1);
@@ -1872,7 +1872,7 @@ mod tests {
     #[test]
     fn linetypes_and_fills() {
         let bytes = drawing();
-        if let Ok(path) = std::env::var("LVDS_WRITE_FIXTURE") { std::fs::write(path, &bytes).unwrap(); }
+        if let Ok(path) = std::env::var("GFDE_WRITE_FIXTURE") { std::fs::write(path, &bytes).unwrap(); }
         let d = CadDoc::new(bytes).unwrap();
         // The dashed line at LTSCALE 2: 20 on, 10 off; the plain line continuous.
         assert_eq!(d.linetypes.len(), 2);
@@ -1925,8 +1925,8 @@ mod tests {
     #[test]
     fn paper_space_layouts() {
         let bytes = acadrust::DxfWriter::new(&with_layouts()).write_to_vec().unwrap();
-        // LVDS_WRITE_FIXTURES=1 cargo test: saved for the app's tests (src/components/cad/CadPage.test.tsx).
-        if std::env::var("LVDS_WRITE_FIXTURES").is_ok() { std::fs::write(format!("{}/../../tests/fixtures/cad/paper-layouts.dxf", env!("CARGO_MANIFEST_DIR")), &bytes).unwrap(); }
+        // GFDE_WRITE_FIXTURES=1 cargo test: saved for the app's tests (src/components/cad/CadPage.test.tsx).
+        if std::env::var("GFDE_WRITE_FIXTURES").is_ok() { std::fs::write(format!("{}/../../tests/fixtures/cad/paper-layouts.dxf", env!("CARGO_MANIFEST_DIR")), &bytes).unwrap(); }
         let mut d = CadDoc::new(bytes.clone()).unwrap();
         assert_eq!(d.seg_layer.len(), 1, "model space: the one model line");
         let v: serde_json::Value = serde_json::from_str(&d.layouts()).unwrap();

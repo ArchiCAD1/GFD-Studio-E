@@ -5,7 +5,7 @@ import { sampleProject } from '../data/sampleProject';
 import { lineText, specView, starterSpec, type SpecDoc } from './specDoc';
 import {
   applyTemplate, clauseGroup, isSpecDoc, loadTemplates, removeTemplate, saveTemplates, specFileText, specFromFileText, templateNameError, templateOf, templateSummary, withTemplate,
-  SPEC_TEMPLATES_KEY
+  SPEC_TEMPLATES_KEY, SPEC_FILE_EXT
 } from './specTemplates';
 
 const doc: SpecDoc = {
@@ -119,8 +119,10 @@ describe('specification templates — the library and the file', () => {
 
   it('a specification saved as a file opens again the same; other files are refused', () => {
     expect(specFromFileText(specFileText(doc))).toEqual(doc);
+    expect(SPEC_FILE_EXT).toBe('gfde-spec');
+    expect(specFromFileText(JSON.stringify({ format: 'lvds-specification', version: 1, spec: doc }))).toEqual(doc);
     expect(specFromFileText(specFileText(starterSpec()))).toEqual(starterSpec());
-    expect(specFromFileText('{"format":"lvds-specification","spec":{"title":"x","sections":[]}}')).toBeUndefined();
+    expect(specFromFileText('{"format":"gfde-specification","spec":{"title":"x","sections":[]}}')).toBeUndefined();
     expect(specFromFileText(JSON.stringify({ spec: doc }))).toBeUndefined();
     expect(specFromFileText('hello')).toBeUndefined();
     expect(isSpecDoc({ title: 'x', sections: [{ id: 'S1', title: 'a', clauses: [{ id: 'C1', kind: 'table', text: '' }] }] })).toBe(false); // a table with no rows

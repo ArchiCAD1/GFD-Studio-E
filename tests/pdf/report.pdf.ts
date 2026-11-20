@@ -17,7 +17,7 @@ import { mergePdfs } from '../../src/docs/mergePdf';
  * printed through the same Chromium call as the desktop app, then checked page by page. */
 
 const electron = createRequire(import.meta.url)('electron') as unknown as string;
-const dir = mkdtempSync(path.join(tmpdir(), 'lvds-pdf-'));
+const dir = mkdtempSync(path.join(tmpdir(), 'gfde-pdf-'));
 // Rendered files are removed after the run (set KEEP_PDF=1 to keep them for a look).
 afterAll(() => { if (!process.env.KEEP_PDF) rmSync(dir, { recursive: true, force: true }); });
 const MM = 96 / 25.4;

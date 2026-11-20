@@ -9,7 +9,7 @@ const close = (a: Pt, b: Pt) => { expect(a[0]).toBeCloseTo(b[0], 6); expect(a[1]
 const H = 0, V = Math.PI / 2;
 // Two points 3 m apart across and 1 m up (drawing units mm).
 const p1: Pt = [0, 0], p2: Pt = [3000, 1000];
-const lin = (at: Pt, dir: number, extra: Partial<SketchItem> = {}): SketchItem => ({ id: 'd', kind: 'dim', layer: 'LV-ANNO', pts: [p1, p2, at], dir, ...extra });
+const lin = (at: Pt, dir: number, extra: Partial<SketchItem> = {}): SketchItem => ({ id: 'd', kind: 'dim', layer: 'GFDE-ANNO', pts: [p1, p2, at], dir, ...extra });
 
 describe('linear dimensions (DLI)', () => {
   it('is horizontal dragged above or below the points, vertical beside them', () => {
@@ -87,7 +87,7 @@ describe('continued and baseline dimensions (DCO, DBA)', () => {
     expect(n.dir).toBe(H);
     expect(n.look).toEqual(base.look);
     expect(n.h).toBe(200);
-    expect(n.layer).toBe('LV-ANNO');
+    expect(n.layer).toBe('GFDE-ANNO');
     expect(dimMeasure(n)).toBeCloseTo(2000, 6);
     const [, , line] = dimOf({ ...n, id: 'n' }, 0.001).lines;
     expect(line[0][1]).toBeCloseTo(2000, 6); // in line with the base's

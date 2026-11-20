@@ -102,7 +102,7 @@ This module turns calculation results into documents for submission. It has five
 | Submission register entry offered after export | 27-review-submissions-authority | `StudyReportsView.tsx:exportPdf` → `src/model/submissions.ts:offerSubmission` |
 | Issue package includes the project summary | 28-dashboard-readiness | `exportPack` → `src/docs/dashboardPdf.ts:buildDashboardHtml` |
 | Anonymised sample report | 01-app-shell | `src/components/AnonymizedSampleDialog.tsx:22` (`buildReportHtml`) |
-| PDF bytes | 34-electron-desktop | `window.lvds.files.pdfBytes` → `electron/pdfRender.cjs:htmlToPdf` |
+| PDF bytes | 34-electron-desktop | `window.gfde.files.pdfBytes` → `electron/pdfRender.cjs:htmlToPdf` |
 
 ## 5. User flow — from button click to result
 

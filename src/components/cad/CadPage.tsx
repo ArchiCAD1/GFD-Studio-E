@@ -130,7 +130,7 @@ type Result =
 
 const hex = (rgb: number) => (rgb === 0xff000007 ? 'var(--cad-ink)' : `#${rgb.toString(16).padStart(6, '0')}`);
 /** The properties dock's width: default and limits (px), and where its side and width are kept. */
-const DOCK_W = 280, DOCK_MIN = 220, DOCK_MAX = 480, DOCK_KEY = 'lvds.cad.dock';
+const DOCK_W = 280, DOCK_MIN = 220, DOCK_MAX = 480, DOCK_KEY = 'gfde.cad.dock';
 /** Tools whose next point has a length and angle from the last one: the boxes of dynamic input. */
 const POINT_TOOLS: CadTool[] = ['line', 'xline', 'ray', 'pline', 'tray', 'cable', 'dim', 'dimlin', 'move', 'copy', 'dist', 'area', 'trace', 'leader'];
 const HELP = 'Commands: OPEN · CLOSE · CLOSEALL · SAVE (DXF) · SAVEDWG · ROOMS (add found rooms) · RA (click inside a room) · TRACE (trace a room) · PN (pick its name) · CT (cable tray run) · CR (cable route) · LR (link a line as a cable route) · SCHED (update schedules) · WC (wire circuits) · W1 (wire one) · TAGS · FILL (fill a room with an ELV device) · LUX (light a room by the lumen method) · EM (emergency lighting) · SEL (select devices: Shift-click, or a window) · QS (quick select) · SELECTSIMILAR · ARL (array on line) · MA (match) · ALIGNH / ALIGNV / SPACE (the devices selected) · AL (align objects by points) · TR (trim) · EX (extend) · O (offset) · F (fillet) · CHA (chamfer) · BR (break) · J (join) · X (explode) · B (block from drawn objects: the dialog; -BLOCK on the command line) · I (the Blocks palette: this drawing, Recent, Library; -INSERT by name) · ATT (attribute definition for a block) · ATE (edit a block\'s attributes; or double-click it) · ATTEXT (the attributes as a table) · PO (point) · DIV (points at the divisions of an object) · ME (points every length along it) · PTYPE (point style) · DR (draw order: Front, Back, Above or Under an object) · TEXTTOFRONT (texts, dimensions, leaders over the rest) · MI (mirror) · SC (scale) · S (stretch) · AR (array) · CROP (BCROP, cut a block along an outline) · MP (match properties) · H (hatch) · HE (edit a hatch: pattern, spacing, angle, origin, islands; or double-click it) · BO (boundary: a closed polyline round an area) · LE (leader) · RT (room tag) · NORTH · LA (layer palette) · CLAYER (current layer) · LAYISO / LAYUNISO · RESTOREDWG (erased drawing objects back) · COV (coverage) · L (line) · XL (XLINE, construction line) · RAY · PL (polyline, C closes) · REC · C (circle) · A (arc, 3 points) · T (text) · MT (notes in a box, lines wrapped to its width) · MLD (multileader) · MLEADERADD / MLEADERREMOVE · MLA (align multileaders) · MLC (collect them) · MLS (multileader style) · ED (edit a text, dimension or multileader in place, or double-click it) · TJ (justify texts) · TH (text height) · TA (align or space texts) · TC (text case) · TPREFIX / TSUFFIX · TOR (readable text) · TCEN (centre between two points) · TCOPY (words of another text) · TFRAME (circle, box or hexagon round texts) · TMASK (mask under texts) · TCOUNT (numbered texts) · KN (keynote with a legend) · RTALL (tag all rooms) · DIM · DRA (radius) · DDI (diameter) · DAN (angular) · ST (text style) · D (dimension style) · M (move) · CO (copy) · COPYCLIP (Ctrl+C) · COPYBASE (Ctrl+Shift+C) · PASTECLIP (Ctrl+V) · PASTEORIG · RO (rotate) · E (erase) · DI (distance) · AREA (O = object) · RA (room area) · DEV (add device) · M (move) · E (delete) · LI (inspect) · FIT (ZE) · Z (zoom: W window, P previous, S scale) · LAYERS (layers panel) · OSNAP (F3) · GRID (F7) · ORTHO (F8) · SNAP (F9) · POLAR (F10) · OTRACK (F11) · DYN (F12) · LWT · DS (drafting settings) · LEGEND (LG) / NOTES (a legend or notes table on a layout, moved by its frame) · SAVEAS · EXPORT · PUBLISH · F2 history · Esc cancels, Enter or Space ends a step or repeats the last command.';
@@ -274,7 +274,7 @@ function roomAtPointOf(p: Project, f: { ref: { building: string; level: string }
 }
 const pathLength = (pts: Pt[]) => pts.slice(1).reduce((t, q, i) => t + distance(pts[i], q), 0);
 /** Layers for what is drawn in the app (written into the DXF on save). */
-const DRAW_LAYER = 'LV-SKETCH', ANNO_LAYER = 'LV-ANNO';
+const DRAW_LAYER = 'GFDE-SKETCH', ANNO_LAYER = 'GFDE-ANNO';
 /** Layers of the circuit wiring and its tags (written into the DXF / DWG on save). */
 const WIRING_LAYER = 'E-LV-WIRING', TAG_LAYER = 'E-LV-TAGS';
 /** The edit tools on what was drawn (Draw → Edit, Mirror / Scale / Stretch in Modify), and those that work on objects
@@ -305,7 +305,7 @@ const MTEXT_JUST = (j?: NoteAttach) => `MTEXT  Justify [TL/TC/TR/ML/MC/MR/BL/BC/
 const MTEXT_TYPE = (isNew: boolean) => `MTEXT  Type the note (Enter starts a new line); Ctrl/⌘+Enter or OK keeps it, Esc ${isNew ? 'cancels' : 'leaves it as it was'}:`;
 type DrMode = 'front' | 'back' | 'above' | 'under';
 /** Where the Blocks palette's library folder is remembered on this computer. */
-const LIB_KEY = 'lvds.cad.blockFolder';
+const LIB_KEY = 'gfde.cad.blockFolder';
 const DR_OPTIONS = 'DRAWORDER  [Above objects/Under objects/Front/Back] <Back>:';
 const DR_REF = 'DRAWORDER  Select reference objects:';
 const TFRAME_PROMPT = 'TFRAME  Frame [Circle/Box/Hexagon/None] <Circle>:';
@@ -483,7 +483,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     // The library folder chosen last on this computer, listed again (desktop app).
     let folder: string | null = null;
     try { folder = localStorage.getItem(LIB_KEY); } catch { /* none */ }
-    const list = window.lvds?.cadFile?.listFolder;
+    const list = window.gfde?.cadFile?.listFolder;
     if (folder && list) void list(folder).then((r) => { if (r) setLibrary({ folder: r.folder, files: r.files }); }, () => {});
   }, []);
   // TALIGN after its texts: the edge chosen and what it waits for (the text or point to line up with, or the gap).
@@ -572,7 +572,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
     if (tab) cad.show(tab); else void load(read, missing);
   };
   /** A level's plan can be shown: open in a tab, a sample, or a file whose folder is known on this computer. */
-  const canOpenPlan = (file: string) => !!cad.tabOf(file) || SAMPLE_PLANS.some((s) => s.file === file) || (!!pathOfPlan(project.id, file) && !!window.lvds?.cadFile?.readBytes);
+  const canOpenPlan = (file: string) => !!cad.tabOf(file) || SAMPLE_PLANS.some((s) => s.file === file) || (!!pathOfPlan(project.id, file) && !!window.gfde?.cadFile?.readBytes);
   /** Shows a level's plan: its tab, else loads it; with no file yet, asks for a drawing and makes it the level's plan. */
   const openPlan = (file: string | undefined, floor: Floor) => showOrLoad(file ?? '', async () => {
     const v = !file ? await chooseDrawing() : SAMPLE_PLANS.some((s) => s.file === file) ? await sampleDrawing(file) : await reopenDrawing(pathOfPlan(project.id, file)!);
@@ -1634,7 +1634,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
       const refLines = c.bind ? xr.bound() : [];
       const drawn = c.drawn ? sketch : [];
       const bytes = await drawingWithDevices(view, out, [...shapesOut(drawn, units.factor), ...blockDefsOut(defs, units.factor), pointStyleOut(pointStyleOf(project)), ...symbols, ...wires, ...tags, ...refLines], c.as, erasedKey ? erasedKey.split(',') : [], c.version);
-      const over = again && c.path ? window.lvds?.files?.overwriteBinary : undefined;
+      const over = again && c.path ? window.gfde?.files?.overwriteBinary : undefined;
       let r: { message: string; path?: string; name: string } | null;
       if (over && c.path) { await over({ file: c.path, bytes, bak: draft.keepBak }); r = { message: `Saved ${c.name}`, path: c.path, name: c.name }; }
       else r = await saveBinaryAt(c.name, bytes, c.as === 'dwg' ? 'DWG drawing' : 'DXF drawing', c.as, c.as === 'dwg' ? 'application/acad' : 'application/dxf', { output: 'cadDrawing', project });
@@ -2239,7 +2239,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         const tab = cad.tabOf(r.file), path = pathOfPlan(project.id, r.file);
         if (tab) { cad.show(tab); return; }
         if (SAMPLE_PLANS.some((x) => x.file === r.file)) { showOrLoad(r.file, () => sampleDrawing(r.file)); return; }
-        if (path && window.lvds?.cadFile?.readBytes) { showOrLoad(r.file, () => reopenDrawing(path), `XREF  ${r.file} is no longer where it was: Repath it in References (XR).`); return; }
+        if (path && window.gfde?.cadFile?.readBytes) { showOrLoad(r.file, () => reopenDrawing(path), `XREF  ${r.file} is no longer where it was: Repath it in References (XR).`); return; }
         cad.say(`XREF  ${r.file}: where it is on this computer is not known — open it with OPEN, or Repath it in References (XR).`); return;
       }
       case 'clip': startClip(r); return;
@@ -2635,14 +2635,14 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
   /** A drawing file of the library as one block named after it. */
   async function insertLibraryFile(f: LibraryFile) {
     try {
-      const bytes = f.blob ? new Uint8Array(await f.blob.arrayBuffer()) : f.path ? (await window.lvds?.cadFile?.readBytes?.(f.path))?.bytes : undefined;
+      const bytes = f.blob ? new Uint8Array(await f.blob.arrayBuffer()) : f.path ? (await window.gfde?.cadFile?.readBytes?.(f.path))?.bytes : undefined;
       if (!bytes) { cad.say(`INSERT  ${f.file} could not be read.`); return; }
       startInsert(defFromGeometry(blockNameFromFile(f.file), await readRefGeometry(f.file, bytes)));
     } catch (e) { cad.say(`INSERT  ${f.file}: ${e instanceof Error ? e.message : String(e)}`); }
   }
   /** Folder… on the desktop: a folder of DWG / DXF files, remembered on this computer. */
   async function chooseLibraryFolder() {
-    const r = await window.lvds?.cadFile?.chooseBlockFolder?.();
+    const r = await window.gfde?.cadFile?.chooseBlockFolder?.();
     if (!r) return;
     setLibrary({ folder: r.folder, files: r.files });
     try { localStorage.setItem(LIB_KEY, r.folder); } catch { /* not kept */ }
@@ -4919,7 +4919,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
         {dockSide === 'left' ? dock : info}
         {cad.showBlocks && view && (
           <BlocksPalette defs={defs} archNames={archBlockNames} recent={recentBlocks} library={library} chosen={tool === 'insert' ? insBlock?.name : undefined} settings={insSet} onSettings={setInsSet}
-            onPick={startInsert} onPickArch={(n) => void insertArchBlock(n)} onLibraryFolder={window.lvds?.cadFile?.chooseBlockFolder ? () => void chooseLibraryFolder() : undefined}
+            onPick={startInsert} onPickArch={(n) => void insertArchBlock(n)} onLibraryFolder={window.gfde?.cadFile?.chooseBlockFolder ? () => void chooseLibraryFolder() : undefined}
             onLibraryFiles={(files) => setLibrary({ folder: `${files.length} file${files.length === 1 ? '' : 's'} chosen`, files: files.map((b) => ({ file: b.name, blob: b })) })} onLibraryFile={(f) => void insertLibraryFile(f)}
             onInsertAt={() => { const x = Number(insSet.x.replace(',', '.')), y = Number(insSet.y.replace(',', '.')); if (!insBlock) cad.say('INSERT  Choose a block first.'); else if (!Number.isFinite(x) || !Number.isFinite(y) || !insSet.x.trim() || !insSet.y.trim()) cad.say('INSERT  Type X and Y in metres.'); else placeInsert(insBlock, [x / units.factor, y / units.factor]); }}
             onClose={() => cad.setShowBlocks(false)} />
@@ -5060,7 +5060,7 @@ export default function CadPage({ cad, project, onChange, onStatus, sheetUi, run
             <div className="cad-actions">
               <button className="chip primary" disabled={busy} onClick={openFile}>{busy ? 'Opening…' : 'Open drawing…'}</button>
               <button className="chip" disabled={busy} onClick={newFile}>New drawing</button>
-              {last && window.lvds?.cadFile?.readBytes && <button className="chip" disabled={busy} onClick={() => void load(() => reopenDrawing(last), 'That drawing is no longer where it was. Open it again.')}>Reopen {last.split(/[\\/]/).pop()}</button>}
+              {last && window.gfde?.cadFile?.readBytes && <button className="chip" disabled={busy} onClick={() => void load(() => reopenDrawing(last), 'That drawing is no longer where it was. Open it again.')}>Reopen {last.split(/[\\/]/).pop()}</button>}
               {SAMPLE_PLANS.map((x) => <button key={x.file} className="chip" disabled={busy} onClick={() => void load(() => sampleDrawing(x.file))}>{x.label}</button>)}
             </div>
           </div>

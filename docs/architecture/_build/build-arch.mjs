@@ -133,10 +133,10 @@ const commit = process.env.ARCH_COMMIT ? ` (commit \`${process.env.ARCH_COMMIT}\
 const write = (f, text) => fs.writeFileSync(path.join(outDir, f), text);
 
 // ---------- 00-index.md ----------
-let idx = `# LV Design Studio — architecture index\n\n`;
+let idx = `# GFD Studio E — architecture index\n\n`;
 if (PUBLIC) {
-  idx += `How LV Design Studio is built: every feature (module), what it does, its main files, and how the modules pass data to each other. Written from the code on \`main\`${commit}, ${today}.\n\n`;
-  idx += `- [Integration map (diagram of working links)](99-integration-map.md)\n- [Interactive navigator](navigator.html) — also on the web: https://pdhruv15.github.io/LV-Design-Studio/architecture/\n\n`;
+  idx += `How GFD Studio E is built: every feature (module), what it does, its main files, and how the modules pass data to each other. Written from the code on \`main\`${commit}, ${today}.\n\n`;
+  idx += `- [Integration map (diagram of working links)](99-integration-map.md)\n- [Interactive navigator](navigator.html) — also on the web: https://archicad1.github.io/GFD-Studio-E/architecture/\n\n`;
   idx += `**Totals:** ${mods.length} modules · ${edgeList.length} links between modules.\n\n`;
   for (const [g, ids] of GROUPS) {
     idx += `## ${g}\n\n| # | Module | What it does | Main files |\n|---|---|---|---|\n`;
@@ -209,7 +209,7 @@ for (const f of ['00-index.md', '99-integration-map.md']) payload.extra[f] = fs.
 const json = JSON.stringify(payload).replace(/</g, '\\u003c');
 let tpl = fs.readFileSync(new URL('./navigator.tpl.html', import.meta.url), 'utf8');
 tpl = PUBLIC ? tpl.replace(/<!--priv-->[\s\S]*?<!--\/priv-->/g, '') : tpl.replace(/<!--\/?priv-->/g, '');
-if (PUBLIC) tpl = tpl.replace('<title>LV Design Studio — architecture navigator</title>', '<title>LV Design Studio — how it is built</title>');
+if (PUBLIC) tpl = tpl.replace('<title>GFD Studio E — architecture navigator</title>', '<title>GFD Studio E — how it is built</title>');
 write('navigator.html', tpl.replace('__DATA__', () => json));
 
 console.log(`${PUBLIC ? 'public' : 'full'}: modules ${mods.length}, gaps ${allGaps.length}, edges ${edgeList.length}`);

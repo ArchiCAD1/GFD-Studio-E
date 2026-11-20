@@ -24,7 +24,7 @@ export const newPriceList = (name = 'My rates'): PriceList => ({
   id: `pl-${Date.now().toString(36)}`, name, date: new Date().toISOString().slice(0, 10), currency: CURRENCY, markupPct: 0, rates: {}
 });
 
-const KEY = 'lvds.priceLists';
+const KEY = 'gfde.priceLists';
 /** Price lists: those in Prices.xlsx, then the ones saved on this computer. */
 export function loadPriceLists(): PriceList[] {
   let mine: PriceList[] = [];

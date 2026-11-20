@@ -11,19 +11,20 @@ const crypto = require('node:crypto');
 
 const sha = (text) => crypto.createHash('sha256').update(text).digest('hex');
 
-// ---- The project file: name.lvds ------------------------------------------------
-// The native format is the project as JSON text with "format": "lvds.project" first (schemaVersion is its
+// ---- The project file: name.gfde ------------------------------------------------
+// The native format is the project as JSON text with "format": "gfde.project" first (schemaVersion is its
 // version). Projects saved before it are name.json with the same content: still listed and opened, and saved
-// as name.lvds from then on.
-const PROJECT_EXT = '.lvds';
-const PROJECT_FORMAT = 'lvds.project';
-const PROJECT_FILE = /\.(lvds|json)$/i;
+// as name.gfde from then on.
+const PROJECT_EXT = '.gfde';
+const PROJECT_FORMAT = 'gfde.project';
+// Legacy files remain readable; every newly named file uses PROJECT_EXT.
+const PROJECT_FILE = /\.(gfde|lvds|json)$/i;
 const isProjectFile = (file) => PROJECT_FILE.test(file);
 const stemOf = (file) => file.replace(PROJECT_FILE, '');
 /** The text of a project file. */
 const projectText = (data) => JSON.stringify(Object.assign({ format: PROJECT_FORMAT }, data, { format: PROJECT_FORMAT }), null, 2);
 /** Whether a project file of either kind has this name (without extension) in the folder. */
-const stemTaken = (folder, stem) => lexists(path.join(folder, `${stem}${PROJECT_EXT}`)) || lexists(path.join(folder, `${stem}.json`));
+const stemTaken = (folder, stem) => ['.gfde', '.lvds', '.json'].some((ext) => lexists(path.join(folder, `${stem}${ext}`)));
 
 /** A step that may fail without stopping the operation it belongs to (a backup copy, a cache, a
  * cleanup). A file that is not there is expected and stays quiet; any other failure is logged with
@@ -58,7 +59,7 @@ function decideSave(expected, disk) {
 
 /** Writes a file safely: to a temporary file first, flushed to disk, then renamed over the old one (a
  * crash or a sync mid-write never leaves a half-written file). The previous version is kept as
- * name.lvds.bak. With keepTheirs the previous version is also kept under its own timestamped name (an
+ * name.gfde.bak. With keepTheirs the previous version is also kept under its own timestamped name (an
  * overwrite after a conflict). The result is read back and checked before it is reported as saved. */
 function writeFileSafe(full, text, opts = {}) {
   const { keepBackup = true, keepTheirs = false, verifyJson = false, mode = 'public' } = opts;
@@ -71,7 +72,7 @@ function writeFileSafe(full, text, opts = {}) {
   try {
     if (finalMode !== PRIVATE_FILE) fs.chmodSync(tmp, finalMode);
     if (lexists(full)) {
-      // Backups are new files renamed into place: a link at name.lvds.bak is replaced, never written through.
+      // Backups are new files renamed into place: a link at name.gfde.bak is replaced, never written through.
       if (keepBackup) bestEffort(`backup copy of ${path.basename(full)}`, () => copyFileNoFollow(full, `${full}.bak`, LIMITS.projectBytes));
       if (keepTheirs) bestEffort(`copy of the other version of ${path.basename(full)}`, () => copyFileNoFollow(full, `${full}.theirs-${Date.now()}.bak`, LIMITS.projectBytes));
     }
@@ -86,14 +87,14 @@ function writeFileSafe(full, text, opts = {}) {
   return stampOf(full);
 }
 
-/** name.lvds, or name-2.lvds, name-3.lvds … when that name is taken (by a .lvds or an older .json). */
+/** name.gfde, or name-2.gfde, name-3.gfde … when that name is taken (by a .gfde or an older .json). */
 function uniqueFileName(folder, base) {
   let stem = base, n = 2;
   while (stemTaken(folder, stem)) stem = `${base}-${n++}`;
   return `${stem}${PROJECT_EXT}`;
 }
 
-/** The name a project file is saved under: its own when it is a .lvds, else the .lvds that takes its place. */
+/** The name a project file is saved under: its own when it is a .gfde, else the .gfde that takes its place. */
 function nativeFileName(folder, file) {
   if (file.toLowerCase().endsWith(PROJECT_EXT)) return file;
   const stem = stemOf(file);
@@ -108,7 +109,7 @@ function pickedProject(folder, full) {
   if (path.dirname(path.resolve(full)) === path.resolve(folder)) return { file: name };
   let data;
   try { data = readJsonLimited(full, LIMITS.projectBytes, name, { follow: true }); } catch (e) { throw new Error(`${name} could not be read as a project (${e.message}).`); }
-  if (!data || typeof data !== 'object' || !Array.isArray(data.boards) || !Array.isArray(data.feeders)) throw new Error(`${name} is not an LV Design Studio project.`);
+  if (!data || typeof data !== 'object' || !Array.isArray(data.boards) || !Array.isArray(data.feeders)) throw new Error(`${name} is not a GFD Studio E project.`);
   return { data, from: full };
 }
 
@@ -117,11 +118,13 @@ function pickedProject(folder, full) {
 function retireOldFile(folder, file, native) {
   if (file === native) return;
   assertNotLink(path.join(folder, file), file);
-  bestEffort(`keep ${file} as the backup of ${native}`, () => fs.renameSync(path.join(folder, file), path.join(folder, `${native}.bak`)));
+  let backup = `${native}.bak`, n = 2;
+  while (lexists(path.join(folder, backup))) backup = `${native}.legacy-${n++}.bak`;
+  bestEffort(`keep ${file} as the backup of ${native}`, () => fs.renameSync(path.join(folder, file), path.join(folder, backup)));
 }
 
 /** Files that look like a sync tool's conflicted copy of another project file in the same list
- * ("x (John's conflicted copy 2026-10-05).lvds", "x (1).lvds", "x.sync-conflict-….lvds"; .json alike).
+ * ("x (John's conflicted copy 2026-10-05).gfde", "x (1).gfde", "x.sync-conflict-….gfde"; .json alike).
  * Maps each such file to the file it conflicts with (which must exist). */
 function conflictSiblings(files) {
   const have = new Set(files.map((f) => f.toLowerCase()));
@@ -131,7 +134,7 @@ function conflictSiblings(files) {
     const name = stemOf(f), ext = f.slice(name.length);
     for (const re of patterns) {
       const m = name.match(re);
-      const of = m && [`${m[1]}${ext}`, `${m[1]}${PROJECT_EXT}`, `${m[1]}.json`].find((o) => have.has(o.toLowerCase()) && o.toLowerCase() !== f.toLowerCase());
+      const of = m && [`${m[1]}${ext}`, `${m[1]}${PROJECT_EXT}`, `${m[1]}.lvds`, `${m[1]}.json`].find((o) => have.has(o.toLowerCase()) && o.toLowerCase() !== f.toLowerCase());
       if (of) { out[f] = of; break; }
     }
   }

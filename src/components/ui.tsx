@@ -23,7 +23,7 @@ export function StatusCounts({ statuses }: { statuses: Status[] }) {
 }
 
 /** Where an export goes, in words: the desktop app asks for the folder; the browser downloads, and prints PDFs. */
-export const exportDestination = () => (typeof window !== 'undefined' && window.lvds?.files ? 'You choose the folder when saving' : 'This browser: files download; PDFs open the print dialog');
+export const exportDestination = () => (typeof window !== 'undefined' && window.gfde?.files ? 'You choose the folder when saving' : 'This browser: files download; PDFs open the print dialog');
 
 /** One export pattern for every export screen: what is exported (scope), the revision printed on it, where it
  * goes, then the formats with the primary one last. Why export is blocked is written out, not only in tooltips. */

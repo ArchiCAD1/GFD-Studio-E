@@ -56,7 +56,7 @@ Design CAD has two sub-tabs today: **LVCAD** (Draw, Modify, Annotate, Layers, Pr
 
 ## What is drawn
 
-- Tables and notes are ordinary drawn objects (lines and text on LV-ANNO): they print black-and-white on plan sheets and save to DXF / DWG.
+- Tables and notes are ordinary drawn objects (lines and text on GFDE-ANNO): they print black-and-white on plan sheets and save to DXF / DWG.
 - A linked table remembers its source (legend / board / circuits / cables, level, board). When the project changes it shows a "needs update" mark; Update tables redraws it in one undo step.
 - Mask is a closed polyline with a paper-colour fill drawn under the annotation, with an outline shown only when picked.
 

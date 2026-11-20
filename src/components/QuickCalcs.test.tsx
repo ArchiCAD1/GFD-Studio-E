@@ -9,9 +9,9 @@ const POWER_CARDS = ['amps', 'power', 'triangle'];
 /** Renders with the first saved calculator open (or `card`, if given); the
  * three power calculators share the Power & current tab. */
 function render(saved: SavedInputs = {}, card = Object.keys(saved)[0]) {
-  const items = new Map(Object.entries(saved).map(([key, values]) => [`lvds.quick.${key}`, JSON.stringify(values)]));
-  if (card) items.set('lvds.quick.tab', POWER_CARDS.includes(card) ? 'power' : card);
-  if (POWER_CARDS.includes(card)) items.set('lvds.quick.powerMode', JSON.stringify({ m: card }));
+  const items = new Map(Object.entries(saved).map(([key, values]) => [`gfde.quick.${key}`, JSON.stringify(values)]));
+  if (card) items.set('gfde.quick.tab', POWER_CARDS.includes(card) ? 'power' : card);
+  if (POWER_CARDS.includes(card)) items.set('gfde.quick.powerMode', JSON.stringify({ m: card }));
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => items.get(key) ?? null,
     setItem: vi.fn(),

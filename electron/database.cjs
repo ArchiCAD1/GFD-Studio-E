@@ -1,11 +1,12 @@
-// LV Database: a folder of Excel workbooks (loads, cables, breakers,
+// GFD Studio E Database: a folder of Excel workbooks (loads, cables, breakers,
 // parameters) inside the projects folder, so it syncs through Google Drive
 // and can be edited in Excel. The app creates any missing workbook (never
 // overwrites one), reads them, and watches the folder for saves.
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { LIMITS, readJsonLimited, readFileLimited } = require('./limits.cjs');
-const { replaceFile, copyFileNoFollow, ensureRealDir, listFiles } = require('./safeFs.cjs');
+const { replaceFile, copyFileNoFollow, ensureRealDir, listFiles, readFileNoFollow, writeNewFile } = require('./safeFs.cjs');
 // ExcelJS (about 50 ms and 9 MB to load) is needed only to import or export a database workbook: loaded then.
 // The package has no node_modules, only the one file `npm run build` makes (vite.electron.config.ts).
 // Before a build (npm run dev, the tests) that file is missing and the installed library is used.
@@ -18,10 +19,16 @@ const spec = require('./databaseSpec.json');
 const MAX_ROWS = LIMITS.workbookRows; // rows given data validation in new workbooks (the most the app writes)
 
 // The database folder: its own setting when chosen (e.g. a Google Drive
-// folder shared with the team), else "LV Database" inside the projects folder.
+// folder shared with the team), else the branded folder inside the projects folder.
 let override = null;
 const setFolder = (dir) => { override = dir || null; };
-const folderFor = (projectsFolder) => override || path.join(projectsFolder, spec.folderName);
+const folderFor = (projectsFolder) => {
+  if (override) return override;
+  const current = path.join(projectsFolder, spec.folderName);
+  const legacy = path.join(projectsFolder, 'LV Database');
+  // Keep using an existing database; creating a blank one would hide the user's component library.
+  return !fs.existsSync(current) && fs.existsSync(legacy) ? legacy : current;
+};
 
 /** Plain value of an ExcelJS cell (formula results, rich text, hyperlinks). */
 function cellValue(v) {
@@ -39,7 +46,7 @@ function cellValue(v) {
 
 async function createWorkbook(file, book, seedRows) {
   const wb = workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   const ws = wb.addWorksheet(book.sheet, { views: [{ state: 'frozen', ySplit: 1 }] });
   ws.columns = book.columns.map((c) => ({ header: c.header, key: c.key, width: c.width }));
   const header = ws.getRow(1);
@@ -61,7 +68,7 @@ async function createWorkbook(file, book, seedRows) {
 
   const about = wb.addWorksheet('Read me');
   about.columns = [{ width: 28 }, { width: 10 }, { width: 90 }];
-  about.addRow([`${book.file} — LV Design Studio database`]).font = { bold: true, size: 13 };
+  about.addRow([`${book.file} — GFD Studio E database`]).font = { bold: true, size: 13 };
   for (const line of book.about) about.addRow([line]);
   about.addRow([]);
   const h = about.addRow(['Column', 'Required', 'Meaning / allowed values']);
@@ -233,6 +240,27 @@ function writeLibrary(projectsFolder, data) {
   const folder = folderFor(projectsFolder);
   fs.mkdirSync(folder, { recursive: true });
   const file = path.join(folder, LIBRARY);
+  let before;
+  try { before = readFileNoFollow(file, { max: LIMITS.libraryBytes }); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (before) {
+    if (before.tooLarge) throw new Error('Library.json is too large to preserve safely; it has not been changed.');
+    let original;
+    try { original = JSON.parse(before.buffer.toString('utf8')); }
+    catch { throw new Error('Library.json could not be read; it has not been overwritten. Restore or repair the existing library first.'); }
+    if (original && typeof original === 'object' && Object.keys(original).some((key) => key.startsWith('lvds.'))) {
+      // A shared legacy database may still be opened by the previous app. Preserve each distinct legacy
+      // revision once; never overwrite the original backup or follow a planted link at its name.
+      const hash = crypto.createHash('sha256').update(before.buffer).digest('hex').slice(0, 16);
+      const backupFile = path.join(folder, `Library.pre-gfde-${hash}.json.bak`);
+      try { writeNewFile(backupFile, before.buffer); }
+      catch (error) { if (error.code !== 'EEXIST') throw error; }
+      const backup = readFileNoFollow(backupFile, { max: LIMITS.libraryBytes });
+      if (backup.tooLarge || !backup.buffer.equals(before.buffer)) throw new Error('The original library backup is different; Library.json has not been changed.');
+    }
+    const now = readFileNoFollow(file, { max: LIMITS.libraryBytes });
+    if (now.tooLarge || !now.buffer.equals(before.buffer)) throw new Error('Library.json changed while preparing the save. Reload the library and try again.');
+  }
   replaceFile(file, JSON.stringify(data, null, 2), { mode: 'public' });
   return true;
 }

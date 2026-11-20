@@ -140,7 +140,7 @@ describe('Lightning protection study — risk factor presets', () => {
     act(() => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(name, 'Villas'); name.dispatchEvent(new Event('input', { bubbles: true })); });
     act(() => button('Save as preset').click());
     expect(messages[messages.length - 1]).toContain('Saved risk factor preset "Villas"');
-    expect(JSON.parse(localStorage.getItem('lvds.lightningRiskPresets')!)[0]).toMatchObject({ name: 'Villas', factors: { fireRisk: 0.02, tolerableRisk: 1e-5, damageProbability: { II: 0.05 } } });
+    expect(JSON.parse(localStorage.getItem('gfde.lightningRiskPresets')!)[0]).toMatchObject({ name: 'Villas', factors: { fireRisk: 0.02, tolerableRisk: 1e-5, damageProbability: { II: 0.05 } } });
 
     act(() => root.unmount());
     root = createRoot(host);
@@ -148,7 +148,7 @@ describe('Lightning protection study — risk factor presets', () => {
     act(() => button('Load preset').click());
     expect(last!.lightning!.risk).toEqual({ shape: 'rectangle', thunderDays: 25, fireRisk: 0.02, tolerableRisk: 1e-5, damageProbability: { II: 0.05 } });
     act(() => button('Delete preset').click());
-    expect(JSON.parse(localStorage.getItem('lvds.lightningRiskPresets')!)).toEqual([]);
+    expect(JSON.parse(localStorage.getItem('gfde.lightningRiskPresets')!)).toEqual([]);
     expect(button('Load preset').disabled).toBe(true);
   });
 });

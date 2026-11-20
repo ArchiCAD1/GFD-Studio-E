@@ -7,7 +7,7 @@ Phase 3 of the drafting list the user gave on 2026-11-06. On 2026-11-06 the user
 - **Hatch (H, in the Draw group).**
   - **Patterns:** Solid, ANSI31 (45° lines), ANSI37 (45° cross), Net (square grid) and Dots, with a spacing in paper mm and an angle.
   - **Placing:** click inside the smallest closed drawn object (polyline, rectangle or circle) around the point, or inside a room outline, or between the walls (as Room area finds them).
-  - **What it makes:** the hatch is a closed polyline on LV-HATCH. Its outline shows only when it is picked.
+  - **What it makes:** the hatch is a closed polyline on GFDE-HATCH. Its outline shows only when it is picked.
 - **Leader (LE):** click the arrow point, then the text point (more points bend the line), type the text and press Enter. Enter alone leaves a leader with no text.
 - **Room tag (RT):** click inside a room to place its name, with its area below, at the room's centre.
 - **North arrow (NORTH):** a circle, an arrow pointing up the plan and an N.

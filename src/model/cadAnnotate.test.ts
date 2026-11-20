@@ -6,7 +6,7 @@ import { CHAR_W } from './cadText';
 import type { SketchItem } from '../types';
 
 type Pt = [number, number];
-const rect = (id: string, x0: number, y0: number, x1: number, y1: number): SketchItem => ({ id, kind: 'pline', layer: 'LV-SKETCH', closed: true, pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]] });
+const rect = (id: string, x0: number, y0: number, x1: number, y1: number): SketchItem => ({ id, kind: 'pline', layer: 'GFDE-SKETCH', closed: true, pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]] });
 
 describe('hatch', () => {
   it('fills the smallest closed object around the point, a circle as a circle, else the room', () => {
@@ -19,9 +19,9 @@ describe('hatch', () => {
     expect(hatchOutline(items, [50, 50], [room])).toBeUndefined();
   });
 
-  it('a hatch is a closed polyline on LV-HATCH with its pattern; its lines are spaced in paper mm at the scale', () => {
+  it('a hatch is a closed polyline on GFDE-HATCH with its pattern; its lines are spaced in paper mm at the scale', () => {
     const spec = { pattern: 'ansi37' as const, scale: 3, angle: 15 };
-    expect(hatchItem({ pts: [[0, 0], [1, 0], [1, 1]] }, spec)).toEqual({ kind: 'pline', layer: 'LV-HATCH', pts: [[0, 0], [1, 0], [1, 1]], closed: true, hatch: spec });
+    expect(hatchItem({ pts: [[0, 0], [1, 0], [1, 1]] }, spec)).toEqual({ kind: 'pline', layer: 'GFDE-HATCH', pts: [[0, 0], [1, 0], [1, 1]], closed: true, hatch: spec });
     const perMm = unitsPerPaperMm({ textMm: 2.5, scale: 100 }, 0.001); // mm drawing: 100 units per paper mm
     expect(perMm).toBe(100);
     const step = (o: Pt, a: number) => Math.hypot(o[0], o[1]) * Math.cos(Math.atan2(o[1], o[0]) - a - Math.PI / 2);
@@ -39,13 +39,13 @@ describe('annotation', () => {
 
   it('a leader: an arrowed line and its text beside the last point (left of it when the line runs left)', () => {
     const [l, t] = leaderItems([[0, 0], [10, 5]], 'DB-GF1', 2);
-    expect(l).toEqual({ kind: 'line', layer: 'LV-ANNO', pts: [[0, 0], [10, 5]], leader: true });
+    expect(l).toEqual({ kind: 'line', layer: 'GFDE-ANNO', pts: [[0, 0], [10, 5]], leader: true });
     // Half a height clear of the end, its capitals (the height) centred on it: the baseline half a height below.
     expect(t).toMatchObject({ kind: 'text', text: 'DB-GF1', h: 2, pts: [[11, 4]] });
     // Left of it, its right end half a height clear: "AB" 2 letters 0.84 × 2 wide.
     expect(leaderItems([[0, 0], [-10, 5]], ' AB ', 2)[1]).toMatchObject({ text: 'AB' });
     expect(leaderItems([[0, 0], [-10, 5]], 'AB', 2)[1].pts[0][0]).toBeCloseTo(-11 - 2 * CHAR_W * 2, 9);
-    expect(leaderItems([[0, 0], [5, 5], [9, 5]], '', 2)).toEqual([{ kind: 'pline', layer: 'LV-ANNO', pts: [[0, 0], [5, 5], [9, 5]], leader: true }]);
+    expect(leaderItems([[0, 0], [5, 5], [9, 5]], '', 2)).toEqual([{ kind: 'pline', layer: 'GFDE-ANNO', pts: [[0, 0], [5, 5], [9, 5]], leader: true }]);
   });
 
   it('a room tag (name over area) and a north arrow', () => {

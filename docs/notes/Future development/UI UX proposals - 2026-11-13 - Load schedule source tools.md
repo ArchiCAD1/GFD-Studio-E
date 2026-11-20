@@ -4,7 +4,7 @@ Status: **step 1 approved on 2026-11-13** ("leave panel details in the load sche
 
 Mockup: `docs/mockups/load-schedule-source-tools-mockup.html` (image: `load-schedule-source-tools-mockup.png`). Figures in it are examples.
 
-![The Load schedule ribbon on an SMDB and on the TCL summary, today and proposed](../../mockups/load-schedule-source-tools-mockup.png)
+![The Load schedule ribbon on an SMDB and on the TCL summary, today and proposed](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-source-tools-mockup.png)
 
 Follows [UI UX proposals - 2026-11-12 - Load schedule ribbon](UI%20UX%20proposals%20-%202026-11-12%20-%20Load%20schedule%20ribbon.md), whose step 1 and four tools shipped in v2.109.
 

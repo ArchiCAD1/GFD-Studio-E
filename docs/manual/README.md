@@ -1,4 +1,4 @@
-# LV Design Studio manual source
+# GFD Studio E manual source
 
 This folder is the source of truth for the modular user manual. Published PDFs,
 HTML, and in-app help should be generated from these modules rather than edited
@@ -39,8 +39,10 @@ the reason that no manual update is required.
 Run `npm run manual:setup` once on a documentation workstation, then run
 `npm run manual:update`. It builds the app, opens only the committed
 demonstration project in a hidden offline window, captures the declared views,
-updates callout coordinates, rebuilds both visual PDFs, and checks the manual
-structure. Review the changed images and PDFs before a stable release.
+updates callout coordinates and the two public product screenshots, rebuilds both visual PDFs, and checks the manual
+structure. Capture metadata records the product name and app version; the manual check rejects an inherited upstream capture. Review the changed images and PDFs before a stable release.
+
+On a Linux machine without a display, the capture step can run with `node_modules/.bin/electron --no-sandbox --ozone-platform=headless scripts/capture-manual.cjs` after building. This command only opens the declared offline documentation views and does not load user projects.
 
 The `data-doc-id` attributes used by `visuals.json` are invisible anchors. Keep an
 anchor with the control it describes when refactoring. Add a new shot or callout

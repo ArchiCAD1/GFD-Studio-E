@@ -24,7 +24,7 @@ const read = (f: string) => readFileSync(join(shared, f), 'utf8');
 const head = () => git(shared, 'rev-parse', 'HEAD');
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'lvds-shared-'));
+  root = mkdtempSync(join(tmpdir(), 'gfde-shared-'));
   seed = join(root, 'seed'); shared = join(root, 'shared'); wtMain = join(root, 'wt-main');
   git(root, 'init', '-q', '-b', 'main', seed);
   git(root, 'init', '-q', '--bare', '-b', 'main', join(root, 'origin.git'));

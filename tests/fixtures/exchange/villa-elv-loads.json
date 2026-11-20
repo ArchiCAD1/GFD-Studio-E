@@ -1,5 +1,5 @@
 {
-  "schema": "lvds.exchange",
+  "schema": "gfde.exchange",
   "version": 1,
   "kind": "loads",
   "source": { "app": "elv", "file": "Villa ELV.json", "revision": "A" },

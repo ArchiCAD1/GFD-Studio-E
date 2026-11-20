@@ -71,10 +71,10 @@ afterEach(() => { act(() => root.unmount()); host.remove(); });
 describe('drawn objects on the canvas', () => {
   it('draws every object in drawing units, also those after an object with no words', () => {
     const sketch: SketchItem[] = [
-      { id: 'a', kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [1000, 0]] },
-      { id: 'b', kind: 'circle', layer: 'LV-SKETCH', pts: [[2000, 2000]], r: 510 },
-      { id: 'c', kind: 'text', layer: 'LV-SKETCH', pts: [[0, 3000]], text: 'DB-1', h: 250 },
-      { id: 'd', kind: 'circle', layer: 'LV-SKETCH', pts: [[4000, 2000]], r: 510 }
+      { id: 'a', kind: 'line', layer: 'GFDE-SKETCH', pts: [[0, 0], [1000, 0]] },
+      { id: 'b', kind: 'circle', layer: 'GFDE-SKETCH', pts: [[2000, 2000]], r: 510 },
+      { id: 'c', kind: 'text', layer: 'GFDE-SKETCH', pts: [[0, 3000]], text: 'DB-1', h: 250 },
+      { id: 'd', kind: 'circle', layer: 'GFDE-SKETCH', pts: [[4000, 2000]], r: 510 }
     ];
     act(() => root.render(<CadCanvas view={drawing()} layersOn={new Uint8Array()} toggles={OFF} fitKey={1} onCursor={() => {}} onClick={() => {}} sketch={sketch} />));
     // The view is zoomed out (under 0.1 pixel a unit), so a line drawn in screen pixels would be some 16 pixels wide.
@@ -167,9 +167,9 @@ describe('drawn objects on the canvas', () => {
     // A canvas font is sized by its em: here 1 / 0.7 times its capitals (the stand-in canvas measures no ink). Past a
     // 200 px font the words are scaled up evenly, so the em is the font times that scale.
     const sketch: SketchItem[] = [
-      { id: 't', kind: 'text', layer: 'LV-SKETCH', pts: [[100, 3000]], text: 'DB-1', h: 100 },
-      { id: 'n', kind: 'mtext', layer: 'LV-SKETCH', pts: [[100, 4000]], h: 100, w: 3000, note: [{ runs: [{ s: 'GENERAL ', b: true }, { s: 'NOTES', u: true }] }] },
-      { id: 'd', kind: 'dim', layer: 'LV-SKETCH', pts: [[0, 0], [4000, 0], [2000, 800]], h: 100, text: '4.00' },
+      { id: 't', kind: 'text', layer: 'GFDE-SKETCH', pts: [[100, 3000]], text: 'DB-1', h: 100 },
+      { id: 'n', kind: 'mtext', layer: 'GFDE-SKETCH', pts: [[100, 4000]], h: 100, w: 3000, note: [{ runs: [{ s: 'GENERAL ', b: true }, { s: 'NOTES', u: true }] }] },
+      { id: 'd', kind: 'dim', layer: 'GFDE-SKETCH', pts: [[0, 0], [4000, 0], [2000, 800]], h: 100, text: '4.00' },
       { id: 'tr', kind: 'pline', layer: 'E-TRAY', pts: [[0, 6000], [5000, 6000], [5000, 9000]], tray: { widthMm: 300 } },
       { id: 'c', kind: 'pline', layer: 'E-CABLE', pts: [[0, 7000], [4000, 7000]], cable: { feederId: 'F1' } }
     ];
@@ -198,8 +198,8 @@ describe('drawn objects on the canvas', () => {
   it('shows a drawn text with capitals of 2 px or more as words, a smaller one as a bar as tall as its capitals', () => {
     // At a pixel a unit: capitals 2.5 px read (its font, 3.6 px, was a bar before); 1.5 px is a bar 1.5 px tall.
     const sketch: SketchItem[] = [
-      { id: 'a', kind: 'text', layer: 'LV-SKETCH', pts: [[100, 3000]], text: 'READ', h: 2.5 },
-      { id: 'b', kind: 'text', layer: 'LV-SKETCH', pts: [[100, 4000]], text: 'BAR', h: 1.5 }
+      { id: 'a', kind: 'text', layer: 'GFDE-SKETCH', pts: [[100, 3000]], text: 'READ', h: 2.5 },
+      { id: 'b', kind: 'text', layer: 'GFDE-SKETCH', pts: [[100, 4000]], text: 'BAR', h: 1.5 }
     ];
     act(() => root.render(<CadCanvas view={drawing()} layersOn={new Uint8Array()} toggles={OFF} fitKey={1} onCursor={() => {}} onClick={() => {}} sketch={sketch} />));
     expect(rec.texts.filter((t) => t.view === 1).map((t) => t.s)).toEqual(['READ']);
@@ -213,8 +213,8 @@ describe('drawn objects on the canvas', () => {
 
   it('shows a drawn text or note too small to read as a faint bar too', () => {
     const sketch: SketchItem[] = [
-      { id: 't', kind: 'text', layer: 'LV-SKETCH', pts: [[100, 3000]], text: 'DB-1', h: 10 },
-      { id: 'n', kind: 'mtext', layer: 'LV-SKETCH', pts: [[100, 4000]], h: 10, w: 1500, note: [{ runs: [{ s: 'GENERAL NOTES' }] }] }
+      { id: 't', kind: 'text', layer: 'GFDE-SKETCH', pts: [[100, 3000]], text: 'DB-1', h: 10 },
+      { id: 'n', kind: 'mtext', layer: 'GFDE-SKETCH', pts: [[100, 4000]], h: 10, w: 1500, note: [{ runs: [{ s: 'GENERAL NOTES' }] }] }
     ];
     act(() => root.render(<CadCanvas view={drawing()} layersOn={new Uint8Array()} toggles={OFF} fitKey={1} onCursor={() => {}} onClick={() => {}} sketch={sketch} />));
     expect(rec.texts.filter((t) => t.view === 1).map((t) => t.s)).toEqual(['DB-1', 'GENERAL NOTES']);
@@ -227,7 +227,7 @@ describe('drawn objects on the canvas', () => {
   });
 
   describe('what is picked', () => {
-    const line: SketchItem = { id: 'a', kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [1000, 0]], color: '#336699' };
+    const line: SketchItem = { id: 'a', kind: 'line', layer: 'GFDE-SKETCH', pts: [[0, 0], [1000, 0]], color: '#336699' };
     const SEL = '#e6e8eb'; // no theme in the test: the selection colour falls back to the drawing ink
     const put = (props: Partial<Parameters<typeof CadCanvas>[0]> = {}, v = drawing()) => act(() => root.render(<CadCanvas view={v} layersOn={new Uint8Array([1])} toggles={OFF} fitKey={1} onCursor={() => {}} onClick={() => {}} {...props} />));
     const units = (s: { lineWidth: number; m: M }) => s.lineWidth * -s.m[3]; // screen px

@@ -12,8 +12,8 @@ import { pushLibrary } from '../database/librarySync';
  * enter another brand. Panels keep a frozen copy of what they were sized
  * with, so editing the library never resizes a designed panel. */
 
-const CAT_KEY = 'lvds.enclosureCatalogues';
-const DEV_KEY = 'lvds.deviceDims';
+const CAT_KEY = 'gfde.enclosureCatalogues';
+const DEV_KEY = 'gfde.deviceDims';
 
 const read = <T>(key: string): T[] => { try { const v = JSON.parse(localStorage.getItem(key) ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
 const write = (key: string, v: unknown): boolean => {
@@ -68,12 +68,12 @@ export function validateCatalogue(c: EnclosureCatalogue): { level: 'bad' | 'warn
 }
 
 /** JSON backup / sharing: catalogues and device dimensions. */
-export interface LibraryFile { kind: 'lvds-enclosure-library'; version: 1; catalogues: EnclosureCatalogue[]; devices: DeviceDim[] }
-export const exportLibrary = (): LibraryFile => ({ kind: 'lvds-enclosure-library', version: 1, catalogues: userCatalogues(), devices: loadDevices() });
+export interface LibraryFile { kind: 'gfde-enclosure-library'; version: 1; catalogues: EnclosureCatalogue[]; devices: DeviceDim[] }
+export const exportLibrary = (): LibraryFile => ({ kind: 'gfde-enclosure-library', version: 1, catalogues: userCatalogues(), devices: loadDevices() });
 /** Reads a library file; same ids are replaced, new ones added. Built-in ids are never overwritten. */
 export function importLibrary(text: string): { catalogues: number; devices: number } {
-  const f = JSON.parse(text) as Partial<LibraryFile>;
-  if (f.kind !== 'lvds-enclosure-library' || !Array.isArray(f.catalogues)) throw new Error('Not an LV Design Studio enclosure library file');
+  const f = JSON.parse(text) as Omit<Partial<LibraryFile>, 'kind'> & { kind?: string };
+  if ((f.kind !== 'gfde-enclosure-library' && f.kind !== 'lvds-enclosure-library') || !Array.isArray(f.catalogues)) throw new Error('Not a GFD Studio E enclosure library file');
   const cats = f.catalogues.filter((c) => !isBuiltin(c) && Array.isArray(c.configs) && Array.isArray(c.rules));
   const devs = Array.isArray(f.devices) ? f.devices.filter((d) => d && typeof d.modules === 'number') : [];
   const mine = userCatalogues().filter((c) => !cats.some((x) => x.id === c.id));

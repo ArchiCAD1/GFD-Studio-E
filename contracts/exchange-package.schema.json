@@ -1,5 +1,5 @@
 {
-  "$id": "https://lv-design-studio/contracts/exchange-package.schema.json",
+  "$id": "https://gfd-studio-e/contracts/exchange-package.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "oneOf": [
     {
@@ -7,7 +7,10 @@
       "properties": {
         "schema": {
           "type": "string",
-          "const": "lvds.exchange"
+          "enum": [
+            "gfde.exchange",
+            "lvds.exchange"
+          ]
         },
         "version": {
           "type": "number",
@@ -39,6 +42,7 @@
                 "ifc",
                 "dialux",
                 "elv",
+                "gfde",
                 "lvds"
               ],
               "description": "Program that wrote the package"
@@ -160,7 +164,10 @@
       "properties": {
         "schema": {
           "type": "string",
-          "const": "lvds.exchange"
+          "enum": [
+            "gfde.exchange",
+            "lvds.exchange"
+          ]
         },
         "version": {
           "type": "number",
@@ -192,6 +199,7 @@
                 "ifc",
                 "dialux",
                 "elv",
+                "gfde",
                 "lvds"
               ],
               "description": "Program that wrote the package"
@@ -314,7 +322,10 @@
       "properties": {
         "schema": {
           "type": "string",
-          "const": "lvds.exchange"
+          "enum": [
+            "gfde.exchange",
+            "lvds.exchange"
+          ]
         },
         "version": {
           "type": "number",
@@ -346,6 +357,7 @@
                 "ifc",
                 "dialux",
                 "elv",
+                "gfde",
                 "lvds"
               ],
               "description": "Program that wrote the package"

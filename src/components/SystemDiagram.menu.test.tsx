@@ -128,7 +128,7 @@ describe('SLD right-click menus', () => {
     rightClick(host.querySelector('.sysdiag > svg')!);
     click('Text');
     click('Follows the zoom');
-    expect(localStorage.getItem('lvds.sldDetail')).toBe('auto');
+    expect(localStorage.getItem('gfde.sldDetail')).toBe('auto');
     expect(menus).toEqual([]);
   });
   it('Edit cable… opens the cable editor at the menu', () => {

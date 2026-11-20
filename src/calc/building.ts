@@ -228,7 +228,7 @@ export function roomsFromTable(info: BuildingInfo, buildingId: string, text: str
 
 // ---- Room type library on this computer ---------------------------------------
 
-const KEY = 'lvds.roomTypes';
+const KEY = 'gfde.roomTypes';
 export function loadRoomTypeLibrary(): RoomType[] | null {
   try { const v = JSON.parse(localStorage.getItem(KEY) ?? 'null'); return Array.isArray(v) ? v : null; } catch { return null; }
 }

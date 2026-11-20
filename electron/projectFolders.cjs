@@ -114,7 +114,7 @@ function startDir(dir) {
   try { return kind(path.resolve(dir)) === 'dir' ? path.resolve(dir) : undefined; } catch { return undefined; }
 }
 
-const PROJECT_FILE = /^[^\\/:*?"<>|]+\.(lvds|json)$/i;
+const PROJECT_FILE = /^[^\\/:*?"<>|]+\.(gfde|lvds|json)$/i;
 
 /** Copies a saved project file into a folder inside the project folder (decision 1, option B):
  * { root, relDir, fileName } as for create, and the full path of the file to copy. The project folder must

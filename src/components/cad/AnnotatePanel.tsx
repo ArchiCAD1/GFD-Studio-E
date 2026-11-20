@@ -80,7 +80,7 @@ export function HatchPanel({ spec, onSpec, patterns = [], computer = [], onImpor
           <button className="chip" onClick={editing.onRemove} disabled={!editing.islands}>Remove islands</button>
           <label title={editing.canAssoc ? 'The hatch follows the objects it was made from' : 'This hatch is not tied to any object'}><input type="checkbox" aria-label="Associative" checked={editing.assoc} disabled={!editing.canAssoc} onChange={editing.onAssoc} /> Associative</label>
         </>}
-        {!editing && <span className="m">Click inside a closed drawn object (polyline, rectangle, circle) or a room: the area is hatched on LV-HATCH. Plant rooms, risers, no-go zones.</span>}
+        {!editing && <span className="m">Click inside a closed drawn object (polyline, rectangle, circle) or a room: the area is hatched on GFDE-HATCH. Plant rooms, risers, no-go zones.</span>}
         {!editing && opts && onOpts && <>
           <label title="Closed objects inside stay clear"><input type="checkbox" aria-label="Find islands" checked={opts.islands} onChange={(e) => onOpts({ ...opts, islands: e.target.checked })} /> Find islands</label>
           <label title="The hatch follows its boundary when that is changed"><input type="checkbox" aria-label="Associative" checked={opts.assoc} onChange={(e) => onOpts({ ...opts, assoc: e.target.checked })} /> Associative</label>

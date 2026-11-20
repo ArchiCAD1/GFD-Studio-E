@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "file": "gfde_cad_reader_bg.wasm",
+  "encoding": "gzip",
+  "size": 4856791,
+  "sha256": "84aee58758154917dc2b1c7161a885b88503721fd6f317ca9f9875b279b4647f",
+  "compressedSize": 1592756,
+  "compressedSha256": "0252faf84b49bdca9e9105dbd855a42abe0f45bbf7a4f110bf2f163c8599b595",
+  "partSize": 393216,
+  "parts": [
+    {
+      "file": "gfde_cad_reader_bg.wasm.gz.part01",
+      "size": 393216,
+      "sha256": "3027cde324c8ee198cae82965081892bc88b48cc7b0ad953e46dd1d3be838cc9"
+    },
+    {
+      "file": "gfde_cad_reader_bg.wasm.gz.part02",
+      "size": 393216,
+      "sha256": "70cb8c35f552cfb8698139fb124b92fec6ec5f85341810d218f2a0d2759b5ef8"
+    },
+    {
+      "file": "gfde_cad_reader_bg.wasm.gz.part03",
+      "size": 393216,
+      "sha256": "8b69cb539e3bf8b9c0b9262b56f827417110201549748f785efc45ccffe83a81"
+    },
+    {
+      "file": "gfde_cad_reader_bg.wasm.gz.part04",
+      "size": 393216,
+      "sha256": "ef497f210cf0da388ea71d56635741428a1b117cc5c6fe7b6a7ad9f61f242a1d"
+    },
+    {
+      "file": "gfde_cad_reader_bg.wasm.gz.part05",
+      "size": 19892,
+      "sha256": "f911cfa7ebee7edbde2020c11ce4803cd99c7468afd3aa448f25889806aa1178"
+    }
+  ]
+}

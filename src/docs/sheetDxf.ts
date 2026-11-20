@@ -53,7 +53,7 @@ function placeSvg(svg: string, box: DxfBox, layer?: string, centre = true): { it
     // A dashed element keeps one entity; its linetype follows its length on paper (dash 3 mm, or 1.5 mm when short);
     // a dash-dot element is drawn dash-dot, and a panel frame with the closer panel dashes.
     const { dashed, ...p } = q as typeof q & { dashed?: Dashed };
-    const lt = (mm: number): { linetype?: string } => dashed ? { linetype: dashed === 'dashdot' ? 'LV-DASHDOT' : q.layer === 'PANEL' ? 'LV-PANEL' : mm < 18 ? 'LV-DASHED2' : 'LV-DASHED' } : {};
+    const lt = (mm: number): { linetype?: string } => dashed ? { linetype: dashed === 'dashdot' ? 'GFDE-DASHDOT' : q.layer === 'PANEL' ? 'GFDE-PANEL' : mm < 18 ? 'GFDE-DASHED2' : 'GFDE-DASHED' } : {};
     const run = (pts: [number, number][], closed?: boolean) => pts.reduce((a, c, j) => a + (j ? Math.hypot(c[0] - pts[j - 1][0], c[1] - pts[j - 1][1]) : 0), closed && pts.length ? Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) : 0) * s;
     const X = (x: number) => ox + (x - source.x) * s, Y = (y: number) => oy + (y + source.y) * s;
     switch (p.type) {

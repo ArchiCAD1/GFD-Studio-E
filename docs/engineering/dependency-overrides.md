@@ -23,7 +23,7 @@ later are ESM only, so do not raise the override past 11.x while exceljs is Comm
 - **uuid 8 inside exceljs's browser bundle.** The renderer imports exceljs through its prebuilt
   `dist/exceljs.min.js` (the package's `browser` field), which embeds its own copy of uuid 8; an
   npm override cannot change it. Accepted until the review date: the bundle only calls `v4()` without
-  a buffer, the affected v3 / v5 / v6 paths are never used. The main process (LV Database workbooks)
+  a buffer, the affected v3 / v5 / v6 paths are never used. The main process (GFD Studio E Database workbooks)
   uses the Node build and gets the overridden uuid 11.1.1.
 
 ## Temporarily allowlisted

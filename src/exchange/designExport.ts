@@ -10,7 +10,7 @@ import type { Project } from '../types';
 import { canonicalJson } from './contracts';
 import { DESIGN_SCHEMA, DESIGN_VERSION, designPackage, type DesignBoard, type DesignCircuit, type DesignPackage } from './designContract';
 
-/** The project's electrical design as an `lvds.design` package (designContract.ts), calculated now. The same project
+/** The project's electrical design as an `gfde.design` package (designContract.ts), calculated now. The same project
  * always gives the same package apart from `exportedAt`, and the same `sha256`. */
 
 const r3 = (x: number) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : 0);
@@ -67,7 +67,7 @@ export function designExport(project0: Project, o: { exportedAt: string; sha256:
   const pkg = {
     schema: DESIGN_SCHEMA, version: DESIGN_VERSION,
     project: { ...opt('id', project.id), name: project.name, voltageV: project.voltageV, frequencyHz: project.frequencyHz, vdLimitPct: project.vdLimitPct },
-    source: { app: 'lvds' as const, ...opt('appVersion', o.appVersion), ...opt('file', o.file) },
+    source: { app: 'gfde' as const, ...opt('appVersion', o.appVersion), ...opt('file', o.file) },
     exportedAt: o.exportedAt,
     calculation: { fingerprint: o.sha256(JSON.stringify(STUDY_KEYS.map((k) => fingerprint(project, k)))) },
     boards, circuits, elvDevices

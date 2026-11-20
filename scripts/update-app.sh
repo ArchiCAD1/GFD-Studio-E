@@ -1,5 +1,5 @@
 #!/bin/bash
-# Update LV Design Studio on this Mac from GitHub: pull main, build the
+# Update GFD Studio E on this Mac from GitHub: pull main, build the
 # Apple-silicon app and replace the copy in /Applications. The shared folder
 # (the repository's main folder, where sessions start) moves to the latest
 # main too, keeping its uncommitted notes (scripts/update-shared-folder.sh).
@@ -7,12 +7,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP="LV Design Studio"
+APP="GFD Studio E"
 DEST="/Applications/$APP.app"
 BUILT="release/mac-arm64/$APP.app"
 # The version built into the installed app (written after each install) — compared with GitHub,
 # so code already pulled into this folder but not yet built still gets installed.
-STAMP="$HOME/Library/Application Support/LV Design Studio/installed-commit"
+STAMP="$HOME/Library/Application Support/GFD Studio E/installed-commit"
 
 if [ "$(git branch --show-current)" != "main" ]; then
   echo "You're on branch '$(git branch --show-current)'. Switch to main first:  git checkout main"; exit 1

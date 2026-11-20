@@ -9,13 +9,13 @@ const { pathToFileURL } = require('node:url');
 /** Development server: an exact loopback origin, never "anything on localhost". */
 const DEFAULT_DEV_URL = 'http://127.0.0.1:5173';
 
-/** The dev server URL from LVDS_DEV_URL, accepted only as http on a loopback address with a port. */
+/** The dev server URL from GFDE_DEV_URL, accepted only as http on a loopback address with a port. */
 function devUrlFrom(env = process.env) {
-  const raw = env.LVDS_DEV_URL || DEFAULT_DEV_URL;
+  const raw = env.GFDE_DEV_URL || env.LVDS_DEV_URL || DEFAULT_DEV_URL;
   let u;
-  try { u = new URL(raw); } catch { throw new Error(`LVDS_DEV_URL is not a URL: ${raw}`); }
+  try { u = new URL(raw); } catch { throw new Error(`GFDE_DEV_URL is not a URL: ${raw}`); }
   if (u.protocol !== 'http:' || !['127.0.0.1', '[::1]'].includes(u.hostname) || !u.port || u.username || u.password) {
-    throw new Error(`LVDS_DEV_URL must be http on 127.0.0.1 or [::1] with a port, not ${raw}`);
+    throw new Error(`GFDE_DEV_URL must be http on 127.0.0.1 or [::1] with a port, not ${raw}`);
   }
   return u.origin;
 }

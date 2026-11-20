@@ -26,9 +26,9 @@ describe("What's new window", () => {
 
   it('shows once after an update, never on a new install', () => {
     expect(pendingReleases('1.84')).toEqual([]); // new install: nothing saved yet
-    expect(localStorage.getItem('lvds.whatsNewSeen')).toBe('1.84');
+    expect(localStorage.getItem('gfde.whatsNewSeen')).toBe('1.84');
     localStorage.clear();
-    localStorage.setItem('lvds.preferences', '{}'); // used before, updated from a version without What's new
+    localStorage.setItem('gfde.preferences', '{}'); // used before, updated from a version without What's new
     expect(pendingReleases('1.84').map((r) => r.version)).toEqual(['1.84']);
     markSeen('1.84');
     expect(pendingReleases('1.84')).toEqual([]);

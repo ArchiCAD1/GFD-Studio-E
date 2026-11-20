@@ -8,7 +8,7 @@ On 2026-11-16 the user sent a picture of the right-click menu for picked objects
 
 Mockup: `docs/mockups/cad-right-click-redesign-mockup.html` (image: `cad-right-click-redesign-mockup.png`). Section 1 was drawn from the app's own menu code and stylesheet. It was not taken from a screenshot.
 
-![Design CAD right-click menus, today and proposed](../../mockups/cad-right-click-redesign-mockup.png)
+![Design CAD right-click menus, today and proposed](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-right-click-redesign-mockup.png)
 
 Related: [[UI UX proposals - 2026-11-11 - Context-aware right-click menus]] (which entries each menu has: approved and built in v2.099–v2.105) and [[UI UX proposals - 2026-11-15 - CAD selection, grips and opened drawings]] (its step 2 makes objects of an opened drawing editable).
 

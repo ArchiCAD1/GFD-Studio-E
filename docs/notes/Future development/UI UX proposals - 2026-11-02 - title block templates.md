@@ -18,7 +18,7 @@ Mockup: `docs/mockups/title-block-templates-mockup.html` (three views: import an
 - A **grid**: column widths and row heights in mm; add or delete rows and columns; merge cells right or down; split them.
 - Each **cell** holds text with `{Parameters}` (several lines), a small caption, a size (pt), bold and alignment; or the company logo; or the revision table (last 4 revisions).
 - Several templates per project; *Use on the SLD* makes one the block of every sheet; *Use the standard block instead* goes back.
-- A **library**: *Save to library* keeps a template in `LV Database/Library.json`, which syncs to every computer through Google Drive; *Export* / *Import* share one as a `.titleblock.json` file.
+- A **library**: *Save to library* keeps a template in `GFD Studio E Database/Library.json`, which syncs to every computer through Google Drive; *Export* / *Import* share one as a `.titleblock.json` file.
 - **Where it prints**: every drawing sheet (SLD, board, riser, earthing and plan sheets) in PDF and in DXF / DWG (grid and text stay editable), and the SLD pages of the study report.
 
 ### What can't be customised today

@@ -8,10 +8,10 @@ type Pt = [number, number];
 const close = (a: Pt, b: Pt) => { expect(a[0]).toBeCloseTo(b[0], 6); expect(a[1]).toBeCloseTo(b[1], 6); };
 const look: DimLook = { arrow: 'closed', size: 90, off: 20, ext: 50, unit: 'm', decimals: 2 };
 const c: Pt = [1000, 1000];
-const rad = (at: Pt, more: Partial<SketchItem> = {}): SketchItem => ({ id: 'r', kind: 'dim', dimKind: 'radius', layer: 'LV-ANNO', pts: [c, [1500, 1000], at], h: 90, look, ...more });
+const rad = (at: Pt, more: Partial<SketchItem> = {}): SketchItem => ({ id: 'r', kind: 'dim', dimKind: 'radius', layer: 'GFDE-ANNO', pts: [c, [1500, 1000], at], h: 90, look, ...more });
 const dia = (at: Pt): SketchItem => ({ ...rad(at), dimKind: 'diameter' });
 // A right angle at the vertex (2000, 2000): one line along +x, one along +y.
-const ang = (at: Pt, more: Partial<SketchItem> = {}): SketchItem => ({ id: 'a', kind: 'dim', dimKind: 'angular', layer: 'LV-ANNO', pts: [[2000, 2000], [3000, 2000], [2000, 3000], at], h: 90, look, ...more });
+const ang = (at: Pt, more: Partial<SketchItem> = {}): SketchItem => ({ id: 'a', kind: 'dim', dimKind: 'angular', layer: 'GFDE-ANNO', pts: [[2000, 2000], [3000, 2000], [2000, 3000], at], h: 90, look, ...more });
 
 describe('radius and diameter dimensions', () => {
   it('measures the radius or the diameter and writes R or Ø before the length in the style\'s unit', () => {

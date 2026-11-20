@@ -14,19 +14,19 @@ Other modules own the screens themselves; this document only covers how the shel
 
 | File | Kind | Key functions or components | What they do |
 |---|---|---|---|
-| `src/main.tsx` | screen (entry) | top-level script | `?lvds-export` → headless renderer (`src/headless/rendererExport`); otherwise `watchForErrors`, `loadPrefs` → `applyTheme` / `applyPalette`, renders `<ErrorBoundary level="app"><App/>` |
+| `src/main.tsx` | screen (entry) | top-level script | `?gfde-export` → headless renderer (`src/headless/rendererExport`); otherwise `watchForErrors`, `loadPrefs` → `applyTheme` / `applyPalette`, renders `<ErrorBoundary level="app"><App/>` |
 | `src/App.tsx` | screen + store | `App`, `normalised`, `setView`, `commands`, `runNow`, `loadIntoApp`, `saveProject`, `guard`, `pickBoard`, keyboard `onKey` effect (`:1081`) | The whole shell: ~100 `useState` values, the routing chain (`:1350`–`:1697`), all dialogs, the ribbon wiring (`:1243`–`:1335`) |
 | `src/components/Ribbon.tsx` | screen | `Ribbon`, `RibbonActions`, `TAB_VIEWS`, `TAB_PAGE`, `HOME_TAB`, `tabForView`, `viewForTab`, `tabForStage`, `CAD_TABS`, `STAGE_TABS` | Ribbon tabs (Project, Load schedule, SLD, Design CAD, Stages 1–4, Documents, BOM / Cost, Standards) and which screens belong to which tab |
 | `src/components/CommandPalette.tsx` | screen | `CommandPalette`, `filterCommands`, `SHORTCUTS`, `ShortcutHelp` | ⌘K search over boards, sheets, pages, commands; the shortcut list (also shown in Help) |
 | `src/components/MenuButton.tsx` | screen | `MenuButton` | Drop-down button used on the SLD command bar (+ Add, feeder menu) |
 | `src/components/PreferencesDialog.tsx` | screen | `PreferencesDialog` | My details, New project defaults, Appearance & saving (theme, palette, CAD labels, recovery interval) |
-| `src/model/profile.ts` (shell use only) | store | `loadPrefs`, `savePrefs` (`localStorage['lvds.preferences']`), `applyDefaults`, `applyProfile` | Where preferences live; owned by 03 |
+| `src/model/profile.ts` (shell use only) | store | `loadPrefs`, `savePrefs` (`localStorage['gfde.preferences']`), `applyDefaults`, `applyProfile` | Where preferences live; owned by 03 |
 | `src/components/WhatsNewDialog.tsx` | screen | `WhatsNewDialog` | What's new window with "Open …" buttons |
-| `src/model/whatsNew.ts` | model + store | `RELEASES`, `compareVersions`, `unseenReleases`, `pendingReleases`, `markSeen` (`localStorage['lvds.whatsNewSeen']`) | Release notes and "seen" bookkeeping |
+| `src/model/whatsNew.ts` | model + store | `RELEASES`, `compareVersions`, `unseenReleases`, `pendingReleases`, `markSeen` (`localStorage['gfde.whatsNewSeen']`) | Release notes and "seen" bookkeeping |
 | `src/model/appVersion.ts` | model | `displayVersion` | "2.83.0" → "2.083"; used by `vite.config.ts` to define `__APP_VERSION__` |
 | `src/components/WebBanner.tsx` | screen | `WebBanner` | Web-version strip: install, offline ready, new version → reload, desktop download |
 | `src/util/webApp.ts` | util | `isWebVersion`, `useWebApp`, `newerOffered`, `isLaterVersion`, `downloadProjectFile`, `chooseProjectFile`, `backupContents` | Service worker, install prompt, browser file open / download |
-| `src/util/errorLog.ts` | store | `logError`, `readErrorLog`, `errorLogText`, `watchForErrors` (`localStorage['lvds.errorLog']`, last 30; desktop also `logs/errors.log` via `window.lvds.log.error`) | Error log |
+| `src/util/errorLog.ts` | store | `logError`, `readErrorLog`, `errorLogText`, `watchForErrors` (`localStorage['gfde.errorLog']`, last 30; desktop also `logs/errors.log` via `window.gfde.log.error`) | Error log |
 | `src/components/HelpView.tsx` | screen | `HelpView`, `Checklist`, `ErrorLogNote` | Help page: workflow, start-here checklist, quick paths, shortcuts, Copy error log |
 | `src/help/guide.ts` | model | `WORKFLOW`, `QUICK_PATHS`, `startChecklist`, `PHASE_LABEL` | Help content; checklist ticks itself from the project and `run` |
 | `src/theme/theme.ts`, `src/theme/tokens.css` | util | `applyTheme`, `applyPalette`, `resolveTheme`, `THEME_LABEL`, `PALETTE_LABEL` | Screen colours only (Graphite / Blueprint, dark / light / system) |
@@ -43,13 +43,13 @@ Other modules own the screens themselves; this document only covers how the shel
 | Feeder results, earthing, selectivity of a run | 06-network-sld-editor (with 09, 10) | `src/calc/runs.ts` `runCalculations` → `evaluateProject` (`src/calc/electrical.ts`), `evaluateEarthingAll`, `evaluateSelectivity` |
 | Generator / transformer-outage scenario | 12-transformer-generator | `src/calc/scenario.ts` `generatorScenario`, `transformerOutage` → `evaluateProject` (`App.tsx:481`, live, not on demand) |
 | External engine results | 16-load-flow-engines | `src/engines` `EXTERNAL_ENGINES[].run` (`App.runSimulation`) |
-| Database (Excel workbooks) | 32-component-database | `window.lvds.database.init/read/onChange` → `App.receiveDatabase` → `parseDatabase`, `applyDatabase`, `syncLibrary` |
+| Database (Excel workbooks) | 32-component-database | `window.gfde.database.init/read/onChange` → `App.receiveDatabase` → `parseDatabase`, `applyDatabase`, `syncLibrary` |
 | CAD drawing state | 21-cad-core | `src/components/cad/cadState.ts` `useCad` (`cadS`), `rememberedDrawing`; `src/engines/cad/cadEngine.ts` `chooseDrawing`, `openDrawing` |
 | Sheet set, sheet markup UI | 23-cad-sheets-plot-titleblock / 24-drawings-sld-sheets | `src/model/drawingSet.ts` `setOf`, `publishState`, `earthSheetFor`; `src/components/sld/sheetUi.ts` `useSheetUi` |
 | "Record as submission" offer | 27-review-submissions-authority | `src/model/submissions.ts` `onSubmissionOffer`, `draftFromOffer` |
 | ELV packages for the inbox | 29-elv / 30-exchange-inbox | `ElvView onSend`, `InboxView onOpen` → `App` `inbox` state (`App.tsx:338`) |
-| Desktop bridge (files, settings, logs, pending CAD file) | 34-electron-desktop | `window.lvds` (`electron/preload.cjs`); `hasBridge`, `hasDatabase` (`App.tsx`) |
-| Headless export window | 31-headless-cli-mcp | `src/main.tsx` `?lvds-export` → `src/headless/rendererExport.install` |
+| Desktop bridge (files, settings, logs, pending CAD file) | 34-electron-desktop | `window.gfde` (`electron/preload.cjs`); `hasBridge`, `hasDatabase` (`App.tsx`) |
+| Headless export window | 31-headless-cli-mcp | `src/main.tsx` `?gfde-export` → `src/headless/rendererExport.install` |
 
 ## 4. Outputs — where its results go
 
@@ -114,9 +114,9 @@ Other modules own the screens themselves; this document only covers how the shel
 ## 5. User flow — from button click to result
 
 **Start-up**
-1. `src/main.tsx` checks `?lvds-export`; otherwise `watchForErrors()`, `loadPrefs()` → `applyTheme` / `applyPalette`, renders `App` inside `ErrorBoundary level="app"`.
+1. `src/main.tsx` checks `?gfde-export`; otherwise `watchForErrors()`, `loadPrefs()` → `applyTheme` / `applyPalette`, renders `App` inside `ErrorBoundary level="app"`.
 2. `App` loads `normalised(sampleProject)` into `useHistory`, runs `runCalculations` on it, reads `pendingReleases(__APP_VERSION__)` (What's new) and starts on `view = 'projects'`.
-3. Effects: `refreshList`, `readRecoveries` (recovery bar), `window.lvds.settings.get` (projects folder), `initDatabase` → `receiveDatabase`, `cadFile.takePending` (a drawing opened from Finder / Explorer).
+3. Effects: `refreshList`, `readRecoveries` (recovery bar), `window.gfde.settings.get` (projects folder), `initDatabase` → `receiveDatabase`, `cadFile.takePending` (a drawing opened from Finder / Explorer).
 
 **Open a project**
 1. Projects page `onOpen` → `App.openProject` → `guard` (asks about unsaved changes via `UnsavedDialog`).

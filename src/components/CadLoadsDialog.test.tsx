@@ -15,7 +15,7 @@ const bytes = (rel: string) => new Uint8Array(readFileSync(path.join(root0, rel)
 const library = [{ reference: 'L1', name: 'LED downlight', watts: 12, column: 'ltg' }] as unknown as LibraryLoad[];
 let gf: CadView, root: Root, host: HTMLDivElement;
 beforeAll(async () => {
-  (window as { lvds?: unknown }).lvds = { cadFile: { engine: async () => bytes('electron/cad/lvds_cad_reader_bg.wasm') } };
+  (window as { gfde?: unknown }).gfde = { cadFile: { engine: async () => bytes('electron/cad/gfde_cad_reader_bg.wasm') } };
   gf = await openDrawing('sample-villa-gf.dxf', bytes('electron/samples/sample-villa-gf.dxf'));
 });
 afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; });

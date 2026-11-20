@@ -17,13 +17,13 @@ import { createMcp, mcpConfig } from './mcp';
 
 let folder: string;
 let ctx: ToolContext;
-const outside = path.join(os.tmpdir(), `lvds-outside-${process.pid}.json`);
+const outside = path.join(os.tmpdir(), `gfde-outside-${process.pid}.json`);
 
 // The sample passes every check; the "failing" copy has an undersized sockets cable (4 → 1.5 mm²).
 const failing: Project = { ...sampleProject, name: 'Failing copy', feeders: sampleProject.feeders.map((f) => (f.id === 'GF-SKT' ? { ...f, cableCsaMm2: 1.5 } : f)) };
 
 beforeAll(() => {
-  folder = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-headless-'));
+  folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-headless-'));
   fs.writeFileSync(path.join(folder, 'Villa.json'), JSON.stringify(sampleProject));
   fs.writeFileSync(path.join(folder, 'Failing.json'), JSON.stringify(failing));
   fs.writeFileSync(path.join(folder, 'notes.json'), JSON.stringify({ hello: 'not a project' }));
@@ -44,13 +44,13 @@ describe('project files', () => {
     expect(resolveProject({ ref: 'Villa', folder, anywhere: false })).toBe(path.join(folder, 'Villa.json'));
     expect(resolveProject({ ref: 'Villa.json', folder, anywhere: false })).toBe(path.join(folder, 'Villa.json'));
   });
-  it('lists and opens native .lvds projects, before an older .json of the same name', () => {
-    const native = path.join(folder, 'Tower.lvds'), twin = path.join(folder, 'Villa.lvds');
-    fs.writeFileSync(native, JSON.stringify({ format: 'lvds.project', ...sampleProject, name: 'Tower' }));
+  it('lists and opens native .gfde projects, before an older .json of the same name', () => {
+    const native = path.join(folder, 'Tower.gfde'), twin = path.join(folder, 'Villa.gfde');
+    fs.writeFileSync(native, JSON.stringify({ format: 'gfde.project', ...sampleProject, name: 'Tower' }));
     try {
-      expect(listProjects(folder).find((p) => p.file === 'Tower.lvds')).toMatchObject({ name: 'Tower' });
+      expect(listProjects(folder).find((p) => p.file === 'Tower.gfde')).toMatchObject({ name: 'Tower' });
       expect(resolveProject({ ref: 'Tower', folder, anywhere: false })).toBe(native);
-      expect(resolveProject({ ref: 'Tower.lvds', folder, anywhere: false })).toBe(native);
+      expect(resolveProject({ ref: 'Tower.gfde', folder, anywhere: false })).toBe(native);
       fs.writeFileSync(twin, JSON.stringify(sampleProject));
       expect(resolveProject({ ref: 'Villa', folder, anywhere: false })).toBe(twin);
       expect(resolveProject({ ref: 'Villa.json', folder, anywhere: false })).toBe(path.join(folder, 'Villa.json'));
@@ -201,7 +201,7 @@ describe('local API', () => {
   });
 
   it('writes the token file for this user only and never prints the token', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-token-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-token-'));
     const file = writeApiToken(token, path.join(dir, 'api-token'));
     expect(fs.readFileSync(file, 'utf-8').trim()).toBe(token);
     if (process.platform !== 'win32') expect(fs.statSync(file).mode & 0o077).toBe(0);
@@ -214,21 +214,21 @@ describe('local API', () => {
 });
 
 describe('MCP settings for the engineer\'s own AI program', () => {
-  const node = { execPath: '/usr/local/bin/node', script: '/src/LV-Design-Studio/dist-cli/lvds.mjs', electron: false };
-  const app = { execPath: '/Applications/LV Design Studio.app/Contents/MacOS/LV Design Studio', script: '/Applications/LV Design Studio.app/Contents/Resources/lvds/lvds.mjs', electron: true };
+  const node = { execPath: '/usr/local/bin/node', script: '/src/GFD-Studio-E/dist-cli/gfde.mjs', electron: false };
+  const app = { execPath: '/Applications/GFD Studio E.app/Contents/MacOS/GFD Studio E', script: '/Applications/GFD Studio E.app/Contents/Resources/gfde/gfde.mjs', electron: true };
   const run = async (argv: string[], runtime = node) => {
     const out: string[] = [], err: string[] = [];
     const code = await main(argv, '1.0', { out: (s) => out.push(s), err: (s) => err.push(s) }, runtime);
     return { code, out: out.join('\n'), err: err.join('\n') };
   };
 
-  it('prints the entry that starts this copy of lvds, read only unless --write', async () => {
+  it('prints the entry that starts this copy of gfde, read only unless --write', async () => {
     const r = await run(['mcp-config']);
     expect(r.code).toBe(0);
-    expect(JSON.parse(r.out)).toEqual({ mcpServers: { 'lv-design-studio': { command: node.execPath, args: [node.script, 'mcp'] } } });
+    expect(JSON.parse(r.out)).toEqual({ mcpServers: { 'gfd-studio-e': { command: node.execPath, args: [node.script, 'mcp'] } } });
     expect(r.err).toMatch(/read only/);
     const w = await run(['mcp-config', '--write']);
-    expect(JSON.parse(w.out).mcpServers['lv-design-studio'].args).toEqual([node.script, 'mcp', '--write']);
+    expect(JSON.parse(w.out).mcpServers['gfd-studio-e'].args).toEqual([node.script, 'mcp', '--write']);
     expect(w.err).toMatch(/preview first/);
   });
 
@@ -255,22 +255,22 @@ describe('MCP settings for the engineer\'s own AI program', () => {
     expect(parseGroups(' CAD, export ,cad')).toEqual(['cad', 'export']);
     expect(() => parseGroups('cad,drawings')).toThrow(/Unknown tool group "drawings"/);
     const r = await run(['mcp-config', '--write', '--tools', 'cad,export']);
-    expect(JSON.parse(r.out).mcpServers['lv-design-studio'].args).toEqual([node.script, 'mcp', '--write', '--tools', 'cad,export']);
-    expect(JSON.parse((await run(['mcp-config', '--tools', 'core'])).out).mcpServers['lv-design-studio'].args).toEqual([node.script, 'mcp', '--tools', 'core']);
+    expect(JSON.parse(r.out).mcpServers['gfd-studio-e'].args).toEqual([node.script, 'mcp', '--write', '--tools', 'cad,export']);
+    expect(JSON.parse((await run(['mcp-config', '--tools', 'core'])).out).mcpServers['gfd-studio-e'].args).toEqual([node.script, 'mcp', '--tools', 'core']);
     const bad = await run(['mcp-config', '--tools', 'everything']);
     expect(bad.code).toBe(2);
     expect(bad.err).toMatch(/Unknown tool group/);
   });
 
   it('in the installed app, the app itself runs it as Node: no window, no separate Node', () => {
-    expect(mcpConfig(app, false).mcpServers['lv-design-studio']).toEqual({ command: app.execPath, args: [app.script, 'mcp'], env: { ELECTRON_RUN_AS_NODE: '1' } });
-    expect(mcpConfig(node, false).mcpServers['lv-design-studio']).not.toHaveProperty('env');
+    expect(mcpConfig(app, false).mcpServers['gfd-studio-e']).toEqual({ command: app.execPath, args: [app.script, 'mcp'], env: { ELECTRON_RUN_AS_NODE: '1' } });
+    expect(mcpConfig(node, false).mcpServers['gfd-studio-e']).not.toHaveProperty('env');
   });
 
   it('names no AI product: the engineer brings their own', async () => {
     const words = /claude|anthropic|chatgpt|openai|gemini|copilot/i;
     const help = await run(['help']);
-    expect(help.out).toContain('lvds mcp-config');
+    expect(help.out).toContain('gfde mcp-config');
     expect(help.out).not.toMatch(words);
     const config = await run(['mcp-config', '--write'], app);
     expect(config.out + config.err).not.toMatch(words);
@@ -278,7 +278,7 @@ describe('MCP settings for the engineer\'s own AI program', () => {
     const [a, b] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test', version: '1.0' });
     await Promise.all([createMcp({ ...ctx, write: true }, '1.0').connect(a), client.connect(b)]);
-    expect(client.getInstructions()).toMatch(/LV Design Studio/);
+    expect(client.getInstructions()).toMatch(/GFD Studio E/);
     const { tools } = await client.listTools();
     expect(tools.length).toBeGreaterThan(40);
     expect(client.getInstructions() + JSON.stringify(tools)).not.toMatch(words);

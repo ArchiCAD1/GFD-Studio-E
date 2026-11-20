@@ -53,7 +53,7 @@ describe('MCP server', () => {
   let folder: string;
   const ctx = (): ToolContext => ({ folder, anywhere: false });
   beforeAll(() => {
-    folder = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-compact-'));
+    folder = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-compact-'));
     fs.writeFileSync(path.join(folder, 'Job.json'), JSON.stringify(network(30, 'deep')));
   });
   afterAll(() => fs.rmSync(folder, { recursive: true, force: true }));
@@ -89,7 +89,7 @@ describe('MCP server', () => {
 
   it('mcp-config carries --full-rows', async () => {
     const out: string[] = [];
-    await main(['mcp-config', '--full-rows'], '1.0', { out: (s) => out.push(s), err: () => undefined }, { execPath: '/usr/local/bin/node', script: '/x/lvds.mjs', electron: false });
-    expect(JSON.parse(out.join('')).mcpServers['lv-design-studio'].args).toEqual(['/x/lvds.mjs', 'mcp', '--full-rows']);
+    await main(['mcp-config', '--full-rows'], '1.0', { out: (s) => out.push(s), err: () => undefined }, { execPath: '/usr/local/bin/node', script: '/x/gfde.mjs', electron: false });
+    expect(JSON.parse(out.join('')).mcpServers['gfd-studio-e'].args).toEqual(['/x/gfde.mjs', 'mcp', '--full-rows']);
   });
 });

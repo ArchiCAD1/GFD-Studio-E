@@ -12,7 +12,7 @@ const V = require('../../electron/ipcValidate.cjs') as Record<'workbookRows' | '
 const DB = require('../../electron/database.cjs') as { setFolder: (d: string | null) => void; writeBook: Fn; spec: { books: { id: string }[] } };
 const { runJsonProcess } = require('../../electron/engineRunner.cjs') as { runJsonProcess: (o: Record<string, unknown>) => Promise<Record<string, unknown>> };
 
-const dir = mkdtempSync(join(tmpdir(), 'lvds-limits-'));
+const dir = mkdtempSync(join(tmpdir(), 'gfde-limits-'));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('reading files within a limit', () => {

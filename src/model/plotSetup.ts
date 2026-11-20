@@ -43,7 +43,7 @@ export const PEN_ACI: Record<PenKey, number> = { frame: 7, title: 7, arch: 8, re
 
 /** What the sheets print today; SLD lines and busbars as drawn. */
 export const DEFAULT_PENS: PenTable = {
-  id: 'lvds', name: 'LVDS Electrical',
+  id: 'gfde', name: 'GFDE Electrical',
   pens: { frame: { w: 0.7, grey: 100 }, title: { w: 0.25, grey: 100 }, arch: { w: 0.18, grey: 45 }, refs: { w: 0.13, grey: 30 }, devices: { w: 0.25, grey: 100 }, trays: { w: 0.5, grey: 100 }, routes: { w: 0.25, grey: 100 }, sketch: { w: 0.25, grey: 100 }, hatch: { w: 0.13, grey: 60 }, sld: { w: 0, grey: 100 }, bus: { w: 0, grey: 100 } }
 };
 export const PEN_KEYS = Object.keys(DEFAULT_PENS.pens) as PenKey[];
@@ -221,19 +221,19 @@ export function projectForBatch(p: Project, rows: BatchList['rows']): Project {
 }
 
 /** Named page setups as a file (Output → Page setups → Export…) or in the library: the setups and the pen tables they use. */
-export interface SetupsFile { kind: 'lvds.pageSetups'; setups: NamedSetup[]; tables: PenTable[] }
+export interface SetupsFile { kind: 'gfde.pageSetups'; setups: NamedSetup[]; tables: PenTable[] }
 /** The project's named page setups (all, or those with these ids) with the pen tables they use (never the built-in one). */
 export function setupsFile(p: Project, ids?: string[]): SetupsFile {
   const setups = setupsOf(p).filter((n) => !ids || ids.includes(n.id));
   const used = new Set(setups.map((n) => n.plot.pens).filter((x): x is string => !!x && x !== DEFAULT_PENS.id));
-  return { kind: 'lvds.pageSetups', setups, tables: tablesOf(p).filter((t) => t.id !== DEFAULT_PENS.id && used.has(t.id)) };
+  return { kind: 'gfde.pageSetups', setups, tables: tablesOf(p).filter((t) => t.id !== DEFAULT_PENS.id && used.has(t.id)) };
 }
 const SETUP_SIZES = ['auto', 'A4', 'A3', 'A3 portrait', 'A2', 'A1'];
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 /** Page setups read from a file: one exported here, or a project file (its plot.setups and plot.tables). Undefined when it holds none. */
 export function readSetups(v: unknown): SetupsFile | undefined {
   if (!isObj(v)) return undefined;
-  const src = v.kind === 'lvds.pageSetups' ? v : isObj(v.plot) ? v.plot : isObj((v.project as Record<string, unknown> | undefined)?.plot) ? (v.project as { plot: Record<string, unknown> }).plot : undefined;
+  const src = v.kind === 'gfde.pageSetups' || v.kind === 'lvds.pageSetups' ? v : isObj(v.plot) ? v.plot : isObj((v.project as Record<string, unknown> | undefined)?.plot) ? (v.project as { plot: Record<string, unknown> }).plot : undefined;
   if (!src || !Array.isArray(src.setups)) return undefined;
   const setups: NamedSetup[] = [];
   for (const raw of src.setups) {
@@ -246,7 +246,7 @@ export function readSetups(v: unknown): SetupsFile | undefined {
   }
   if (!setups.length) return undefined;
   const tables = Array.isArray(src.tables) ? src.tables.filter(isPenTable).map(stbChecked) : [];
-  return { kind: 'lvds.pageSetups', setups, tables };
+  return { kind: 'gfde.pageSetups', setups, tables };
 }
 /** How a setup prints, as read from a file: only what a page setup holds, so nothing else gets into the project. */
 function plotFrom(v: unknown): NamedSetup['plot'] {
@@ -294,9 +294,9 @@ export function importSetups(p: Project, f: SetupsFile): { project: Project; add
   }
   return { project, added, kept };
 }
-export const SETUPS_LIBRARY_KEY = 'lvds.pageSetups';
+export const SETUPS_LIBRARY_KEY = 'gfde.pageSetups';
 export function loadSetupLibrary(): SetupsFile {
-  const none: SetupsFile = { kind: 'lvds.pageSetups', setups: [], tables: [] };
+  const none: SetupsFile = { kind: 'gfde.pageSetups', setups: [], tables: [] };
   try { return readSetups(JSON.parse(localStorage.getItem(SETUPS_LIBRARY_KEY) ?? 'null')) ?? none; } catch { return none; }
 }
 /** A pen table's id in the library: its name. Projects number their tables alike (pt1 in each), so their own ids would
@@ -313,5 +313,5 @@ export function saveToSetupLibrary(f: SetupsFile): boolean {
   const mineTables = f.tables.map((t) => ({ ...t, id: libTableId(t.name) }));
   const setups = [...lib.setups.filter((x) => !mine.some((n) => n.name.toLowerCase() === x.name.toLowerCase())), ...mine];
   const tables = [...lib.tables.filter((x) => !mineTables.some((t) => t.id === x.id)), ...mineTables];
-  try { localStorage.setItem(SETUPS_LIBRARY_KEY, JSON.stringify({ kind: 'lvds.pageSetups', setups, tables })); void pushLibrary(); return true; } catch { return false; }
+  try { localStorage.setItem(SETUPS_LIBRARY_KEY, JSON.stringify({ kind: 'gfde.pageSetups', setups, tables })); void pushLibrary(); return true; } catch { return false; }
 }

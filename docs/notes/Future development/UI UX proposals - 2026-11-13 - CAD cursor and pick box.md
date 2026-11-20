@@ -6,7 +6,7 @@ Built differently from the mockup: the hovered object gets the amber outline ove
 
 Mockup: `docs/mockups/cad-cursor-pickbox-mockup.html` (image: `cad-cursor-pickbox-mockup.png`).
 
-![The Design CAD cursor and pick box, today and proposed](../../mockups/cad-cursor-pickbox-mockup.png)
+![The Design CAD cursor and pick box, today and proposed](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-cursor-pickbox-mockup.png)
 
 ## Today
 

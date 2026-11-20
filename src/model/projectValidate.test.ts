@@ -77,7 +77,7 @@ describe('project file structure (on open)', () => {
     [{ boards: [{ id: 'MDB' }], feeders: [null] }, 'circuit 1 has no id']
   ])('rejects %j: %s', (raw, why) => {
     expect(() => checkProjectShape(raw, 'x.json')).toThrow(ProjectFileError);
-    expect(() => checkProjectShape(raw, 'x.json')).toThrow(`x.json is not a valid LV Design Studio project: ${why}.`);
+    expect(() => checkProjectShape(raw, 'x.json')).toThrow(`x.json is not a valid GFD Studio E project: ${why}.`);
   });
 });
 
