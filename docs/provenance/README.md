@@ -16,15 +16,15 @@ The bundled CAD reader uses acadrust and retains its third-party notices. Built 
 
 ## GFD changes
 
-The GFD branding update introduces the GFD product name and publisher identity, original circuit-letter E artwork, `.gfde` project naming, GFD package/application/CLI identities, GFD output branding and project metadata, GFD repository/support links, GFD documentation and compatibility paths for older project data. The precise modified files and their changes are recorded by Git; the inherited commit history is preserved.
+The GFD branding update introduces the GFD product name and publisher identity, the owner's existing Gerardo Faustin Designs company logo, `.gfde` project naming, GFD package/application/CLI identities, GFD output branding and project metadata, GFD repository/support links, GFD documentation and compatibility paths for older project data. The precise modified files and their changes are recorded by Git; the inherited commit history is preserved.
 
-The new vector logo and icon are generated from original geometry in [scripts/generate-brand-assets.py](../../scripts/generate-brand-assets.py). They do not reuse the original product's transformer symbol mark. See the [brand asset guide](../brand/README.md).
+The authoritative artwork is the owner-supplied [company logo PNG](../brand/gfd-company-logo.png), originally supplied as `CC5B1BC8-D056-4DB2-8734-D465F644F611.png`. The repository source is byte-for-byte identical to that 1024 by 1024 image, with SHA-256 `782f0667c14d89869ef609e7e1dac70029f3006dd03854cd2d3252f563caefec`. It includes the navy-and-gold GFD house monogram, company lettering and complete original background. [scripts/generate-brand-assets.py](../../scripts/generate-brand-assets.py) copies it or resizes it proportionally for the app and packaging, without cropping, recolouring, tracing or redrawing. The provisional circuit-E artwork has been replaced. See the [brand asset guide](../brand/README.md).
 
 ## Historical evidence
 
 Inherited mockups, before/after reports, architecture reviews and audit screenshots are development records. They are **not evidence of GFD testing, GFD release readiness or new engineering validation**. Retired screenshots and example PDFs are indexed by exact historical commit, and removed from active product documentation. Functional regression baselines remain test evidence; historical content is never altered to imply that GFD ran those checks. See [the historical evidence register](HISTORICAL-EVIDENCE.md).
 
-The former promotional video has been retired from active marketing, and its unmodified source remains in Git history. Current promotional pages use the GFD wordmark and freshly captured GFD documentation views. Any legacy format names in migration adapters, migration tests and this provenance record are intentional compatibility or attribution references.
+The former promotional video has been retired from active marketing, and its unmodified source remains in Git history. Current promotional pages use the supplied company logo with GFD Studio E product text and freshly captured GFD documentation views. Any legacy format names in migration adapters, migration tests and this provenance record are intentional compatibility or attribution references.
 
 ## Engineering status
 

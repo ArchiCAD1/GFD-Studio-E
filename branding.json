@@ -11,5 +11,26 @@
   "backupExtension": "gfde-backup",
   "specificationExtension": "gfde-spec",
   "exchangeSchema": "gfde.exchange",
-  "designSchema": "gfde.design"
+  "designSchema": "gfde.design",
+  "companyLogo": {
+    "source": "docs/brand/gfd-company-logo.png",
+    "sha256": "782f0667c14d89869ef609e7e1dac70029f3006dd03854cd2d3252f563caefec",
+    "width": 1024,
+    "height": 1024,
+    "publicAsset": "public/gfd-company-logo.png",
+    "icons": [
+      {
+        "path": "public/icon-192.png",
+        "width": 192,
+        "height": 192,
+        "sha256": "166f113986f576aa47c72e8675d36958b85419033fa2a40156447ad5b1aa5a42"
+      },
+      {
+        "path": "public/icon-512.png",
+        "width": 512,
+        "height": 512,
+        "sha256": "7f73ffe353d73dd6ffbd29099f6395d0d96adb0981a977ee51e2d6afbd3d2aef"
+      }
+    ]
+  }
 }

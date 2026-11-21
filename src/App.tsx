@@ -1429,7 +1429,7 @@ export default function App() {
     <div className={`app-root${home ? ' home' : ''}`} data-doc-id="app-shell">
       <div className="top">
         <div className="brand">
-          <img className="brand-mark" src="icon.svg" alt="" />
+          <img className="brand-mark" src="gfd-company-logo.png" alt="Gerardo Faustin Designs Limited company logo" width="1024" height="1024" />
           <div>
             {BRAND.name} <span className="app-ver">v{__APP_VERSION__}</span>
             <small title={BRAND.owner}>{BRAND.tagline}</small>

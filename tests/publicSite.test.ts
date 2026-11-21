@@ -42,7 +42,7 @@ describe('public website source', () => {
     expect(html).toContain("media-src 'self'");
     expect(html).toContain('<img class="product-mark"');
     expect(html).not.toContain('<video');
-    expect(html).toContain('../media/gfd-studio-e-logo-dark.svg');
+    expect(html).toContain('../media/gfd-company-logo.png');
     expect(html).not.toMatch(/<script\b|https:\/\/[^"']+\.js/i);
   });
 
@@ -72,7 +72,7 @@ describe('public website source', () => {
       buildSite({ outDir: out, releaseFile, checksumsFile: sumsFile });
       expect(existsSync(join(out, 'about/index.html'))).toBe(true);
       expect(existsSync(join(out, 'download/index.html'))).toBe(true);
-      expect(existsSync(join(out, 'media', 'gfd-studio-e-logo-dark.svg'))).toBe(true);
+      expect(readFileSync(join(out, 'media', 'gfd-company-logo.png'))).toEqual(readFileSync(join(root, 'docs/brand/gfd-company-logo.png')));
       for (const shot of readProduct().screenshots) expect(existsSync(join(out, 'screenshots', shot.file))).toBe(true);
       expect(JSON.parse(readFileSync(join(out, 'download/beta.json'), 'utf8'))).toEqual({
         schemaVersion: 1,

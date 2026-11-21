@@ -17,9 +17,9 @@ Unless you state otherwise, any contribution you submit for inclusion in GFD Stu
 
 ## Name and logo
 
-The original **LV Design Studio** name and logo are not covered by the upstream code licences. This fork uses its own **GFD Studio E** product name and original artwork, and does not imply endorsement by the upstream author.
+The original **LV Design Studio** name and logo are not covered by the upstream code licences. This fork uses the **GFD Studio E** product name and the owner-supplied **Gerardo Faustin Designs** company logo, and does not imply endorsement by the upstream author.
 
-The GFD Studio E name and artwork identify this distribution. The code licences do not grant rights to use its brand to imply sponsorship or endorsement. Asset sources and regeneration instructions are in [docs/brand/README.md](docs/brand/README.md).
+The GFD Studio E name and Gerardo Faustin Designs company artwork identify this distribution. The existing navy-and-gold house monogram and company lettering are retained as supplied; the asset generator only copies or proportionally resizes that artwork. The code licences do not grant rights to use its brand to imply sponsorship or endorsement. Asset sources and regeneration instructions are in [docs/brand/README.md](docs/brand/README.md).
 
 ## Third-party software
 

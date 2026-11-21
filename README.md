@@ -1,7 +1,7 @@
 <!-- PUBLIC-PRODUCT:START — generated from docs/public-site/product.json by scripts/public-site.mjs -->
 # GFD Studio E
 
-![GFD Studio E](docs/brand/gfd-studio-e-logo.svg)
+<img src="docs/brand/gfd-company-logo.png" alt="Gerardo Faustin Designs Limited company logo" width="320" height="320" />
 
 GFD Studio E is Gerardo Faustin Designs Limited's offline electrical design workspace for single-line diagrams, load schedules, electrical calculations, drawings and reports. Save native .gfde projects locally and keep control of your design data.
 
