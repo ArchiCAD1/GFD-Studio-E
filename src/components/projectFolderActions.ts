@@ -6,8 +6,8 @@ import { projectCopyTarget } from '../model/outputRoles';
 import type { Project } from '../types';
 
 /** What the desktop app can do with folders on disk; absent in the web version. */
-export type FolderDisk = NonNullable<Window['lvds']['projectFolders']>;
-export const folderDisk = (): FolderDisk | undefined => (typeof window === 'undefined' ? undefined : window.lvds?.projectFolders);
+export type FolderDisk = NonNullable<Window['gfde']['projectFolders']>;
+export const folderDisk = (): FolderDisk | undefined => (typeof window === 'undefined' ? undefined : window.gfde?.projectFolders);
 
 /** The user's choice on the "Project folder" step. `parent` is where the project folder goes (desktop only). */
 export interface FolderChoice { template: FolderTemplate; parent: string; name: string; unticked: string[] }

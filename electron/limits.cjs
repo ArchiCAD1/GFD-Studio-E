@@ -13,7 +13,7 @@ const LIMITS = Object.freeze({
   folderTemplateBytes: 1 * MB, // one folder template (a 300-folder template is ~40 KB)
   folderTemplatesBytes: 8 * MB, // folder-templates.json, and a file of templates to import
   folderTemplatesCount: 200, // user templates kept
-  workbookBytes: 20 * MB, // one .xlsx of the LV Database
+  workbookBytes: 20 * MB, // one .xlsx of the GFD Studio E Database
   pdfHtmlBytes: 64 * MB, // HTML of one report to print as PDF
   textExportBytes: 64 * MB, // a text export (DXF, OpenDSS script…)
   binaryExportBytes: 128 * MB, // a binary export (xlsx, docx, pdf, zip)

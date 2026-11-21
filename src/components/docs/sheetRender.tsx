@@ -327,7 +327,7 @@ export async function exportEverythingZip(project: Project, set: DrawingSet, run
     const pages = await prepareSheets(project, set, run);
     const dxf = dxfOf(project, set, pages);
     for (const f of dxf) zip.file(`DXF/${f.name}`, f.data);
-    const toBytes = window.lvds?.files?.pdfBytes;
+    const toBytes = window.gfde?.files?.pdfBytes;
     if (toBytes) {
       const parts: Uint8Array[] = [], titles: string[] = [];
       const rev = currentRevision(project);
@@ -385,7 +385,7 @@ export async function drawingSetPdfParts(project: Project, set: DrawingSet, run:
 /** `issued`: the sheets are being issued; the PDFs go to the issued-drawings folder ({Stage}/Rev-{Rev}, spec F2). */
 export async function exportDrawingSet(project: Project, set: DrawingSet, run: CalcRun | undefined, each: boolean, onStatus: (m: string) => void, only?: string[], withRegister = !only, issued?: SaveValues): Promise<void> {
   try {
-    const toBytes = window.lvds?.files?.pdfBytes;
+    const toBytes = window.gfde?.files?.pdfBytes;
     if (each || !toBytes) {
       const pages = await prepareSheets(project, set, run, only);
       let n = 0;
@@ -403,7 +403,7 @@ export async function exportDrawingSet(project: Project, set: DrawingSet, run: C
 
 /** The sheets sent to a printer (Output → Plot, Batch plot), each on its own paper size, in the set's order. */
 export async function printSheets(project: Project, set: DrawingSet, run: CalcRun | undefined, only: string[], deviceName: string, copies: number, onStatus: (m: string) => void): Promise<void> {
-  const print = window.lvds?.files?.printHtml;
+  const print = window.gfde?.files?.printHtml;
   if (!print) { onStatus('Printing needs the desktop app — plot to PDF instead'); return; }
   try {
     const pages = await prepareSheets(project, set, run, only);

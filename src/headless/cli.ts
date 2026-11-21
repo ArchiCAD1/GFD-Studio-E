@@ -5,8 +5,8 @@ import { projectsFolder } from './project';
 import { mcpConfig, startMcp, type Runtime } from './mcp';
 import { startApi } from './api';
 
-/** The `lvds` command: every tool from the command line, plus `lvds mcp` (MCP server) and
- * `lvds serve` (local API). Tools that change a project preview unless given --apply (structure) or
+/** The `gfde` command: every tool from the command line, plus `gfde mcp` (MCP server) and
+ * `gfde serve` (local API). Tools that change a project preview unless given --apply (structure) or
  * --propose (value changes); the servers offer them only with --write.
  * Exit code: 0 done, 1 checks failed (run_checks), 2 error. */
 
@@ -103,12 +103,12 @@ function usage(t: Tool): string {
   const shown = flags.filter((f) => !(posPanel && f.includes('--panel ')) && !(posTo && f.includes('--to ')) && !f.includes('--mode '));
   const commitMode = t.writes ? (['propose', 'export', 'apply'] as const).find((m) => 'mode' in t.input && (t.input.mode as z.ZodType).safeParse(m).success) : undefined;
   const commit = commitMode ? ` [--${commitMode}]` : '';
-  return `  lvds ${alias ?? t.name}${t.usesProject ? ' <project>' : ''}${posPanel ? ' <panel>' : ''}${posTo ? ' <to>' : ''} ${shown.join(' ')}${commit}`.replace(/(\S) {2,}/g, '$1 ').trimEnd() + `\n      ${t.description}`;
+  return `  gfde ${alias ?? t.name}${t.usesProject ? ' <project>' : ''}${posPanel ? ' <panel>' : ''}${posTo ? ' <to>' : ''} ${shown.join(' ')}${commit}`.replace(/(\S) {2,}/g, '$1 ').trimEnd() + `\n      ${t.description}`;
 }
 
 function help(version: string): string {
   return [
-    `LV Design Studio command line ${version}`,
+    `GFD Studio E command line ${version}`,
     '',
     'Read and check:',
     ...allTools().filter((t) => !t.writes && t.name !== 'list_changes' && t.name !== 'list_exports').map(usage),
@@ -119,30 +119,30 @@ function help(version: string): string {
     'Export (a preview unless --export; needs --approvedBy "<engineer>"; never over an existing file):',
     ...allTools().filter((t) => t.name.startsWith('export_') || t.name === 'list_exports').map(usage),
     '',
-    '  lvds mcp [--write]                 Run the MCP server (stdio) for your own AI program: any MCP client, or a local model through one',
-    '  lvds mcp-config [--write]          Print the settings that AI program needs to start this MCP server',
-    '  lvds serve [--port 8765] [--write] Run the local API on http://127.0.0.1 (needs its token: lvds help serve)',
+    '  gfde mcp [--write]                 Run the MCP server (stdio) for your own AI program: any MCP client, or a local model through one',
+    '  gfde mcp-config [--write]          Print the settings that AI program needs to start this MCP server',
+    '  gfde serve [--port 8765] [--write] Run the local API on http://127.0.0.1 (needs its token: gfde help serve)',
     '  (--write also offers the tools that change a project; without it both are read only)',
     `  (--tools <groups> offers the core tools and only these groups: ${TOOL_GROUPS.join(', ')}; e.g. --tools cad,export, or --tools core)`,
-    '  (lvds mcp hides project names, file names, parties and addresses from the AI program; --show-names sends them, e.g. for a local model)',
-    '  (lvds mcp sends lists of records as columns and rows, which costs an AI program fewer tokens; --full-rows sends records)',
-    '  lvds help <command>      Inputs of one command',
+    '  (gfde mcp hides project names, file names, parties and addresses from the AI program; --show-names sends them, e.g. for a local model)',
+    '  (gfde mcp sends lists of records as columns and rows, which costs an AI program fewer tokens; --full-rows sends records)',
+    '  gfde help <command>      Inputs of one command',
     '',
-    'Options: --json (JSON output), --folder <path> (projects folder; default: the app\'s, or LVDS_PROJECTS)',
+    'Options: --json (JSON output), --folder <path> (projects folder; default: the app\'s, or GFDE_PROJECTS)',
     'Lists (--changes, --renames) are given as JSON, e.g. --renames \'[{"from":"DB-1","to":"DB-L1-01"}]\'',
-    'A <project> is a file name in the projects folder, or a path to a project file (.lvds, or an older .json).'
+    'A <project> is a file name in the projects folder, or a path to a project file (.gfde; legacy .lvds and .json files can also be imported).'
   ].join('\n');
 }
 
-/** `lvds help serve`: how a local program authenticates to the API. */
+/** `gfde help serve`: how a local program authenticates to the API. */
 export const SERVE_HELP = [
-  'lvds serve [--port 8765] [--write]',
+  'gfde serve [--port 8765] [--write]',
   '',
   'Runs the local API on http://127.0.0.1:<port>/api/tools for programs on this computer.',
   'Every request needs the header  Authorization: Bearer <token>',
   'The token is new each time the server starts. It is written to a file only you can read,',
   'named when the server starts (in the app data folder, file "api-token"), and removed when it stops.',
-  'It is never printed, and never goes in a URL. Set LVDS_API_TOKEN (32+ characters) to use your own fixed token instead.',
+  'It is never printed, and never goes in a URL. Set GFDE_API_TOKEN (32+ characters) to use your own fixed token instead.',
   'Requests from web pages (with an Origin header) are refused. --write also offers the tools that change a project (POST with JSON).',
   '',
   'Example (macOS / Linux):',
@@ -157,8 +157,8 @@ function commandHelp(t: Tool): string {
 
 // ---- Run ---------------------------------------------------------------------
 
-/** This copy of lvds, as an AI program would start it. */
-const thisRuntime = (): Runtime => ({ execPath: process.execPath, script: path.resolve(process.argv[1] ?? 'lvds.mjs'), electron: !!process.versions.electron });
+/** This copy of gfde, as an AI program would start it. */
+const thisRuntime = (): Runtime => ({ execPath: process.execPath, script: path.resolve(process.argv[1] ?? 'gfde.mjs'), electron: !!process.versions.electron });
 
 export async function main(argv: string[], version: string, io: { out: (s: string) => void; err: (s: string) => void } = { out: (s) => process.stdout.write(s + '\n'), err: (s) => process.stderr.write(s + '\n') }, runtime: Runtime = thisRuntime()): Promise<number> {
   const a = parseArgs(argv);
@@ -180,7 +180,7 @@ export async function main(argv: string[], version: string, io: { out: (s: strin
   if (cmd === 'mcp') { await startMcp({ ...ctx, anywhere: false, write: a.write, groups, hideNames: !a.showNames, compactRows: !a.fullRows }, version); return -1; }
   if (cmd === 'mcp-config') {
     io.out(JSON.stringify(mcpConfig(runtime, a.write, groups, a.showNames, a.fullRows), null, 2));
-    io.err(`Paste this into the MCP settings of your AI program. It starts LV Design Studio's MCP server on this computer (${a.write ? 'read and change: change tools preview first' : 'read only; add --write to also offer the tools that change a project'}). ${a.showNames ? 'Project names and client details are sent to the AI program.' : 'Project names, parties and addresses are hidden from the AI program; add --show-names to send them (e.g. for a local model).'}`);
+    io.err(`Paste this into the MCP settings of your AI program. It starts GFD Studio E's MCP server on this computer (${a.write ? 'read and change: change tools preview first' : 'read only; add --write to also offer the tools that change a project'}). ${a.showNames ? 'Project names and client details are sent to the AI program.' : 'Project names, parties and addresses are hidden from the AI program; add --show-names to send them (e.g. for a local model).'}`);
     return 0;
   }
   if (cmd === 'serve') {
@@ -189,13 +189,13 @@ export async function main(argv: string[], version: string, io: { out: (s: strin
     const stop = () => server.close(() => process.exit(0));
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
-    io.err(`LV Design Studio local API (${a.write ? 'read and change' : 'read only'}): http://127.0.0.1:${port}/api/tools  — projects folder ${ctx.folder}.`);
-    io.err(tokenFile ? `Token (send as Authorization: Bearer <token>): in ${tokenFile}` : 'Token: the one in LVDS_API_TOKEN.');
-    io.err('Ctrl+C to stop. "lvds help serve" for an example.');
+    io.err(`GFD Studio E local API (${a.write ? 'read and change' : 'read only'}): http://127.0.0.1:${port}/api/tools  — projects folder ${ctx.folder}.`);
+    io.err(tokenFile ? `Token (send as Authorization: Bearer <token>): in ${tokenFile}` : 'Token: the one in GFDE_API_TOKEN.');
+    io.err('Ctrl+C to stop. "gfde help serve" for an example.');
     return -1;
   }
   const t = toolByName(ALIASES[cmd] ?? cmd);
-  if (!t) { io.err(`Unknown command "${cmd}". Run "lvds help".`); return 2; }
+  if (!t) { io.err(`Unknown command "${cmd}". Run "gfde help".`); return 2; }
 
   const args: Record<string, unknown> = { ...a.flags };
   if (a.commit) {
@@ -206,7 +206,7 @@ export async function main(argv: string[], version: string, io: { out: (s: strin
   if (t.usesProject && args.project === undefined && pos.length) args.project = pos.shift();
   if (['get_panel', 'move_panel', 'copy_panel'].includes(t.name) && args.panel === undefined && pos.length) args.panel = pos.shift();
   if (['move_panel', 'copy_panel'].includes(t.name) && args.to === undefined && pos.length) args.to = pos.shift();
-  if (pos.length) { io.err(`Unexpected "${pos.join(' ')}". Run "lvds help ${cmd}".`); return 2; }
+  if (pos.length) { io.err(`Unexpected "${pos.join(' ')}". Run "gfde help ${cmd}".`); return 2; }
   // A list may also be given as plain text, comma separated: --sheets E-SLD-001,E-SLD-002
   for (const [k, v] of Object.entries(args)) {
     const s = t.input[k] as z.ZodType | undefined;

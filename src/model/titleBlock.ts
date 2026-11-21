@@ -312,7 +312,7 @@ export function removeCol(t: TitleTemplate, c: number): TitleTemplate {
   return fillGaps({ ...t, cols: t.cols.filter((_, i) => i !== c), cells });
 }
 
-const LIB = 'lvds.titleTemplates';
+const LIB = 'gfde.titleTemplates';
 export function loadTemplateLibrary(): TitleTemplate[] {
   try { const v = JSON.parse(localStorage.getItem(LIB) ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
 }

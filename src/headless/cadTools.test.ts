@@ -22,10 +22,10 @@ const fixtures = path.resolve(__dirname, '../../tests/fixtures/cad');
 const run = async (name: string, args: Record<string, unknown>): Promise<Record<string, any>> => (await callTool(toolByName(name)!, args, ctx)) as Record<string, any>;
 
 beforeAll(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-cad-'));
-  process.env.LVDS_APP_DATA = path.join(root, 'app');
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-cad-'));
+  process.env.GFDE_APP_DATA = path.join(root, 'app');
 });
-afterAll(() => { delete process.env.LVDS_APP_DATA; fs.rmSync(root, { recursive: true, force: true }); });
+afterAll(() => { delete process.env.GFDE_APP_DATA; fs.rmSync(root, { recursive: true, force: true }); });
 beforeEach(() => {
   folder = fs.mkdtempSync(path.join(root, 'projects-'));
   fs.writeFileSync(path.join(folder, 'Villa.json'), JSON.stringify(villa, null, 2));

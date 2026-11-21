@@ -2,7 +2,7 @@ import { buildingInfoOf, nextRoomId, roomTypesOf } from '../calc/building';
 import { guessRoomType } from '../model/cadRooms';
 import type { BuildingRoom, Project, ProjectBuilding } from '../types';
 import {
-  EXCHANGE_SCHEMA, EXCHANGE_VERSION, exchangePackage, hashedText,
+  EXCHANGE_SCHEMA, LEGACY_EXCHANGE_SCHEMA, EXCHANGE_VERSION, exchangePackage, hashedText,
   type ExchangePackage, type FixtureItem, type LoadItem, type PackageKind, type PackageSource, type RoomItem, type RoomsPackage
 } from './contracts';
 
@@ -73,7 +73,7 @@ const sameFile = (a: PackageSource, b: PackageSource) => a.app === b.app && lowe
 export function readPackage(raw: unknown, sha256: (text: string) => string): ReadResult {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, errors: [{ message: 'This is not an exchange package (a JSON object is expected).' }] };
   const head = raw as { schema?: unknown; version?: unknown };
-  if (head.schema !== EXCHANGE_SCHEMA) return { ok: false, errors: [{ field: 'schema', message: `This is not an LV Design Studio exchange package (schema must be "${EXCHANGE_SCHEMA}").` }] };
+  if (head.schema !== EXCHANGE_SCHEMA && head.schema !== LEGACY_EXCHANGE_SCHEMA) return { ok: false, errors: [{ field: 'schema', message: `This is not a GFD Studio E exchange package (schema must be "${EXCHANGE_SCHEMA}").` }] };
   if (head.version !== EXCHANGE_VERSION) {
     const newer = typeof head.version === 'number' && head.version > EXCHANGE_VERSION;
     return { ok: false, errors: [{ field: 'version', message: newer ? `The package uses contract version ${head.version}; this app reads version ${EXCHANGE_VERSION}. Update the app.` : `Unknown contract version ${String(head.version)}; this app reads version ${EXCHANGE_VERSION}.` }] };
@@ -353,7 +353,7 @@ export function roomsExport(project: Project, exportedAt: string, sha256: (text:
   const pkg = {
     schema: EXCHANGE_SCHEMA, version: EXCHANGE_VERSION, kind: 'rooms' as const,
     project: { ...(project.id ? { id: project.id } : {}), name: project.name },
-    source: { app: 'lvds' as const, ...(file ? { file } : {}) }, exportedAt, items
+    source: { app: 'gfde' as const, ...(file ? { file } : {}) }, exportedAt, items
   };
   return { ...pkg, sha256: sha256(hashedText(pkg)) };
 }

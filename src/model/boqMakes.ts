@@ -124,7 +124,7 @@ export function normalizeMakeList(v: unknown): BoqMakeList | undefined {
   return { id: o.id, name: o.name, date: typeof o.date === 'string' ? o.date : '', orEqual: o.orEqual !== false, categories, preambles };
 }
 
-const KEY = 'lvds.boqMakeLists';
+const KEY = 'gfde.boqMakeLists';
 /** The office's saved lists on this computer. */
 export function loadMakeLists(): BoqMakeList[] {
   try {

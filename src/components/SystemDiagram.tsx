@@ -723,9 +723,9 @@ export default function SystemDiagram({
   const pxAt = (v: ViewBox) => (box.w && box.h ? Math.min(box.w / v.w, box.h / v.h) : 1);
   const pxPerUnit = pxAt(vb);
   // Text detail: 'all' (the default) shows every label at every zoom, 'auto' follows the zoom (remembered).
-  const [detail, setDetail] = useState<'auto' | 'all'>(() => { try { return localStorage.getItem('lvds.sldDetail') === 'auto' ? 'auto' : 'all'; } catch { return 'all'; } });
-  const toggleDetail = () => setDetail((d) => { const v = d === 'auto' ? 'all' : 'auto'; try { localStorage.setItem('lvds.sldDetail', v); } catch { /* ignore */ } return v; });
-  const chooseDetail = (v: 'auto' | 'all') => { setDetail(v); try { localStorage.setItem('lvds.sldDetail', v); } catch { /* ignore */ } };
+  const [detail, setDetail] = useState<'auto' | 'all'>(() => { try { return localStorage.getItem('gfde.sldDetail') === 'auto' ? 'auto' : 'all'; } catch { return 'all'; } });
+  const toggleDetail = () => setDetail((d) => { const v = d === 'auto' ? 'all' : 'auto'; try { localStorage.setItem('gfde.sldDetail', v); } catch { /* ignore */ } return v; });
+  const chooseDetail = (v: 'auto' | 'all') => { setDetail(v); try { localStorage.setItem('gfde.sldDetail', v); } catch { /* ignore */ } };
   const lodAt = (px: number) => (!lod || detail === 'all' ? '' : px < 0.55 ? ' lod-far' : px < 0.8 ? ' lod-mid' : '');
   const lodFont = (px: number) => `${Math.min(22, 10 / px).toFixed(1)}px`;
   const lodLevel = lodAt(pxPerUnit);

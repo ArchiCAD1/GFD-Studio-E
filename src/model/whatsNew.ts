@@ -18,6 +18,14 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.212', date: '2026-11-20',
+    items: [
+      { title: 'GFD Studio E', text: 'A dedicated GFD identity from Gerardo Faustin Designs Limited, with new application artwork, installer names, documentation and report attribution.' },
+      { title: 'Native GFD project files', text: 'New projects save as .gfde and backups use .gfde-backup. Existing projects and backups remain importable, with migration of existing local preferences and recovery data.' },
+      { title: 'GFD automation', text: 'The command-line tool is gfde. Project exchange, export metadata, engineering-engine launchers and CAD metadata now use the GFD identity.' }
+    ]
+  },
+  {
     version: '2.211', date: '2026-11-19',
     items: [
       { title: 'Cable type: Auto names the cable it gives', text: 'In the SLD cable editor (click the cable text of a way) and on the Cable tab of the feeder form, the Auto choice now names the cable a way gets when no type is chosen: the default armoured cable, or fire-rated cable for a life safety circuit. Before, it repeated the type chosen by hand.' }
@@ -335,16 +343,16 @@ export const RELEASES: Release[] = [
   {
     version: '2.151', date: '2026-11-15',
     items: [
-      { title: 'Bring your own AI: the MCP connection comes with the installed app', text: 'The installed app now carries its command line (lvds) and its MCP server, so your own AI program (any MCP client, or a free local model through one) can read and check your projects on this computer. The app has no AI of its own and holds no account or key. To connect, run lvds mcp-config from the app\'s resources folder (the README gives the command for macOS and Windows) and paste what it prints into the MCP settings of your AI program. It is read only unless you add --write, and then every change is previewed first.' },
-      { title: 'Command line without Node', text: 'The lvds command of the installed app is run by the app itself, with no window: nothing else needs installing. Its PDF reports and drawing sheets are made by that same app, wherever you installed it.' }
+      { title: 'Bring your own AI: the MCP connection comes with the installed app', text: 'The installed app now carries its command line (gfde) and its MCP server, so your own AI program (any MCP client, or a free local model through one) can read and check your projects on this computer. The app has no AI of its own and holds no account or key. To connect, run gfde mcp-config from the app\'s resources folder (the README gives the command for macOS and Windows) and paste what it prints into the MCP settings of your AI program. It is read only unless you add --write, and then every change is previewed first.' },
+      { title: 'Command line without Node', text: 'The gfde command of the installed app is run by the app itself, with no window: nothing else needs installing. Its PDF reports and drawing sheets are made by that same app, wherever you installed it.' }
     ]
   },
   {
     version: '2.150', date: '2026-11-15',
     items: [
-      { title: 'Projects: saved as .lvds files', text: 'Projects are now saved as .lvds files, with the same content as before. Older .json projects still open; their next save writes a .lvds and keeps the .json as its backup (name.lvds.bak). Double-click a .lvds to open it in the app.' },
-      { title: 'Project tab: Export JSON', text: 'Export JSON saves the open project as a plain .json file, for scripts and other programs. From the command line: lvds project-json <project>.' },
-      { title: 'Beta downloads for Windows and Mac', text: 'The About page of the LV Design Studio website now shows screenshots of the app, and its Download page offers unsigned beta installers for Windows x64 and Apple-silicon Macs. A beta build tells you when a newer beta is out; it never downloads or installs one itself.' }
+      { title: 'Projects: saved as .gfde files', text: 'Projects are now saved as .gfde files, with the same content as before. Older .json projects still open; their next save writes a .gfde and keeps the .json as its backup (name.gfde.bak). Double-click a .gfde to open it in the app.' },
+      { title: 'Project tab: Export JSON', text: 'Export JSON saves the open project as a plain .json file, for scripts and other programs. From the command line: gfde project-json <project>.' },
+      { title: 'Beta downloads for Windows and Mac', text: 'The About page of the GFD Studio E website now shows screenshots of the app, and its Download page offers unsigned beta installers for Windows x64 and Apple-silicon Macs. A beta build tells you when a newer beta is out; it never downloads or installs one itself.' }
     ]
   },
   {
@@ -852,7 +860,7 @@ export const RELEASES: Release[] = [
     version: '2.064', date: '2026-11-09',
     items: [
       { title: 'Numbered texts and keynotes in Design CAD', text: 'TCOUNT (TNUM): type a prefix, the start number (01 keeps two digits), the step and a suffix, then click where each numbered text goes (L01, L02 …, centred on the click); U takes the last one back, S renumbers the texts picked in the order picked. KN (KEYNOTE): the number, where it goes and its note; it draws a numbered hexagon and a line in a KEYNOTES legend (the first time it asks where the legend starts; the next lines follow under it).', action: 'cad', actionLabel: 'Open Design CAD' },
-      { title: 'Frames and masks round texts', text: 'TFRAME puts a circle, box or hexagon round the texts picked, sized from their height, moving and scaling with them (None takes it off). TMASK fills the box under a text in the paper colour so it reads over hatches, trays and underlays. Both are in the Properties palette too, and save to DXF and DWG (the mask as a solid hatch on LV-MASK).' }
+      { title: 'Frames and masks round texts', text: 'TFRAME puts a circle, box or hexagon round the texts picked, sized from their height, moving and scaling with them (None takes it off). TMASK fills the box under a text in the paper colour so it reads over hatches, trays and underlays. Both are in the Properties palette too, and save to DXF and DWG (the mask as a solid hatch on GFDE-MASK).' }
     ]
   },
   {
@@ -1312,7 +1320,7 @@ export const RELEASES: Release[] = [
     version: '1.99', date: '2026-10-29',
     items: [
       { title: 'One place for plans: Design CAD', text: 'Floor plan and CAD are now one page, Design CAD. Its ribbon has two sub-tabs over the same drawing: Plan (File, Rooms, Cables and boards, Devices, Measure) and Draw (Draw, Modify, Annotate). The Floor plan tab is gone; everything it did is in Design CAD.', action: 'cad', actionLabel: 'Open Design CAD' },
-      { title: 'Open with LV Design Studio', text: 'A DWG / DXF opened from Finder or Explorer now opens in Design CAD.' },
+      { title: 'Open with GFD Studio E', text: 'A DWG / DXF opened from Finder or Explorer now opens in Design CAD.' },
       { title: 'Turn cameras and speakers', text: 'Rotate (RO) on a camera or speaker: click where it faces, or type the angle; its coverage turns with it.' }
     ]
   },
@@ -1361,7 +1369,7 @@ export const RELEASES: Release[] = [
     items: [
       { title: 'CAD: draw', text: 'Line (L), Polyline (PL), Rectangle (REC), Circle (C), Arc (A) — with snaps, ORTHO, and typed input: a length, x,y, @dx,dy or @length<angle.', action: 'cad', actionLabel: 'Open CAD' },
       { title: 'CAD: modify', text: 'Move (M), Copy (CO), Rotate (RO) and Erase (E) for what you drew and the devices you placed; a copied light or socket counts on its circuit. The architect\'s drawing stays as received.' },
-      { title: 'CAD: annotate', text: 'Text (T) and Dimension (DIM, in metres); all saved into the DXF on LV-SKETCH / LV-ANNO.' },
+      { title: 'CAD: annotate', text: 'Text (T) and Dimension (DIM, in metres); all saved into the DXF on GFDE-SKETCH / GFDE-ANNO.' },
       { title: 'CAD: grid as lines', text: 'GRID (F7) now draws lines, with a stronger line every fifth.' }
     ]
   },
@@ -1429,7 +1437,7 @@ export const RELEASES: Release[] = [
   {
     version: '1.84', date: '2026-10-28',
     items: [
-      { title: 'Floor plan: open DWG / DXF in the app', text: 'No CAD program needed. Floor plan button on the Home and 1 Concept tabs; or in Finder right-click a drawing → Open with → LV Design Studio.', action: 'floor-plan', actionLabel: 'Open Floor plan' },
+      { title: 'Floor plan: open DWG / DXF in the app', text: 'No CAD program needed. Floor plan button on the Home and 1 Concept tabs; or in Finder right-click a drawing → Open with → GFD Studio E.', action: 'floor-plan', actionLabel: 'Open Floor plan' },
       { title: 'Rooms and areas from the plan', text: 'Found automatically, or click inside a room and click its name. They go to Building information, and the Load assessment follows.', action: 'floor-plan', actionLabel: 'Show me' },
       { title: 'Cable lengths from the plan', text: 'Routes on the cable route layers link themselves; choose a feeder and click its lines for the rest. Review and apply.', action: 'floor-plan-lengths', actionLabel: 'Show me' },
       { title: 'Tray routes and board locations', text: 'Name tray runs and place boards by clicking them on the plan; trays per feeder, tray lengths and board rooms are reviewed and applied.', action: 'floor-plan-trays', actionLabel: 'Show me' },
@@ -1461,7 +1469,7 @@ export function unseenReleases(lastSeen: string | undefined, current: string, us
 export function pendingReleases(current: string): Release[] {
   try {
     const seen = localStorage.getItem(SEEN_KEY) ?? undefined;
-    const usedBefore = Object.keys(localStorage).some((k) => k.startsWith('lvds.') && k !== SEEN_KEY);
+    const usedBefore = Object.keys(localStorage).some((k) => k.startsWith('gfde.') && k !== SEEN_KEY);
     const out = unseenReleases(seen, current, usedBefore);
     if (!seen && !out.length) localStorage.setItem(SEEN_KEY, current); // a new install starts as seen
     return out;

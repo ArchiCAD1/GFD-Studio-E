@@ -13,7 +13,7 @@ const SHEETS = { A1: { width: 33.11, height: 23.39 }, A2: { width: 23.39, height
 let pdfSess;
 function pdfSession() {
   if (pdfSess) return pdfSess;
-  pdfSess = session.fromPartition('lvds-pdf');
+  pdfSess = session.fromPartition('gfde-pdf');
   pdfSess.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !/^(file|data|blob):/i.test(details.url) }));
   pdfSess.setPermissionRequestHandler((_wc, _p, callback) => callback(false));
   pdfSess.setPermissionCheckHandler(() => false);
@@ -24,7 +24,7 @@ function pdfSession() {
 async function htmlToPdf({ html, pageSize, landscape, cssPages }) {
   const pdfWin = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, javascript: false, webSecurity: true, session: pdfSession() } });
   pdfWin.webContents.on('will-navigate', (e) => e.preventDefault());
-  const tmpDir = safeFs.makePrivateTempDir('lvds-pdf-');
+  const tmpDir = safeFs.makePrivateTempDir('gfde-pdf-');
   const tmp = path.join(tmpDir, 'part.html');
   try {
     safeFs.writeNewFile(tmp, html);
@@ -55,7 +55,7 @@ async function htmlToPrinter({ html, pageSize, landscape, deviceName, copies }, 
   if (!printers.some((p) => p.name === deviceName)) throw new Error(`No printer named ${deviceName}`);
   const win = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, javascript: false, webSecurity: true, session: pdfSession() } });
   win.webContents.on('will-navigate', (e) => e.preventDefault());
-  const tmpDir = safeFs.makePrivateTempDir('lvds-print-');
+  const tmpDir = safeFs.makePrivateTempDir('gfde-print-');
   try {
     const tmp = path.join(tmpDir, 'sheet.html');
     safeFs.writeNewFile(tmp, html);

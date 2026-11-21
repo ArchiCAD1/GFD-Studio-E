@@ -125,7 +125,7 @@ export function otherFloors(project: Project, rootId: string): Floor[] {
 // ---- Assemblies: saved branches in the user library (synced with Library.json) ----
 
 export interface Assembly { id: string; name: string; note?: string; savedAt: string; branch: Branch }
-const KEY = 'lvds.assemblies';
+const KEY = 'gfde.assemblies';
 export function loadAssemblies(): Assembly[] {
   try { const v = JSON.parse(localStorage.getItem(KEY) ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
 }

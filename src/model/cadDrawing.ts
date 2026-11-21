@@ -5,7 +5,7 @@ import type { CadTrayPlan } from './cadTrays';
 type Pt = [number, number];
 
 /** A DWG / DXF drawing as the built-in reader (src/engines/cad, acadrust) returns it: model-space entities only, in
- * drawing units. `x` is the entity's LVDS tag ("route:<id>", "tray:<name>", "place:<id>"…), `h` its handle (hex). */
+ * drawing units. `x` is the entity's GFDE tag ("route:<id>", "tray:<name>", "place:<id>"…), `h` its handle (hex). */
 export type CadItem =
   | { k: 'line'; l: string; h: string; x?: string; a: Pt; b: Pt }
   | { k: 'arc'; l: string; h: string; x?: string; c: Pt; r: number; s: number; e: number } // angles in radians

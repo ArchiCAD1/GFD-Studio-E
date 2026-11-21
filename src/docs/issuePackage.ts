@@ -65,7 +65,7 @@ export interface PackageMeta { title: string; docNo?: string; preparedBy?: strin
 /** The footer stamp on every page of the package. */
 export const packageStamp = (project: Project, m: PackageMeta) => {
   const rev = currentRevision(project);
-  return `${project.name} · ${m.docNo ?? m.title} · ${rev ? `Rev ${rev.id}` : 'no revision'} · snapshot ${m.snapshot} · LV Design Studio ${APP_VERSION}`;
+  return `${project.name} · ${m.docNo ?? m.title} · ${rev ? `Rev ${rev.id}` : 'no revision'} · snapshot ${m.snapshot} · GFD Studio E ${APP_VERSION}`;
 };
 
 /** Cover, contents, unresolved checks and assumptions. `parts` are the
@@ -95,7 +95,7 @@ export function packageCoverHtml(project: Project, m: PackageMeta, parts: Packag
   ${kv([['Owner', info.owner], ['Consultant', info.consultant], ['Plot / area', [info.plotNo, info.area].filter(Boolean).join(' · ')], ['Document no.', m.docNo],
     ['Revision', rev ? `${rev.id} (${fmtDate(rev.date)})${rev.description ? ` — ${rev.description}` : ''}` : 'No revision recorded'], ['Prepared by', m.preparedBy], ['Checked by', m.checkedBy]])}
   <h2>Calculation snapshot</h2>
-  ${kv([['Snapshot ID', m.snapshot], ['Calculated', when], ['Calculation engine', `LV Design Studio ${APP_VERSION} (built-in)`], ['System', `${project.voltageV} V, 3-phase + N, ${project.frequencyHz} Hz`]])}
+  ${kv([['Snapshot ID', m.snapshot], ['Calculated', when], ['Calculation engine', `GFD Studio E ${APP_VERSION} (built-in)`], ['System', `${project.voltageV} V, 3-phase + N, ${project.frequencyHz} Hz`]])}
   <p>Every document in this package was produced from this one calculation run. The snapshot ID is printed at the foot of every page; a page with a different ID is not part of this issue.</p>
   <h2>Contents</h2>
   <table><thead><tr><th>#</th><th>Document</th><th>Pages</th></tr></thead><tbody>

@@ -4,7 +4,7 @@ Status: **approved by the user on 2026-11-12** ("Ok go ahead"), with the suggest
 
 Mockup: `docs/mockups/sld-ribbon-mockup.html` (image: `sld-ribbon-mockup.png`).
 
-![The SLD ribbon, today and proposed](../../mockups/sld-ribbon-mockup.png)
+![The SLD ribbon, today and proposed](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-ribbon-mockup.png)
 
 ## Today
 

@@ -68,7 +68,7 @@ export default function PanelTree({ project, results, activeId, focusId, view, o
   const [collapsed, setCollapsed] = useStored<string[]>('tree.collapsed', []);
   const [width, setWidth] = useStored('tree.width', 230);
   const [q, setQ] = useState('');
-  const [keyOpen, setKeyOpen] = useState(() => { try { return localStorage.getItem('lvds.treeKey') === '1'; } catch { return false; } });
+  const [keyOpen, setKeyOpen] = useState(() => { try { return localStorage.getItem('gfde.treeKey') === '1'; } catch { return false; } });
   const [ctx, setCtx] = useState<{ id: string; x: number; y: number } | null>(null);
   const ref = useRef<HTMLElement>(null);
   const [drag, setDrag] = useState<{ id: string; over?: string; why?: string } | null>(null);
@@ -256,7 +256,7 @@ export default function PanelTree({ project, results, activeId, focusId, view, o
       <div className="tree-foot">
         <p className="m tree-tip">{TREE_HINT[view] ?? 'Double-click a board to open it on the SLD'}</p>
         <button className={`linkish tree-key-btn${keyOpen ? ' on' : ''}`} aria-expanded={keyOpen} title="What the dots, bars and badges mean"
-          onClick={() => setKeyOpen((o) => { try { localStorage.setItem('lvds.treeKey', o ? '0' : '1'); } catch { /* ignore */ } return !o; })}>
+          onClick={() => setKeyOpen((o) => { try { localStorage.setItem('gfde.treeKey', o ? '0' : '1'); } catch { /* ignore */ } return !o; })}>
           <Info size={12} /> Key
         </button>
       </div>

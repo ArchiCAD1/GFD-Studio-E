@@ -6,7 +6,7 @@ tags: [cad-export, sld, issues]
 
 # DXF export issues and solutions
 
-User reported overlapping cable marks/text and thin red busbars in a screenshot from a desktop drafting program on 2026-10-04. Corrections are verified on local branch `codex/dxf-export-quality`. The user requested that changes stay local: no GitHub push or PR. The installed LV Design Studio has not been updated.
+User reported overlapping cable marks/text and thin red busbars in a screenshot from a desktop drafting program on 2026-10-04. Corrections are verified on local branch `codex/dxf-export-quality`. The user requested that changes stay local: no GitHub push or PR. The installed GFD Studio E has not been updated.
 
 | ID | Confirmed cause | Correction | Verification |
 |---|---|---|---|

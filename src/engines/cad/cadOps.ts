@@ -1,4 +1,4 @@
-import { CadDoc, explodeObjects, exportDwg, exportDxf, initSync } from '../../../electron/cad/lvds_cad_reader.js';
+import { CadDoc, explodeObjects, exportDwg, exportDxf, initSync } from '../../../electron/cad/gfde_cad_reader.js';
 
 /** What the CAD engine does, wherever it runs: in a worker of its own (cadWorker.ts), or in the page when a worker
  * cannot start (cadEngine.ts). One set of these holds one open drawing. */

@@ -32,7 +32,7 @@ This module holds the architectural data of the project and the first, concept-s
 | `src/docs/buildingSummary.ts` | report | `buildingSheet`, `buildingSummaryHtml`, `buildingSummaryWorkbook` | Building load summary per building (PDF and Excel) |
 | `src/docs/conceptReport.ts` | report | `conceptReport`, `conceptReportHtml`, `buildConceptReportHtml` | One-page concept design report |
 | `src/docs/designBasis.ts` (callee) | report | `loadAssessmentBasis`, `laBandText`, `laTxText`, `laGenText` | Turns the assessment into the Design Basis section (used by the concept report) |
-| Stores | store | `Project.building` (`BuildingInfo`), `Project.loadAssessment` (`LoadAssessment`), `Project.brief` (`ProjectBrief`) — `src/types.ts:651-653`; local libraries in `localStorage`: `lvds.loadAssessmentLibrary`, `lvds.roomTypes`, `lvds.buildingPresets`, `lvds.unitTypes` | Project data saved in the project file; libraries saved on this computer |
+| Stores | store | `Project.building` (`BuildingInfo`), `Project.loadAssessment` (`LoadAssessment`), `Project.brief` (`ProjectBrief`) — `src/types.ts:651-653`; local libraries in `localStorage`: `gfde.loadAssessmentLibrary`, `gfde.roomTypes`, `gfde.buildingPresets`, `gfde.unitTypes` | Project data saved in the project file; libraries saved on this computer |
 
 ## 3. Inputs — where its data comes from
 

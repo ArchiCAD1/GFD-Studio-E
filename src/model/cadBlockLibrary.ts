@@ -18,7 +18,7 @@ const polyArea = (l: Pt[]) => Math.abs(l.reduce((t, q, i) => t + q[0] * l[(i + 1
 
 /** How many blocks Recent keeps. */
 export const RECENT_MAX = 12;
-export const RECENT_KEY = 'lvds.cad.recentBlocks';
+export const RECENT_KEY = 'gfde.cad.recentBlocks';
 interface Store { getItem(k: string): string | null; setItem(k: string, v: string): void }
 const store = (): Store | undefined => { try { return typeof localStorage !== 'undefined' ? localStorage : undefined; } catch { return undefined; } };
 /** The blocks inserted lately, newest first (none when nothing is kept or the storage is not there). */

@@ -28,8 +28,8 @@ export function useSheetUi() {
   const [zoom, setZoom] = useState<number | 'fit'>('fit');
   /** The zoom on screen, as the sheet works it out (Fit depends on the window). */
   const [pct, setPct] = useState('');
-  const [side, setSideState] = useState(() => { try { return localStorage.getItem('lvds.sheetSide') === '1'; } catch { return false; } });
-  const setSide = (on: boolean) => { setSideState(on); try { localStorage.setItem('lvds.sheetSide', on ? '1' : '0'); } catch { /* preference only */ } };
+  const [side, setSideState] = useState(() => { try { return localStorage.getItem('gfde.sheetSide') === '1'; } catch { return false; } });
+  const setSide = (on: boolean) => { setSideState(on); try { localStorage.setItem('gfde.sheetSide', on ? '1' : '0'); } catch { /* preference only */ } };
   const actions = useRef<SheetActions>(NO_SHEET_ACTIONS);
   return { tool, setTool, color, setColor, size, setSize, selId, setSelId, zoom, setZoom, pct, setPct, side, setSide, actions };
 }

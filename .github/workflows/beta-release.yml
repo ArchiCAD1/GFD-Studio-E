@@ -99,18 +99,18 @@ jobs:
       - name: Validate packaged application
         run: |
           node scripts/check-package.mjs release/win-unpacked
-          $installer = "release/LV-Design-Studio-$env:VERSION-win-x64.exe"
+          $installer = "release/GFD-Studio-E-$env:VERSION-win-x64.exe"
           if (-not (Test-Path $installer -PathType Leaf)) { throw "Windows installer is missing" }
           if ((Get-AuthenticodeSignature $installer).Status -ne 'NotSigned') { throw "Windows beta must be unsigned" }
-      # The packaged lvds command and MCP server, run by the app as Node. The Windows launcher (build/lvds/lvds.cmd)
+      # The packaged gfde command and MCP server, run by the app as Node. The Windows launcher (build/gfde/gfde.cmd)
       # has only ever run on this runner, so a failure is reported here without stopping the beta.
       - name: Packaged command line and MCP server
         continue-on-error: true
-        run: node scripts/check-packaged-lvds.mjs release/win-unpacked
+        run: node scripts/check-packaged-gfde.mjs release/win-unpacked
       - uses: actions/upload-artifact@v4
         with:
           name: beta-windows-${{ needs.prepare.outputs.version }}
-          path: release/LV-Design-Studio-${{ needs.prepare.outputs.version }}-win-x64.exe
+          path: release/GFD-Studio-E-${{ needs.prepare.outputs.version }}-win-x64.exe
           if-no-files-found: error
           retention-days: 7
 
@@ -140,17 +140,17 @@ jobs:
       - name: Validate packaged application
         run: |
           set -euo pipefail
-          node scripts/check-package.mjs "release/mac-arm64/LV Design Studio.app"
-          node scripts/check-packaged-lvds.mjs "release/mac-arm64/LV Design Studio.app"
-          test -f "release/LV-Design-Studio-$VERSION-mac-arm64.dmg"
-          if codesign --verify --deep --strict "release/mac-arm64/LV Design Studio.app" >/dev/null 2>&1; then
+          node scripts/check-package.mjs "release/mac-arm64/GFD Studio E.app"
+          node scripts/check-packaged-gfde.mjs "release/mac-arm64/GFD Studio E.app"
+          test -f "release/GFD-Studio-E-$VERSION-mac-arm64.dmg"
+          if codesign --verify --deep --strict "release/mac-arm64/GFD Studio E.app" >/dev/null 2>&1; then
             echo "macOS beta must be unsigned" >&2
             exit 1
           fi
       - uses: actions/upload-artifact@v4
         with:
           name: beta-macos-${{ needs.prepare.outputs.version }}
-          path: release/LV-Design-Studio-${{ needs.prepare.outputs.version }}-mac-arm64.dmg
+          path: release/GFD-Studio-E-${{ needs.prepare.outputs.version }}-mac-arm64.dmg
           if-no-files-found: error
           retention-days: 7
 
@@ -190,12 +190,12 @@ jobs:
             exit 1
           fi
           gh release create "$tag" \
-            "release-assets/LV-Design-Studio-$VERSION-win-x64.exe" \
-            "release-assets/LV-Design-Studio-$VERSION-mac-arm64.dmg" \
+            "release-assets/GFD-Studio-E-$VERSION-win-x64.exe" \
+            "release-assets/GFD-Studio-E-$VERSION-mac-arm64.dmg" \
             release-assets/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" \
             --target "$SOURCE_SHA" \
-            --title "LV Design Studio $VERSION (unsigned beta)" \
+            --title "GFD Studio E $VERSION (unsigned beta)" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --prerelease \
             --latest=false

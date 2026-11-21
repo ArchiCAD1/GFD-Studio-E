@@ -8,7 +8,7 @@ import type { Project, SketchItem } from '../types';
 
 const p: Project = { ...sampleProject, cadAnno: { textMm: 2.5, scale: 100 } };
 const base: DimLook = { arrow: 'tick', size: 250, off: 60, ext: 125, unit: 'mm', decimals: 0 };
-const dim = (look: DimLook, h = 200): SketchItem => ({ id: 'd', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], look, h });
+const dim = (look: DimLook, h = 200): SketchItem => ({ id: 'd', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], look, h });
 const style = (over: Partial<CadDimStyle>): CadDimStyle => ({ ...dimStylesOf(p).styles[0], name: 'S', ...over });
 
 describe('dimension length format', () => {

@@ -52,7 +52,7 @@ export default function DrawingsView({ project, run, initialTab = 'sheets', onCh
   const [tab, setTab] = useState<DrawingsTab>(initialTab);
   const [busy, setBusy] = useState('');
   const [preview, setPreview] = useState<{ no: string; html: string; size: SheetSize; fits?: boolean } | null>(null);
-  const [mode, setMode] = useState<'table' | 'grid'>(() => { try { return localStorage.getItem('lvds.drMode') === 'grid' ? 'grid' : 'table'; } catch { return 'table'; } });
+  const [mode, setMode] = useState<'table' | 'grid'>(() => { try { return localStorage.getItem('gfde.drMode') === 'grid' ? 'grid' : 'table'; } catch { return 'table'; } });
   const [filter, setFilter] = useState<SheetFilter>({});
   const [sort, setSort] = useState<SheetSort>({ key: 'order' });
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -87,7 +87,7 @@ export default function DrawingsView({ project, run, initialTab = 'sheets', onCh
   const targets = scope === 'selected' && chosen.length ? chosen : visible;
   const toggle = (id: string) => setSelected((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allOn = visible.length > 0 && visible.every((s) => selected.has(s.id));
-  const setModeKeep = (m: 'table' | 'grid') => { setMode(m); try { localStorage.setItem('lvds.drMode', m); } catch { /* ignore */ } };
+  const setModeKeep = (m: 'table' | 'grid') => { setMode(m); try { localStorage.setItem('gfde.drMode', m); } catch { /* ignore */ } };
   const sortBy = (key: SheetSort['key']) => setSort((x) => (x.key === key ? (x.desc ? { key: 'order' } : { key, desc: true }) : { key }));
   const arrow = (key: SheetSort['key']) => (sort.key === key ? (sort.desc ? ' ▾' : ' ▴') : '');
   const canMove = !filtered && sort.key === 'order';

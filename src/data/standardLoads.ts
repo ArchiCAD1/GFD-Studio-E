@@ -1,6 +1,6 @@
 import type { PointType } from '../types';
 
-/** A regular load for the LV Database (Loads.xlsx). */
+/** A regular load for the GFD Studio E Database (Loads.xlsx). */
 export interface StandardLoad {
   reference: string;
   name: string;

@@ -82,13 +82,13 @@ describe('Excel workbooks (desktop side)', () => {
     const read2 = await database.readDatabase(dir);
     expect(read2.books.busbar.rows).toHaveLength(1);
     expect(read2.books.busbar.rows[0].ratingA).toBe(800);
-    expect(fs.readdirSync(path.join(dir, 'LV Database', 'Backups')).some((f) => f.startsWith('Busbar '))).toBe(true);
+    expect(fs.readdirSync(path.join(dir, 'GFD Studio E Database', 'Backups')).some((f) => f.startsWith('Busbar '))).toBe(true);
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(fs.readFileSync(path.join(dir, 'LV Database', 'Busbar.xlsx')) as unknown as ArrayBuffer);
+    await wb.xlsx.load(fs.readFileSync(path.join(dir, 'GFD Studio E Database', 'Busbar.xlsx')) as unknown as ArrayBuffer);
     expect(wb.getWorksheet('Read me')).toBeTruthy();
     expect(wb.getWorksheet('Busbar')!.getCell('A2').dataValidation?.type).toBe('list');
-    database.writeLibrary(dir, { 'lvds.sldNotes': ['a'] });
-    expect(database.readLibrary(dir)['lvds.sldNotes']).toEqual(['a']);
+    database.writeLibrary(dir, { 'gfde.sldNotes': ['a'] });
+    expect(database.readLibrary(dir)['gfde.sldNotes']).toEqual(['a']);
     fs.rmSync(dir, { recursive: true, force: true });
   });
 });

@@ -6,4 +6,4 @@
 Code: `src/calc/`, `src/calc/network/`
 Tests: 660 (`npx vitest run`)
 
-Results go to: [[Diagrams]], [[Reports]] · Up: [[LV Design Studio]]
+Results go to: [[Diagrams]], [[Reports]] · Up: [[GFD Studio E]]

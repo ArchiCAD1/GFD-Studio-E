@@ -11,7 +11,7 @@ import { isVpClip, type VpClip } from './viewportClip';
 import { setupsOf, sheetWithSetup } from './plotSetup';
 import { tableId, tablesOf, type PlacedTable, type TableKind } from './sheetTables';
 
-/** A layout saved as a template (Output → Layout → Save as template): its paper, where its viewports sit and their scales, and a plan sheet's legend and notes tables. Kept in the LV Database (Library.json) for every project; what the viewports show comes from the drawing a new layout is made on. */
+/** A layout saved as a template (Output → Layout → Save as template): its paper, where its viewports sit and their scales, and a plan sheet's legend and notes tables. Kept in the GFD Studio E Database (Library.json) for every project; what the viewports show comes from the drawing a new layout is made on. */
 export interface LayoutTemplate {
   id: string; name: string; savedAt: string;
   /** Paper (mm): width, height. */
@@ -26,7 +26,7 @@ export interface LayoutTemplate {
   setup?: string;
 }
 
-export const LAYOUT_TEMPLATES_KEY = 'lvds.layoutTemplates';
+export const LAYOUT_TEMPLATES_KEY = 'gfde.layoutTemplates';
 const SIZES: SheetSize[] = ['A4', 'A3', 'A3 portrait', 'A2', 'A1'];
 const PLANS: PlanType[] = ['lighting', 'power', 'elv', 'containment'];
 const num = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);

@@ -1,6 +1,9 @@
 {
   "schemaVersion": 1,
-  "viewport": { "width": 1600, "height": 1000 },
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
   "shots": [
     {
       "id": "LS-UI-001",
@@ -11,13 +14,38 @@
       "metadata": "docs/manual/assets/M01/load-schedule.json",
       "readyTarget": "load-schedule-page",
       "callouts": [
-        { "number": 1, "target": "main-ribbon", "label": "Schedule commands" },
-        { "number": 2, "target": "panel-tree", "label": "Panel tree" },
-        { "number": 3, "target": "load-schedule-page", "label": "Current form and exports" },
-        { "number": 4, "target": "load-schedule-groups", "label": "Form groups" },
-        { "number": 5, "target": "load-schedule-panels", "label": "Panel and form selector" },
-        { "number": 6, "target": "load-schedule-grid", "label": "Editable schedule grid" }
-      ]
+        {
+          "number": 1,
+          "target": "main-ribbon",
+          "label": "Schedule commands"
+        },
+        {
+          "number": 2,
+          "target": "panel-tree",
+          "label": "Panel tree"
+        },
+        {
+          "number": 3,
+          "target": "load-schedule-page",
+          "label": "Current form and exports"
+        },
+        {
+          "number": 4,
+          "target": "load-schedule-groups",
+          "label": "Form groups"
+        },
+        {
+          "number": 5,
+          "target": "load-schedule-panels",
+          "label": "Panel and form selector"
+        },
+        {
+          "number": 6,
+          "target": "load-schedule-grid",
+          "label": "Editable schedule grid"
+        }
+      ],
+      "productImage": "docs/screenshots/02-load-schedule.png"
     },
     {
       "id": "SLD-UI-001",
@@ -28,15 +56,48 @@
       "metadata": "docs/manual/assets/M02/sld.json",
       "readyTarget": "sld-canvas",
       "callouts": [
-        { "number": 1, "target": "main-ribbon", "label": "SLD and selection commands" },
-        { "number": 2, "target": "panel-tree", "label": "Panel tree" },
-        { "number": 3, "target": "sld-view-tabs", "label": "Diagram views" },
-        { "number": 4, "target": "sld-display-tools", "label": "Drawing display tools" },
-        { "number": 5, "target": "sld-canvas", "label": "Interactive SLD canvas" },
-        { "number": 6, "target": "sld-inspector", "label": "Board properties and circuit results" },
-        { "number": 7, "target": "sld-results", "label": "System, bus, and feeder results" },
-        { "number": 8, "target": "sld-command-bar", "label": "Add controls and results state" }
-      ]
+        {
+          "number": 1,
+          "target": "main-ribbon",
+          "label": "SLD and selection commands"
+        },
+        {
+          "number": 2,
+          "target": "panel-tree",
+          "label": "Panel tree"
+        },
+        {
+          "number": 3,
+          "target": "sld-view-tabs",
+          "label": "Diagram views"
+        },
+        {
+          "number": 4,
+          "target": "sld-display-tools",
+          "label": "Drawing display tools"
+        },
+        {
+          "number": 5,
+          "target": "sld-canvas",
+          "label": "Interactive SLD canvas"
+        },
+        {
+          "number": 6,
+          "target": "sld-inspector",
+          "label": "Board properties and circuit results"
+        },
+        {
+          "number": 7,
+          "target": "sld-results",
+          "label": "System, bus, and feeder results"
+        },
+        {
+          "number": 8,
+          "target": "sld-command-bar",
+          "label": "Add controls and results state"
+        }
+      ],
+      "productImage": "docs/screenshots/01-single-line-diagram.png"
     }
   ]
 }

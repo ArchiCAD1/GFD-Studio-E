@@ -16,9 +16,9 @@ const readBytes = vi.fn(async (p: string) => (p === '/jobs/STR-GF.dxf' ? { file:
 beforeEach(() => {
   localStorage.clear();
   readBytes.mockClear();
-  (window as { lvds?: unknown }).lvds = { cadFile: { engine: async () => bytes('electron/cad/lvds_cad_reader_bg.wasm'), readBytes, stat: async () => ({ mtimeMs: 1, size: 1 }) } };
+  (window as { gfde?: unknown }).gfde = { cadFile: { engine: async () => bytes('electron/cad/gfde_cad_reader_bg.wasm'), readBytes, stat: async () => ({ mtimeMs: 1, size: 1 }) } };
 });
-afterEach(() => { for (const f of ['STR-GF.dxf', 'MECH.dxf', 'FIRE.dxf']) dropRefGeometry(f); delete (window as { lvds?: unknown }).lvds; });
+afterEach(() => { for (const f of ['STR-GF.dxf', 'MECH.dxf', 'FIRE.dxf']) dropRefGeometry(f); delete (window as { gfde?: unknown }).gfde; });
 
 describe('plan sheets read their references from disk', () => {
   it('reads a printed reference not read yet from where it was found, so the sheet prints it', async () => {
@@ -41,7 +41,7 @@ describe('plan sheets read their references from disk', () => {
     expect(await readSheetRefs(p, 'V', 'GF')).toEqual([]);
     expect(refGeometry('STR-GF.dxf')).toBeUndefined();
     expect(printedRefs(p, 'GF.dwg', 0.001)).toEqual([{ ref: ref(), missing: true }]);
-    delete (window as { lvds?: unknown }).lvds;
+    delete (window as { gfde?: unknown }).gfde;
     expect(await readSheetRefs(p, 'V', 'GF')).toEqual([]);
     expect(await readSheetRefs(p, 'V', 'FF')).toEqual([]);
     expect(await readSheetRefs(p, undefined, undefined)).toEqual([]);

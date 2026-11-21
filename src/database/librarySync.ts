@@ -1,11 +1,11 @@
 /** Libraries that don't fit a table — title blocks, components, feeder
  * presets, SLD notes, price lists saved from the BOQ, design references, building presets, CAD layer templates, your schedule formats, layout templates, page setups — are kept in
- * LV Database/Library.json beside the workbooks, so they sync through Google
+ * GFD Studio E Database/Library.json beside the workbooks, so they sync through Google
  * Drive to every computer. This computer keeps a working copy. */
 
-export const LIBRARY_KEYS = ['lvds.titleTemplates', 'lvds.components', 'lvds.feederPresets', 'lvds.sldNotes', 'lvds.priceLists', 'lvds.boqMakeLists', 'lvds.sheetTemplates', 'lvds.assemblies', 'lvds.enclosureCatalogues', 'lvds.deviceDims', 'lvds.designReferences', 'lvds.buildingPresets', 'lvds.cadLayerTemplates', 'lvds.scheduleFormats', 'lvds.layoutTemplates', 'lvds.pageSetups', 'lvds.lightningRiskPresets', 'lvds.specTemplates'] as const;
+export const LIBRARY_KEYS = ['gfde.titleTemplates', 'gfde.components', 'gfde.feederPresets', 'gfde.sldNotes', 'gfde.priceLists', 'gfde.boqMakeLists', 'gfde.sheetTemplates', 'gfde.assemblies', 'gfde.enclosureCatalogues', 'gfde.deviceDims', 'gfde.designReferences', 'gfde.buildingPresets', 'gfde.cadLayerTemplates', 'gfde.scheduleFormats', 'gfde.layoutTemplates', 'gfde.pageSetups', 'gfde.lightningRiskPresets', 'gfde.specTemplates'] as const;
 
-const bridge = () => (typeof window !== 'undefined' ? window.lvds?.database : undefined);
+const bridge = () => (typeof window !== 'undefined' ? window.gfde?.database : undefined);
 
 /** Reads Library.json into this computer's copy (the file wins); first run
  * on a computer: what's here is written to the file. */
@@ -15,8 +15,9 @@ export async function pullLibrary(): Promise<number> {
   const data = (await db.readLibrary()) as Record<string, unknown>;
   let n = 0;
   for (const k of LIBRARY_KEYS) {
-    if (data[k] === undefined) continue;
-    try { localStorage.setItem(k, JSON.stringify(data[k])); n++; } catch { /* storage blocked */ }
+    const value = data[k] === undefined ? data[k.replace(/^gfde\./, 'lvds.')] : data[k];
+    if (value === undefined) continue;
+    try { localStorage.setItem(k, JSON.stringify(value)); n++; } catch { /* storage blocked */ }
   }
   if (!Object.keys(data).length) await pushLibrary();
   return n;

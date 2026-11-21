@@ -1,9 +1,9 @@
-// Exports for `lvds` (the command line) that need the app's renderer: drawing sheets as DXF
+// Exports for `gfde` (the command line) that need the app's renderer: drawing sheets as DXF
 // (SLD, DB circuit, riser and earthing sheets, drawn by the app's React diagrams) and Export
 // centre reports as PDF (Chromium print). No window is shown and nothing is saved here:
-// the results go back to lvds, which checks the approval and writes the files.
-//   electron electron/headlessExport.cjs --lvds-headless-export <job.json> <result.json>
-//   "LV Design Studio" --lvds-headless-export <job.json> <result.json>   (installed app, via main.cjs)
+// the results go back to gfde, which checks the approval and writes the files.
+//   electron electron/headlessExport.cjs --gfde-headless-export <job.json> <result.json>
+//   "GFD Studio E" --gfde-headless-export <job.json> <result.json>   (installed app, via main.cjs)
 // job: { kind: 'sheets-dxf' | 'report-pdf', project, … } (src/headless/rendererExport.ts)
 // result: { ok: true, files: [{ name, about, base64 }] } or { ok: false, error }
 const { app, BrowserWindow, session } = require('electron');
@@ -13,12 +13,12 @@ const os = require('node:os');
 const check = require('./ipcValidate.cjs');
 const { htmlToPdf } = require('./pdfRender.cjs');
 
-const at = process.argv.indexOf('--lvds-headless-export');
+const at = process.argv.indexOf('--gfde-headless-export');
 const [jobFile, resultFile] = at >= 0 ? process.argv.slice(at + 1, at + 3) : [];
 const TIMEOUT_MS = 10 * 60 * 1000;
 
 // Its own profile: never the app's (which may be open), and nothing kept afterwards.
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-headless-'));
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-headless-'));
 app.setPath('userData', profile);
 app.disableHardwareAcceleration();
 if (process.platform === 'darwin') app.dock?.hide();
@@ -31,7 +31,7 @@ function finish(result) {
 }
 
 async function run() {
-  if (!jobFile || !resultFile) throw new Error('Usage: --lvds-headless-export <job.json> <result.json>');
+  if (!jobFile || !resultFile) throw new Error('Usage: --gfde-headless-export <job.json> <result.json>');
   const job = JSON.parse(fs.readFileSync(jobFile, 'utf-8'));
   const index = path.join(__dirname, '..', 'dist', 'index.html');
   if (!fs.existsSync(index)) throw new Error(`The app is not built (${index} is missing): run "npm run build".`);
@@ -43,9 +43,9 @@ async function run() {
   win.webContents.on('console-message', (e) => { if (e.level === 'error') console.error(`renderer: ${e.message}`); });
   win.webContents.ipc.handle('files:pdfBytes', (_evt, args) => htmlToPdf(check.pdfArgs(args)));
   try {
-    await win.loadFile(index, { query: { 'lvds-export': '1' } });
-    await win.webContents.executeJavaScript('new Promise((ok) => { const t = () => (window.__lvdsExport ? ok(true) : setTimeout(t, 25)); t(); })');
-    const out = await win.webContents.executeJavaScript(`window.__lvdsExport(${JSON.stringify(job)})`);
+    await win.loadFile(index, { query: { 'gfde-export': '1' } });
+    await win.webContents.executeJavaScript('new Promise((ok) => { const t = () => (window.__gfdeExport ? ok(true) : setTimeout(t, 25)); t(); })');
+    const out = await win.webContents.executeJavaScript(`window.__gfdeExport(${JSON.stringify(job)})`);
     return { ok: true, files: out.files.map((f) => ({ name: f.name, about: f.about, base64: Buffer.from(typeof f.data === 'string' ? Buffer.from(f.data, 'utf-8') : f.data).toString('base64') })) };
   } finally {
     win.destroy();

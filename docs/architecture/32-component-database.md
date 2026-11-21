@@ -3,7 +3,7 @@
 
 ## 1. What it does
 
-The "LV Database" is a folder of 14 Excel workbooks (default `LV Database` inside the projects folder, or a folder the user picks, e.g. on Google Drive) plus one `Library.json` file. It is the app's shared equipment and rules library: a team edits it in Excel (or on the Database screen) and every computer that opens the same folder picks up the changes.
+The "GFD Studio E Database" is a folder of 14 Excel workbooks (default `GFD Studio E Database` inside the projects folder, or a folder the user picks, e.g. on Google Drive) plus one `Library.json` file. It is the app's shared equipment and rules library: a team edits it in Excel (or on the Database screen) and every computer that opens the same folder picks up the changes.
 
 | Workbook (`electron/databaseSpec.json` `books[].id`) | What the app does with it |
 |---|---|
@@ -31,7 +31,7 @@ The "LV Database" is a folder of 14 Excel workbooks (default `LV Database` insid
 | `src/database/catalog.ts` | store | `catalog()`, `setCatalog` (:34), `RULES` (:37), `rule` (:50), `transformerFor`, `generatorFor` (:52–53), `catalogRate` (:56), `EMPTY_CATALOG` | In-memory catalogue (transformers, generators, busbar, equipment, room types, luminaires, unit types, price lists, rules, cable refs) read by calc modules. |
 | `src/database/librarySync.ts` | store | `LIBRARY_KEYS` (:6), `pullLibrary` (:12), `pushLibrary` (:27) | Copies the 12 library keys between localStorage and `Library.json`. |
 | `src/data/brandDevices.ts` | model (data) | `BRAND_DEVICES` (:28) | 16 built-in manufacturer device dimensions (MCB…ACB, SPD, meter) for enclosure sizing and BOQ "ref. … or approved equal". |
-| `src/components/docs/DatabaseView.tsx` | screen | `DatabaseView` (:39), `save` (:88), `changes` memo (:69), `markSeen` (:82), `USED_FOR` (:14) | Database page: one tab per workbook, problems list, "changed since you last looked" (stored in `lvds.dbSeen`), Edit here / Save to Excel, Open in Excel, Database folder…, Apply to this project, Add standard loads… |
+| `src/components/docs/DatabaseView.tsx` | screen | `DatabaseView` (:39), `save` (:88), `changes` memo (:69), `markSeen` (:82), `USED_FOR` (:14) | Database page: one tab per workbook, problems list, "changed since you last looked" (stored in `gfde.dbSeen`), Edit here / Save to Excel, Open in Excel, Database folder…, Apply to this project, Add standard loads… |
 | `src/components/docs/StandardLoadsDialog.tsx` | screen | `StandardLoadsDialog` (:13), `add` (:27) | Lets the user edit watts and untick items, then writes `Loads.xlsx` via `database.write('loads', …)`. |
 | `src/App.tsx` | store / shell | `receiveDatabase` (:355), `initDatabase` (:370), `db` state (:304), `hasDatabase` (:75), `'database'` view (:201, :1554) | Loads the database at start, re-applies it on every Excel save, syncs library watts in the open project, renders `DatabaseView`. |
 
@@ -79,7 +79,7 @@ The "LV Database" is a folder of 14 Excel workbooks (default `LV Database` insid
 6. User saves a workbook in Excel → `fs.watch` in `watchDatabase` fires → `database:changed` message → `receiveDatabase` again (steps 3–4).
 
 **Database screen** (left menu "Database", view `'database'`)
-7. `DatabaseView` shows the tab's rows from `db.raw`; "Edit here" copies them into `draft`; "Save to Excel" → `save` (:88) checks required/number columns → `window.lvds.database.write` → `writeBook` (backup, then replace known-column cells) → `onRefresh` → `database.read()` → `receiveDatabase`.
+7. `DatabaseView` shows the tab's rows from `db.raw`; "Edit here" copies them into `draft`; "Save to Excel" → `save` (:88) checks required/number columns → `window.gfde.database.write` → `writeBook` (backup, then replace known-column cells) → `onRefresh` → `database.read()` → `receiveDatabase`.
 8. "Apply to this project" (Parameters tab) → `applyParameters` + `refreshBoard` for every board.
 9. "Add standard loads…" (Loads tab) → `StandardLoadsDialog` → `withStandardLoads` → `database.write('loads', rows)` → `onRefresh`.
 10. "Database folder…" → `settings.chooseDatabaseFolder` then `location.reload()`.
@@ -101,7 +101,7 @@ The "LV Database" is a folder of 14 Excel workbooks (default `LV Database` insid
 - **24-drawings-sld-sheets**: CableSchedule.xlsx via `standardCables`.
 - **07-load-schedule-panels / 06 / 22**: library loads in schedules, circuit items, SLD palette, CAD block loads.
 - **03-parameters-rules / 02**: Parameters.xlsx defaults for new projects and "Apply to this project".
-- **17-enclosure-form4**: `BRAND_DEVICES` and synced `lvds.deviceDims` / `lvds.enclosureCatalogues`; the board keeps a frozen copy of the enclosure chosen (`Board.enclosure`, `src/types.ts:383`).
+- **17-enclosure-form4**: `BRAND_DEVICES` and synced `gfde.deviceDims` / `gfde.enclosureCatalogues`; the board keeps a frozen copy of the enclosure chosen (`Board.enclosure`, `src/types.ts:383`).
 - **34-electron-desktop**: IPC handlers, size limits (`LIMITS.workbookBytes` 20 MB, `workbookRows` 2000, `libraryBytes` 20 MB), safe file writes (`replaceFile`, `copyFileNoFollow`).
 
 

@@ -15,7 +15,7 @@ export default function ExportCentre({ project, run, stale, onStatus }: { projec
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
   const [busy, setBusy] = useState('');
   const chosen = CATALOGUE.filter((e) => picked.has(e.key) && !why[e.key]);
-  const desktop = typeof window !== 'undefined' && !!window.lvds?.files?.pdfBytes;
+  const desktop = typeof window !== 'undefined' && !!window.gfde?.files?.pdfBytes;
   const toggle = (k: string) => setPicked((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const pickAll = (on: boolean) => setPicked(new Set(on ? CATALOGUE.filter((e) => !why[e.key]).map((e) => e.key) : []));
 

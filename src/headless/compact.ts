@@ -7,7 +7,7 @@
  * circuit_results 40 %, get_panel 38 %, run_checks 20 %.
  *
  * Only on MCP, where the reader is an AI program; the command line and the local API (read by scripts and Excel)
- * keep records. `lvds mcp --full-rows` keeps records on MCP too. */
+ * keep records. `gfde mcp --full-rows` keeps records on MCP too. */
 
 /** Shorter lists are left as records: the saving is small and records are easier to read. */
 const ROWS_MIN = 3;

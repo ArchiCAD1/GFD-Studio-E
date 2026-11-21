@@ -12,13 +12,13 @@
       "label": "Schedule commands",
       "rect": {
         "x": 0,
-        "y": 49,
+        "y": 61,
         "width": 1600,
-        "height": 131.390625
+        "height": 131.375
       },
       "point": {
         "x": 0.5,
-        "y": 0.1146953125
+        "y": 0.1266875
       }
     },
     {
@@ -27,13 +27,13 @@
       "label": "Panel tree",
       "rect": {
         "x": 0,
-        "y": 180.390625,
+        "y": 192.375,
         "width": 230,
-        "height": 787.609375
+        "height": 775.625
       },
       "point": {
         "x": 0.071875,
-        "y": 0.5741953125
+        "y": 0.5801875
       }
     },
     {
@@ -42,13 +42,13 @@
       "label": "Current form and exports",
       "rect": {
         "x": 230,
-        "y": 180.390625,
-        "width": 1370,
-        "height": 114.5
+        "y": 192.375,
+        "width": 1355,
+        "height": 44
       },
       "point": {
-        "x": 0.571875,
-        "y": 0.237640625
+        "x": 0.5671875,
+        "y": 0.214375
       }
     },
     {
@@ -57,13 +57,13 @@
       "label": "Form groups",
       "rect": {
         "x": 246,
-        "y": 343.0859375,
-        "width": 398.8046875,
-        "height": 30.1953125
+        "y": 245.28125,
+        "width": 392.34375,
+        "height": 30.1875
       },
       "point": {
-        "x": 0.27837646484375,
-        "y": 0.35818359375
+        "x": 0.276357421875,
+        "y": 0.260375
       }
     },
     {
@@ -71,14 +71,14 @@
       "target": "load-schedule-panels",
       "label": "Panel and form selector",
       "rect": {
-        "x": 246,
-        "y": 391.28125,
-        "width": 1338,
+        "x": 659.34375,
+        "y": 244.375,
+        "width": 909.65625,
         "height": 32
       },
       "point": {
-        "x": 0.571875,
-        "y": 0.40728125
+        "x": 0.696357421875,
+        "y": 0.260375
       }
     },
     {
@@ -87,14 +87,17 @@
       "label": "Editable schedule grid",
       "rect": {
         "x": 246,
-        "y": 542.671875,
-        "width": 1338,
+        "y": 444.5625,
+        "width": 1323,
         "height": 620
       },
       "point": {
-        "x": 0.571875,
-        "y": 0.852671875
+        "x": 0.5671875,
+        "y": 0.7545625
       }
     }
-  ]
+  ],
+  "productName": "GFD Studio E",
+  "appVersion": "2.212.0",
+  "captureSource": "offline documentation capture of committed demonstration data"
 }

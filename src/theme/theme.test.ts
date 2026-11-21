@@ -70,24 +70,24 @@ describe('screen theme', () => {
   });
 
   it('ignores an unknown stored theme', () => {
-    localStorage.setItem('lvds.preferences', JSON.stringify({ app: { autosaveMin: 5, theme: 'neon' } }));
+    localStorage.setItem('gfde.preferences', JSON.stringify({ app: { autosaveMin: 5, theme: 'neon' } }));
     const p = loadPrefs();
     expect(p.app.theme).toBeUndefined();
     expect(p.app.autosaveMin).toBe(5);
   });
 
   it('keeps a valid stored theme', () => {
-    localStorage.setItem('lvds.preferences', JSON.stringify({ app: { theme: 'light' } }));
+    localStorage.setItem('gfde.preferences', JSON.stringify({ app: { theme: 'light' } }));
     expect(loadPrefs().app.theme).toBe('light');
   });
 
   it('ignores an unknown stored palette', () => {
-    localStorage.setItem('lvds.preferences', JSON.stringify({ app: { palette: 'neon' } }));
+    localStorage.setItem('gfde.preferences', JSON.stringify({ app: { palette: 'neon' } }));
     expect(loadPrefs().app.palette).toBeUndefined();
   });
 
   it('keeps a valid stored palette', () => {
-    localStorage.setItem('lvds.preferences', JSON.stringify({ app: { palette: 'blueprint' } }));
+    localStorage.setItem('gfde.preferences', JSON.stringify({ app: { palette: 'blueprint' } }));
     expect(loadPrefs().app.palette).toBe('blueprint');
   });
 });

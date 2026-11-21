@@ -5,12 +5,12 @@ import type { SpecClause, SpecDetail, SpecDoc, SpecSection, SpecSetup } from './
  * Your office's specification templates: wording saved once and used again in other projects — a heading with its
  * clauses (a product specification), a whole section, or a whole specification. Fields in the wording stay fields,
  * so a template fills in from whichever project it is used in. Kept like the other libraries: a working copy in
- * this computer's storage, synced through LV Database/Library.json.
+ * this computer's storage, synced through GFD Studio E Database/Library.json.
  *
  * Also the specification as a file of its own (Save as / Open), to carry one to another project or computer.
  */
 
-export const SPEC_TEMPLATES_KEY = 'lvds.specTemplates';
+export const SPEC_TEMPLATES_KEY = 'gfde.specTemplates';
 /** The library is kept in the computer's own storage, which is small: a template over this size (pictures) is refused. */
 export const TEMPLATE_MAX_CHARS = 1_500_000;
 
@@ -152,13 +152,13 @@ export function applyTemplate(doc: SpecDoc, t: SpecTemplate, at: { sectionId?: s
 
 // ---- the specification as a file of its own
 
-export const SPEC_FILE_EXT = 'lvspec';
+export const SPEC_FILE_EXT = 'gfde-spec';
 /** The specification as the text of its own file. */
-export const specFileText = (doc: SpecDoc): string => JSON.stringify({ format: 'lvds-specification', version: 1, spec: doc }, null, 1);
+export const specFileText = (doc: SpecDoc): string => JSON.stringify({ format: 'gfde-specification', version: 1, spec: doc }, null, 1);
 /** The specification in a file's text; none when the file is not a specification saved by the app. */
 export function specFromFileText(text: string): SpecDoc | undefined {
   try {
     const v = JSON.parse(text) as { format?: string; spec?: unknown };
-    return v?.format === 'lvds-specification' && isSpecDoc(v.spec) ? v.spec : undefined;
+    return v && (v.format === 'gfde-specification' || v.format === 'lvds-specification') && isSpecDoc(v.spec) ? v.spec : undefined;
   } catch { return undefined; }
 }

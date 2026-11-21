@@ -2,9 +2,9 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "LV Design Studio Architecture",
+    "title": "GFD Studio E Architecture",
     "subtitle": "Electron shell, React renderer, calculations and document export",
-    "output": "lv-design-studio.html",
+    "output": "gfd-studio-e.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/Pdhruv15/LV-Design-Suit.git",
@@ -24,7 +24,7 @@
     { "id": "calc", "type": "backend", "label": "Calc Runs", "sublabel": "built-in studies", "pos": [240, 410], "size": [130, 60],
       "sources": [{ "path": "src/calc/runs.ts", "line": 74, "label": "runCalculations" }] },
     { "id": "shell", "type": "backend", "label": "Electron Main", "sublabel": "IPC handlers", "pos": [240, 90], "size": [130, 60],
-      "sources": [{ "path": "electron/main.cjs", "line": 110, "label": "ipcMain handlers" }, { "path": "electron/preload.cjs", "line": 3, "label": "lvds bridge" }] },
+      "sources": [{ "path": "electron/main.cjs", "line": 110, "label": "ipcMain handlers" }, { "path": "electron/preload.cjs", "line": 3, "label": "gfde bridge" }] },
     { "id": "store", "type": "database", "label": "Project Files", "sublabel": "JSON + database", "pos": [40, 90], "size": [130, 60],
       "sources": [{ "path": "electron/main.cjs", "line": 203, "label": "projects:save" }] },
     { "id": "python", "type": "backend", "label": "Python Engines", "sublabel": "OpenDSS, pandapower", "pos": [460, 90], "size": [130, 60],

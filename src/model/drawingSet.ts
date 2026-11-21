@@ -679,7 +679,7 @@ export function sheetChecks(p: Project, set: DrawingSet, failing: { feederId: st
  * scale — applied to new or existing sheets. Kept on this computer and in
  * the database Library.json. */
 export interface SheetTemplate { id: string; name: string; size: DrawingSheet['size']; cableLabels?: DrawingSheet['cableLabels']; tags?: DrawingSheet['tags']; notes?: string[]; status?: string; scale?: string }
-const TPL = 'lvds.sheetTemplates';
+const TPL = 'gfde.sheetTemplates';
 export function loadSheetTemplates(): SheetTemplate[] { try { return JSON.parse(localStorage.getItem(TPL) ?? '[]'); } catch { return []; } }
 export function saveSheetTemplates(list: SheetTemplate[]): void {
   try { localStorage.setItem(TPL, JSON.stringify(list)); } catch { /* storage blocked */ }

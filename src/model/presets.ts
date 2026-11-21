@@ -59,7 +59,7 @@ export const BUILT_IN_PRESETS: FeederPreset[] = [
 
 // ---- The user's presets (this computer) --------------------------------------
 
-const KEY = 'lvds.feederPresets';
+const KEY = 'gfde.feederPresets';
 export function loadUserPresets(): FeederPreset[] {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) ?? '[]');
@@ -94,7 +94,7 @@ export function mergePresets(into: FeederPreset[], add: FeederPreset[]): { list:
 }
 
 /** The presets file: { format, presets }. */
-export const presetsFile = (list: FeederPreset[]) => JSON.stringify({ format: 'lv-design-studio/feeder-presets', version: 1, presets: list }, null, 2);
+export const presetsFile = (list: FeederPreset[]) => JSON.stringify({ format: 'gfd-studio-e/feeder-presets', version: 1, presets: list }, null, 2);
 export function readPresetsFile(text: string): FeederPreset[] | null {
   try {
     const v = JSON.parse(text);

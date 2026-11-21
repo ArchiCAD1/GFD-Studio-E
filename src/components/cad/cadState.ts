@@ -31,11 +31,11 @@ export const SAMPLE_PLANS: { file: string; label: string }[] = [
 ];
 export const isSample = (file: string) => SAMPLE_PLANS.some((x) => x.file === file);
 
-const RECENT = (projectId: string | undefined) => `lvds.cad.${projectId ?? 'new'}`;
+const RECENT = (projectId: string | undefined) => `gfde.cad.${projectId ?? 'new'}`;
 /** The drawing a project had open in the CAD view last time on this computer (its path stays out of the project file). */
 export const rememberedDrawing = (projectId: string | undefined): string | undefined => { try { return localStorage.getItem(RECENT(projectId)) ?? undefined; } catch { return undefined; } };
 const remember = (projectId: string | undefined, path?: string) => { try { if (path) localStorage.setItem(RECENT(projectId), path); } catch { /* not remembered */ } };
-const PATHS = (projectId: string | undefined) => `lvds.cad.paths.${projectId ?? 'new'}`;
+const PATHS = (projectId: string | undefined) => `gfde.cad.paths.${projectId ?? 'new'}`;
 const paths = (projectId: string | undefined): Record<string, string> => { try { return JSON.parse(localStorage.getItem(PATHS(projectId)) ?? '{}') as Record<string, string>; } catch { return {}; } };
 /** Where a plan file of the project was opened from on this computer, to open it again from Plans. */
 export const pathOfPlan = (projectId: string | undefined, file: string): string | undefined => paths(projectId)[file.toLowerCase()];
@@ -43,7 +43,7 @@ export const rememberPath = (projectId: string | undefined, file: string, path?:
   try { if (path) localStorage.setItem(PATHS(projectId), JSON.stringify({ ...paths(projectId), [file.toLowerCase()]: path })); } catch { /* not remembered */ }
 };
 
-const SKIPPED = (projectId: string | undefined, host: string) => `lvds.cad.refsOff.${projectId ?? 'new'}.${host.toLowerCase()}`;
+const SKIPPED = (projectId: string | undefined, host: string) => `gfde.cad.refsOff.${projectId ?? 'new'}.${host.toLowerCase()}`;
 /** References inside a plan's drawing that were detached on this computer: not looked for again when the plan opens. */
 export const skippedRefs = (projectId: string | undefined, host: string): string[] => { try { return JSON.parse(localStorage.getItem(SKIPPED(projectId, host)) ?? '[]') as string[]; } catch { return []; } };
 export const skipRef = (projectId: string | undefined, host: string, name: string, off: boolean) => {

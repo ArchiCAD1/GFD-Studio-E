@@ -50,7 +50,7 @@ export function templateOverrides(base: Project, t: SetupTemplate): { label: str
   });
 }
 
-const KEY = 'lvds.setupTemplates';
+const KEY = 'gfde.setupTemplates';
 export function loadTemplates(): SetupTemplate[] {
   try { const v = JSON.parse(localStorage.getItem(KEY) ?? '[]'); return Array.isArray(v) ? v.filter((t) => t && typeof t.id === 'string' && typeof t.name === 'string' && Array.isArray(t.scope)) : []; } catch { return []; }
 }

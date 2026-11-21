@@ -8,7 +8,7 @@ import { pushLibrary } from '../database/librarySync';
  * thunderstorm days or strike density, the shape and the roof outline) stay with the project. No preset is built
  * in: the app has no values of a standard. */
 
-export const RISK_PRESETS_KEY = 'lvds.lightningRiskPresets';
+export const RISK_PRESETS_KEY = 'gfde.lightningRiskPresets';
 const FACTORS = ['strikeRatio', 'locationFactor', 'fireRisk', 'fireProvisions', 'specialHazard', 'typicalLoss', 'tolerableRisk', 'damageProbability', 'sensitivity', 'components', 'nearReachM'] as const;
 export type RiskFactors = Pick<RiskInputs, (typeof FACTORS)[number]>;
 export interface RiskPreset { id: string; name: string; savedAt: string; factors: RiskFactors }

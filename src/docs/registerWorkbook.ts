@@ -56,7 +56,7 @@ const infoRows = (p: Project): [string, string][] => [
 
 export function buildRegisterWorkbook(p: Project, set: DrawingSet): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   const d = p.drawing ?? {};
   const rev = currentRevision(p);
   const company = d.company ?? p.info?.consultant ?? '';
@@ -91,7 +91,7 @@ export function buildRegisterWorkbook(p: Project, set: DrawingSet): ExcelJS.Work
 
 export function buildTransmittalWorkbook(p: Project, issue: DrawingIssue): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   const ws = wb.addWorksheet(issue.id);
   const company = p.drawing?.company ?? p.info?.consultant ?? '';
   const head = ['#', 'Drawing no.', 'Title', 'Rev', 'Copies'];

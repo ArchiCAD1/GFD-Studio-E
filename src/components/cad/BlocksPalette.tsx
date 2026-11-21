@@ -57,7 +57,7 @@ export default function BlocksPalette({ defs, archNames, recent, library, chosen
   const rec = filterBlocks(recent, q), files = filterBlocks(library.files.map((f) => ({ ...f, name: f.file })), q);
   const item = (key: string, name: string, title: string, onClick: () => void, thumb: CadBlockDef | undefined, more: CadBlockDef[]) => (
     <button key={key} type="button" className={`cad-bk-item${chosen === name ? ' on' : ''}`} aria-label={name} title={title} draggable onClick={onClick}
-      onDragStart={(e) => { e.dataTransfer.setData('text/lvds-block', name); e.dataTransfer.effectAllowed = 'copy'; onClick(); }}>
+      onDragStart={(e) => { e.dataTransfer.setData('text/gfde-block', name); e.dataTransfer.effectAllowed = 'copy'; onClick(); }}>
       {thumb ? <BlockThumb def={thumb} defs={more} /> : <svg className="cad-bk-thumb" viewBox="0 0 1.3333 1" aria-hidden><rect x="0.3" y="0.2" width="0.7333" height="0.6" fill="none" stroke="currentColor" strokeWidth="0.015" /></svg>}
       <span>{name}</span>
     </button>

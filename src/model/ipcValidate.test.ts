@@ -79,9 +79,9 @@ describe('IPC payload checks (electron/ipcValidate.cjs)', () => {
 
 // The Python engine's OpenDSS command allow-list, run with the real interpreter when there is one.
 const python = ['python3', 'python'].find((p) => spawnSync(p, ['--version']).status === 0);
-describe.skipIf(!python)('OpenDSS script allow-list (engines/python/lvds_engine.py)', () => {
+describe.skipIf(!python)('OpenDSS script allow-list (engines/python/gfde_engine.py)', () => {
   const lines = (script: string) => {
-    const code = 'import sys, json; sys.path.insert(0, "engines/python"); from lvds_engine import check_dss_line\nout = []\nfor l in json.load(sys.stdin):\n    try:\n        check_dss_line(l); out.append("ok")\n    except ValueError as e:\n        out.append(str(e))\nprint(json.dumps(out))';
+    const code = 'import sys, json; sys.path.insert(0, "engines/python"); from gfde_engine import check_dss_line\nout = []\nfor l in json.load(sys.stdin):\n    try:\n        check_dss_line(l); out.append("ok")\n    except ValueError as e:\n        out.append(str(e))\nprint(json.dumps(out))';
     const r = spawnSync(python!, ['-I', '-c', code], { input: JSON.stringify(script.split('\n')), encoding: 'utf8', cwd: process.cwd() });
     if (r.status !== 0) throw new Error(r.stderr);
     return JSON.parse(r.stdout) as string[];

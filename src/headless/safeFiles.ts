@@ -94,7 +94,7 @@ export const readFileWithin = (full: string, scope: Scope, max: number, outside:
  * link at its name is refused. */
 export const readFileLimited = (full: string, max: number, follow = false) => readOnHandle(full, { folder: path.dirname(full), anywhere: true }, max, '', follow);
 
-/** Makes each folder of `names` in turn inside `root` (Exports, .lvds-agent…), each a real folder and not a link, so
+/** Makes each folder of `names` in turn inside `root` (Exports, .gfde-agent…), each a real folder and not a link, so
  * nothing is made or written outside `root`. `root` itself may be a link (the projects folder), and is made when
  * missing. Returns the last one. */
 export function realDirs(root: string, ...names: string[]): string {

@@ -1,4 +1,4 @@
-# UI/UX audit — LV Design Studio
+# UI/UX audit — GFD Studio E
 
 Audit of commit `6ca3d84` (v1.68.0, `main`), 21 Oct 2026. Every finding below was confirmed in the code or in a screenshot of the running app; nothing is assumed.
 

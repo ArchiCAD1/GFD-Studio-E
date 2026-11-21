@@ -7,7 +7,7 @@ import { DEWA_LIMITS, limitIssues, normaliseLimits, projectLimitsOf, sortLimitRo
  * ambient, ELCB sensitivity …) from an authority, a standard or your own
  * company practice, each value with its clause and a note, plus free
  * reference entries of your own. Built-in references are read only; duplicate
- * one to customise it. Your references are kept in LV Database/Library.json,
+ * one to customise it. Your references are kept in GFD Studio E Database/Library.json,
  * so they sync through Google Drive to every computer. A project applies one:
  * the values go into its settings and the project records which reference
  * (and version) it used. A reference may extend another ("Company DEWA"
@@ -200,7 +200,7 @@ export const BUILT_IN_REFERENCES: DesignReference[] = [
 
 // ---- Library -------------------------------------------------------------------
 
-export const REFERENCES_KEY = 'lvds.designReferences';
+export const REFERENCES_KEY = 'gfde.designReferences';
 
 const isRef = (x: unknown): x is DesignReference =>
   !!x && typeof x === 'object' && typeof (x as DesignReference).id === 'string' && typeof (x as DesignReference).name === 'string';
@@ -331,7 +331,7 @@ export function resolveReference(r: DesignReference, list: DesignReference[] = l
 // ---- Export / import -------------------------------------------------------------
 
 export function exportReferences(list: DesignReference[]): string {
-  return JSON.stringify({ kind: 'lvds-design-references', exportedAt: new Date().toISOString(), references: list.map((r) => ({ ...r, builtIn: undefined })) }, null, 2);
+  return JSON.stringify({ kind: 'gfde-design-references', exportedAt: new Date().toISOString(), references: list.map((r) => ({ ...r, builtIn: undefined })) }, null, 2);
 }
 
 /** Reads an exported file. Imported references become yours; one whose id or

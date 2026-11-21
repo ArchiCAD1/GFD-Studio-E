@@ -7,8 +7,8 @@ In the app: **Reports → Load schedule → My Excel template…**. Choose the .
 From the command line:
 
 ```bash
-lvds schedule-xlsx "My project" --template "Company schedule.xlsx"
-lvds schedule-xlsx "My project" --template "Company schedule.xlsx" --export --approvedBy "A. Engineer"
+gfde schedule-xlsx "My project" --template "Company schedule.xlsx"
+gfde schedule-xlsx "My project" --template "Company schedule.xlsx" --export --approvedBy "A. Engineer"
 ```
 
 The template is a path or a file name in the projects folder. MCP and the local API only read templates inside the projects folder. The first command previews; the second writes the file to `Exports/<project>/<date>/`.

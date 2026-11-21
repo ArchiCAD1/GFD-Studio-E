@@ -28,10 +28,10 @@ const USED_FOR: Record<string, string> = {
 };
 
 const sig = (r: Row, cols: Col[]) => cols.map((c) => String(r[c.key] ?? '')).join('|');
-const SEEN = 'lvds.dbSeen';
+const SEEN = 'gfde.dbSeen';
 const loadSeen = (): Record<string, string[]> => { try { return JSON.parse(localStorage.getItem(SEEN) ?? '{}'); } catch { return {}; } };
 
-/** The LV Database: Excel workbooks in the projects folder (synced by
+/** The GFD Studio E Database: Excel workbooks in the projects folder (synced by
  * Google Drive). Edit them in Excel or in the table here — saving from here
  * backs the file up first. Changes since you last looked are listed. */
 const books = BOOKS as unknown as Book[];
@@ -49,13 +49,13 @@ export default function DatabaseView({ db, available, onRefresh, onApplyParamete
   const [standard, setStandard] = useState(false);
   const [seen, setSeen] = useState(loadSeen);
   const [dbFolder, setDbFolder] = useState<string | undefined>();
-  useEffect(() => { window.lvds?.settings.get().then((x) => setDbFolder(x.databaseFolder)); }, []);
-  const open = (file?: string) => window.lvds?.database.open(file);
+  useEffect(() => { window.gfde?.settings.get().then((x) => setDbFolder(x.databaseFolder)); }, []);
+  const open = (file?: string) => window.gfde?.database.open(file);
   const book = books.find((b) => b.id === tab)!;
   const rawBook = db.raw?.books[tab];
   const rows = (rawBook?.rows ?? []) as Row[];
   const synced = db.raw ? fmtTime(db.raw.readAt) : '—';
-  const canWrite = available && !!window.lvds?.database.write;
+  const canWrite = available && !!window.gfde?.database.write;
 
   // First time a workbook is seen on this computer: remember it silently.
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function DatabaseView({ db, available, onRefresh, onApplyParamete
   };
 
   async function save() {
-    if (!draft || !window.lvds?.database.write) return;
+    if (!draft || !window.gfde?.database.write) return;
     const missing = draft.findIndex((r) => book.columns.some((c) => c.required && String(r[c.key] ?? '').trim() === '') && book.columns.some((c) => String(r[c.key] ?? '').trim() !== ''));
     if (missing >= 0) { onStatus?.(`Row ${missing + 2}: fill the required columns (${book.columns.filter((c) => c.required).map((c) => c.header).join(', ')})`); return; }
     const bad = draft.findIndex((r) => book.columns.some((c) => c.number && String(r[c.key] ?? '').trim() !== '' && Number.isNaN(Number(String(r[c.key]).replace(/,/g, '')))));
@@ -94,7 +94,7 @@ export default function DatabaseView({ db, available, onRefresh, onApplyParamete
     setBusy(true);
     try {
       const clean = draft.filter((r) => book.columns.some((c) => String(r[c.key] ?? '').trim() !== ''));
-      await window.lvds.database.write(book.id, clean);
+      await window.gfde.database.write(book.id, clean);
       onStatus?.(`Saved ${book.file} (${clean.length} rows) — the previous version is in Backups/`);
       // Saving here isn't "someone else's change".
       const s = { ...seen, [book.id]: clean.map((r) => sig(r, book.columns)) };
@@ -122,8 +122,8 @@ export default function DatabaseView({ db, available, onRefresh, onApplyParamete
           <span className="m">Last synced {synced}</span>
           <button className="chip" onClick={onRefresh}><RefreshCw size={14} /> Refresh</button>
           <button className="chip" onClick={() => open()}><FolderOpen size={14} /> Open folder</button>
-          <button className="chip" title="Use a folder of your own for the workbooks (e.g. on Google Drive); projects stay where they are" onClick={async () => { await window.lvds?.settings.chooseDatabaseFolder?.(); location.reload(); }}>Database folder…</button>
-          {dbFolder && <button className="chip" title={`Back to ${DATABASE_FOLDER} inside the projects folder`} onClick={async () => { await window.lvds?.settings.chooseDatabaseFolder?.(true); location.reload(); }}>Use projects folder</button>}
+          <button className="chip" title="Use a folder of your own for the workbooks (e.g. on Google Drive); projects stay where they are" onClick={async () => { await window.gfde?.settings.chooseDatabaseFolder?.(); location.reload(); }}>Database folder…</button>
+          {dbFolder && <button className="chip" title={`Back to ${DATABASE_FOLDER} inside the projects folder`} onClick={async () => { await window.gfde?.settings.chooseDatabaseFolder?.(true); location.reload(); }}>Use projects folder</button>}
         </>
       )}
     >

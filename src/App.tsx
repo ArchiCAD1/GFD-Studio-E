@@ -1,4 +1,5 @@
 import { pickProject } from './model/projectStore';
+import { BRAND } from './brand';
 import { autoCheckpoint } from './model/checkpoints';
 import { chooseProjectFile, downloadProjectFile } from './util/webApp';
 import WebBanner from './components/WebBanner';
@@ -75,13 +76,13 @@ import { PANEL_CATEGORIES, withProjectFormat, type PanelCategory, type ScheduleF
 import { boardSheet } from './docs/sheetLink';
 import { applyDatabase, applyParameters, databaseSeeds, EMPTY_DATABASE, parseDatabase, syncLibrary, type Database, type RawDatabase } from './database/database';
 
-// window.lvds is only present when running inside Electron. Fall back to
+// window.gfde is only present when running inside Electron. Fall back to
 // in-memory-only mode so the same UI still runs in a plain browser tab
 // during development (`vite` alone, without `electron .`).
-const hasBridge = typeof window !== 'undefined' && !!window.lvds;
+const hasBridge = typeof window !== 'undefined' && !!window.gfde;
 // The database needs the desktop app's main process to be up to date too
 // (an older running instance has the bridge but no database handlers).
-const hasDatabase = hasBridge && !!window.lvds.database;
+const hasDatabase = hasBridge && !!window.gfde.database;
 
 import type { MainView } from './views';
 import CommandPalette, { ShortcutHelp, type Command } from './components/CommandPalette';
@@ -254,7 +255,7 @@ export default function App() {
     onLegend: () => setProject({ ...project, drawing: { ...project.drawing, legend: project.drawing?.legend === false } }, { step: true })
   };
   // Results under the SLD: open / closed (remembered); a row click centres the drawing on it.
-  const [resTab, setResTab] = useState<'summary' | 'buses' | 'feeders' | null>(() => { try { const v = localStorage.getItem('lvds.resTab'); return v === 'summary' || v === 'buses' || v === 'feeders' ? v : null; } catch { return null; } });
+  const [resTab, setResTab] = useState<'summary' | 'buses' | 'feeders' | null>(() => { try { const v = localStorage.getItem('gfde.resTab'); return v === 'summary' || v === 'buses' || v === 'feeders' ? v : null; } catch { return null; } });
   const [sldFocus, setSldFocus] = useState<{ kind: 'board' | 'feeder'; id: string; n: number } | undefined>();
   // SLD ribbon: Fit asked for (a new number each time), and Panels opened on its Transformers tab.
   const [sldFit, setSldFit] = useState(0);
@@ -343,7 +344,7 @@ export default function App() {
   const cadDo = (fn: (x: CadActions) => void) => { if (view === 'cad') fn(cadS.actions.current); else { cadS.pending.current = fn; setView('cad'); } };
   // File → Reopen: the drawing open last on this computer while it is not open (desktop only, as on the start screen).
   const cadLast = rememberedDrawing(project.id), cadLastFile = cadLast?.split(/[\\/]/).pop();
-  const cadReopen = cadLast && cadLastFile && window.lvds?.cadFile?.readBytes && !cadS.drawings.some((d) => d.file.toLowerCase() === cadLastFile.toLowerCase())
+  const cadReopen = cadLast && cadLastFile && window.gfde?.cadFile?.readBytes && !cadS.drawings.some((d) => d.file.toLowerCase() === cadLastFile.toLowerCase())
     ? { label: `Reopen ${cadLastFile}`, title: `Open ${cadLast} again: the drawing open last`, onClick: () => cadDo((x) => x.reopen()) } : undefined;
   const openCad = async () => {
     setView('cad');
@@ -393,7 +394,7 @@ export default function App() {
   // Leaving the SLD: an item chosen and not placed is put down; leaving Panels: it opens on its first tab next time.
   useEffect(() => { if (view !== 'design') setArmedItem(null); if (view !== 'panels') { setPanelsTx(undefined); setRepeatRoot(undefined); } }, [view]);
 
-  // LV Database: Excel workbooks in the projects folder. Every save in Excel
+  // GFD Studio E Database: Excel workbooks in the projects folder. Every save in Excel
   // arrives here; the data is applied to the calculations, library-linked
   // WATT/UNIT values are synced, and the project is re-evaluated.
   function receiveDatabase(raw: RawDatabase & { created?: string[] }) {
@@ -413,7 +414,7 @@ export default function App() {
 
   function initDatabase() {
     if (!hasDatabase) return;
-    window.lvds.database.init(databaseSeeds()).then(receiveDatabase).then(() => pullLibrary()).catch((e) => setStatus(`Database: ${e.message}`));
+    window.gfde.database.init(databaseSeeds()).then(receiveDatabase).then(() => pullLibrary()).catch((e) => setStatus(`Database: ${e.message}`));
   }
 
   // The latest handlers, so the listener registered once on start never runs an old render's copy.
@@ -422,14 +423,14 @@ export default function App() {
   useEffect(() => {
     if (!hasDatabase) return;
     dbHandlers.current.initDatabase();
-    return window.lvds.database.onChange((raw) => dbHandlers.current.receiveDatabase(raw));
+    return window.gfde.database.onChange((raw) => dbHandlers.current.receiveDatabase(raw));
   }, []);
-  // A drawing opened from Finder / Explorer ("Open with LV Design Studio"): opened in Design CAD.
+  // A drawing opened from Finder / Explorer ("Open with GFD Studio E"): opened in Design CAD.
   const cadRef = useRef(cadS);
   cadRef.current = cadS;
   const setViewRef = useRef<(v: MainView) => void>(() => {});
   useEffect(() => {
-    const cad = window.lvds?.cadFile;
+    const cad = window.gfde?.cadFile;
     if (!cad?.takePending) return;
     const take = () => void cad.takePending!().then(async (d) => {
       if (!d) return;
@@ -576,7 +577,7 @@ export default function App() {
     refreshList();
     readRecoveries().then(setRecoveries);
     if (!hasBridge) return;
-    window.lvds.settings.get().then((s) => setProjectsFolder(s.projectsFolder));
+    window.gfde.settings.get().then((s) => setProjectsFolder(s.projectsFolder));
   }, []);
 
   // Recovery copy of unsaved work, every few minutes (Profile & preferences).
@@ -610,7 +611,7 @@ export default function App() {
   useEffect(() => setCrashKeeper(() => keepUnsavedWork(live.current)), []);
 
   useEffect(() => {
-    document.title = `${dirty ? '● ' : ''}${project.name} — LV Design Studio v${__APP_VERSION__}`;
+    document.title = `${dirty ? '● ' : ''}${project.name} — ${BRAND.name} v${__APP_VERSION__}`;
   }, [dirty, project.name]);
 
   // Back in the window: did the open project's file change meanwhile (another computer, a sync, another program)?
@@ -795,7 +796,7 @@ export default function App() {
     setExternal(null);
     setConflict(null);
     setSaveState({ kind: 'idle' });
-    setReadOnly(isFutureSchema(p) ? 'This project was saved by a newer version of LV Design Studio, so it is open read-only.' : null);
+    setReadOnly(isFutureSchema(p) ? 'This project was saved by a newer version of GFD Studio E, so it is open read-only.' : null);
     setRun(runCalculations(opened)); // results for the project as opened
     // Presets saved with the project join this computer's presets.
     if (p.feederPresets?.length) {
@@ -826,7 +827,7 @@ export default function App() {
     }
   }
 
-  /** What Open project… chose, or a .lvds opened from Finder / Explorer: a file in the projects folder, or a project from elsewhere. */
+  /** What Open project… chose, or a .gfde opened from Finder / Explorer: a file in the projects folder, or a project from elsewhere. */
   function openPicked(r: { file?: string; data?: Project; from?: string } | null) {
     if (!r) return;
     if (r.file) return openProject(r.file);
@@ -835,7 +836,7 @@ export default function App() {
   const openPickedRef = useRef(openPicked);
   openPickedRef.current = openPicked;
   useEffect(() => {
-    const projects = window.lvds?.projects;
+    const projects = window.gfde?.projects;
     if (!projects?.takePending) return;
     const take = () => void projects.takePending!().then((r) => openPickedRef.current(r as { file?: string; data?: Project; from?: string } | null))
       .catch((e: unknown) => setStatus(`Could not open the project: ${e instanceof Error ? e.message : String(e)}`));
@@ -846,7 +847,7 @@ export default function App() {
   /** Export JSON…: a plain .json copy of the project as it is now. */
   async function exportJson() {
     try {
-      const m = await saveText(`${safeFileName(project.name || 'project')}.json`, JSON.stringify(project, null, 2), 'JSON', 'json', { output: 'projectJson' });
+      const m = await saveText(`${safeFileName(project.name || 'project')}.json`, JSON.stringify({ ...project, format: 'gfde.project' }, null, 2), 'JSON', 'json', { output: 'projectJson' });
       if (m) setStatus(m);
     } catch (e) { setStatus(e instanceof Error ? e.message : String(e)); }
   }
@@ -914,6 +915,7 @@ export default function App() {
         if (dirty) { setStatus(`${what} changed — save the project to keep it`); return; }
         const out = await saveProjectFile(file, { ...next, updatedAt: new Date().toISOString(), updatedBy: prefs.profile.name || next.updatedBy }, { expected: fileStamp.current });
         if (out.conflict) { changedOnDisk(); return; }
+        setCurrentFile(out.file);
         fileStamp.current = out.stamp;
         setSaved(next);
       } else {
@@ -921,6 +923,7 @@ export default function App() {
         const out = await saveProjectFile(file, { ...change(p), updatedAt: new Date().toISOString(), updatedBy: prefs.profile.name || p.updatedBy }, { expected: stamp });
         if (out.conflict) { changedOnDisk(); return; }
       }
+      setRecent(recentFiles());
       refreshList();
     } catch (e) {
       setStatus(`${what} not saved: ${e instanceof Error ? e.message : String(e)}`);
@@ -959,7 +962,7 @@ export default function App() {
 
   async function chooseFolder() {
     if (!hasBridge) return;
-    const s = await window.lvds.settings.chooseProjectsFolder();
+    const s = await window.gfde.settings.chooseProjectsFolder();
     setProjectsFolder(s.projectsFolder);
     refreshList();
     initDatabase(); // the database folder lives inside the projects folder
@@ -1426,10 +1429,10 @@ export default function App() {
     <div className={`app-root${home ? ' home' : ''}`} data-doc-id="app-shell">
       <div className="top">
         <div className="brand">
-          <img className="brand-mark" src="icon.svg" alt="" />
+          <img className="brand-mark" src="gfd-company-logo.png" alt="Gerardo Faustin Designs Limited company logo" width="1024" height="1024" />
           <div>
-            LV Design Studio <span className="app-ver">v{__APP_VERSION__}</span>
-            <small>Low-voltage power design suite</small>
+            {BRAND.name} <span className="app-ver">v{__APP_VERSION__}</span>
+            <small title={BRAND.owner}>{BRAND.tagline}</small>
           </div>
         </div>
         <div className="crumb">
@@ -1740,7 +1743,7 @@ export default function App() {
                 <div className="rd-tabs" role="tablist" aria-label="Results">
                   {([['summary', 'System summary'], ['buses', 'Bus voltages & loading'], ['feeders', `Feeders on ${board.id}`]] as const).map(([k, label]) => (
                     <button key={k} role="tab" aria-selected={resTab === k} className={resTab === k ? 'on' : ''}
-                      onClick={() => setResTab((t) => { const v = t === k ? null : k; try { localStorage.setItem('lvds.resTab', v ?? ''); } catch { /* ignore */ } return v; })}>{label}</button>
+                      onClick={() => setResTab((t) => { const v = t === k ? null : k; try { localStorage.setItem('gfde.resTab', v ?? ''); } catch { /* ignore */ } return v; })}>{label}</button>
                   ))}
                   <span className="sp" />
                   {(() => {
@@ -1753,7 +1756,7 @@ export default function App() {
                       {!bad.length && !warn.length && <span className="rd-chip">all within limits</span>}
                     </>;
                   })()}
-                  {resTab && <button className="icon-btn" title="Close" aria-label="Close the results" onClick={() => { setResTab(null); try { localStorage.setItem('lvds.resTab', ''); } catch { /* ignore */ } }}><X size={14} aria-hidden /></button>}
+                  {resTab && <button className="icon-btn" title="Close" aria-label="Close the results" onClick={() => { setResTab(null); try { localStorage.setItem('gfde.resTab', ''); } catch { /* ignore */ } }}><X size={14} aria-hidden /></button>}
                 </div>
                 {resTab && (
                   <div className="rd-body">
@@ -1800,7 +1803,7 @@ export default function App() {
               <DatabaseView
                 db={db}
                 available={hasDatabase}
-                onRefresh={() => window.lvds.database.read().then(receiveDatabase)}
+                onRefresh={() => window.gfde.database.read().then(receiveDatabase)}
                 onApplyParameters={() => {
                   setProject((p) => p.boards.reduce((q, b) => refreshBoard(q, b.id), applyParameters(p, db)));
                   setStatus('Applied Parameters.xlsx to this project');

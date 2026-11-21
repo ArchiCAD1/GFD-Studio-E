@@ -12,7 +12,7 @@ const disk = createRequire(import.meta.url)('../../electron/projectFolders.cjs')
 };
 
 let base: string;
-beforeEach(() => { base = mkdtempSync(join(tmpdir(), 'lvds-folders-')); });
+beforeEach(() => { base = mkdtempSync(join(tmpdir(), 'gfde-folders-')); });
 afterEach(() => { rmSync(base, { recursive: true, force: true }); });
 const root = () => join(base, '2417_Villas');
 const isDir = (p: string) => existsSync(p) && statSync(p).isDirectory();
@@ -42,7 +42,7 @@ describe('creating a project\'s folders', () => {
     if (process.platform === 'win32') return;
     mkdirSync(root());
     writeFileSync(join(root(), '01_Admin'), 'a file');
-    const outside = mkdtempSync(join(tmpdir(), 'lvds-outside-'));
+    const outside = mkdtempSync(join(tmpdir(), 'gfde-outside-'));
     try {
       symlinkSync(outside, join(root(), '02_Inputs'), 'dir');
       const r = disk.create({ root: root(), paths: ['01_Admin/Minutes', '02_Inputs/Arch', '03_Calcs'] });
@@ -56,7 +56,7 @@ describe('creating a project\'s folders', () => {
   });
   it('refuses a project folder that is itself a link', () => {
     if (process.platform === 'win32') return;
-    const outside = mkdtempSync(join(tmpdir(), 'lvds-outside-'));
+    const outside = mkdtempSync(join(tmpdir(), 'gfde-outside-'));
     try {
       symlinkSync(outside, root(), 'dir');
       expect(() => disk.create({ root: root(), paths: ['A'] })).toThrow(/a link, not a folder/);
@@ -128,19 +128,19 @@ describe('where a save dialog starts (spec F2)', () => {
 });
 
 describe('the copy of the project file in the project folder (decision 1, option B)', () => {
-  const source = () => { const f = join(base, 'projects', 'villa-p1.lvds'); mkdirSync(join(base, 'projects'), { recursive: true }); writeFileSync(f, '{"name":"v2"}'); return f; };
-  const copy = (extra: Record<string, unknown> = {}, src = source()) => disk.saveCopy({ root: root(), relDir: '03_Project_File', fileName: 'villa-p1.lvds', ...extra }, src);
+  const source = () => { const f = join(base, 'projects', 'villa-p1.gfde'); mkdirSync(join(base, 'projects'), { recursive: true }); writeFileSync(f, '{"name":"v2"}'); return f; };
+  const copy = (extra: Record<string, unknown> = {}, src = source()) => disk.saveCopy({ root: root(), relDir: '03_Project_File', fileName: 'villa-p1.gfde', ...extra }, src);
   it('writes the copy, making the folder inside the project folder, and replaces an older copy of that name only', () => {
     mkdirSync(root());
     const r = copy();
-    expect(r.file).toBe(join(root(), '03_Project_File', 'villa-p1.lvds'));
+    expect(r.file).toBe(join(root(), '03_Project_File', 'villa-p1.gfde'));
     expect(readFileSync(r.file, 'utf8')).toBe('{"name":"v2"}');
-    writeFileSync(join(root(), '03_Project_File', 'other.lvds'), 'keep');
+    writeFileSync(join(root(), '03_Project_File', 'other.gfde'), 'keep');
     writeFileSync(r.file, 'old');
     copy();
     expect(readFileSync(r.file, 'utf8')).toBe('{"name":"v2"}');
-    expect(readFileSync(join(root(), '03_Project_File', 'other.lvds'), 'utf8')).toBe('keep');
-    expect(readdirSync(join(root(), '03_Project_File')).sort()).toEqual(['other.lvds', 'villa-p1.lvds']); // no temporary file left
+    expect(readFileSync(join(root(), '03_Project_File', 'other.gfde'), 'utf8')).toBe('keep');
+    expect(readdirSync(join(root(), '03_Project_File')).sort()).toEqual(['other.gfde', 'villa-p1.gfde']); // no temporary file left
   });
   it('never makes the project folder itself', () => {
     expect(() => copy()).toThrow(/not on this computer/);
@@ -148,15 +148,15 @@ describe('the copy of the project file in the project folder (decision 1, option
   });
   it('refuses names and paths that leave the folder, and files that are not project files', () => {
     mkdirSync(root());
-    expect(() => copy({ fileName: '../x.lvds' })).toThrow(/Refused/);
+    expect(() => copy({ fileName: '../x.gfde' })).toThrow(/Refused/);
     expect(() => copy({ fileName: 'notes.txt' })).toThrow(/Refused/);
     expect(() => copy({ relDir: '../outside' })).toThrow(/Refused/);
     expect(() => copy({ root: 'relative' })).toThrow(/Refused/);
     expect(() => disk.saveCopy(null, source())).toThrow(/Refused/);
-    expect(() => copy({}, 'relative.lvds')).toThrow(/Refused/);
+    expect(() => copy({}, 'relative.gfde')).toThrow(/Refused/);
   });
   it('leaves a folder where the copy would go alone', () => {
-    mkdirSync(join(root(), '03_Project_File', 'villa-p1.lvds'), { recursive: true });
+    mkdirSync(join(root(), '03_Project_File', 'villa-p1.gfde'), { recursive: true });
     expect(() => copy()).toThrow(/left as it is/);
   });
   it('follows no link: not for the folder, the copy or the file copied', () => {
@@ -168,12 +168,12 @@ describe('the copy of the project file in the project folder (decision 1, option
     expect(readdirSync(join(base, 'outside'))).toEqual([]);
     rmSync(join(root(), '03_Project_File'));
     mkdirSync(join(root(), '03_Project_File'));
-    writeFileSync(join(base, 'outside', 'target.lvds'), 'theirs');
-    symlinkSync(join(base, 'outside', 'target.lvds'), join(root(), '03_Project_File', 'villa-p1.lvds'));
+    writeFileSync(join(base, 'outside', 'target.gfde'), 'theirs');
+    symlinkSync(join(base, 'outside', 'target.gfde'), join(root(), '03_Project_File', 'villa-p1.gfde'));
     expect(() => copy()).toThrow(/a link/);
-    expect(readFileSync(join(base, 'outside', 'target.lvds'), 'utf8')).toBe('theirs');
+    expect(readFileSync(join(base, 'outside', 'target.gfde'), 'utf8')).toBe('theirs');
     const src = source();
-    symlinkSync(src, join(base, 'linked.lvds'));
-    expect(() => copy({ fileName: 'linked.lvds' }, join(base, 'linked.lvds'))).toThrow(/Refused/);
+    symlinkSync(src, join(base, 'linked.gfde'));
+    expect(() => copy({ fileName: 'linked.gfde' }, join(base, 'linked.gfde'))).toThrow(/Refused/);
   });
 });

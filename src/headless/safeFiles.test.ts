@@ -17,7 +17,7 @@ import { MAX_PROJECT_BYTES } from './safeFiles';
 
 /** Symbolic links need permission on Windows; skip there when they cannot be made. */
 const canLink = (() => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-link-'));
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-link-'));
   try { fs.symlinkSync(path.join(d, 'x'), path.join(d, 'y')); return true; } catch { return false; } finally { fs.rmSync(d, { recursive: true, force: true }); }
 })();
 const it_ = canLink ? it : it.skip;
@@ -33,13 +33,13 @@ const run = async (name: string, args: Record<string, unknown>, ctx = mcp): Prom
 const outsideFiles = () => fs.readdirSync(outside, { recursive: true }).map(String).sort();
 
 beforeAll(() => {
-  process.env.LVDS_ELECTRON = path.join(os.tmpdir(), 'lvds-no-electron'); // no renderer lookup (as exportTools.test.ts)
+  process.env.GFDE_ELECTRON = path.join(os.tmpdir(), 'gfde-no-electron'); // no renderer lookup (as exportTools.test.ts)
   vi.stubGlobal('DOMParser', DOMParser);
 });
-afterAll(() => { delete process.env.LVDS_ELECTRON; vi.unstubAllGlobals(); });
+afterAll(() => { delete process.env.GFDE_ELECTRON; vi.unstubAllGlobals(); });
 beforeEach(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-confine-'));
-  process.env.LVDS_APP_DATA = path.join(root, 'app');
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-confine-'));
+  process.env.GFDE_APP_DATA = path.join(root, 'app');
   folder = path.join(root, 'projects');
   outside = path.join(root, 'outside');
   fs.mkdirSync(folder);
@@ -52,7 +52,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.restoreAllMocks();
-  delete process.env.LVDS_APP_DATA;
+  delete process.env.GFDE_APP_DATA;
   fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -69,7 +69,7 @@ describe('MCP and the local API read only inside the projects folder', () => {
   });
 
   it_('do not read through a linked folder: projects, exchange packages, templates, drawings', async () => {
-    fs.writeFileSync(path.join(outside, 'rooms.json'), JSON.stringify({ format: 'lvds-exchange' }));
+    fs.writeFileSync(path.join(outside, 'rooms.json'), JSON.stringify({ format: 'gfde-exchange' }));
     fs.writeFileSync(path.join(outside, 'Template.xlsx'), 'PK');
     fs.writeFileSync(path.join(outside, 'Plan.dxf'), '0\nEOF\n');
     fs.symlinkSync(outside, file('sub'), 'dir');
@@ -104,13 +104,13 @@ describe('MCP and the local API read only inside the projects folder', () => {
 describe('writes never go through a link planted in the projects folder', () => {
   const addPanel = { project: 'Villa', kind: 'DB', fedFrom: 'SMDB-GF', mode: 'apply' };
 
-  it_('a linked .lvds-agent or change log: nothing is written', async () => {
+  it_('a linked .gfde-agent or change log: nothing is written', async () => {
     const before = fs.readFileSync(file('Villa.json'), 'utf-8');
-    fs.symlinkSync(outside, file('.lvds-agent'), 'dir');
-    await expect(run('add_panel', addPanel)).rejects.toThrow(/\.lvds-agent is not a real folder/);
-    fs.unlinkSync(file('.lvds-agent'));
-    fs.mkdirSync(file('.lvds-agent'));
-    fs.symlinkSync(path.join(outside, 'victim.txt'), file('.lvds-agent/log.jsonl'));
+    fs.symlinkSync(outside, file('.gfde-agent'), 'dir');
+    await expect(run('add_panel', addPanel)).rejects.toThrow(/\.gfde-agent is not a real folder/);
+    fs.unlinkSync(file('.gfde-agent'));
+    fs.mkdirSync(file('.gfde-agent'));
+    fs.symlinkSync(path.join(outside, 'victim.txt'), file('.gfde-agent/log.jsonl'));
     await expect(run('add_panel', addPanel)).rejects.toThrow(/log\.jsonl is a link/);
     await expect(run('add_panel', addPanel, cli)).rejects.toThrow(/log\.jsonl is a link/); // the tools' own folder, also from the command line
     expect(fs.readFileSync(file('Villa.json'), 'utf-8')).toBe(before); // the log is checked before the project is written
@@ -123,8 +123,8 @@ describe('writes never go through a link planted in the projects folder', () => 
     fs.symlinkSync(outside, file('Exports'), 'dir');
     await expect(run('export_forms_xlsx', exp)).rejects.toThrow(/Exports is not a real folder/);
     fs.unlinkSync(file('Exports'));
-    fs.mkdirSync(file('.lvds-agent'));
-    fs.symlinkSync(path.join(outside, 'victim.txt'), file('.lvds-agent/exports.jsonl'));
+    fs.mkdirSync(file('.gfde-agent'));
+    fs.symlinkSync(path.join(outside, 'victim.txt'), file('.gfde-agent/exports.jsonl'));
     await expect(run('export_forms_xlsx', exp)).rejects.toThrow(/exports\.jsonl is a link/);
     expect(fs.readdirSync(file('Exports'), { recursive: true }).map(String).filter((f) => f.endsWith('.xlsx'))).toEqual([]);
     expect(fs.readFileSync(path.join(outside, 'victim.txt'), 'utf-8')).toBe(VICTIM);

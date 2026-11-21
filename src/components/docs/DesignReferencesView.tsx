@@ -17,7 +17,7 @@ const show = (v: number | undefined, unit: string) => (v === undefined ? '—' :
 /** Standards → Design references: DEWA, IEC, BS 7671, ADDC, EtihadWE and your
  * own, each a set of design values with clauses and notes, plus free reference
  * entries. Built-in ones are read only — duplicate to customise. Yours are
- * saved in LV Database/Library.json (synced by Drive). "Apply to this project"
+ * saved in GFD Studio E Database/Library.json (synced by Drive). "Apply to this project"
  * shows what changes, then writes the values and records the reference. */
 export default function DesignReferencesView({ project, onApply, onStatus }: {
   project: Project;
@@ -118,7 +118,7 @@ export default function DesignReferencesView({ project, onApply, onStatus }: {
   return (
     <Page
       title="Design references"
-      intro="Design values from an authority, a standard or your own practice, with their clauses — DEWA, IEC, BS 7671, ADDC, EtihadWE or your own. Built-in references are read only: duplicate one to customise it. Yours are saved in the LV Database folder and sync to every computer."
+      intro="Design values from an authority, a standard or your own practice, with their clauses — DEWA, IEC, BS 7671, ADDC, EtihadWE or your own. Built-in references are read only: duplicate one to customise it. Yours are saved in the GFD Studio E Database folder and sync to every computer."
       actions={<>
         <button className="chip" onClick={() => add(newReference(), 'New reference — fill in the values you need; blank values are not applied')}>+ New</button>
         <button className="chip" onClick={() => fileRef.current?.click()}>Import</button>

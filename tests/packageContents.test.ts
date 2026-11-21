@@ -6,9 +6,9 @@ import { dirname, join, posix, resolve, sep } from 'node:path';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without type declarations
-import { asarFiles, badNoticesIn, LOCALE_FILES, LVDS_FILES, MAC_LANGUAGES, MAC_NOTICES, MAX_ASAR_MB, NOTICES, packageProblems } from '../scripts/check-package.mjs';
+import { asarFiles, badNoticesIn, LOCALE_FILES, GFDE_FILES, PRODUCT_NOTICES, MAC_LANGUAGES, MAC_NOTICES, MAX_ASAR_MB, NOTICES, packageProblems } from '../scripts/check-package.mjs';
 // @ts-expect-error — plain ESM script without type declarations
-import { launcherOf, lvdsProblems, mcpSession, shownVersion } from '../scripts/check-packaged-lvds.mjs';
+import { launcherOf, gfdeProblems, mcpSession, shownVersion } from '../scripts/check-packaged-gfde.mjs';
 // @ts-expect-error — plain CommonJS script without type declarations
 import { afterPack, writeNotices } from '../scripts/mac-licences.cjs';
 import { displayVersion } from '../src/model/appVersion';
@@ -27,15 +27,15 @@ const pkg = JSON.parse(read('package.json')) as {
 
 describe('package filter', () => {
   it('carries only the built app and the main process, without node_modules', () => {
-    expect(pkg.build.files.filter((f) => !f.startsWith('!'))).toEqual(['dist/**/*', 'dist-electron/**/*', 'electron/**/*']);
+    expect(pkg.build.files.filter((f) => !f.startsWith('!'))).toEqual(['dist/**/*', 'dist-electron/**/*', 'electron/**/*', 'branding.json', 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE.md', 'docs/provenance/**/*']);
     expect(pkg.build.files).toContain('!node_modules/**/*');
   });
 
   it('carries the CAD engine once: the window gets it from electron/cad, the web version from dist/assets', () => {
-    expect(pkg.build.files).toContain('!dist/assets/lvds_cad_reader_bg-*.wasm');
-    expect(existsSync(join(root, 'electron/cad/lvds_cad_reader_bg.wasm'))).toBe(true);
-    expect(read('electron/cadFile.cjs')).toContain("path.join(CAD_DIR, 'lvds_cad_reader_bg.wasm')");
-    expect(read('src/engines/cad/cadEngine.ts')).toContain('window.lvds?.cadFile?.engine');
+    expect(pkg.build.files).toContain('!dist/assets/gfde_cad_reader_bg-*.wasm');
+    expect(existsSync(join(root, 'electron/cad/gfde_cad_reader_bg.wasm'))).toBe(true);
+    expect(read('electron/cadFile.cjs')).toContain("path.join(CAD_DIR, 'gfde_cad_reader_bg.wasm')");
+    expect(read('src/engines/cad/cadEngine.ts')).toContain('window.gfde?.cadFile?.engine');
   });
 
   it('keeps English on every system: Mac folders are en, en_GB; Windows and Linux files are en-US, en-GB', () => {
@@ -50,17 +50,17 @@ describe('package filter', () => {
     for (const config of ['vite.config.ts', 'vite.electron.config.ts']) expect(read(config), config).toContain("license: { fileName: 'third-party-licences.md' }");
   });
 
-  it('carries the lvds command beside the app: the one-file build, its licence texts and a launcher per system', () => {
+  it('carries the gfde command beside the app: the one-file build, its licence texts and a launcher per system', () => {
     expect(pkg.scripts.build).toContain('vite build -c vite.cli.config.ts');
     expect(read('vite.cli.config.ts')).toContain("license: { fileName: 'third-party-licences.md' }");
-    expect(pkg.build.extraResources).toContainEqual({ from: 'dist-cli', to: 'lvds', filter: ['lvds.mjs', 'third-party-licences.md'] });
-    expect(pkg.build.extraResources).toContainEqual({ from: 'build/lvds', to: 'lvds' });
+    expect(pkg.build.extraResources).toContainEqual({ from: 'dist-cli', to: 'gfde', filter: ['gfde.mjs', 'third-party-licences.md'] });
+    expect(pkg.build.extraResources).toContainEqual({ from: 'build/gfde', to: 'gfde' });
     // Together they are what scripts/check-package.mjs looks for in a real package.
-    expect([...readdirSync(join(root, 'build/lvds')), 'lvds.mjs', 'third-party-licences.md'].sort()).toEqual([...LVDS_FILES].sort());
-    if (process.platform !== 'win32') expect(statSync(join(root, 'build/lvds/lvds')).mode & 0o111).not.toBe(0);
-    // Both launchers run lvds.mjs with the app as Node, so no window opens and no separate Node is needed.
-    for (const launcher of ['build/lvds/lvds', 'build/lvds/lvds.cmd']) expect(read(launcher), launcher).toContain('ELECTRON_RUN_AS_NODE=1');
-    expect(read('build/lvds/lvds.cmd')).toContain('"%~dp0..\\..\\LV Design Studio.exe" "%~dp0lvds.mjs" %*');
+    expect([...readdirSync(join(root, 'build/gfde')), 'gfde.mjs', 'third-party-licences.md', 'LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE.md', 'docs'].sort()).toEqual([...GFDE_FILES].sort());
+    if (process.platform !== 'win32') expect(statSync(join(root, 'build/gfde/gfde')).mode & 0o111).not.toBe(0);
+    // Both launchers run gfde.mjs with the app as Node, so no window opens and no separate Node is needed.
+    for (const launcher of ['build/gfde/gfde', 'build/gfde/gfde.cmd']) expect(read(launcher), launcher).toContain('ELECTRON_RUN_AS_NODE=1');
+    expect(read('build/gfde/gfde.cmd')).toContain('"%~dp0..\\..\\GFD Studio E.exe" "%~dp0gfde.mjs" %*');
   });
 
   it('keeps the compiled libraries in dependencies, so the audit of what ships (scripts/check-audit.mjs) still covers them', () => {
@@ -70,7 +70,7 @@ describe('package filter', () => {
 
 describe("Electron's licence texts in the Mac app", () => {
   const inTemp = (check: (dir: string) => void) => {
-    const dir = mkdtempSync(join(tmpdir(), 'lvds-notices-'));
+    const dir = mkdtempSync(join(tmpdir(), 'gfde-notices-'));
     try { check(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
   };
 
@@ -91,9 +91,18 @@ describe("Electron's licence texts in the Mac app", () => {
     });
   });
 
-  it('leaves Windows and Linux alone: they keep both texts beside the app', async () => {
-    await expect(afterPack({ electronPlatformName: 'win32' })).resolves.toBeUndefined();
-    await expect(afterPack({ electronPlatformName: 'linux' })).resolves.toBeUndefined();
+  it('keeps Windows and Linux Electron notices and copies complete product notices beside the CLI', async () => {
+    for (const electronPlatformName of ['win32', 'linux']) {
+      const dir = mkdtempSync(join(tmpdir(), 'gfde-package-notices-'));
+      try {
+        writeFileSync(join(dir, 'LICENSE.electron.txt'), 'runtime notice');
+        await afterPack({ electronPlatformName, appOutDir: dir, packager: { info: { projectDir: root } } });
+        expect(readFileSync(join(dir, 'LICENSE.electron.txt'), 'utf8')).toBe('runtime notice');
+        for (const name of PRODUCT_NOTICES) {
+          expect(readFileSync(join(dir, 'resources/gfde', name))).toEqual(readFileSync(join(root, name)));
+        }
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }
   });
 
   it('stops the build when a text is missing from the download', () => {
@@ -116,15 +125,15 @@ describe("Electron's licence texts in the Mac app", () => {
   });
 });
 
-describe.skipIf(process.platform === 'win32')('the lvds launcher of the package (macOS, Linux)', () => {
+describe.skipIf(process.platform === 'win32')('the gfde launcher of the package (macOS, Linux)', () => {
   // A stand-in for the app: it prints how it was started.
   const standIn = '#!/bin/sh\necho "node=$ELECTRON_RUN_AS_NODE"\nfor a in "$@"; do echo "arg=$a"; done\n';
   const inPackage = (app: string, resources: string, check: (dir: string, launcher: string) => void) => {
-    const dir = mkdtempSync(join(tmpdir(), 'lvds-launcher-'));
+    const dir = mkdtempSync(join(tmpdir(), 'gfde-launcher-'));
     try {
-      const launcher = join(dir, resources, 'lvds', 'lvds');
+      const launcher = join(dir, resources, 'gfde', 'gfde');
       mkdirSync(dirname(launcher), { recursive: true });
-      copyFileSync(join(root, 'build/lvds/lvds'), launcher);
+      copyFileSync(join(root, 'build/gfde/gfde'), launcher);
       chmodSync(launcher, 0o755);
       if (app) {
         mkdirSync(dirname(join(dir, app)), { recursive: true });
@@ -135,43 +144,43 @@ describe.skipIf(process.platform === 'win32')('the lvds launcher of the package 
   };
   const started = (launcher: string, ...args: string[]) => execFileSync(launcher, args, { encoding: 'utf8' }).trim().split('\n');
 
-  it('on a Mac runs lvds.mjs with the app in Contents/MacOS, as Node', () => {
-    inPackage('LV Design Studio.app/Contents/MacOS/LV Design Studio', 'LV Design Studio.app/Contents/Resources', (dir, launcher) => {
-      expect(started(launcher, 'check', 'My project')).toEqual(['node=1', `arg=${join(dir, 'LV Design Studio.app/Contents/Resources/lvds/lvds.mjs')}`, 'arg=check', 'arg=My project']);
+  it('on a Mac runs gfde.mjs with the app in Contents/MacOS, as Node', () => {
+    inPackage('GFD Studio E.app/Contents/MacOS/GFD Studio E', 'GFD Studio E.app/Contents/Resources', (dir, launcher) => {
+      expect(started(launcher, 'check', 'My project')).toEqual(['node=1', `arg=${join(dir, 'GFD Studio E.app/Contents/Resources/gfde/gfde.mjs')}`, 'arg=check', 'arg=My project']);
     });
   });
 
   it('on Linux runs it with the program beside resources', () => {
-    inPackage('lv-design-studio', 'resources', (dir, launcher) => {
-      expect(started(launcher, 'mcp')).toEqual(['node=1', `arg=${join(dir, 'resources/lvds/lvds.mjs')}`, 'arg=mcp']);
+    inPackage('gfd-studio-e', 'resources', (dir, launcher) => {
+      expect(started(launcher, 'mcp')).toEqual(['node=1', `arg=${join(dir, 'resources/gfde/gfde.mjs')}`, 'arg=mcp']);
     });
   });
 
   it('works through a link to it', () => {
-    inPackage('lv-design-studio', 'resources', (dir, launcher) => {
+    inPackage('gfd-studio-e', 'resources', (dir, launcher) => {
       mkdirSync(join(dir, 'bin'));
-      symlinkSync(launcher, join(dir, 'bin', 'lvds'));
-      symlinkSync('lvds', join(dir, 'bin', 'lvds2'));
-      for (const link of ['lvds', 'lvds2']) expect(started(join(dir, 'bin', link), 'version'), link).toEqual(['node=1', `arg=${join(dir, 'resources/lvds/lvds.mjs')}`, 'arg=version']);
+      symlinkSync(launcher, join(dir, 'bin', 'gfde'));
+      symlinkSync('gfde', join(dir, 'bin', 'gfde2'));
+      for (const link of ['gfde', 'gfde2']) expect(started(join(dir, 'bin', link), 'version'), link).toEqual(['node=1', `arg=${join(dir, 'resources/gfde/gfde.mjs')}`, 'arg=version']);
     });
   });
 
   it('says so when the app is not beside it', () => {
     inPackage('', 'resources', (_dir, launcher) => {
-      expect(() => execFileSync(launcher, ['version'], { encoding: 'utf8', stdio: 'pipe' })).toThrow(/LV Design Studio was not found/);
+      expect(() => execFileSync(launcher, ['version'], { encoding: 'utf8', stdio: 'pipe' })).toThrow(/GFD Studio E was not found/);
     });
   });
 });
 
-describe('scripts/check-packaged-lvds.mjs', () => {
+describe('scripts/check-packaged-gfde.mjs', () => {
   const tools = Array.from({ length: 21 }, (_, i) => ({ name: `tool_${i}`, annotations: { readOnlyHint: true } }));
-  const config = { mcpServers: { 'lv-design-studio': { command: '/app/LV Design Studio', args: ['/app/resources/lvds/lvds.mjs', 'mcp'], env: { ELECTRON_RUN_AS_NODE: '1' } } } };
-  const clean = () => ({ version: '2.151', expected: '2.151', config, session: { server: { name: 'lv-design-studio', version: '2.151' }, tools, projects: { content: [{ type: 'text', text: '[]' }] } } });
+  const config = { mcpServers: { 'gfd-studio-e': { command: '/app/GFD Studio E', args: ['/app/resources/gfde/gfde.mjs', 'mcp'], env: { ELECTRON_RUN_AS_NODE: '1' } } } };
+  const clean = () => ({ version: '2.151', expected: '2.151', config, session: { server: { name: 'gfd-studio-e', version: '2.151' }, tools, projects: { content: [{ type: 'text', text: '[]' }] } } });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each test breaks one field of a good answer
   const problems = (change: (p: any) => void) => {
     const p = clean();
     change(p);
-    return lvdsProblems(p).join('\n');
+    return gfdeProblems(p).join('\n');
   };
 
   it('shows the version as the app does, beta builds included', () => {
@@ -179,38 +188,38 @@ describe('scripts/check-packaged-lvds.mjs', () => {
   });
 
   it('finds the launcher of each kind of package', () => {
-    expect(launcherOf('release/mac-arm64/LV Design Studio.app', 'darwin')).toBe(join('release/mac-arm64/LV Design Studio.app', 'Contents/Resources', 'lvds', 'lvds'));
-    expect(launcherOf('release/linux-unpacked', 'linux')).toBe(join('release/linux-unpacked', 'resources', 'lvds', 'lvds'));
-    expect(launcherOf('release/win-unpacked', 'win32')).toBe(join('release/win-unpacked', 'resources', 'lvds', 'lvds.cmd'));
+    expect(launcherOf('release/mac-arm64/GFD Studio E.app', 'darwin')).toBe(join('release/mac-arm64/GFD Studio E.app', 'Contents/Resources', 'gfde', 'gfde'));
+    expect(launcherOf('release/linux-unpacked', 'linux')).toBe(join('release/linux-unpacked', 'resources', 'gfde', 'gfde'));
+    expect(launcherOf('release/win-unpacked', 'win32')).toBe(join('release/win-unpacked', 'resources', 'gfde', 'gfde.cmd'));
   });
 
-  it('passes a packaged lvds that answers as the app version, read only', () => {
-    expect(lvdsProblems(clean())).toEqual([]);
+  it('passes a packaged gfde that answers as the app version, read only', () => {
+    expect(gfdeProblems(clean())).toEqual([]);
   });
 
   it('finds another version, missing settings, too few tools, a change tool without --write and a failed call', () => {
-    expect(problems((p) => { p.version = '2.146'; })).toContain('lvds version says "2.146", package.json means 2.151');
+    expect(problems((p) => { p.version = '2.146'; })).toContain('gfde version says "2.146", package.json means 2.151');
     expect(problems((p) => { p.config = {}; p.session = undefined; })).toContain('did not print the settings of the MCP server');
-    expect(problems((p) => { p.session.server.version = '2.146'; })).toContain('not lv-design-studio 2.151');
+    expect(problems((p) => { p.session.server.version = '2.146'; })).toContain('not gfd-studio-e 2.151');
     expect(problems((p) => { p.session.tools = tools.slice(0, 3); })).toContain('lists 3 tools');
     expect(problems((p) => { p.session.tools = [...tools, { name: 'add_panel', annotations: { readOnlyHint: false } }]; })).toContain('offers tools that change a project: add_panel');
     expect(problems((p) => { p.session.projects = { isError: true, content: [{ type: 'text', text: 'no folder' }] }; })).toContain('list_projects failed');
   });
 
   it('talks to an MCP server over its stdin and stdout, and reports one that stops', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lvds-mcp-'));
+    const dir = mkdtempSync(join(tmpdir(), 'gfde-mcp-'));
     try {
       // A stand-in server: one JSON message per line, as the MCP stdio transport sends them.
       writeFileSync(join(dir, 'server.mjs'), `
         import { createInterface } from 'node:readline';
-        const answers = { initialize: { serverInfo: { name: 'lv-design-studio', version: process.env.SHOWN } }, 'tools/list': { tools: [{ name: 'list_projects' }] }, 'tools/call': { content: [{ type: 'text', text: '[]' }] } };
+        const answers = { initialize: { serverInfo: { name: 'gfd-studio-e', version: process.env.SHOWN } }, 'tools/list': { tools: [{ name: 'list_projects' }] }, 'tools/call': { content: [{ type: 'text', text: '[]' }] } };
         createInterface({ input: process.stdin }).on('line', (line) => {
           const m = JSON.parse(line);
           if (m.id) console.log(JSON.stringify({ jsonrpc: '2.0', id: m.id, result: answers[m.method] }));
         });
       `);
       const session = await mcpSession({ command: process.execPath, args: [join(dir, 'server.mjs')], env: { ...process.env, SHOWN: '2.151' } });
-      expect(session).toEqual({ server: { name: 'lv-design-studio', version: '2.151' }, tools: [{ name: 'list_projects' }], projects: { content: [{ type: 'text', text: '[]' }] } });
+      expect(session).toEqual({ server: { name: 'gfd-studio-e', version: '2.151' }, tools: [{ name: 'list_projects' }], projects: { content: [{ type: 'text', text: '[]' }] } });
       writeFileSync(join(dir, 'stops.mjs'), 'console.error("no projects folder"); process.exit(3);');
       await expect(mcpSession({ command: process.execPath, args: [join(dir, 'stops.mjs')], env: process.env })).rejects.toThrow(/stopped \(exit 3\) no projects folder/);
     } finally {
@@ -228,7 +237,7 @@ describe('what the main process may load', () => {
   const builtin = (name: string) => name === 'electron' || name.startsWith('node:') || builtinModules.includes(name);
 
   it('finds the files', () => {
-    expect(files).toEqual(expect.arrayContaining(['main.cjs', 'database.cjs', 'preload.cjs', 'cad/lvds_cad_reader.js']));
+    expect(files).toEqual(expect.arrayContaining(['main.cjs', 'database.cjs', 'preload.cjs', 'cad/gfde_cad_reader.js']));
     expect(loads('database.cjs')).toContain("'./limits.cjs'");
   });
 
@@ -256,7 +265,7 @@ describe('what the main process may load', () => {
 
 describe('ExcelJS for the main process', () => {
   it('imports and exports a database workbook from the layout of the package, with no node_modules to fall back on', () => {
-    const app = mkdtempSync(join(tmpdir(), 'lvds-package-'));
+    const app = mkdtempSync(join(tmpdir(), 'gfde-package-'));
     try {
       execFileSync(process.execPath, [join(root, 'node_modules/vite/bin/vite.js'), 'build', '-c', 'vite.electron.config.ts', '--outDir', join(app, 'dist-electron'), '--logLevel', 'error'], { cwd: root, env: { ...process.env, NODE_ENV: 'production' } });
       cpSync(join(root, 'electron'), join(app, 'electron'), { recursive: true });
@@ -290,11 +299,11 @@ describe('ExcelJS for the main process', () => {
 
 describe('scripts/check-package.mjs', () => {
   const clean = () => ({
-    files: ['package.json', 'dist/index.html', 'dist/third-party-licences.md', 'dist/assets/index-abc.js', 'dist-electron/exceljs.cjs', 'dist-electron/third-party-licences.md', 'electron/main.cjs', 'electron/cad/lvds_cad_reader_bg.wasm'],
+    files: [...PRODUCT_NOTICES, 'package.json', 'dist/index.html', 'dist/third-party-licences.md', 'dist/assets/index-abc.js', 'dist-electron/exceljs.cjs', 'dist-electron/third-party-licences.md', 'electron/main.cjs', 'electron/cad/gfde_cad_reader_bg.wasm'],
     asarMb: 11.6,
     languages: { locales: { found: ['en-US.pak', 'en-GB.pak'], expected: LOCALE_FILES }, framework: { found: ['en_GB.lproj', 'en.lproj'], expected: MAC_LANGUAGES } },
     badNotices: [] as string[],
-    lvds: { found: [...LVDS_FILES] as string[], launcherRuns: true }
+    gfde: { found: [...GFDE_FILES] as string[], launcherRuns: true }
   });
   const problems = (change: (p: ReturnType<typeof clean>) => void) => {
     const p = clean();
@@ -312,12 +321,12 @@ describe('scripts/check-package.mjs', () => {
   });
 
   it('finds a second CAD engine', () => {
-    expect(problems((p) => p.files.push('dist/assets/lvds_cad_reader_bg-abc.wasm'))).toContain('dist/assets/lvds_cad_reader_bg-abc.wasm');
+    expect(problems((p) => p.files.push('dist/assets/gfde_cad_reader_bg-abc.wasm'))).toContain('dist/assets/gfde_cad_reader_bg-abc.wasm');
   });
 
   it('finds a missing file the app needs', () => {
     expect(problems((p) => { p.files = p.files.filter((f) => f !== 'dist-electron/exceljs.cjs'); })).toContain('dist-electron/exceljs.cjs is missing');
-    expect(problems((p) => { p.files = p.files.filter((f) => f !== 'electron/cad/lvds_cad_reader_bg.wasm'); })).toContain('lvds_cad_reader_bg.wasm is missing');
+    expect(problems((p) => { p.files = p.files.filter((f) => f !== 'electron/cad/gfde_cad_reader_bg.wasm'); })).toContain('gfde_cad_reader_bg.wasm is missing');
     expect(problems((p) => { p.files = p.files.filter((f) => f !== 'dist/third-party-licences.md'); })).toContain('dist/third-party-licences.md is missing');
   });
 
@@ -327,10 +336,10 @@ describe('scripts/check-package.mjs', () => {
     expect(problems((p) => p.languages.framework.found.push('en_FEMININE.lproj'))).toContain('framework should hold only');
   });
 
-  it('finds the lvds command gone, or its launcher not marked as a program', () => {
-    expect(problems((p) => { p.lvds.found = []; }).split('\n')).toHaveLength(LVDS_FILES.length);
-    expect(problems((p) => { p.lvds.found = p.lvds.found.filter((f) => f !== 'lvds.mjs'); })).toContain('resources/lvds/lvds.mjs is missing: the installed app would be without its lvds command and MCP server');
-    expect(problems((p) => { p.lvds.launcherRuns = false; })).toContain('resources/lvds/lvds is not marked as a program that can be run');
+  it('finds the gfde command gone, or its launcher not marked as a program', () => {
+    expect(problems((p) => { p.gfde.found = []; }).split('\n')).toHaveLength(GFDE_FILES.length);
+    expect(problems((p) => { p.gfde.found = p.gfde.found.filter((f) => f !== 'gfde.mjs'); })).toContain('resources/gfde/gfde.mjs is missing: the installed app would be without its gfde command and MCP server');
+    expect(problems((p) => { p.gfde.launcherRuns = false; })).toContain('resources/gfde/gfde is not marked as a program that can be run');
   });
 
   it('finds a licence text gone', () => {
@@ -342,7 +351,7 @@ describe('scripts/check-package.mjs', () => {
   });
 
   it('reads the file list from the header of an app.asar', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lvds-asar-'));
+    const dir = mkdtempSync(join(tmpdir(), 'gfde-asar-'));
     try {
       const json = Buffer.from(JSON.stringify({ files: { 'package.json': { size: 1, offset: '0' }, electron: { files: { 'main.cjs': { size: 1, offset: '1' }, cad: { files: { 'a.wasm': { size: 1, offset: '2' } } } } } } }));
       const head = Buffer.alloc(16);

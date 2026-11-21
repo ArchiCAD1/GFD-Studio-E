@@ -26,7 +26,7 @@ Generated using the built-in image-generation tool. This is a scope concept, not
 
 ```text
 Use case: ui-mockup.
-Create ONE high-resolution wide landscape visual concept, approximately 2000 pixels wide, for a desktop electrical-design application named LV Design Studio. It must explain the contractor BOQ enhancement at a glance with icons plus short text, not long paragraphs. Polished readable interface on a deep navy background, slate cards, pale text, blue and teal accents, amber for missing information. Use large crisp legible type with generous spacing. No prices, no invented quantities, no manufacturer logos. This is a concept, not a screenshot of implemented functionality.
+Create ONE high-resolution wide landscape visual concept, approximately 2000 pixels wide, for a desktop electrical-design application named GFD Studio E. It must explain the contractor BOQ enhancement at a glance with icons plus short text, not long paragraphs. Polished readable interface on a deep navy background, slate cards, pale text, blue and teal accents, amber for missing information. Use large crisp legible type with generous spacing. No prices, no invented quantities, no manufacturer logos. This is a concept, not a screenshot of implemented functionality.
 Main title, exact: "Contractor BOQ — scope builder"
 Subtitle, exact: "CONCEPT • Fit-out and new installation"
 Top row: a compact mode selector showing two equal choices "Fit-out / alteration" and "New installation".

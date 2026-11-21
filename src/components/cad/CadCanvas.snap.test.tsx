@@ -294,13 +294,13 @@ describe('the open drawing', () => {
     const a = named('a.dxf', { path: '/x/a.dxf' }), b = named('b.dxf', { path: '/x/b.dxf' });
     act(() => cad.open(a));
     act(() => cad.open(b));
-    expect(localStorage.getItem('lvds.cad.p1')).toBe('/x/b.dxf');
+    expect(localStorage.getItem('gfde.cad.p1')).toBe('/x/b.dxf');
     act(() => cad.setSelected('sk:1'));
     act(() => cad.show(a));
-    expect(localStorage.getItem('lvds.cad.p1')).toBe('/x/a.dxf');
+    expect(localStorage.getItem('gfde.cad.p1')).toBe('/x/a.dxf');
     expect(cad.selected).toBeNull();
     act(() => { cad.close(); });
-    expect(localStorage.getItem('lvds.cad.p1')).toBe('/x/a.dxf');
+    expect(localStorage.getItem('gfde.cad.p1')).toBe('/x/a.dxf');
   });
 
   it('says when the drawings open are using a lot of memory', () => {

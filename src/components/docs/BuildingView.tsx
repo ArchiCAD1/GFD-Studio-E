@@ -286,8 +286,8 @@ export default function BuildingView({ project, onChange, onStatus }: { project:
             <span className="sp" />
             <button className="chip" onClick={() => { const i = types.length + 1; setTypes([...types, { id: `type${i}`, label: `Type ${i}`, wPerM2: 20, demandFactor: 0.8 }]); }}>+ Type</button>
             <button className="chip" title="Write these room types to RoomTypes.xlsx (database) — new projects start with them" onClick={async () => {
-              if (window.lvds?.database.write) {
-                await window.lvds.database.write('roomTypes', types.map((t) => { const r = rulesOf(t); return { id: t.id, label: t.label, wPerM2: t.wPerM2, demandFactor: t.demandFactor, lux: t.lux ?? '', ltgM2PerPoint: r.ltgM2PerPoint ?? '', s13M2PerPoint: r.s13M2PerPoint ?? '', acM2PerUnit: r.acM2PerUnit ?? '', acKwPerUnit: r.acKwPerUnit ?? '', wh: r.wh ?? '', cooker: r.cooker ?? '', exfan: r.exfan ?? '', lpdMax: lpdOf(t) ?? '', benchWPerM2: benchOf(t) ?? '' }; }));
+              if (window.gfde?.database.write) {
+                await window.gfde.database.write('roomTypes', types.map((t) => { const r = rulesOf(t); return { id: t.id, label: t.label, wPerM2: t.wPerM2, demandFactor: t.demandFactor, lux: t.lux ?? '', ltgM2PerPoint: r.ltgM2PerPoint ?? '', s13M2PerPoint: r.s13M2PerPoint ?? '', acM2PerUnit: r.acM2PerUnit ?? '', acKwPerUnit: r.acKwPerUnit ?? '', wh: r.wh ?? '', cooker: r.cooker ?? '', exfan: r.exfan ?? '', lpdMax: lpdOf(t) ?? '', benchWPerM2: benchOf(t) ?? '' }; }));
                 onStatus('Saved to RoomTypes.xlsx (database) — backup in Backups/');
               } else onStatus(saveRoomTypeLibrary(types) ? 'Saved as your room type library on this computer' : 'Could not store the library');
             }}>Save as my library</button>

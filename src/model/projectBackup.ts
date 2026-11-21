@@ -3,11 +3,13 @@ import type { Project } from '../types';
 import type { Checkpoint } from './checkpoints';
 
 /** A portable backup of one project: the project, its checkpoints (which otherwise stay on one computer) and a manifest
- * with a SHA-256 check of every file, in one zip named "<project>.lvds-backup". Import verifies everything before
+ * with a SHA-256 check of every file, in one zip named "<project>.gfde-backup". Import verifies everything before
  * anything is opened. */
-export const BACKUP_FORMAT = 'lvds-backup';
+export const BACKUP_FORMAT = 'gfde-backup';
+/** Read-only compatibility with backups written before the GFD Studio E identity. */
+export const LEGACY_BACKUP_FORMAT = 'lvds-backup';
 export const BACKUP_FORMAT_VERSION = 1;
-export const BACKUP_EXT = 'lvds-backup';
+export const BACKUP_EXT = 'gfde-backup';
 const MB = 1024 * 1024;
 const MAX_BACKUP_BYTES = 200 * MB;
 const MAX_FILES = 500;
@@ -18,7 +20,7 @@ const MAX_UNPACKED_BYTES = 512 * MB;
 const MAX_RATIO = 100;
 
 export interface BackupManifest {
-  format: typeof BACKUP_FORMAT;
+  format: typeof BACKUP_FORMAT | typeof LEGACY_BACKUP_FORMAT;
   formatVersion: number;
   appVersion: string;
   exportedAt: string;
@@ -45,7 +47,7 @@ export async function buildBackup(project: Project, checkpoints: Checkpoint[], a
     zip.file(path, bytes);
     files.push({ path, bytes: bytes.length, sha256: await sha256(bytes) });
   };
-  await add('project.json', project);
+  await add('project.json', { ...project, format: 'gfde.project' });
   for (const c of [...checkpoints].sort((a, b) => a.at.localeCompare(b.at))) await add(`checkpoints/${safe(c.id)}.json`, c);
   const manifest: BackupManifest = {
     format: BACKUP_FORMAT, formatVersion: BACKUP_FORMAT_VERSION, appVersion, exportedAt: now.toISOString(),
@@ -62,7 +64,7 @@ const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 
  * crafted zip can list millions of tiny entries. Only plain zips as buildBackup writes them (no zip64, nothing
  * before or inside the archive). Throws when there are more than `max`. */
 function checkZipDirectory(bytes: Uint8Array, max: number): void {
-  const notZip = () => new Error('This is not an LV Design Studio backup (not a zip file).');
+  const notZip = () => new Error('This is not a GFD Studio E backup (not a zip file).');
   const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let end = bytes.length - 4; // the last end-of-central-directory record, as JSZip finds it
   while (end >= 0 && v.getUint32(end, true) !== 0x06054b50) end--;
@@ -116,19 +118,19 @@ export async function readBackup(bytes: Uint8Array): Promise<ReadBackup> {
   checkZipDirectory(bytes, MAX_FILES + 1);
   const JSZip = (await import('jszip')).default;
   let zip: Awaited<ReturnType<typeof JSZip.loadAsync>>;
-  try { zip = await JSZip.loadAsync(bytes); } catch { throw new Error('This is not an LV Design Studio backup (not a zip file).'); }
+  try { zip = await JSZip.loadAsync(bytes); } catch { throw new Error('This is not a GFD Studio E backup (not a zip file).'); }
   if (Object.keys(zip.files).length > MAX_FILES + 1) throw new Error('The backup holds too many files.');
   const mf = zip.file('manifest.json');
-  if (!mf) throw new Error('This is not an LV Design Studio backup (no manifest).');
+  if (!mf) throw new Error('This is not a GFD Studio E backup (no manifest).');
   let manifest: BackupManifest;
   try {
     const m = await unpack(mf, MAX_MANIFEST_BYTES);
     if (!m) throw new Error('too large');
     manifest = JSON.parse(new TextDecoder().decode(m));
   } catch { throw new Error('The backup manifest is damaged.'); }
-  if (!isObj(manifest) || manifest.format !== BACKUP_FORMAT || !Array.isArray(manifest.files)) throw new Error('This is not an LV Design Studio backup.');
+  if (!isObj(manifest) || ![BACKUP_FORMAT, LEGACY_BACKUP_FORMAT].includes(manifest.format) || !Array.isArray(manifest.files)) throw new Error('This is not a GFD Studio E backup.');
   if (typeof manifest.formatVersion !== 'number' || manifest.formatVersion > BACKUP_FORMAT_VERSION) {
-    throw new Error(`This backup was made by a newer LV Design Studio (${String(manifest.appVersion)}); update the app to open it.`);
+    throw new Error(`This backup was made by a newer GFD Studio E (${String(manifest.appVersion)}); update the app to open it.`);
   }
   // Every listed file once, with a whole-number size; all of them together within the limits.
   const listed = new Set<string>();
@@ -151,7 +153,7 @@ export async function readBackup(bytes: Uint8Array): Promise<ReadBackup> {
     try { contents.set(f.path, JSON.parse(new TextDecoder().decode(data))); } catch { throw new Error(`${f.path} in the backup is not readable.`); }
   }
   const project = contents.get('project.json');
-  if (!isObj(project) || !Array.isArray(project.boards) || !Array.isArray(project.feeders)) throw new Error('The backup holds no LV Design Studio project.');
+  if (!isObj(project) || !Array.isArray(project.boards) || !Array.isArray(project.feeders)) throw new Error('The backup holds no GFD Studio E project.');
   const checkpoints = [...contents.entries()]
     .filter(([path]) => path.startsWith('checkpoints/'))
     .map(([, c]) => c)

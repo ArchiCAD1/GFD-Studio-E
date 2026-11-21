@@ -50,7 +50,7 @@ interface Planned { files: { name: string; about: string }[]; renderer: string; 
 interface ExportEntry { id: string; at: string; file: string; tool: string; approvedBy: string; exportedAnyway: boolean; readiness: Readiness; files: string[]; client?: string }
 interface Readiness { fail: number; check: number; proposalsWaiting: string[] }
 
-/** The export log, in a real .lvds-agent folder. */
+/** The export log, in a real .gfde-agent folder. */
 const exportsLog = (folder: string) => path.join(realAgentDir(folder), 'exports.jsonl');
 /** Load schedule templates are read up to the desktop app's workbook limit (electron/limits.cjs workbookBytes). */
 const MAX_TEMPLATE_BYTES = 20 * 1024 * 1024;
@@ -284,15 +284,15 @@ export const EXPORT_TOOLS: Tool[] = [
   {
     name: 'export_project_json',
     title: 'Export the project as JSON',
-    description: 'The whole project as a plain .json file: the same data as the .lvds project file, for scripts and other programs (the app opens it too). Preview first; exporting needs approvedBy.',
+    description: 'The whole project as a plain .json file: the same data as the .gfde project file, for scripts and other programs (the app opens it too). Preview first; exporting needs approvedBy.',
     input: { project, approvedBy, exportAnyway, mode },
     usesProject: true, writes: true,
-    run: (a, ctx) => runExport(a, ctx, 'export_project_json', (p) => [{ name: `${safeFileName(p.name || 'project')}.json`, data: JSON.stringify(p, null, 2), about: `project data, ${p.boards.length} boards, ${p.feeders.length} circuits` }])
+    run: (a, ctx) => runExport(a, ctx, 'export_project_json', (p) => [{ name: `${safeFileName(p.name || 'project')}.json`, data: JSON.stringify({ ...p, format: 'gfde.project' }, null, 2), about: `project data, ${p.boards.length} boards, ${p.feeders.length} circuits` }])
   },
   {
     name: 'export_rooms_package',
     title: 'Export rooms as an exchange package',
-    description: 'The rooms of Building information (building, level, name, type, area) as an exchange package (JSON, contract lvds.exchange version 1) for another program, e.g. ELV design. Each room\'s ID is its source ID, so loads that come back name the rooms. Preview first; exporting needs approvedBy.',
+    description: 'The rooms of Building information (building, level, name, type, area) as an exchange package (JSON, contract gfde.exchange version 1) for another program, e.g. ELV design. Each room\'s ID is its source ID, so loads that come back name the rooms. Preview first; exporting needs approvedBy.',
     input: { project, approvedBy, exportAnyway, mode },
     usesProject: true, writes: true,
     run: (a, ctx) => runExport(a, ctx, 'export_rooms_package', (p) => {
@@ -304,7 +304,7 @@ export const EXPORT_TOOLS: Tool[] = [
   {
     name: 'export_design_package',
     title: 'Export the electrical design as JSON',
-    description: 'The electrical design as one JSON file (contract lvds.design version 1, contracts/design.schema.json) for BIM add-ins and scripts: boards, circuits (breaker, cable, length, load) and ELV devices, each with its permanent uid and its tag, and the results of a calculation made now (design current, voltage drop, fault levels, Zs, pass / fail). Key on uid: tags change on rename. Preview first; exporting needs approvedBy.',
+    description: 'The electrical design as one JSON file (contract gfde.design version 1, contracts/design.schema.json) for BIM add-ins and scripts: boards, circuits (breaker, cable, length, load) and ELV devices, each with its permanent uid and its tag, and the results of a calculation made now (design current, voltage drop, fault levels, Zs, pass / fail). Key on uid: tags change on rename. Preview first; exporting needs approvedBy.',
     input: { project, approvedBy, exportAnyway, mode },
     usesProject: true, writes: true,
     run: (a, ctx) => runExport(a, ctx, 'export_design_package', (p) => {
@@ -315,7 +315,7 @@ export const EXPORT_TOOLS: Tool[] = [
   {
     name: 'export_elv_loads_package',
     title: 'Export ELV loads as an exchange package',
-    description: 'The supplies of the ELV estimate (elv_estimate) as an ELV loads package (JSON, contract lvds.exchange version 1): one load per fire alarm panel, PoE switch group, door controller group, floor rack and amplifier set, with its kW and the rooms it serves. LV takes it in with exchange_review / exchange_apply. Preview first; exporting needs approvedBy.',
+    description: 'The supplies of the ELV estimate (elv_estimate) as an ELV loads package (JSON, contract gfde.exchange version 1): one load per fire alarm panel, PoE switch group, door controller group, floor rack and amplifier set, with its kW and the rooms it serves. LV takes it in with exchange_review / exchange_apply. Preview first; exporting needs approvedBy.',
     input: { project, ...elvInput, approvedBy, exportAnyway, mode },
     usesProject: true, writes: true,
     run: (a, ctx) => runExport(a, ctx, 'export_elv_loads_package', (p) => {

@@ -5,7 +5,7 @@ import type { SketchItem } from '../types';
 // A letter of text 250 high: about 0.84 × 250 wide, its capitals being the height (as CAD measures text).
 const L = CHAR_W * 250;
 // "DB-01" at 250 high: 5 letters wide, anchored at the left end of its baseline.
-const t: SketchItem = { id: 't1', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 2000]], text: 'DB-01', h: 250 };
+const t: SketchItem = { id: 't1', kind: 'text', layer: 'GFDE-ANNO', pts: [[1000, 2000]], text: 'DB-01', h: 250 };
 const close = (a: [number, number], b: [number, number]) => { expect(a[0]).toBeCloseTo(b[0], 6); expect(a[1]).toBeCloseTo(b[1], 6); };
 
 describe('text justification', () => {
@@ -81,9 +81,9 @@ describe('text justification', () => {
 });
 
 describe('text tools on the texts picked', () => {
-  const a: SketchItem = { id: 'a', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 2000]], text: 'DB-01', h: 250 }; // box 1000–(1000 + 5 L) × 2000–2250
-  const b: SketchItem = { id: 'b', kind: 'text', layer: 'LV-ANNO', pts: [[1400, 1000]], text: 'L1', h: 250 }; // box 1400–(1400 + 2 L) × 1000–1250
-  const c: SketchItem = { id: 'c', kind: 'text', layer: 'LV-ANNO', pts: [[300, 1500]], text: 'SOCKETS', h: 250, just: 'MC' }; // 7 L wide: 300 ± 3.5 L × 1375–1625
+  const a: SketchItem = { id: 'a', kind: 'text', layer: 'GFDE-ANNO', pts: [[1000, 2000]], text: 'DB-01', h: 250 }; // box 1000–(1000 + 5 L) × 2000–2250
+  const b: SketchItem = { id: 'b', kind: 'text', layer: 'GFDE-ANNO', pts: [[1400, 1000]], text: 'L1', h: 250 }; // box 1400–(1400 + 2 L) × 1000–1250
+  const c: SketchItem = { id: 'c', kind: 'text', layer: 'GFDE-ANNO', pts: [[300, 1500]], text: 'SOCKETS', h: 250, just: 'MC' }; // 7 L wide: 300 ± 3.5 L × 1375–1625
 
   it('bounds and centre follow the justification and rotation', () => {
     const bc = textBounds(c);
@@ -140,7 +140,7 @@ describe('text tools on the texts picked', () => {
 
   it('finds the rooms with no tag yet', () => {
     const rooms = [{ name: 'Majlis', outline: [[0, 0], [5, 0], [5, 4], [0, 4]] as [number, number][] }, { name: 'Kitchen', outline: [[5, 0], [9, 0], [9, 4], [5, 4]] as [number, number][] }, { name: 'No outline' }];
-    const tag: SketchItem = { id: 't', kind: 'text', layer: 'LV-ANNO', pts: [[2500, 2000]], text: 'MAJLIS', h: 250 }; // mm drawing: (2.5, 2) m, in Majlis
+    const tag: SketchItem = { id: 't', kind: 'text', layer: 'GFDE-ANNO', pts: [[2500, 2000]], text: 'MAJLIS', h: 250 }; // mm drawing: (2.5, 2) m, in Majlis
     const inside = (p: [number, number], poly: [number, number][]) => p[0] >= Math.min(...poly.map((q) => q[0])) && p[0] <= Math.max(...poly.map((q) => q[0])) && p[1] >= 0 && p[1] <= 4;
     expect(untaggedRooms(rooms, [tag], 0.001, inside).map((r) => r.name)).toEqual(['Kitchen']);
     expect(untaggedRooms(rooms, [], 0.001, inside).map((r) => r.name)).toEqual(['Majlis', 'Kitchen']);
@@ -148,7 +148,7 @@ describe('text tools on the texts picked', () => {
 });
 
 describe('frames, numbering and keynotes', () => {
-  const t: SketchItem = { id: 't', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 2000]], text: 'L1', h: 250, just: 'MC' }; // box 2 L × 250 about (1000, 2000)
+  const t: SketchItem = { id: 't', kind: 'text', layer: 'GFDE-ANNO', pts: [[1000, 2000]], text: 'L1', h: 250, just: 'MC' }; // box 2 L × 250 about (1000, 2000)
 
   it('frames a text round its box: a circle, a box or a hexagon, 0.3 h clear', () => {
     expect(textFrameOf(t)).toBeUndefined();
@@ -172,7 +172,7 @@ describe('frames, numbering and keynotes', () => {
 
   it('keynotes: the next number, the legend\'s next line, and what a keynote adds', () => {
     expect(nextKeynote([])).toBe(1);
-    const first = keynoteItems(1, [500, 500], 'Fire rated wall', 250, 'LV-ANNO', [], [5000, 9000]);
+    const first = keynoteItems(1, [500, 500], 'Fire rated wall', 250, 'GFDE-ANNO', [], [5000, 9000]);
     expect(first).toHaveLength(3);
     expect(first[0]).toMatchObject({ kind: 'text', text: '1', just: 'MC', frame: 'hexagon', kn: { n: 1 } });
     expect(first[1]).toMatchObject({ text: 'KEYNOTES', pts: [[5000, 8750]], kn: { n: 0, legend: true } });
@@ -180,10 +180,10 @@ describe('frames, numbering and keynotes', () => {
     const items = first.map((x, i) => ({ ...x, id: `K${i}` }) as SketchItem);
     expect(nextKeynote(items)).toBe(2);
     expect(legendNext(items)).toEqual({ at: [5000, 8350 - 400], h: 250 });
-    const second = keynoteItems(2, [900, 900], 'Existing DB', 250, 'LV-ANNO', items);
+    const second = keynoteItems(2, [900, 900], 'Existing DB', 250, 'GFDE-ANNO', items);
     expect(second).toHaveLength(2);
     expect(second[1]).toMatchObject({ text: '2  Existing DB', pts: [[5000, 7950]] });
     // No legend yet and no place for it: the bubble alone.
-    expect(keynoteItems(1, [0, 0], 'x', 250, 'LV-ANNO', [])).toHaveLength(1);
+    expect(keynoteItems(1, [0, 0], 'x', 250, 'GFDE-ANNO', [])).toHaveLength(1);
   });
 });

@@ -1189,8 +1189,8 @@ export default function CadCanvas({ view, hidden, layersOn, toggles, gridDots = 
   });
 
   return (
-    <div ref={host} className="cad-model" onDragOver={onDrop ? (e) => { if (e.dataTransfer.types.includes('text/lvds-block')) e.preventDefault(); } : undefined}
-      onDrop={onDrop ? (e) => { const name = e.dataTransfer.getData('text/lvds-block'); if (!name) return; e.preventDefault(); const [x, y] = local(e); onDrop(toWorld(x, y), name); } : undefined}>
+    <div ref={host} className="cad-model" onDragOver={onDrop ? (e) => { if (e.dataTransfer.types.includes('text/gfde-block')) e.preventDefault(); } : undefined}
+      onDrop={onDrop ? (e) => { const name = e.dataTransfer.getData('text/gfde-block'); if (!name) return; e.preventDefault(); const [x, y] = local(e); onDrop(toWorld(x, y), name); } : undefined}>
       <canvas ref={base} className="cad-layer" style={{ width: size.w, height: size.h }} aria-hidden="true" />
       <canvas
         ref={over}

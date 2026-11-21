@@ -6,7 +6,7 @@ import {
 import type { SketchItem } from '../types';
 
 type Pt = [number, number];
-const line = (id: string, a: Pt, b: Pt, extra: Partial<SketchItem> = {}): SketchItem => ({ id, kind: 'line', layer: 'LV-SKETCH', pts: [a, b], ...extra });
+const line = (id: string, a: Pt, b: Pt, extra: Partial<SketchItem> = {}): SketchItem => ({ id, kind: 'line', layer: 'GFDE-SKETCH', pts: [a, b], ...extra });
 const pts = (r: { items?: Omit<SketchItem, 'id'>[] }) => r.items!.map((x) => x.pts.map((q) => q.map((v) => +v.toFixed(3))));
 // The architect's walls: a room 0..18 × 0..10 with a partition at x = 9 (up to y = 5.5) — fixed lines.
 const walls: Seg[] = [[[0, 0], [18, 0]], [[18, 0], [18, 10]], [[18, 10], [0, 10]], [[0, 10], [0, 0]], [[9, 0], [9, 5.5]]];
@@ -59,7 +59,7 @@ describe('Trim and Extend — at drawn lines and the architect\'s walls', () => 
     // An open line: the piece between two crossings, and the end pieces back to a crossing.
     const l = line('S1', [1, 2], [17, 2]), cross = line('S2', [13, 0.5], [13, 4]), edges = edgesFor([l, cross], 'S1', walls);
     expect(r3(trimPiece(l, [11, 2], crossingsOf(l, edges))!.pts)).toEqual([[9, 2], [13, 2]]);
-    expect(trimPiece(l, [11, 2], crossingsOf(l, edges))).toMatchObject({ kind: 'line', layer: 'LV-SKETCH' });
+    expect(trimPiece(l, [11, 2], crossingsOf(l, edges))).toMatchObject({ kind: 'line', layer: 'GFDE-SKETCH' });
     for (const at of [[11, 2], [2, 2], [15, 2]] as Pt[]) {
       const piece = trimPiece(l, at, crossingsOf(l, edges))!, r = trim(l, at, edges);
       expect(long(piece.pts)).toBeCloseTo(r.cut!);
@@ -253,7 +253,7 @@ describe('Mirror, Scale, Stretch, Array, grips, window', () => {
     expect(gripMoved(e, 3, [10, -6])).toMatchObject({ ratio: 2 / 6 }); // the -major end, turned and longer
     expect(gripMoved(e, 3, [10, -6]).ax!.map((v) => +v.toFixed(9) + 0)).toEqual([0, 6]);
     expect(gripMoved(e, 4, [10, -3]).ratio).toBe(0.75); // the -minor end sizes the minor
-    const cloud: SketchItem = { id: 'C', kind: 'pline', layer: 'LV-ANNO', pts: [[0, 0], [10, 0], [10, 4], [0, 4]], closed: true, cloud: 2 };
+    const cloud: SketchItem = { id: 'C', kind: 'pline', layer: 'GFDE-ANNO', pts: [[0, 0], [10, 0], [10, 4], [0, 4]], closed: true, cloud: 2 };
     expect(trim(cloud, [5, 0], walls).error).toBe('Trim works on lines, polylines, trays and cable routes.');
     expect(offset(cloud, 1, [5, -2]).error).toBe('Offset works on lines, polylines, circles, arcs, trays and cable routes.');
     expect(explode(cloud).error).toBe('A revision cloud stays one object: erase it and draw it again to change it.');
@@ -263,7 +263,7 @@ describe('Mirror, Scale, Stretch, Array, grips, window', () => {
 });
 
 describe('hatches keep their islands and pattern through mirror, scale and stretch', () => {
-  const hatch: SketchItem = { id: 'H', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: [[0, 0], [10, 0], [10, 10], [0, 10]], hatch: { pattern: 'ansi31', scale: 3, angle: 30, origin: [2, 1] },
+  const hatch: SketchItem = { id: 'H', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: [[0, 0], [10, 0], [10, 10], [0, 10]], hatch: { pattern: 'ansi31', scale: 3, angle: 30, origin: [2, 1] },
     holes: [[[4, 4], [6, 4], [6, 6], [4, 6]]] };
   it('mirror: islands and origin mirrored, the pattern\'s angle as it was; a plain polyline unchanged', () => {
     const m = mirrored(hatch, [0, 0], [1, 0]);

@@ -15,7 +15,7 @@ type Pt = [number, number];
  * refuses the whole payload; fields the app does not know are dropped. Devices are not drawn objects and do not come. */
 
 export interface ClipPayload {
-  app: 'lvds-cad';
+  app: 'gfde-cad';
   v: 1;
   /** INSUNITS code of the drawing copied from (4 mm, 5 cm, 6 m, 1 in, 2 ft). */
   units: number;
@@ -50,7 +50,7 @@ export function clipPayload(p: Project, file: string, items: SketchItem[], base:
     const set = Object.fromEntries(Object.entries(keep).filter(([, v]) => v !== undefined));
     if (Object.keys(set).length) layers[name] = set;
   }
-  return { app: 'lvds-cad', v: 1, units: insunits, base, file, items: items.map(({ id: _id, ...rest }) => rest), ...(Object.keys(layers).length ? { layers } : {}) };
+  return { app: 'gfde-cad', v: 1, units: insunits, base, file, items: items.map(({ id: _id, ...rest }) => rest), ...(Object.keys(layers).length ? { layers } : {}) };
 }
 
 export const clipText = (c: ClipPayload) => JSON.stringify(c);
@@ -115,7 +115,7 @@ export function parseClip(text: string): { clip: ClipPayload } | { error: string
   if (text.length > MAX_JSON) return { error: 'The clipboard holds too much to paste.' };
   let v: unknown;
   try { v = JSON.parse(text); } catch { return { error: 'The clipboard holds no drawn objects.' }; }
-  if (!obj(v) || v.app !== 'lvds-cad') return { error: 'The clipboard holds no drawn objects.' };
+  if (!obj(v) || (v.app !== 'gfde-cad' && v.app !== 'lvds-cad')) return { error: 'The clipboard holds no drawn objects.' };
   if (v.v !== 1) return { error: 'The objects were copied by a newer version of the app.' };
   if (!CAD_UNITS.some((u) => u.code === v.units) || !pt(v.base) || !str(v.file, 1024)) return { error: 'The clipboard data is damaged.' };
   if (!Array.isArray(v.items) || !v.items.length || v.items.length > MAX_ITEMS) return { error: 'The clipboard data is damaged.' };
@@ -126,7 +126,7 @@ export function parseClip(text: string): { clip: ClipPayload } | { error: string
     if (!obj(v.layers)) return { error: 'The clipboard data is damaged.' };
     for (const [k, s] of Object.entries(v.layers)) { const l = layerStyleOf(s); if (!str(k) || !l) return { error: 'The clipboard data is damaged.' }; layers[k] = l; }
   }
-  return { clip: { app: 'lvds-cad', v: 1, units: v.units as number, base: [v.base[0], v.base[1]], file: v.file as string, items: items as Omit<SketchItem, 'id'>[], ...(Object.keys(layers).length ? { layers } : {}) } };
+  return { clip: { app: 'gfde-cad', v: 1, units: v.units as number, base: [v.base[0], v.base[1]], file: v.file as string, items: items as Omit<SketchItem, 'id'>[], ...(Object.keys(layers).length ? { layers } : {}) } };
 }
 
 // ---- pasting

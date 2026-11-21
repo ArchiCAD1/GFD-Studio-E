@@ -317,7 +317,7 @@ const TEXT_TOOLS: [CadTool, string, string][] = [
 const ML_FORMS: CadTool[] = ['mleader', 'leader', 'mleaderadd', 'mleaderremove', 'mleaderalign', 'mleadercollect'];
 /** The sub-tabs of v2.053 and v2.054, kept on this computer: the panel each stands for now. */
 const OLD_SUB: Record<string, number> = { draw: G.draw, modify: G.modify, annotate: G.annotate, insert: G.reference, layers: G.layers, view: G.draw, page: G.sheetSet, tools: G.measure };
-const SUB_KEY = 'lvds.cadSub';
+const SUB_KEY = 'gfde.cadSub';
 /** The sub-tab Design CAD opens on: the one used last on this computer, Drafting the first time. */
 const firstSub = (): string => { try { return localStorage.getItem(SUB_KEY) ?? 'drafting'; } catch { return 'drafting'; } };
 /** The sub-tab of `tabs` an id stands for: its own, the one holding the first panel of the other mode's sub-tab of that
@@ -535,10 +535,10 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
   useEffect(() => { window.clearTimeout(tipTimer.current); setTip(null); }, [tab, sub, labels]);
   const [splitAt, setSplitAt] = useState({ x: 0, y: 0 });
   // Collapsed: only the tabs show; a tab click drops its tools over the page until a tool is used or you click elsewhere.
-  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('lvds.ribbonCollapsed') === '1'; } catch { return false; } });
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('gfde.ribbonCollapsed') === '1'; } catch { return false; } });
   const [peek, setPeek] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const toggleCollapsed = () => setCollapsed((c) => { try { localStorage.setItem('lvds.ribbonCollapsed', c ? '0' : '1'); } catch { /* ignore */ } setPeek(false); return !c; });
+  const toggleCollapsed = () => setCollapsed((c) => { try { localStorage.setItem('gfde.ribbonCollapsed', c ? '0' : '1'); } catch { /* ignore */ } setPeek(false); return !c; });
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === 'F1' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); toggleCollapsed(); } };
     window.addEventListener('keydown', key);
@@ -1069,7 +1069,7 @@ export default function Ribbon({ tab, onTab, a }: { tab: RibbonTab; onTab: (t: R
       // drawing's own view, Publish and Save As stand in for the sheet's.
       [
         { label: 'Plot', icon: Printer, cmd: 'PLOT', title: onLayout ? 'Plot this layout or sheet to PDF or a printer, with a named page setup or its own, copies and pens (PLOT)' : inModel ? 'Plot the drawing\'s view to PDF, black on white; on a layout tab or sheet, with its page setup and to a printer too (PLOT)' : noDrawing, onClick: () => onLayout ? a.output?.onPlot() : a.cad?.onExport?.('pdfView'), disabled: onLayout ? !a.output : !inModel || !a.cad?.onExport },
-        { label: 'Preview', icon: FileSearch, title: onSheet ? 'How it will print: the plotted PDF at the pen widths and greys' : onLayout ? 'On the paper: PS returns to it from the model' : 'How a layout or sheet will print: open one (the drawing\'s view has no page setup)', onClick: () => act().previewPdf(), disabled: !onSheet || !window.lvds?.files?.pdfBytes },
+        { label: 'Preview', icon: FileSearch, title: onSheet ? 'How it will print: the plotted PDF at the pen widths and greys' : onLayout ? 'On the paper: PS returns to it from the model' : 'How a layout or sheet will print: open one (the drawing\'s view has no page setup)', onClick: () => act().previewPdf(), disabled: !onSheet || !window.gfde?.files?.pdfBytes },
         sm({ label: 'Page setups', icon: FileCog, cmd: 'PAGESETUP', title: 'Named page setups of the project (paper, scale, pens, printer): make them and apply one to many layouts and sheets (PAGESETUP)', onClick: () => a.output?.onSetups(), disabled: !a.output,
           menu: [{ label: 'Named page setups…', title: 'Make named page setups and apply one to many layouts and sheets', onClick: () => a.output?.onSetups(), disabled: !a.output },
             { label: 'This sheet\'s page setup…', title: onSheet ? 'This sheet\'s own paper, scale (plans), pens, lineweights and plot stamp, or save them as the set\'s default' : noSheet, onClick: () => act().pageSetup(), disabled: !onSheet }] }),

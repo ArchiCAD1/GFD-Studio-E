@@ -27,7 +27,7 @@ describe('plans of each level', () => {
   });
 
   it('moves what was drawn to the revised plan when a level\'s plan is replaced', () => {
-    const items = [{ id: 'S1', kind: 'line' as const, layer: 'LV-SKETCH', pts: [[0, 0], [1, 1]] as [number, number][] }];
+    const items = [{ id: 'S1', kind: 'line' as const, layer: 'GFDE-SKETCH', pts: [[0, 0], [1, 1]] as [number, number][] }];
     const p = { ...withLevelPlan(project(), 'A-101.dwg', GF), cadSketch: [{ file: 'A-101.dwg', items }] };
     const r = replacePlan(p, 'A-101 rev B.dwg', GF);
     expect(r.replaced).toBe('A-101.dwg');

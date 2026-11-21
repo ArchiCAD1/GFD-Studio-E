@@ -6,7 +6,7 @@ import { stretched } from './cadEdit';
 import { sampleProject } from '../data/sampleProject';
 import type { Project, SketchItem } from '../types';
 
-const rect = (id: string, x0: number, y0: number, x1: number, y1: number): SketchItem => ({ id, kind: 'pline', layer: 'LV-SKETCH', closed: true, pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]] });
+const rect = (id: string, x0: number, y0: number, x1: number, y1: number): SketchItem => ({ id, kind: 'pline', layer: 'GFDE-SKETCH', closed: true, pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]] });
 const spec = { pattern: 'ansi31' as const, scale: 3, angle: 0 };
 const F = 'plan.dxf';
 /** A project with a 10 × 10 polyline S1 and a 2 × 2 island S2, and the hatch of them (S3) made as the tool makes it. */

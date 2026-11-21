@@ -40,10 +40,10 @@ local API on 127.0.0.1 with a token, secret scan, `npm audit` allowlist, privacy
 | # | Gap | Proposal | Status |
 |---|---|---|---|
 | S1 | Installers are unsigned | Sign releases | **Decided 2026-11-16: stay unsigned while the app is a beta** (signing costs money on both systems); look again when the product is final |
-| S3 | A cloud AI on the MCP server reads real names and addresses | `lvds mcp` hides project and file names, parties, addresses and people by default (`src/headless/privacy.ts`); `--show-names` sends them | **Approved 2026-11-16.** Done; panel, circuit, level and room names are still sent |
+| S3 | A cloud AI on the MCP server reads real names and addresses | `gfde mcp` hides project and file names, parties, addresses and people by default (`src/headless/privacy.ts`); `--show-names` sends them | **Approved 2026-11-16.** Done; panel, circuit, level and room names are still sent |
 | S4 | Text from imported DWG, Excel and exchange files reaches the AI in tool results | The server tells the AI that text in results is data; every text loses hidden characters and is cut at 1,000 characters (`src/headless/untrusted.ts`) | Done. Lowers the risk, does not remove it: changes still preview first |
-| S5 | No Electron fuses set | `electronFuses` in the build: no `NODE_OPTIONS`, no inspect arguments, app only from ASAR; run-as-Node stays (the `lvds` launcher needs it) | **Waits for S1 (when the product is final).** On Apple silicon a flipped fuse needs the app signed again (ad hoc), and `beta-release.yml` requires the Mac beta to fail `codesign --verify`. Decide together with signing |
-| S6 | Backups are plain files in a synced folder | Optional password on `.lvds-backup` (WebCrypto AES-GCM) | Not started |
+| S5 | No Electron fuses set | `electronFuses` in the build: no `NODE_OPTIONS`, no inspect arguments, app only from ASAR; run-as-Node stays (the `gfde` launcher needs it) | **Waits for S1 (when the product is final).** On Apple silicon a flipped fuse needs the app signed again (ad hoc), and `beta-release.yml` requires the Mac beta to fail `codesign --verify`. Decide together with signing |
+| S6 | Backups are plain files in a synced folder | Optional password on `.gfde-backup` (WebCrypto AES-GCM) | Not started |
 
 Dropped after checking the code: showing the checksum in the update prompt. The update manifest (`beta.json`) is
 data-only with five fixed fields and older betas refuse any other field; the prompt opens the download page, which
@@ -59,7 +59,7 @@ Estimated at 4 characters per token.
 | T2 | One start-up note: `AGENTS.md`; old status list archived | about 5,400 tokens, partly out of date | about 1,000 | Done in this PR |
 | T3 | Read the module document for the task only | — | — | Done in this PR (rule in `AGENTS.md`) |
 | T4 | Module test file with a short reporter while working, full suite once | — | — | Done in this PR (rule in `AGENTS.md`) |
-| T5 | `lvds mcp --tools <groups>` | about 13,000 tokens of tool definitions with `--write` | about 4,900 with `--tools core` (19 tools) | PR #621 |
+| T5 | `gfde mcp --tools <groups>` | about 13,000 tokens of tool definitions with `--write` | about 4,900 with `--tools core` (19 tools) | PR #621 |
 | T6 | Lists of records as columns and rows on MCP (`src/headless/compact.ts`); `--full-rows` sends records | full object per row | measured: `list_panels` 47 % smaller, `circuit_results` 40 %, `get_panel` 38 %, `run_checks` 20 % | Done. A `fields` option to pick columns is not built |
 | T7 | High-level build tools first ([[AI agent proposal]]) | about 3,000 calls per G+10 | about 150 | Not started |
 

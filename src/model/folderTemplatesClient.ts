@@ -24,7 +24,7 @@ export interface TemplatesClient {
   scanFolder?: () => Promise<FolderScan | null>;
 }
 
-const KEY = 'lvds.folderTemplates';
+const KEY = 'gfde.folderTemplates';
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
 
 /** The web version's store: one JSON value in the browser's storage; unreadable content counts as empty. */
@@ -68,14 +68,14 @@ export function webFolderScan(w: { showDirectoryPicker?: Picker } | undefined = 
   if (typeof pick !== 'function') return undefined;
   return async () => {
     let dir: DirHandle;
-    try { dir = await pick.call(w, { mode: 'read', id: 'lvds-learn-folder' }); } catch (e) { if ((e as { name?: string })?.name === 'AbortError') return null; throw e; }
+    try { dir = await pick.call(w, { mode: 'read', id: 'gfde-learn-folder' }); } catch (e) { if ((e as { name?: string })?.name === 'AbortError') return null; throw e; }
     return scanHandle(dir);
   };
 }
 
 /** The desktop app's store when its bridge has one, else the browser's. */
 export function templatesClient(): TemplatesClient {
-  const bridge = typeof window === 'undefined' ? undefined : window.lvds?.folderTemplates;
+  const bridge = typeof window === 'undefined' ? undefined : window.gfde?.folderTemplates;
   if (bridge) {
     const { scanNames, ...rest } = bridge;
     return scanNames ? { ...rest, scanFolder: scanNames } : rest;

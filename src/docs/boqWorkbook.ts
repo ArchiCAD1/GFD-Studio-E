@@ -83,7 +83,7 @@ function header(ws: ExcelJS.Worksheet, project: Project, title: string, cols: nu
  * project's BOQ revisions exactly as the PDF does (see boqRevisionState). */
 export function buildBoqWorkbook(project: Project, bom: PricedBom, list?: PriceList): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   wb.created = new Date();
   const cur = list?.currency ?? 'AED';
   const template = templateLabel(project);

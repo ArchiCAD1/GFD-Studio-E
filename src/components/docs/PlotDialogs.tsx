@@ -115,7 +115,7 @@ export function PenTableDialog({ project, onSave, onClose }: { project: Project;
         <button className="chip" onClick={onClose}>Close</button>
         <button className="chip" onClick={() => file.current?.click()}>Import CTB / STB…</button>
         <span className="sp" />
-        {draft.id === DEFAULT_PENS.id && <button className="chip" onClick={() => { setDraft(DEFAULT_PENS); onSave(withTable(project, DEFAULT_PENS), 'Pen table LVDS Electrical reset · ⌘Z to undo'); }}>Reset</button>}
+        {draft.id === DEFAULT_PENS.id && <button className="chip" onClick={() => { setDraft(DEFAULT_PENS); onSave(withTable(project, DEFAULT_PENS), 'Pen table GFDE Electrical reset · ⌘Z to undo'); }}>Reset</button>}
         <button className="chip" onClick={() => { const t = { ...draft, id: newTableId(project), name: `${draft.name} (copy)`, ctb: undefined }; onSave(withTable(project, t), `Pen table ${t.name} added · ⌘Z to undo`); setId(t.id); setDraft(t); }}>Save as new</button>
         <button className="chip primary" onClick={() => onSave(withTable(project, draft), `Pen table ${draft.name} saved · ⌘Z to undo`)}>Save</button>
       </div>

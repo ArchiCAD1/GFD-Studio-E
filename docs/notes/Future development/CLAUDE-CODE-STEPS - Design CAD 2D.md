@@ -3,7 +3,7 @@
 How to use: one step = one fresh Claude Code session = one branch and PR.
 Say: "Read docs/notes/Future development/CLAUDE-CODE-STEPS - Design CAD 2D.md and do Step N."
 Do the steps in order. Step 0 must be merged first (it is the UI approval required by AGENTS.md).
-Mockups: see the HTML guide "LV-Design-Suite-Claude-Code-Step-by-Step.html" in the same folder.
+Mockups: see the HTML guide "GFD-Studio-E-Claude-Code-Step-by-Step.html" in the same folder.
 
 ---
 
@@ -76,7 +76,7 @@ Ctrl+C / Ctrl+V for drawn objects, with base point and original-coordinates opti
 Feature: clipboard for Design CAD drawn objects (spec S1).
 
 Build:
-1. src/model/cadClipboard.ts (pure): serialise SketchItem[] plus a base point to a versioned JSON payload { app:'lvds-cad', v:1, units:<INSUNITS>, base:[x,y], items:[...] }, and parse it back with strict validation (reuse src/util/sanitize.ts patterns; reject unknown kinds). Paste: offset the items to the insertion point, convert units when the source and target drawings differ (cadUnits.ts), give new IDs (addSketch), and keep layer names (create a missing layer with the same style through the cadLayerState helpers).
+1. src/model/cadClipboard.ts (pure): serialise SketchItem[] plus a base point to a versioned JSON payload { app:'gfde-cad', v:1, units:<INSUNITS>, base:[x,y], items:[...] }, and parse it back with strict validation (reuse src/util/sanitize.ts patterns; reject unknown kinds). Paste: offset the items to the insertion point, convert units when the source and target drawings differ (cadUnits.ts), give new IDs (addSketch), and keep layer names (create a missing layer with the same style through the cadLayerState helpers).
 2. Commands in cadCommands.ts: COPYCLIP (Ctrl+C), COPYBASE (Ctrl+Shift+C: asks for a base point first), PASTECLIP (Ctrl+V: asks for an insertion point with a live preview), PASTEORIG (same coordinates; refused in the same drawing). Use navigator.clipboard when available, with an in-memory fallback so copy-paste works between tabs in the app even if the system clipboard is blocked.
 3. Keyboard: hook into the existing keydown handler in CadPage.tsx (around the window keydown listener). Don't take over Ctrl+C/V while focus is in an input, the command line or a dialog.
 4. Right-click menu: "Clipboard ▸" with the four entries, as in S1.

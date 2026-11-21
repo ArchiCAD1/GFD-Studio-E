@@ -56,7 +56,7 @@ The owner approved the revised steps on 2026-11-14 ("Okay, start do it"). Apply 
 - **Apply to project:** v2.132. In a linked sheet the description, load, points, MCB, cable, earth, length and remarks can be typed; typed values are kept beside the link (`link.pending`, `link.added`), marked, and reach the project through `applyLinked` (`src/docs/sheetApply.ts`), which uses the Load schedule tab's own edits (`applySheetEdits`, `addCircuit`, `updateCircuit`). Add circuit adds a row; a blank MCB and cable are sized by the rules; a typed size is kept as sized by hand and marked when the circuit would fail its check. A load typed in watts becomes one load item (lighting when the description says lights, else other). Refresh from project drops what was not applied. Not built: a new panel from a sheet, deleting a circuit from a sheet, SMDB / MDB / MCC sheets, Save as my format.
 - **Database tables:** the Database screen already edits every workbook in the app (Edit here, Save to Excel, backup); no second editor is planned in Sheets unless the owner asks for Excel-style editing there.
 - **Apply to project (PR 578) merged on 2026-11-14 as v2.132.**
-- **Save as my format:** v2.133. Link columns → Save as my format keeps the linked layout (`templateOf`: the block cut back to its pattern row, no board, no typed values) in the office library (`src/model/scheduleFormats.ts`, key `lvds.scheduleFormats`, synced through Library.json). Electrical tab → My formats adds a sheet in that layout for a chosen board or for every DB without one, and renames or deletes formats.
+- **Save as my format:** v2.133. Link columns → Save as my format keeps the linked layout (`templateOf`: the block cut back to its pattern row, no board, no typed values) in the office library (`src/model/scheduleFormats.ts`, key `gfde.scheduleFormats`, synced through Library.json). Electrical tab → My formats adds a sheet in that layout for a chosen board or for every DB without one, and renames or deletes formats.
 - **Save as my format (PR 579) merged on 2026-11-14 as v2.133.**
 - **The project's DB schedule format:** v2.134. The new-project wizard has a DB schedule format choice (General, or one of My formats) beside the authority and rule set; an open project takes one in Sheets → My formats → Use for this project. The project keeps its own copy (`Project.scheduleFormats.db`); Update this project's copy brings a later change of the library format. Load schedule tab → Export → Open in my format shows the DB as a sheet in that layout (`boardSheet`), making the sheet when there is none. SMDB, MDB, MCC and the load summary still use the app's tables only.
 - **Panel schedules (MDB, SMDB, MCC):** two PRs stacked on PR 580. PR 581 (no version) adds the link category `md` — one row per outgoing feeder and spare way, read from `buildMdSheet` (`src/docs/panelFields.ts`), typed values and new feeder rows applied through `applyMdEdits` / `addOutgoingFeeder`. v2.137 puts it on screen: Link columns asks DB schedule or Panel schedule; My formats keeps both kinds; the project holds a format per panel category (`Project.scheduleFormats`: DBs, SMDBs, MDBs, MCCs; a board's category from `panelCategoryOf`), chosen in the wizard or with the chips in My formats; Export → Open in my format works on a panel's form.
@@ -81,7 +81,7 @@ The mockup was redrawn as revision 2 after this answer. Sections 2 to 6 of "Prop
 
 Mockup: `docs/mockups/load-schedule-authority-formats-mockup.html` (image: `load-schedule-authority-formats-mockup.png`). Figures in it are examples.
 
-![Schedule format chosen at project start, followed by the Load schedule table and by Sheets](../../mockups/load-schedule-authority-formats-mockup.png)
+![Schedule format chosen at project start, followed by the Load schedule table and by Sheets](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-authority-formats-mockup.png)
 
 Follows [UI UX proposals - 2026-11-13 - Sheets (built-in Excel editing)](UI%20UX%20proposals%20-%202026-11-13%20-%20Sheets%20(built-in%20Excel%20editing).md) (stages 4 and 5: link columns, Electrical tab) and the authority rule sets built in v1.83 and v2.097.
 
@@ -183,7 +183,7 @@ Their official forms are not in the app, and they are not invented here. Until t
 4. **Sheets keeps merged cells and borders** (its Merge cells button is not connected today). Needed before a form looks right in Sheets.
 5. **Sheets link**: Link columns panel, Authority format / My office format for a board, Apply to project, Refresh from project.
 6. **Rules in Sheets**: Rules sheet, `MAXBREAKER` / `MINWIRE` / `RULE`, marks, Check sheet.
-7. **Schedule formats card** in Design references; your own Excel template moves from the per-computer setting into the formats (old files keep working); `lvds schedule-xlsx --format`.
+7. **Schedule formats card** in Design references; your own Excel template moves from the per-computer setting into the formats (old files keep working); `gfde schedule-xlsx --format`.
 8. **Own free columns** kept with each circuit; formats for the Connected load & MD form, TCL summary and Busbar riser.
 9. **ADDC and EtihadWE forms**, when the official forms arrive.
 

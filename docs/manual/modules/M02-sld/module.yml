@@ -4,7 +4,7 @@ slug: sld
 section_prefix: SLD
 order: 20
 version: "0.2"
-app_version: "2.13"
+app_version: "2.212.0"
 status: draft
 last_reviewed: "2026-10-30"
 audience:
@@ -23,7 +23,7 @@ outputs:
   - SLD drawing sheets
   - Riser and earthing sheets
   - PDF, SVG, and DXF exports
-visual_pdf: output/pdf/LV-Design-Studio-SLD-Visual-User-Manual.pdf
+visual_pdf: output/pdf/GFD-Studio-E-SLD-Visual-User-Manual.pdf
 sections:
   - id: SLD-010
     title: Purpose and data flow

@@ -1,5 +1,5 @@
 //! Writes the test drawings in tests/fixtures/cad from the sample floor plan: the plan plus one cable route line
-//! tagged "route:F-03" (LVDS extended data), as DXF and as DWG 2018 / 2004. Run: cargo run --example fixtures
+//! tagged "route:F-03" (GFDE extended data), as DXF and as DWG 2018 / 2004. Run: cargo run --example fixtures
 use acadrust::entities::{EntityType, Line};
 use acadrust::tables::{AppId, Layer};
 use acadrust::types::DxfVersion;
@@ -9,15 +9,15 @@ use acadrust::{DwgWriter, DxfReader, DxfWriter};
 fn main() {
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
     let mut doc = DxfReader::from_file(format!("{root}/docs/samples/sample-ground-floor-plan.dxf")).unwrap().read().unwrap();
-    if !doc.app_ids.contains("LVDS") {
-        doc.app_ids.add(AppId::new("LVDS")).unwrap();
+    if !doc.app_ids.contains("GFDE") {
+        doc.app_ids.add(AppId::new("GFDE")).unwrap();
     }
     if !doc.layers.contains("E-ROUTE") {
         doc.layers.add(Layer::new("E-ROUTE")).unwrap();
     }
     let mut line = Line::from_coords(1000.0, 1000.0, 0.0, 9000.0, 1000.0, 0.0);
     line.common.layer = "E-ROUTE".into();
-    let mut record = ExtendedDataRecord::new("LVDS");
+    let mut record = ExtendedDataRecord::new("GFDE");
     record.add_value(XDataValue::String("route:F-03".into()));
     line.common.extended_data.add_record(record);
     doc.add_entity(EntityType::Line(line)).unwrap();

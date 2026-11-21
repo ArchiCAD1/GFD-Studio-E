@@ -9,8 +9,8 @@ import { dbRiserDrawing, dbRiserLegend, dbRiserSheetNos } from '../diagram/dbRis
 import { addDbRiserSheets, addRiserSheet, setOf } from '../model/drawingSet';
 
 type Style = 'feeders' | 'bus' | 'level';
-const stored = <T,>(k: string, d: T): T => { try { const v = localStorage.getItem(`lvds.${k}`); return v ? (JSON.parse(v) as T) : d; } catch { return d; } };
-const store = (k: string, v: unknown) => { try { localStorage.setItem(`lvds.${k}`, JSON.stringify(v)); } catch { /* ignore */ } };
+const stored = <T,>(k: string, d: T): T => { try { const v = localStorage.getItem(`gfde.${k}`); return v ? (JSON.parse(v) as T) : d; } catch { return d; } };
+const store = (k: string, v: unknown) => { try { localStorage.setItem(`gfde.${k}`, JSON.stringify(v)); } catch { /* ignore */ } };
 
 /** Design ▸ SLD ▸ Riser tab: a building's riser — individual feeders from each
  * panel's busbar (riser schematic) or busbar trunking / cable chain — with

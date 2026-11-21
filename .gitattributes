@@ -1,0 +1,4 @@
+
+# PDF bytes and DXF CRLF endings are intentional file-format data.
+*.pdf binary
+*.dxf whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

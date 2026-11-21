@@ -14,8 +14,8 @@ Picture of the built ribbon (printed with the PDF check's hidden renderer, not t
 - **Arrangements** (`src/model/planViewports.ts`, VPORTS 1 / 2V / 2H / 3L / 3R / 3A / 3B / 4 / KEY): viewports there keep their scale and view and take the frames in order; missing ones show what the first shows; a key plan is at five times the plan's scale or more. 5 mm gap. On plan sheets and on layouts made with +.
 - **Viewport tools on plan sheets:** VPFIT, VPCOPY, VPALIGN H / V (with Viewport 1), VPMAX / VPMIN, VPFRAME; the project's scale list (`plot.scales`, SCALELISTEDIT).
 - **Layouts made with +** (`src/model/drawingLayouts.ts`): Page setup (paper A4 to A0, landscape or portrait; viewports keep place and scale), VPORTS, VPFIT, VPSCALE with one viewport, VPMAX.
-- **Layout templates** (`src/model/layoutTemplates.ts`, library key `lvds.layoutTemplates`): from a plan sheet, a layout made with +, or the file's own layout; a new layout of the drawing or a plan sheet from one; `.layout.json` export and import.
-- **Page setups** (`src/model/plotSetup.ts`, library key `lvds.pageSetups`): Import… (a page-setup file or a project file), Export…, Save to library, Add from library. Pen tables go with them, matched by name.
+- **Layout templates** (`src/model/layoutTemplates.ts`, library key `gfde.layoutTemplates`): from a plan sheet, a layout made with +, or the file's own layout; a new layout of the drawing or a plan sheet from one; `.layout.json` export and import.
+- **Page setups** (`src/model/plotSetup.ts`, library key `gfde.pageSetups`): Import… (a page-setup file or a project file), Export…, Save to library, Add from library. Pen tables go with them, matched by name.
 
 ### Built differently from the list
 
@@ -128,7 +128,7 @@ The user asked for more layout, viewport-arrangement and template / import tools
 | 5 | Viewports on layouts made with + | Pick, move, resize, new (MV), delete, scale, lock, and MS / PS. Today these work on plan sheets only. | Large |
 | 6 | More viewport tools | Copy viewport; Fit (the whole drawing at the nearest standard scale); Align (line up the views of two viewports); Maximise / restore (VPMAX / VPMIN); more scales and a custom scale list; Frame prints on the ribbon. | Medium |
 | 7 | Clipped viewport (VPCLIP) | A viewport with a polygon outline. | Large |
-| 8 | Layout templates | Save a layout as a template (paper, viewport arrangement and scales, legend and notes tables, page setup) and make a new layout from one. Kept in the library (LV Database), with export / import as a file. | Medium |
+| 8 | Layout templates | Save a layout as a template (paper, viewport arrangement and scales, legend and notes tables, page setup) and make a new layout from one. Kept in the library (GFD Studio E Database), with export / import as a file. | Medium |
 | 9 | Import layouts from another drawing | Pick a DWG / DXF / DWT, tick its layouts; they are added here with their paper and viewport frames. The border comes from the title block template, not from that file's paper space. | Medium |
 | 10 | Import / export page setups (PSETUPIN) | Named page setups from another project or a file, and into the library. | Small |
 | 11 | STB pen tables | Import named plot styles (STB) beside CTB. | Small |

@@ -12,7 +12,7 @@ On the same day the user chose to leave out command options (Fence, Crossing, Un
 
 Mockup: `docs/mockups/cad-edit-previews-mockup.html` (image: `cad-edit-previews-mockup.png`).
 
-![Design CAD edit previews and repeat, today and proposed](../../mockups/cad-edit-previews-mockup.png)
+![Design CAD edit previews and repeat, today and proposed](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-edit-previews-mockup.png)
 
 ## Today
 

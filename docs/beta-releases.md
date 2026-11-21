@@ -1,6 +1,6 @@
 # Unsigned beta releases
 
-LV Design Studio has two deliberately separate desktop release channels:
+GFD Studio E has two deliberately separate desktop release channels:
 
 - **Beta** is an automated prerelease for active testing on Windows x64 and Apple-silicon macOS. It is unsigned and must not be used for production issue work.
 - **Stable** is reserved for a future, manually approved process. A successful beta is never promoted to stable automatically.
@@ -41,8 +41,8 @@ Documentation, test-only changes, refactors, spelling corrections and small inte
 
 ## Installing the first beta
 
-1. Open the project's [beta download page](https://pdhruv15.github.io/LV-Design-Studio/download/).
-2. Back up existing LV Design Studio project JSON files.
+1. Open the project's [beta download page](https://archicad1.github.io/GFD-Studio-E/download/).
+2. Back up existing GFD Studio E project JSON files.
 3. Download the package for Windows x64 or Apple silicon.
 4. Compare its SHA-256 value with the page or `SHA256SUMS.txt` in the same GitHub prerelease.
 5. Open the normal installer or disk image and follow the operating system's prompts.
@@ -52,8 +52,8 @@ These builds have no Apple Developer ID signature, notarization or Windows code-
 To verify a checksum without changing system security settings:
 
 ```text
-macOS:   shasum -a 256 LV-Design-Studio-<version>-mac-arm64.dmg
-Windows: Get-FileHash .\LV-Design-Studio-<version>-win-x64.exe -Algorithm SHA256
+macOS:   shasum -a 256 GFD-Studio-E-<version>-mac-arm64.dmg
+Windows: Get-FileHash .\GFD-Studio-E-<version>-win-x64.exe -Algorithm SHA256
 ```
 
 A matching checksum detects a changed or incomplete download; it is not a substitute for a publisher signature.
@@ -70,7 +70,7 @@ The app does not download, execute, replace or install any file. It does not res
 
 ## Rollback and recovery
 
-Project files are independent of the installed application. Keep a backup before beta testing and save important work before changing versions. Older beta installers and checksums remain attached to their immutable GitHub prereleases. To roll back, close LV Design Studio, use the operating system's normal uninstall or application replacement flow, then install the selected earlier package after checking its SHA-256 value.
+Project files are independent of the installed application. Keep a backup before beta testing and save important work before changing versions. Older beta installers and checksums remain attached to their immutable GitHub prereleases. To roll back, close GFD Studio E, use the operating system's normal uninstall or application replacement flow, then install the selected earlier package after checking its SHA-256 value.
 
 If a beta cannot open a project correctly, do not overwrite the only copy. Preserve the JSON file, reproduce the problem with a copy, and report the beta version and source commit shown on the download page.
 

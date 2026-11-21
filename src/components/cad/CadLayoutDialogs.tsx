@@ -222,10 +222,10 @@ export function LayoutPlotDialog({ name, about, paper, html, fileName, onStatus,
     setBusy(true);
     try {
       if (printer) {
-        await window.lvds.files.printHtml!({ html: html(), deviceName: printer, copies, ...pp });
+        await window.gfde.files.printHtml!({ html: html(), deviceName: printer, copies, ...pp });
         onStatus(`Sent ${name} to ${printer}${copies > 1 ? `, ${copies} copies` : ''}`);
       } else {
-        const toBytes = window.lvds?.files?.pdfBytes;
+        const toBytes = window.gfde?.files?.pdfBytes;
         const m = toBytes ? await saveBinary(fileName, await toBytes({ html: html(), cssPages: true }), 'PDF', 'pdf', 'application/pdf', { output: 'drawingPdf' }) : await savePdf(fileName, html(), { cssPages: true }, { output: 'drawingPdf' });
         if (m) onStatus(m);
       }

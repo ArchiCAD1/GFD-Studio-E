@@ -2,11 +2,11 @@ import { pushLibrary } from '../database/librarySync';
 import { LAYER_ROLES } from './cadRooms';
 import type { CadLayerMap } from '../types';
 
-/** A layer mapping saved for an architect or consultant ("ABC Architects"), kept in the LV Database
+/** A layer mapping saved for an architect or consultant ("ABC Architects"), kept in the GFD Studio E Database
  * (Library.json) so their plans are mapped the same way in every project. */
 export interface CadLayerTemplate { id: string; name: string; layers: CadLayerMap[]; savedAt: string }
 
-export const CAD_LAYER_TEMPLATES_KEY = 'lvds.cadLayerTemplates';
+export const CAD_LAYER_TEMPLATES_KEY = 'gfde.cadLayerTemplates';
 const ROLES = new Set(LAYER_ROLES.map((r) => r.value));
 const isTemplate = (t: unknown): t is CadLayerTemplate =>
   !!t && typeof t === 'object' && typeof (t as CadLayerTemplate).id === 'string' && typeof (t as CadLayerTemplate).name === 'string' && Array.isArray((t as CadLayerTemplate).layers);

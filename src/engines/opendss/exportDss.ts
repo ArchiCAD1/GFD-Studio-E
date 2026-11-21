@@ -62,7 +62,7 @@ export function exportDss(project: Project): DssExport {
   const feederName = (id: string) => feederNames.get(id) ?? dssName(id);
 
   out.push(
-    `! LV Design Studio — OpenDSS export`,
+    `! GFD Studio E — OpenDSS export`,
     `! Project: ${dssComment(project.name)}`,
     `! Exported: ${new Date().toISOString()}`,
     `!`,
@@ -81,7 +81,7 @@ export function exportDss(project: Project): DssExport {
     ``,
     `Clear`,
     `Set DefaultBaseFrequency=${project.frequencyHz}`,
-    `New Circuit.${dssName(project.name) || 'lvds'} basekv=${MV_KV} pu=1.0 phases=3 bus1=sourcebus MVAsc3=${STIFF_SOURCE_MVA} MVAsc1=${STIFF_SOURCE_MVA}`,
+    `New Circuit.${dssName(project.name) || 'gfde'} basekv=${MV_KV} pu=1.0 phases=3 bus1=sourcebus MVAsc3=${STIFF_SOURCE_MVA} MVAsc1=${STIFF_SOURCE_MVA}`,
     ``
   );
 

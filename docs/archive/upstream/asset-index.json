@@ -1,0 +1,395 @@
+{
+  "baselineCommit": "1c47881360a4eeaa43e62235edcce0c21bfb7cf1",
+  "purpose": "Historical upstream assets retired from the current product tree; Git history preserves exact originals.",
+  "assets": [
+    {
+      "path": "docs/brand/video/lv-design-studio-product-intro-30s.mp4",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/brand/video/lv-design-studio-product-intro-30s.mp4"
+    },
+    {
+      "path": "docs/concepts/earthing-phase1-sample.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/concepts/earthing-phase1-sample.png"
+    },
+    {
+      "path": "docs/concepts/earthing-phase2-sample.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/concepts/earthing-phase2-sample.png"
+    },
+    {
+      "path": "docs/concepts/earthing-phase3-sample.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/concepts/earthing-phase3-sample.png"
+    },
+    {
+      "path": "docs/concepts/earthing-schematic-concept.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/concepts/earthing-schematic-concept.png"
+    },
+    {
+      "path": "docs/mockups/boq-approved-makes-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/boq-approved-makes-mockup.png"
+    },
+    {
+      "path": "docs/mockups/cad-context-menus-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-context-menus-mockup.png"
+    },
+    {
+      "path": "docs/mockups/cad-cursor-pickbox-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-cursor-pickbox-mockup.png"
+    },
+    {
+      "path": "docs/mockups/cad-drafting-ribbon-full-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-drafting-ribbon-full-mockup.png"
+    },
+    {
+      "path": "docs/mockups/cad-edit-previews-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-edit-previews-mockup.png"
+    },
+    {
+      "path": "docs/mockups/cad-layout-batch2-screens-v2.143.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-layout-batch2-screens-v2.143.png"
+    },
+    {
+      "path": "docs/mockups/cad-layout-design-plot-sample-v2.147.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-layout-design-plot-sample-v2.147.png"
+    },
+    {
+      "path": "docs/mockups/cad-layout-manager-plot-styles-v2.149.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-layout-manager-plot-styles-v2.149.png"
+    },
+    {
+      "path": "docs/mockups/cad-layout-plot-sample-v2.143.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-layout-plot-sample-v2.143.png"
+    },
+    {
+      "path": "docs/mockups/cad-output-layout-tools-v2.136.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-output-layout-tools-v2.136.png"
+    },
+    {
+      "path": "docs/mockups/cad-right-click-redesign-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-right-click-redesign-mockup.png"
+    },
+    {
+      "path": "docs/mockups/cad-selection-grips-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-selection-grips-mockup.png"
+    },
+    {
+      "path": "docs/mockups/cad-vpclip-plot-sample-v2.161.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-vpclip-plot-sample-v2.161.png"
+    },
+    {
+      "path": "docs/mockups/earthing-sheet-layout-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/earthing-sheet-layout-mockup.png"
+    },
+    {
+      "path": "docs/mockups/equipment-palette-icon-grid-compact-v2.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/equipment-palette-icon-grid-compact-v2.png"
+    },
+    {
+      "path": "docs/mockups/equipment-palette-icon-grid-proposal.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/equipment-palette-icon-grid-proposal.png"
+    },
+    {
+      "path": "docs/mockups/load-schedule-authority-formats-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-authority-formats-mockup.png"
+    },
+    {
+      "path": "docs/mockups/load-schedule-board-picker-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-board-picker-mockup.png"
+    },
+    {
+      "path": "docs/mockups/load-schedule-circuit-tools-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-circuit-tools-mockup.png"
+    },
+    {
+      "path": "docs/mockups/load-schedule-ribbon-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-ribbon-mockup.png"
+    },
+    {
+      "path": "docs/mockups/load-schedule-source-tools-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-source-tools-mockup.png"
+    },
+    {
+      "path": "docs/mockups/riser-enhancements-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/riser-enhancements-mockup.png"
+    },
+    {
+      "path": "docs/mockups/riser-enhancements-today-1.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/riser-enhancements-today-1.png"
+    },
+    {
+      "path": "docs/mockups/riser-enhancements-today-2.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/riser-enhancements-today-2.png"
+    },
+    {
+      "path": "docs/mockups/riser-enhancements-today-3.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/riser-enhancements-today-3.png"
+    },
+    {
+      "path": "docs/mockups/sheet-border-legend-table-logo-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sheet-border-legend-table-logo-mockup.png"
+    },
+    {
+      "path": "docs/mockups/sld-cad-link-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-cad-link-mockup.png"
+    },
+    {
+      "path": "docs/mockups/sld-equipment-strip-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-equipment-strip-mockup.png"
+    },
+    {
+      "path": "docs/mockups/sld-panel-symbols-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-panel-symbols-mockup.png"
+    },
+    {
+      "path": "docs/mockups/sld-ribbon-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-ribbon-mockup.png"
+    },
+    {
+      "path": "docs/mockups/sld-right-click-menu-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-right-click-menu-mockup.png"
+    },
+    {
+      "path": "docs/mockups/sld-sheet-drafting-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-sheet-drafting-mockup.png"
+    },
+    {
+      "path": "docs/mockups/sld-substation-view-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-substation-view-mockup.png"
+    },
+    {
+      "path": "docs/mockups/sld-symbols-mockup.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-symbols-mockup.png"
+    },
+    {
+      "path": "docs/notes/Issues and solutions/Assets/DXF export/browser-check.jpg",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/notes/Issues%20and%20solutions/Assets/DXF%20export/browser-check.jpg"
+    },
+    {
+      "path": "docs/notes/Issues and solutions/Assets/DXF export/librecad-before-width-fix.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/notes/Issues%20and%20solutions/Assets/DXF%20export/librecad-before-width-fix.png"
+    },
+    {
+      "path": "docs/notes/Issues and solutions/Assets/DXF export/librecad-final.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/notes/Issues%20and%20solutions/Assets/DXF%20export/librecad-final.png"
+    },
+    {
+      "path": "docs/notes/Issues and solutions/Assets/boq-client-install-verification-2026-10-04.jpg",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/notes/Issues%20and%20solutions/Assets/boq-client-install-verification-2026-10-04.jpg"
+    },
+    {
+      "path": "docs/notes/Issues and solutions/Assets/boq-contractor-scope-concept-2026-10-04.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/notes/Issues%20and%20solutions/Assets/boq-contractor-scope-concept-2026-10-04.png"
+    },
+    {
+      "path": "docs/notes/Issues and solutions/Assets/boq-scope-verified-2026-10-04.jpg",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/notes/Issues%20and%20solutions/Assets/boq-scope-verified-2026-10-04.jpg"
+    },
+    {
+      "path": "docs/pdf-phase1/mockup.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/mockup.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-cable-schedule.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-cable-schedule.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-cable-tray.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-cable-tray.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-calculation-report.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-calculation-report.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-clarification.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-clarification.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-containment.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-containment.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-db-load-schedule.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-db-load-schedule.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-dm-d-013.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-dm-d-013.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-drawing-register.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-drawing-register.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-drawing-transmittal.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-drawing-transmittal.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-issue-package-cover.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-issue-package-cover.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-md-workbook.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-md-workbook.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-pfc-calculation.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-pfc-calculation.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-project-summary.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-project-summary.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-solar-pv.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-solar-pv.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-study-report-with-fails.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-study-report-with-fails.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-study-report.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-study-report.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-technical-review.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-technical-review.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/after-ups.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/after-ups.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-cable-schedule.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-cable-schedule.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-cable-tray.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-cable-tray.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-calculation-report.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-calculation-report.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-clarification.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-clarification.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-containment.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-containment.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-db-load-schedule.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-db-load-schedule.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-dm-d-013.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-dm-d-013.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-drawing-register.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-drawing-register.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-drawing-transmittal.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-drawing-transmittal.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-issue-package-cover.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-issue-package-cover.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-md-workbook.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-md-workbook.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-pfc-calculation.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-pfc-calculation.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-project-summary.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-project-summary.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-solar-pv.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-solar-pv.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-study-report.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-study-report.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-technical-review.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-technical-review.pdf"
+    },
+    {
+      "path": "docs/pdf-phase1/samples/before-ups.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase1/samples/before-ups.pdf"
+    },
+    {
+      "path": "docs/pdf-phase2/after-calculation-report.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase2/after-calculation-report.pdf"
+    },
+    {
+      "path": "docs/pdf-phase2/before-calculation-report.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase2/before-calculation-report.pdf"
+    },
+    {
+      "path": "docs/pdf-phase3/after-drawing-register.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase3/after-drawing-register.pdf"
+    },
+    {
+      "path": "docs/pdf-phase3/after-drawing-transmittal.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase3/after-drawing-transmittal.pdf"
+    },
+    {
+      "path": "docs/pdf-phase3/before-drawing-register.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase3/before-drawing-register.pdf"
+    },
+    {
+      "path": "docs/pdf-phase3/before-drawing-transmittal.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase3/before-drawing-transmittal.pdf"
+    },
+    {
+      "path": "docs/pdf-phase4/after-calculation-report.pdf",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/pdf-phase4/after-calculation-report.pdf"
+    },
+    {
+      "path": "docs/screenshots/03-transformer-generator.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/screenshots/03-transformer-generator.png"
+    },
+    {
+      "path": "docs/screenshots/04-power-factor-correction.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/screenshots/04-power-factor-correction.png"
+    },
+    {
+      "path": "docs/screenshots/05-earthing-with-panel-tree.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/screenshots/05-earthing-with-panel-tree.png"
+    },
+    {
+      "path": "docs/screenshots/06-study-reports.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/screenshots/06-study-reports.png"
+    },
+    {
+      "path": "docs/screenshots/07-cable-tray-schedule.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/screenshots/07-cable-tray-schedule.png"
+    },
+    {
+      "path": "docs/screenshots/08-quick-calculators.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/screenshots/08-quick-calculators.png"
+    },
+    {
+      "path": "docs/screenshots/09-projects-dashboard.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/screenshots/09-projects-dashboard.png"
+    },
+    {
+      "path": "docs/screenshots/10-overview-design-stages.png",
+      "url": "https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/screenshots/10-overview-design-stages.png"
+    },
+    {
+      "path": "scripts/create_product_intro.py",
+      "url": "https://github.com/ArchiCAD1/GFD-Studio-E/blob/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/scripts/create_product_intro.py",
+      "reason": "Retired renderer for the inherited promotional video."
+    }
+  ]
+}

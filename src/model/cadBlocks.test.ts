@@ -6,7 +6,7 @@ import type { Project, SketchItem } from '../types';
 /** Block definitions and inserts (BLOCK, S9 of the Design CAD 2D gap plan). */
 
 const rect: SketchItem = { id: 'S1', kind: 'pline', layer: '0', closed: true, pts: [[1000, 1000], [1400, 1000], [1400, 1300], [1000, 1300]] };
-const txt: SketchItem = { id: 'S2', kind: 'text', layer: 'LV-ANNO', pts: [[1050, 1100]], text: 'DB', h: 100, color: '#ff0000' };
+const txt: SketchItem = { id: 'S2', kind: 'text', layer: 'GFDE-ANNO', pts: [[1050, 1100]], text: 'DB', h: 100, color: '#ff0000' };
 const circ: SketchItem = { id: 'S3', kind: 'circle', layer: '0', pts: [[1200, 1150]], r: 50 };
 const tray: SketchItem = { id: 'S4', kind: 'pline', layer: 'E-TRAY', pts: [[0, 0], [1, 0]], tray: { widthMm: 300 } };
 const def = defineBlock('DB-A', [rect, txt, circ, tray], [1000, 1000], { units: 4, description: 'Board symbol' });
@@ -41,7 +41,7 @@ describe('BLOCK', () => {
   it('an insert shows the block scaled, turned and moved, layer 0 and unset colours taking the insert\'s', () => {
     const ins: SketchItem = { id: 'S9', kind: 'insert', layer: 'E-POWER', pts: [[5000, 2000]], block: 'DB-A', sc: 2, rot: Math.PI / 2, color: '#00ff00' };
     const shown = expandInsert(ins, [def]);
-    expect(shown.map((x) => [x.id, x.kind, x.layer, x.color])).toEqual([['S9:S1', 'pline', 'E-POWER', '#00ff00'], ['S9:S2', 'text', 'LV-ANNO', '#ff0000'], ['S9:S3', 'circle', 'E-POWER', '#00ff00']]);
+    expect(shown.map((x) => [x.id, x.kind, x.layer, x.color])).toEqual([['S9:S1', 'pline', 'E-POWER', '#00ff00'], ['S9:S2', 'text', 'GFDE-ANNO', '#ff0000'], ['S9:S3', 'circle', 'E-POWER', '#00ff00']]);
     // The rectangle's corner (400, 0) scaled to (800, 0), turned to (0, 800), at (5000, 2800).
     expect(shown[0].pts.map(rnd)).toEqual([[5000, 2000], [5000, 2800], [4400, 2800], [4400, 2000]]);
     expect([shown[1].h, shown[1].rot]).toEqual([200, Math.PI / 2]);
@@ -57,9 +57,9 @@ describe('BLOCK', () => {
   it('a block in a block expands in turn; EXPLODE gives the objects without ids', () => {
     const inner: CadBlockDef = { name: 'DOT', items: [{ id: 'c', kind: 'circle', layer: '0', pts: [[0, 0]], r: 10 }] };
     const outer: CadBlockDef = { name: 'PAIR', items: [{ id: 'i1', kind: 'insert', layer: '0', pts: [[-50, 0]], block: 'DOT' }, { id: 'i2', kind: 'insert', layer: '0', pts: [[50, 0]], block: 'DOT' }] };
-    const ins: SketchItem = { id: 'S5', kind: 'insert', layer: 'LV-SKETCH', pts: [[1000, 1000]], block: 'PAIR', sc: 2 };
+    const ins: SketchItem = { id: 'S5', kind: 'insert', layer: 'GFDE-SKETCH', pts: [[1000, 1000]], block: 'PAIR', sc: 2 };
     const shown = expandInsert(ins, [inner, outer]);
-    expect(shown.map((x) => [x.id, x.layer, x.r, ...x.pts[0]])).toEqual([['S5:i1:c', 'LV-SKETCH', 20, 900, 1000], ['S5:i2:c', 'LV-SKETCH', 20, 1100, 1000]]);
+    expect(shown.map((x) => [x.id, x.layer, x.r, ...x.pts[0]])).toEqual([['S5:i1:c', 'GFDE-SKETCH', 20, 900, 1000], ['S5:i2:c', 'GFDE-SKETCH', 20, 1100, 1000]]);
     const loop: CadBlockDef = { name: 'LOOP', items: [{ id: 'l', kind: 'insert', layer: '0', pts: [[0, 0]], block: 'LOOP' }] };
     expect(expandInsert({ ...ins, block: 'LOOP' }, [loop])).toEqual([]);
     expect(explodeInsert(ins, [inner, outer]).every((x) => !('id' in x))).toBe(true);

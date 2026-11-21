@@ -6,8 +6,8 @@ import { renderPdf } from '../util/files';
 import type { Project } from '../types';
 
 /** The renderer half of the headless export (electron/headlessExport.cjs loads the built app with
- * ?lvds-export): the app's own Reports → Drawings DXF export and Export centre PDF rendering, run on
- * the project lvds sends. Files come back to lvds, which checks the approval and writes them. */
+ * ?gfde-export): the app's own Reports → Drawings DXF export and Export centre PDF rendering, run on
+ * the project gfde sends. Files come back to gfde, which checks the approval and writes them. */
 
 export type ExportJob =
   | { kind: 'sheets-dxf'; project: Project; only?: string[] }
@@ -24,7 +24,7 @@ export async function runJob(job: ExportJob): Promise<{ files: JobFile[] }> {
   const entry = CATALOGUE.find((e) => e.key === job.report);
   if (!entry) throw new Error(`No report ${job.report}.`);
   // The PDF's author, as the app takes it from the user's profile (this window has its own, empty profile).
-  if (job.author) localStorage.setItem('lvds.preferences', JSON.stringify({ profile: { name: job.author } }));
+  if (job.author) localStorage.setItem('gfde.preferences', JSON.stringify({ profile: { name: job.author } }));
   const files: JobFile[] = [];
   for (const part of entry.build({ project: job.project, run, stale: [] })) {
     const bytes = await renderPdf(part.html, part.page, part.title);
@@ -35,5 +35,5 @@ export async function runJob(job: ExportJob): Promise<{ files: JobFile[] }> {
 }
 
 export function install(): void {
-  (window as { __lvdsExport?: typeof runJob }).__lvdsExport = runJob;
+  (window as { __gfdeExport?: typeof runJob }).__gfdeExport = runJob;
 }

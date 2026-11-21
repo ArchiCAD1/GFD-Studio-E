@@ -35,7 +35,7 @@ export default function CadSaveAs({ initial, own, hasRefs, onSave, onClose }: {
         </select>
       </Row>
       <div className="cad-dlg-sec">Include</div>
-      <Check label="What you drew (LV-SKETCH, LV-ANNO)" value={c.drawn} onChange={(v) => setC({ ...c, drawn: v })} />
+      <Check label="What you drew (GFDE-SKETCH, GFDE-ANNO)" value={c.drawn} onChange={(v) => setC({ ...c, drawn: v })} />
       <Check label="Devices placed" value={c.devices} onChange={(v) => setC({ ...c, devices: v })} />
       <Check label="Circuit wiring and tags" value={c.wiring} onChange={(v) => setC({ ...c, wiring: v })} />
       <Check label="Bind attached references" value={c.bind} disabled={!hasRefs} onChange={(v) => setC({ ...c, bind: v })} />

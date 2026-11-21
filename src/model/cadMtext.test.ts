@@ -14,7 +14,7 @@ const paras: NotePara[] = [
   { runs: [{ s: 'Refer to the load schedule' }], list: 'num' },
   { runs: [{ s: 'Check on site' }], list: 'num' }
 ];
-const note: SketchItem = { id: 'N1', kind: 'mtext', layer: 'LV-ANNO', pts: [[1000, 5000]], note: paras, h: 100, w: 1500 };
+const note: SketchItem = { id: 'N1', kind: 'mtext', layer: 'GFDE-ANNO', pts: [[1000, 5000]], note: paras, h: 100, w: 1500 };
 
 describe('Notes: wrapping and layout', () => {
   it('wraps words to the width, a paragraph on each new line, lists numbered and indented', () => {
@@ -76,7 +76,7 @@ describe('Notes: wrapping and layout', () => {
     expect(noteWithWidth(note, 10).w).toBe(200); // at least two letters wide
     const texts = explodeNote(note);
     expect(texts.map((t) => t.text)).toEqual(['GENERAL NOTES', 'All cables to be', 'LSZH unless noted', 'otherwise', '1. Refer to the', 'load schedule', '2. Check on site']);
-    expect(texts[0]).toEqual({ kind: 'text', layer: 'LV-ANNO', pts: [[1000, 4900]], text: 'GENERAL NOTES', h: 100 });
+    expect(texts[0]).toEqual({ kind: 'text', layer: 'GFDE-ANNO', pts: [[1000, 4900]], text: 'GENERAL NOTES', h: 100 });
     expect(texts[2].pts[0][1]).toBeCloseTo(4900 - 1000 / 3);
     expect(plainText(note)).toBe('GENERAL NOTES\nAll cables to be LSZH unless noted otherwise\n\nRefer to the load schedule\nCheck on site');
   });

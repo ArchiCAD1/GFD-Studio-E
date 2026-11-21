@@ -13,7 +13,7 @@ const dir = path.resolve(__dirname, '../../contracts');
 
 describe('exchange contracts', () => {
   it.each(Object.entries(FILES))('contracts/%s.schema.json matches contracts.ts', (name, schema) => {
-    const text = `${JSON.stringify({ $id: `https://lv-design-studio/contracts/${name}.schema.json`, ...z.toJSONSchema(schema, { io: 'input' }) }, null, 2)}\n`;
+    const text = `${JSON.stringify({ $id: `https://gfd-studio-e/contracts/${name}.schema.json`, ...z.toJSONSchema(schema, { io: 'input' }) }, null, 2)}\n`;
     const file = path.join(dir, `${name}.schema.json`);
     if (process.env.UPDATE_CONTRACTS) fs.writeFileSync(file, text);
     expect(fs.readFileSync(file, 'utf-8')).toBe(text);

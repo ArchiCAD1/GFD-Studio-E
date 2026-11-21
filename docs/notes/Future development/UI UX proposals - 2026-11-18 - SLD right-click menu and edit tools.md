@@ -10,7 +10,7 @@ On 2026-11-18 the user asked which edit tools could be added on the SLD drawing,
 
 Mockup: `docs/mockups/sld-right-click-menu-mockup.html` (image: `sld-right-click-menu-mockup.png`). The drawing in it is the app's own system diagram of the demonstration project, rendered from the code, not a screenshot. The menus use the look of Design CAD's right-click menu (`CadMenu`).
 
-![SLD right-click menus and edit tools](../../mockups/sld-right-click-menu-mockup.png)
+![SLD right-click menus and edit tools](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-right-click-menu-mockup.png)
 
 Related: [[UI UX proposals - 2026-11-12 - SLD ribbon]] (Trace, Find and Duplicate, approved), [[UI UX proposals - 2026-11-16 - CAD right-click menu look and order]] (the menu look and order reused here) and [[UI UX proposals - 2026-11-11 - Context-aware right-click menus]] (the rule that every row needs a working tool).
 

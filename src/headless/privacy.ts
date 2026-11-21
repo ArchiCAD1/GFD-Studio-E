@@ -11,7 +11,7 @@ import type { Project } from '../types';
  * (project-1a2b3c4d, accepted wherever a project is asked for), and those words are taken out of every result and
  * error message. Panel, circuit, level and room names are still sent: the tools cannot work without them. */
 
-const PROJECT_FILE = /\.(lvds|json)$/i;
+const PROJECT_FILE = /\.(gfde|lvds|json)$/i;
 const ALIAS = /^project-[0-9a-f]{8}$/;
 const HIDDEN = '[hidden]';
 

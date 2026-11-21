@@ -187,7 +187,7 @@ export const DEFAULT_TYPES: LaBuildingType[] = [
 // ---- Your library (this computer)
 
 export interface LaLibrary { types: LaBuildingType[]; spaces?: LaSpace[]; factors?: LaFactors; diversity?: LaDiversity; supply?: LaSupply }
-const LIB_KEY = 'lvds.loadAssessmentLibrary';
+const LIB_KEY = 'gfde.loadAssessmentLibrary';
 
 export function loadLaLibrary(): LaLibrary {
   try {

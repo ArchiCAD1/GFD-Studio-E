@@ -1,14 +1,14 @@
 schema_version: 1
 
 manual:
-  id: LVDS-UM
-  title: LV Design Studio User Manual
-  app_version: "2.13"
+  id: GFDE-UM
+  title: GFD Studio E User Manual
+  app_version: "2.212.0"
   language: en
   status: draft
 
 publication:
-  complete_pdf: output/pdf/LV-Design-Studio-Complete-User-Manual.pdf
+  complete_pdf: output/pdf/GFD-Studio-E-Complete-User-Manual.pdf
   html: output/manual/index.html
   include_statuses:
     - approved
@@ -21,7 +21,7 @@ modules:
     status: draft
     source: modules/M01-load-schedule/content.md
     metadata: modules/M01-load-schedule/module.yml
-    visual_pdf: output/pdf/LV-Design-Studio-Load-Schedule-Visual-User-Manual.pdf
+    visual_pdf: output/pdf/GFD-Studio-E-Load-Schedule-Visual-User-Manual.pdf
 
   - id: M02
     order: 20
@@ -30,5 +30,5 @@ modules:
     status: draft
     source: modules/M02-sld/content.md
     metadata: modules/M02-sld/module.yml
-    visual_pdf: output/pdf/LV-Design-Studio-SLD-Visual-User-Manual.pdf
+    visual_pdf: output/pdf/GFD-Studio-E-SLD-Visual-User-Manual.pdf
 

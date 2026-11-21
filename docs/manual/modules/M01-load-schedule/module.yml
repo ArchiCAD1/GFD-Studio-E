@@ -4,7 +4,7 @@ slug: load-schedule
 section_prefix: LS
 order: 10
 version: "0.2"
-app_version: "2.13"
+app_version: "2.212.0"
 status: draft
 last_reviewed: "2026-10-30"
 audience:
@@ -24,7 +24,7 @@ outputs:
   - Busbar riser form when applicable
   - Excel submission workbook
   - PDF and CSV exports
-visual_pdf: output/pdf/LV-Design-Studio-Load-Schedule-Visual-User-Manual.pdf
+visual_pdf: output/pdf/GFD-Studio-E-Load-Schedule-Visual-User-Manual.pdf
 sections:
   - id: LS-010
     title: Purpose and data flow

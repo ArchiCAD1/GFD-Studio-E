@@ -219,13 +219,13 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
   };
   const saveSpecFile = async () => {
     const name = `${safeFileName(project.name)} — ${safeFileName(doc.title)}.${SPEC_FILE_EXT}`;
-    try { const path = await saveText(name, specFileText(doc), 'LV Design Studio specification', SPEC_FILE_EXT, { output: 'specFile' }); if (path !== null) onStatus?.(`Specification saved as a file: ${path || name}`); }
+    try { const path = await saveText(name, specFileText(doc), 'GFD Studio E specification', SPEC_FILE_EXT, { output: 'specFile' }); if (path !== null) onStatus?.(`Specification saved as a file: ${path || name}`); }
     catch (e) { onStatus?.(`Save failed: ${String((e as Error)?.message ?? e)}`); }
   };
   const openSpecFile = async (file: File | undefined) => {
     if (!file) return;
     const next = specFromFileText(await file.text());
-    if (!next) { onStatus?.(`${file.name}: not a specification saved by LV Design Studio`); return; }
+    if (!next) { onStatus?.(`${file.name}: not a specification saved by GFD Studio E`); return; }
     save(next); setSectionId(next.sections[0].id); setClauseId(null);
     onStatus?.(`Specification opened from ${file.name}: ${next.sections.length} section${next.sections.length === 1 ? '' : 's'} (undo to return to the one before)`);
   };
@@ -488,7 +488,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
 
       <input ref={picFile} type="file" accept="image/png,image/jpeg" aria-label="Picture file" hidden onChange={(e) => { addPicture(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       <input ref={logoFile} type="file" accept="image/png,image/jpeg" aria-label="Logo picture" hidden onChange={(e) => { readLogo(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
-      <input ref={specFile} type="file" accept={`.${SPEC_FILE_EXT},application/json`} aria-label="Specification file" hidden onChange={(e) => { void openSpecFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
+      <input ref={specFile} type="file" accept={`.${SPEC_FILE_EXT},.lvspec,application/json`} aria-label="Specification file" hidden onChange={(e) => { void openSpecFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       {panel === 'save' && tab !== 'setup' && tab !== 'review' && (
         <section className="spx-card" aria-label="Save as template">
           <h4>Save as template</h4>
@@ -538,7 +538,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
               <button type="button" aria-label={`Delete template ${t.name}`} title="Delete this template from the library" onClick={() => { if (keepTemplates(removeTemplate(templates, t.id))) onStatus?.(`Template deleted: ${t.name}`); }}><Trash2 size={15} aria-hidden /></button>
             </div>
           ))}
-          <p className="spx-note">Clauses go in after the clause being edited (at the end of the section when none). The library is kept on this computer and synced with your LV Database library file.</p>
+          <p className="spx-note">Clauses go in after the clause being edited (at the end of the section when none). The library is kept on this computer and synced with your GFD Studio E Database library file.</p>
           <div className="spx-blk-tools"><button type="button" onClick={() => setPanel(null)}>Close</button></div>
         </section>
       )}

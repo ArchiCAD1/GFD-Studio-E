@@ -12,7 +12,7 @@ export const engineCableData = (project: Project) => ({
   rFactor: resistanceFactor(project.vdTempC)
 });
 
-const hasBridge = () => typeof window !== 'undefined' && !!window.lvds?.engines;
+const hasBridge = () => typeof window !== 'undefined' && !!window.gfde?.engines;
 
 let probeCache: Promise<EngineProbe | { error: string }> | null = null;
 
@@ -20,7 +20,7 @@ let probeCache: Promise<EngineProbe | { error: string }> | null = null;
  * `refresh` is set (e.g. after the user picks a different Python). */
 export function probeEngines(refresh = false): Promise<EngineProbe | { error: string }> {
   if (!hasBridge()) return Promise.resolve({ error: 'External engines are only available in the desktop app.' });
-  if (!probeCache || refresh) probeCache = window.lvds.engines.probe();
+  if (!probeCache || refresh) probeCache = window.gfde.engines.probe();
   return probeCache;
 }
 
@@ -47,7 +47,7 @@ function pythonEngine(id: EngineRequest['engine'], name: string): CalcEngine {
     },
     async run(project): Promise<StudyResults> {
       if (!hasBridge()) throw new Error('External engines are only available in the desktop app.');
-      const res = await window.lvds.engines.run(engineRequest(id, project));
+      const res = await window.gfde.engines.run(engineRequest(id, project));
       if ('error' in res) throw new Error(res.error);
       return res;
     }

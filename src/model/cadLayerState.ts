@@ -9,7 +9,7 @@ import { planOfLevel } from './cadPlans';
  * Isolate turned off (Unisolate turns them back on), and the architect's layers turned on or off in the app (`archOn`,
  * by name, over the drawing's own setting). Keeping On in the project makes every change one undo step, and a layer
  * turned off stays off when the drawing opens again; the drawing itself is never changed. Absent = as before:
- * LV-SKETCH current, no states, the architect's layers as the drawing has them. The architect's layers are never
+ * GFDE-SKETCH current, no states, the architect's layers as the drawing has them. The architect's layers are never
  * renamed or deleted. */
 
 export interface LayerSnap { on: boolean; freeze?: boolean; lock?: boolean; color?: string }
@@ -25,9 +25,11 @@ export interface LayerRef { name: string; group: LayerGroup; ref?: string; layer
 export interface LayerPatch { on?: boolean; freeze?: boolean; lock?: boolean; print?: boolean; color?: string; lt?: LinetypeId; lw?: number }
 
 /** The app's own layers: they keep their names (the schedules and Save DXF find objects by them). */
-export const APP_LAYERS = ['LV-SKETCH', 'LV-ANNO', 'LV-HATCH', 'E-TRAY', 'E-CABLE'];
-export const DEFAULT_LAYER = 'LV-SKETCH';
-const isApp = (name: string) => APP_LAYERS.some((a) => same(a, name));
+export const APP_LAYERS = ['GFDE-SKETCH', 'GFDE-ANNO', 'GFDE-HATCH', 'E-TRAY', 'E-CABLE'];
+export const DEFAULT_LAYER = 'GFDE-SKETCH';
+// Existing drawings keep their original layer names and the same protection from renaming.
+const LEGACY_APP_LAYERS = ['LV-SKETCH', 'LV-ANNO', 'LV-HATCH'];
+const isApp = (name: string) => [...APP_LAYERS, ...LEGACY_APP_LAYERS].some((a) => same(a, name));
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 const keyOf = (file: string) => file.trim().toLowerCase();
 

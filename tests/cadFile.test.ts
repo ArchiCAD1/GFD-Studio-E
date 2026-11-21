@@ -18,7 +18,7 @@ describe('desktop floor plan reader (electron/cadFile.cjs)', () => {
   });
 
   it('refuses other files, empty files and broken drawings, and still reads afterwards', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lvds-cadfile-'));
+    const dir = mkdtempSync(join(tmpdir(), 'gfde-cadfile-'));
     writeFileSync(join(dir, 'a.txt'), 'x');
     writeFileSync(join(dir, 'empty.dwg'), '');
     writeFileSync(join(dir, 'broken.dwg'), 'AC1032 not a drawing');
@@ -29,7 +29,7 @@ describe('desktop floor plan reader (electron/cadFile.cjs)', () => {
   });
 
   it('gives the bytes of a drawing template (DWT) only where templates are asked for', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lvds-cadfile-'));
+    const dir = mkdtempSync(join(tmpdir(), 'gfde-cadfile-'));
     writeFileSync(join(dir, 'office.dwt'), 'AC1032');
     expect(readDrawingBytes(fixture('plan-2018.dwg')).length).toBeGreaterThan(1000);
     expect(() => readDrawingBytes(join(dir, 'office.dwt'))).toThrow(/office\.dwt is not a DWG or DXF file/);

@@ -208,7 +208,7 @@ export const builtInAsCustom = (): CustomPattern[] => HATCH_IDS.map((id) => {
 /** Patterns as the text of a .pat file (the inverse of parsePat; 1 unit = the hatch's spacing). */
 export function formatPat(patterns: CustomPattern[]): string {
   const n = (v: number) => String(Number(v.toPrecision(8)) || 0);
-  const out = ['; Hatch patterns from LV Design Studio. 1 unit = the hatch spacing in paper mm.'];
+  const out = ['; Hatch patterns from GFD Studio E. 1 unit = the hatch spacing in paper mm.'];
   for (const c of patterns) {
     out.push(`*${c.name}${c.label ? `, ${c.label.replace(/;/g, '')}` : ''}`);
     if (!c.solid) for (const l of c.lines) out.push([l.angle, l.base[0], l.base[1], l.offset[0], l.offset[1], ...l.dashes].map(n).join(', '));

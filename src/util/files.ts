@@ -2,7 +2,7 @@ import type { Project } from '../types';
 import { choiceAfterSave, outputRole, saveTarget, type OutputKey, type SaveValues } from '../model/outputRoles';
 import { rememberChoice, rememberedChoice, rememberedFolder } from '../model/projectFolderPlan';
 
-const hasBridge = () => typeof window !== 'undefined' && !!window.lvds?.files;
+const hasBridge = () => typeof window !== 'undefined' && !!window.gfde?.files;
 
 export const safeFileName = (s: string) => s.replace(/[^a-z0-9]+/gi, '-').replace(/(^-|-$)/g, '') || 'export';
 
@@ -45,7 +45,7 @@ interface Place { name: string; defaultDir?: string; after: (saved: string | nul
 
 /** Makes a missing folder inside the project folder (new, empty folders only); false when it cannot be there. */
 async function ensureFolder(root: string, rel: string): Promise<boolean> {
-  const disk = typeof window !== 'undefined' ? window.lvds?.projectFolders : undefined;
+  const disk = typeof window !== 'undefined' ? window.gfde?.projectFolders : undefined;
   if (!disk) return false;
   try {
     const st = await disk.status(root, [rel]);
@@ -86,7 +86,7 @@ export async function saveText(defaultName: string, content: string, filterName:
     browserDownload(place.name, content, 'text/plain;charset=utf-8');
     return `Downloaded ${place.name}`;
   }
-  const saved = await window.lvds.files.saveText({ defaultName: place.name, content, filterName, extensions: [ext], ...(place.defaultDir ? { defaultDir: place.defaultDir } : {}) });
+  const saved = await window.gfde.files.saveText({ defaultName: place.name, content, filterName, extensions: [ext], ...(place.defaultDir ? { defaultDir: place.defaultDir } : {}) });
   place.after(saved);
   return saved ? `Saved ${saved.split(/[\\/]/).pop()}` : null;
 }
@@ -98,7 +98,7 @@ export async function saveBinary(defaultName: string, bytes: Uint8Array, filterN
 }
 /** As saveBinary, with where it went: the path chosen (desktop), or none (a browser download); null when cancelled. */
 export async function saveBinaryAt(defaultName: string, bytes: Uint8Array, filterName: string, ext: string, mime: string, ctx?: SaveContext): Promise<{ message: string; path?: string; name: string } | null> {
-  const save = typeof window !== 'undefined' ? window.lvds?.files?.saveBinary : undefined;
+  const save = typeof window !== 'undefined' ? window.gfde?.files?.saveBinary : undefined;
   const place = await placeFor(defaultName, ext, ctx, !save);
   if (!save) {
     browserDownload(place.name, bytes as BlobPart, mime);
@@ -140,14 +140,14 @@ export function pdfPageSetup(html: string, page: PdfPage = {}): { html: string; 
 /** The PDF Author: the name in your profile (Preferences), unless the document is an anonymized sample. */
 export function pdfAuthor(page: Pick<PdfPage, 'anonymous'> = {}): string | undefined {
   if (page.anonymous) return undefined;
-  try { return JSON.parse(localStorage.getItem('lvds.preferences') ?? '{}').profile?.name || undefined; } catch { return undefined; }
+  try { return JSON.parse(localStorage.getItem('gfde.preferences') ?? '{}').profile?.name || undefined; } catch { return undefined; }
 }
 
 /** The finished PDF of an HTML document — layout by Chrome, then contents page numbers, the report
  * frame (header and footer), document information and bookmarks — the same for a saved PDF and a PDF
  * placed in an issue package. Undefined outside the desktop app. */
 export async function renderPdf(html: string, page: PdfPage = {}, fallbackTitle = ''): Promise<Uint8Array | undefined> {
-  const toBytes = hasBridge() ? window.lvds.files.pdfBytes : undefined;
+  const toBytes = hasBridge() ? window.gfde.files.pdfBytes : undefined;
   if (!toBytes) return undefined;
   ({ html, page } = pdfPageSetup(html, page));
   const { PDFDocument } = await import('pdf-lib');
@@ -190,7 +190,7 @@ export async function savePdf(defaultName: string, html: string, page?: PdfPage,
   const bytes = await renderPdf(html, page, defaultName.replace(/[.]pdf$/i, ''));
   if (bytes) return saveBinary(defaultName, bytes, 'PDF', 'pdf', 'application/pdf', ctx);
   const place = await placeFor(defaultName, 'pdf', ctx);
-  const saved = await window.lvds.files.savePdf({ defaultName: place.name, html, ...page, ...(place.defaultDir ? { defaultDir: place.defaultDir } : {}) });
+  const saved = await window.gfde.files.savePdf({ defaultName: place.name, html, ...page, ...(place.defaultDir ? { defaultDir: place.defaultDir } : {}) });
   place.after(saved);
   return saved ? `Saved ${saved.split(/[\\/]/).pop()}` : null;
 }

@@ -8,10 +8,10 @@ import type { Project, SketchItem } from '../types';
 
 const MM = 4, M = 6;
 const p0: Project = { ...sampleProject, cadSketch: undefined, cadLayerStyle: undefined, cadLayerFile: undefined };
-const line: Omit<SketchItem, 'id'> = { kind: 'line', layer: 'LV-SKETCH', pts: [[1000, 2000], [5000, 2000]] };
+const line: Omit<SketchItem, 'id'> = { kind: 'line', layer: 'GFDE-SKETCH', pts: [[1000, 2000], [5000, 2000]] };
 const circle: Omit<SketchItem, 'id'> = { kind: 'circle', layer: 'E-POWER', pts: [[3000, 3000]], r: 500, color: '1' };
 const tray: Omit<SketchItem, 'id'> = { kind: 'pline', layer: 'E-TRAY', pts: [[0, 0], [2000, 0]], tray: { widthMm: 300, service: 'Power', route: 'TR1' } };
-const text: Omit<SketchItem, 'id'> = { kind: 'text', layer: 'LV-ANNO', pts: [[1000, 1000]], text: 'DB-1', h: 250, rot: 0.5, just: 'MC', frame: 'box' };
+const text: Omit<SketchItem, 'id'> = { kind: 'text', layer: 'GFDE-ANNO', pts: [[1000, 1000]], text: 'DB-1', h: 250, rot: 0.5, just: 'MC', frame: 'box' };
 
 /** A project with the objects drawn on GF.dwg, and E-POWER styled red, dashed, 0.35 mm. */
 function drawn(items: Omit<SketchItem, 'id'>[]) {
@@ -31,6 +31,7 @@ describe('Design CAD clipboard', () => {
   it('reads back exactly what was copied, without IDs, with the layer styles used', () => {
     const { p, items } = drawn([line, circle, tray, text]);
     const c = roundTrip(clipText(clipPayload(p, 'GF.dwg', items, [1000, 2000], MM)));
+    expect(roundTrip(JSON.stringify({ ...c, app: 'lvds-cad' }))).toEqual(c);
     expect(c.items).toEqual([line, circle, tray, text]);
     expect(c.base).toEqual([1000, 2000]);
     expect(c.units).toBe(MM);
@@ -112,7 +113,7 @@ describe('Design CAD clipboard', () => {
     expect(bad({ ...good, items: [{ ...line, lt: 'zigzag' }] })).toBe(true);
     expect(bad({ ...good, items: [{ ...line, layer: '' }] })).toBe(true);
     expect(bad({ ...good, layers: { 'E-POWER': { lw: 'thick' } } })).toBe(true);
-    expect(bad({ ...good, items: [{ kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [1, 0], [0, 1]], look: { arrow: 'rocket', size: 1, off: 0, ext: 0 } }] })).toBe(true);
+    expect(bad({ ...good, items: [{ kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [1, 0], [0, 1]], look: { arrow: 'rocket', size: 1, off: 0, ext: 0 } }] })).toBe(true);
     expect(parseClip(JSON.stringify({ ...good, v: 2 }))).toEqual({ error: 'The objects were copied by a newer version of the app.' });
   });
 
@@ -124,15 +125,15 @@ describe('Design CAD clipboard', () => {
   });
 
   it('keeps a dimension style look and a hatch', () => {
-    const dim: Omit<SketchItem, 'id'> = { kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [1000, 0], [500, 300]], dir: 0, look: { arrow: 'tick', size: 100, off: 50, ext: 75, decimals: 0, textPos: 'above' } };
-    const hatch: Omit<SketchItem, 'id'> = { kind: 'pline', layer: 'LV-HATCH', pts: [[0, 0], [10, 0], [10, 10]], closed: true, hatch: { pattern: 'ansi31', scale: 3, angle: 0 } };
+    const dim: Omit<SketchItem, 'id'> = { kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [1000, 0], [500, 300]], dir: 0, look: { arrow: 'tick', size: 100, off: 50, ext: 75, decimals: 0, textPos: 'above' } };
+    const hatch: Omit<SketchItem, 'id'> = { kind: 'pline', layer: 'GFDE-HATCH', pts: [[0, 0], [10, 0], [10, 10]], closed: true, hatch: { pattern: 'ansi31', scale: 3, angle: 0 } };
     const { p, items } = drawn([dim, hatch]);
     expect(roundTrip(clipText(clipPayload(p, 'GF.dwg', items, [0, 0], MM))).items).toEqual([dim, hatch]);
   });
 });
 
 describe('Design CAD clipboard: hatches', () => {
-  const hatch: Omit<SketchItem, 'id'> = { kind: 'pline', layer: 'LV-HATCH', closed: true, pts: [[0, 0], [4000, 0], [4000, 4000], [0, 4000]], hatch: { pattern: 'ansi31', scale: 3, angle: 0, origin: [100, 200] },
+  const hatch: Omit<SketchItem, 'id'> = { kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: [[0, 0], [4000, 0], [4000, 4000], [0, 4000]], hatch: { pattern: 'ansi31', scale: 3, angle: 0, origin: [100, 200] },
     holes: [[[1000, 1000], [2000, 1000], [2000, 2000]]], assoc: ['S1', 'S2'] };
   it('keeps the islands and the pattern\'s origin; a pasted hatch is not tied to the objects of the copied one', () => {
     const { p, items } = drawn([hatch]);

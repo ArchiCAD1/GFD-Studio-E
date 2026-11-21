@@ -96,9 +96,9 @@ describe('the folder remembered on this computer', () => {
   });
   it('ignores stored content of the wrong shape and storage that fails', () => {
     const s = mem();
-    s.m.set('lvds.projectFolder.p1', '{"root":5}');
+    s.m.set('gfde.projectFolder.p1', '{"root":5}');
     expect(rememberedFolder('p1', s)).toBeUndefined();
-    s.m.set('lvds.projectFolder.p1', 'not json');
+    s.m.set('gfde.projectFolder.p1', 'not json');
     expect(rememberedFolder('p1', s)).toBeUndefined();
     const broken = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); }, removeItem: () => { throw new Error('blocked'); } };
     expect(() => rememberFolder('p1', { root: 'x', unticked: [] }, broken)).not.toThrow();

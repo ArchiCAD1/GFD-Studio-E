@@ -34,12 +34,12 @@ function metaText(doc: PDFDocument): string {
 
 describe('PDF privacy', () => {
   beforeEach(() => {
-    localStorage.setItem('lvds.preferences', JSON.stringify({ profile: { name: PROFILE } }));
-    (window as unknown as { lvds: unknown }).lvds = { files: { pdfBytes: async () => blankPdf() } };
+    localStorage.setItem('gfde.preferences', JSON.stringify({ profile: { name: PROFILE } }));
+    (window as unknown as { gfde: unknown }).gfde = { files: { pdfBytes: async () => blankPdf() } };
   });
   afterEach(() => {
     localStorage.clear();
-    delete (window as unknown as { lvds?: unknown }).lvds;
+    delete (window as unknown as { gfde?: unknown }).gfde;
   });
 
   it('names the profile as author on a normal report, and nobody on an anonymized sample', () => {

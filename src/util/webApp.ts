@@ -6,7 +6,7 @@ import { safeFileName } from './files';
  * app", and project files the user keeps on their own computer — there is
  * no cloud storage. */
 
-export const isWebVersion = () => typeof window !== 'undefined' && !window.lvds;
+export const isWebVersion = () => typeof window !== 'undefined' && !window.gfde;
 
 /** Where the desktop app is downloaded (set at build time: VITE_DOWNLOAD_URL). */
 export const DOWNLOAD_URL: string = (import.meta.env.VITE_DOWNLOAD_URL as string | undefined) ?? '';
@@ -75,12 +75,12 @@ export function useWebApp(): { offline: OfflineState; canInstall: boolean; insta
   };
 }
 
-/** Download the project as a file (the same .lvds the desktop app opens). */
+/** Download the project as a file (the same .gfde the desktop app opens). */
 export function downloadProjectFile(project: Project): string {
-  const blob = new Blob([JSON.stringify({ ...project, format: 'lvds.project' }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ ...project, format: 'gfde.project' }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${safeFileName(project.name || 'project')}.lvds`;
+  a.download = `${safeFileName(project.name || 'project')}.gfde`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -93,13 +93,13 @@ export function chooseProjectFile(): Promise<{ project: Project; name: string } 
   return new Promise((resolve, reject) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.lvds,.json,application/json';
+    input.accept = '.gfde,.lvds,.json,application/json';
     input.onchange = async () => {
       const f = input.files?.[0];
       if (!f) return resolve(null);
       try {
         const p = JSON.parse(await f.text()) as Project;
-        if (!p || !Array.isArray(p.boards) || !Array.isArray(p.feeders)) throw new Error(`${f.name} is not an LV Design Studio project`);
+        if (!p || !Array.isArray(p.boards) || !Array.isArray(p.feeders)) throw new Error(`${f.name} is not a GFD Studio E project`);
         resolve({ project: p, name: f.name });
       } catch (e) { reject(e); }
     };

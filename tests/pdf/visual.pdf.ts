@@ -8,6 +8,7 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 import pixelmatch from 'pixelmatch';
 import pkg from '../../package.json';
+import { displayVersion } from '../../src/model/appVersion';
 import { printDocs } from '../fixtures/printDocs';
 
 /** Image-level layout regression: every sample document is printed through the app's Chromium call,
@@ -27,7 +28,7 @@ const SCALE = 0.75, MAX_PAGES = 3;
 /** Share of a page's pixels that may differ (anti-aliasing noise), and pixelmatch's colour threshold. */
 const MAX_DIFF = 0.002, THRESHOLD = 0.1;
 const baseDir = path.resolve('tests/pdf/baselines', process.platform);
-const work = mkdtempSync(path.join(tmpdir(), 'lvds-visual-'));
+const work = mkdtempSync(path.join(tmpdir(), 'gfde-visual-'));
 const hasBaselines = existsSync(baseDir) && readdirSync(baseDir).length > 0;
 
 const NAMES = Object.keys(printDocs());
@@ -35,7 +36,9 @@ let docs: Record<string, string> = {};
 beforeAll(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-10-15T10:00:00Z'));
-  docs = Object.fromEntries(Object.entries(printDocs()).map(([k, html]) => [k, html.split(pkg.version).join('0.0.0')]));
+  docs = Object.fromEntries(Object.entries(printDocs()).map(([k, html]) => [k,
+    html.split(`GFD Studio E ${displayVersion(pkg.version)}`).join('GFD Studio E 0.000').split(pkg.version).join('0.0.0')
+  ]));
   vi.useRealTimers();
 });
 afterAll(() => { if (!process.env.KEEP_VISUAL) rmSync(work, { recursive: true, force: true }); });

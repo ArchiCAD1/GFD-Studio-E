@@ -1,6 +1,6 @@
 # Privacy: project data, sharing samples and contributing
 
-LV Design Studio is free and open source. Project files often hold client and site information, so the app
+GFD Studio E is free and open source. Project files often hold client and site information, so the app
 and this repository follow the rules below. They reduce accidental disclosure; they do not make any file or
 computer secure on their own.
 
@@ -8,12 +8,12 @@ computer secure on their own.
 
 | What | Where |
 | --- | --- |
-| Project files (`.lvds`; older ones `.json`) | The projects folder you chose (default `LV Design Studio Projects` in your home folder) |
-| Unsaved work (recovery copies) | The app's data folder, `recovery/` (macOS `~/Library/Application Support/LV Design Studio`, Windows `%APPDATA%\LV Design Studio`, Linux `~/.config/LV Design Studio`) |
-| Backups and the log of changes made by `lvds` / MCP / the API | `<projects folder>/.lvds-agent/` |
+| Project files (`.gfde`; older ones `.json`) | The projects folder you chose (default `GFD Studio E Projects` in your home folder) |
+| Unsaved work (recovery copies) | The app's data folder, `recovery/` (macOS `~/Library/Application Support/GFD Studio E`, Windows `%APPDATA%\GFD Studio E`, Linux `~/.config/GFD Studio E`) |
+| Backups and the log of changes made by `gfde` / MCP / the API | `<projects folder>/.gfde-agent/` |
 | Your profile (name, company, logo), preferences | The app's data folder (desktop); this browser's storage (web version) |
 | Web version projects | This browser's storage for the site |
-| Local API token while `lvds serve` runs | `api-token` in the app's data folder |
+| Local API token while `gfde serve` runs | `api-token` in the app's data folder |
 
 **None of this is encrypted by the app.** Files are plain JSON, readable by anyone or any program that can
 read your user account's files. Protect them with your operating system: a login password, full-disk
@@ -23,7 +23,7 @@ document does not add one.
 **Copies you may not think of.** A projects folder inside Google Drive, OneDrive, Dropbox or iCloud is copied
 to that service and to every computer signed in to it, including old versions and deleted files kept by the
 service. Time Machine and other backups keep copies of the projects folder, the recovery copies and
-`.lvds-agent/` backups. Exports (PDF, Excel, DXF, Word) are separate copies: delete or protect them like the
+`.gfde-agent/` backups. Exports (PDF, Excel, DXF, Word) are separate copies: delete or protect them like the
 project. Clearing a browser's site data deletes web-version projects; it does not delete files you
 downloaded.
 
@@ -59,12 +59,12 @@ still be recognised by someone who knows the project. Check the file before you 
 5. For screenshots, check the title bar, breadcrumbs, the projects list, status messages and any terminal or
    log text (it can show your account name in a folder path). Crop or paint over, then re-save the image.
 6. Never paste an API token, a password or a key into an issue, a log or a URL. If one was shared, revoke it
-   (for the local API: stop and restart `lvds serve`, which makes a new token).
+   (for the local API: stop and restart `gfde serve`, which makes a new token).
 
 ## Local API
 
-`lvds serve` listens on `127.0.0.1` only and needs `Authorization: Bearer <token>` on every request. See the
-README (*Command line, MCP server and local API*) and `lvds help serve`. The token is new each time the server
+`gfde serve` listens on `127.0.0.1` only and needs `Authorization: Bearer <token>` on every request. See the
+README (*Command line, MCP server and local API*) and `gfde help serve`. The token is new each time the server
 starts; anyone who can read your user account's files can read it, so the same protections as above apply.
 
 ## Contributing: keeping the repository clean

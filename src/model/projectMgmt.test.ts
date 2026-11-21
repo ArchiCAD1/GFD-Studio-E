@@ -41,7 +41,7 @@ describe('profile and new project defaults', () => {
     expect(mine.drawing).toMatchObject({ drawnBy: 'Demo Engineer', company: 'Demo Engineering Consultants' });
     expect(mine.studyReport?.preparedBy).toBe('Demo Engineer, Senior Electrical Engineer');
     expect(signature({ name: 'A' })).toBe('A');
-    expect(initialsOf('Palani samy g')).toBe('PS');
+    expect(initialsOf('Gerardo Faustin')).toBe('GF');
     expect(initialsOf('')).toBe('?');
   });
 
@@ -55,9 +55,9 @@ describe('profile and new project defaults', () => {
   });
 
   it('keeps only text panel IDs from a saved Design CAD ribbon order', () => {
-    localStorage.setItem('lvds.preferences', JSON.stringify({ app: { autosaveMin: 2, cadRibbonOrder: ['layers', 7, 'draw', null] } }));
+    localStorage.setItem('gfde.preferences', JSON.stringify({ app: { autosaveMin: 2, cadRibbonOrder: ['layers', 7, 'draw', null] } }));
     expect(loadPrefs().app.cadRibbonOrder).toEqual(['layers', 'draw']);
-    localStorage.setItem('lvds.preferences', JSON.stringify({ app: { autosaveMin: 2, cadRibbonOrder: 'layers' } }));
+    localStorage.setItem('gfde.preferences', JSON.stringify({ app: { autosaveMin: 2, cadRibbonOrder: 'layers' } }));
     expect(loadPrefs().app.cadRibbonOrder).toBeUndefined();
   });
 });
@@ -79,9 +79,9 @@ describe('trash (web version storage)', () => {
   it('forgets what has been in the trash more than 30 days, and can be emptied', async () => {
     const f = (await saveProjectFile(undefined, { ...sampleProject, id: 'cccccccc3' })).file;
     await deleteProjectFile(f);
-    const raw = JSON.parse(localStorage.getItem('lvds.trash')!);
+    const raw = JSON.parse(localStorage.getItem('gfde.trash')!);
     raw[0].deletedAt = Date.now() - 31 * 86400000;
-    localStorage.setItem('lvds.trash', JSON.stringify(raw));
+    localStorage.setItem('gfde.trash', JSON.stringify(raw));
     expect(await listTrash()).toEqual([]);
     const g = (await saveProjectFile(undefined, { ...sampleProject, id: 'dddddddd4' })).file;
     await deleteProjectFile(g);
@@ -96,7 +96,7 @@ describe('saving, recovery and recent (web version storage)', () => {
     const p = { ...sampleProject, status: 'submitted' as const, updatedBy: 'Demo Engineer' };
     const saved = await saveProjectFile(undefined, { ...p, id: 'abcd1234-0000' });
     const file = saved.file;
-    expect(file).toMatch(/-abcd1234\.json$/);
+    expect(file).toMatch(/-abcd1234\.gfde$/);
     const list = await listProjects();
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ file, name: p.name, status: 'submitted', updatedBy: 'Demo Engineer', boards: p.boards.length });
@@ -106,6 +106,18 @@ describe('saving, recovery and recent (web version storage)', () => {
     await deleteProjectFile(file);
     expect(await listProjects()).toEqual([]);
     await expect(loadProject(file)).rejects.toThrow();
+  });
+
+  it('new browser saves with the same name and abbreviated identity never overwrite each other', async () => {
+    const first = { ...sampleProject, name: 'Villa', id: 'abcdefgh-first' };
+    const second = { ...sampleProject, name: 'Villa', id: 'abcdefgh-second' };
+    const a = (await saveProjectFile(undefined, first)).file;
+    const b = (await saveProjectFile(undefined, second)).file;
+    expect(a).toBe('villa-abcdefgh.gfde');
+    expect(b).toBe('villa-abcdefgh-2.gfde');
+    expect((await loadProject(a)).id).toBe(first.id);
+    expect((await loadProject(b)).id).toBe(second.id);
+    expect(await listProjects()).toHaveLength(2);
   });
 
   it('each project keeps its own recovery copy until cleared', async () => {
@@ -165,11 +177,11 @@ describe('saving, recovery and recent (web version storage)', () => {
 
   it('refuses a recovery copy without a project id, and picks up the older single copy', async () => {
     expect(await writeRecovery({ at: 1, project: sampleProject })).toBe(false);
-    localStorage.setItem('lvds.recovery', JSON.stringify({ file: 'old.json', at: 5, project: sampleProject }));
+    localStorage.setItem('gfde.recovery', JSON.stringify({ file: 'old.json', at: 5, project: sampleProject }));
     const all = await readRecoveries();
     expect(all).toHaveLength(1);
     expect(all[0].file).toBe('old.json');
-    expect(localStorage.getItem('lvds.recovery')).toBeNull();
+    expect(localStorage.getItem('gfde.recovery')).toBeNull();
   });
 
   it('recent projects, newest first, no repeats, removable', () => {

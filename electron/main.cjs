@@ -16,14 +16,24 @@ const folderTemplates = require('./folderTemplates.cjs');
 const projectFolders = require('./projectFolders.cjs');
 const folderScan = require('./folderScan.cjs');
 const betaUpdate = require('./betaUpdate.cjs');
+const identity = require('./appIdentity.cjs');
 
-// `lvds` (the command line) exports drawings and PDFs through this app with --lvds-headless-export:
+// `gfde` (the command line) exports drawings and PDFs through this app with --gfde-headless-export:
 // no window and none of the app's start-up, only the export (headlessExport.cjs).
-const headless = process.argv.includes('--lvds-headless-export');
+const headless = process.argv.includes('--gfde-headless-export');
+app.setName(identity.APP_NAME);
+if (process.platform === 'win32') app.setAppUserModelId('com.gfdstudio.e');
+let profileImportError;
+if (!headless) {
+  const profile = path.join(app.getPath('appData'), identity.APP_NAME);
+  app.setPath('userData', profile);
+  try { identity.migrateLegacyProfile(app.getPath('appData'), profile); }
+  catch (error) { profileImportError = error.message; }
+}
 if (headless) require('./headlessExport.cjs');
 
 const isDev = !app.isPackaged;
-/** The app's own page: the bundled index.html, or in development the exact dev-server origin (LVDS_DEV_URL,
+/** The app's own page: the bundled index.html, or in development the exact dev-server origin (GFDE_DEV_URL,
  * default http://127.0.0.1:5173). Development builds load from that server and must never be distributed. */
 const DEV_ORIGIN = isDev ? trust.devUrlFrom() : undefined;
 const ENTRY_FILE = path.join(__dirname, '..', 'dist', 'index.html');
@@ -35,7 +45,7 @@ const isAppOrigin = trust.appOriginTest({ isDev, devOrigin: DEV_ORIGIN });
 // point at a Google Drive / OneDrive / Dropbox sync folder.
 const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
-const DEFAULT_PROJECTS = () => path.join(os.homedir(), 'LV Design Studio Projects');
+const DEFAULT_PROJECTS = () => identity.defaultProjectsFolder(os.homedir());
 /** Settings, with every field checked: a folder or program path is an absolute path, else it is left out
  * (a damaged settings file falls back to the defaults rather than crashing on a wrong type). */
 function readSettings() {
@@ -66,12 +76,14 @@ let win;
 const logDir = path.join(app.getPath('userData'), 'logs');
 
 /** Every IPC handler goes through this: only the app's own page in its main window, top frame, may call. */
-const handle = trust.trustedHandler(ipcMain, () => win, isAppUrl, (channel, why) => console.warn(`[lvds] refused IPC ${channel}: ${why}`));
+const handle = trust.trustedHandler(ipcMain, () => win, isAppUrl, (channel, why) => console.warn(`[gfde] refused IPC ${channel}: ${why}`));
 /** The window a dialog belongs to: the (already checked) sender's. */
 const ownerOf = (evt) => BrowserWindow.fromWebContents(evt.sender) ?? win;
 
 function createWindow() {
   win = new BrowserWindow({
+    title: identity.APP_NAME,
+    icon: path.join(__dirname, '..', isDev ? 'public' : 'dist', 'icon-512.png'),
     width: 1440,
     height: 900,
     minWidth: 1000,
@@ -136,6 +148,12 @@ function createWindow() {
 
 app.whenReady().then(() => {
   if (headless) return;
+  if (profileImportError) {
+    // Opening Chromium after a failed import would create an empty database in its place and prevent retry.
+    dialog.showErrorBox('GFD Studio E could not import existing data', `Your original data is unchanged. Close the previous application, then reopen GFD Studio E to retry.\n\n${profileImportError}`);
+    app.quit();
+    return;
+  }
   // Pages get no device or browser permissions (camera, location, notifications…) except writing to the
   // clipboard, and only the app's own page in its main window gets that.
   const allowed = check.ALLOWED_PERMISSIONS;
@@ -183,11 +201,11 @@ handle('settings:chooseProjectsFolder', async (evt) => {
 });
 
 /** The Excel database in its own folder (e.g. on Google Drive); projects stay where they are.
- * reset: back to "LV Database" inside the projects folder. */
+ * reset: back to "GFD Studio E Database" inside the projects folder. */
 handle('settings:chooseDatabaseFolder', async (evt, reset) => {
   if (reset === true) { const { databaseFolder: _d, ...rest } = readSettings(); writeSettings(rest); return readSettings(); }
   const result = await dialog.showOpenDialog(ownerOf(evt), {
-    title: 'Choose the folder with the LV Database workbooks (e.g. a Google Drive folder)',
+    title: 'Choose the folder with the GFD Studio E Database workbooks (e.g. a Google Drive folder)',
     properties: ['openDirectory', 'createDirectory']
   });
   if (result.canceled || result.filePaths.length === 0) return readSettings();
@@ -196,7 +214,7 @@ handle('settings:chooseDatabaseFolder', async (evt, reset) => {
   return settings;
 });
 
-// ---- IPC: projects (one .lvds file per project; older ones are .json, see projectFiles.cjs) ----
+// ---- IPC: projects (one .gfde file per project; older ones are .json, see projectFiles.cjs) ----
 const projectsIndexPath = path.join(app.getPath('userData'), 'projects-index.json');
 let trashPurged = false;
 handle('projects:list', () => {
@@ -205,10 +223,10 @@ handle('projects:list', () => {
   return projectFiles.listProjectsMeta(folder, projectsIndexPath).list;
 });
 
-/** A project file inside the projects folder: a plain .lvds (or older .json) name, never a
+/** A project file inside the projects folder: a plain .gfde (or older .json) name, never a
  * path that leads outside it (e.g. "../x"). */
 function projectPath(folder, file) {
-  if (typeof file !== 'string' || !/^[^\\/:*?"<>|]+\.(lvds|json)$/i.test(file) || file.startsWith('.')) throw new Error(`Not a project file name: ${file}`);
+  if (typeof file !== 'string' || !/^[^\\/:*?"<>|]+\.(gfde|lvds|json)$/i.test(file) || file.startsWith('.')) throw new Error(`Not a project file name: ${file}`);
   const full = path.resolve(folder, file);
   if (path.dirname(full) !== path.resolve(folder)) throw new Error(`Outside the projects folder: ${file}`);
   safeFs.assertNotLink(full, file); // a link in the projects folder is never opened, saved over or deleted
@@ -244,8 +262,8 @@ handle('projects:stat', (_evt, file) => projectFiles.stampOf(projectPath(ensureP
 
 /** Saves a project. `expected` is what the file was when this app opened or last saved it; when the file
  * now holds something else (another computer, a sync tool, another program) nothing is written and the
- * answer is a conflict — unless `force`, which keeps the other version as name.lvds.theirs-….bak.
- * An older name.json is saved as name.lvds, and the .json stays as its backup (name.lvds.bak). */
+ * answer is a conflict — unless `force`, which keeps the other version as name.gfde.theirs-….bak.
+ * An older name.json is saved as name.gfde, and the .json stays as its backup (name.gfde.bak). */
 handle('projects:save', (_evt, args) => {
   const { file, data, expected, force } = check.projectSaveArgs(args);
   const folder = ensureProjectsFolder();
@@ -266,18 +284,18 @@ handle('projects:save', (_evt, args) => {
   return { file: native, stamp };
 });
 
-/** Open project…: pick a .lvds (or older .json) project anywhere (projectFiles.pickedProject). */
+/** Open project…: pick a .gfde (or older .json) project anywhere (projectFiles.pickedProject). */
 handle('projects:pick', async (evt) => {
   const folder = ensureProjectsFolder();
-  const result = await dialog.showOpenDialog(ownerOf(evt), { title: 'Open project', defaultPath: folder, filters: [{ name: 'LV Design Studio project', extensions: ['lvds', 'json'] }], properties: ['openFile'] });
+  const result = await dialog.showOpenDialog(ownerOf(evt), { title: 'Open project', defaultPath: folder, filters: [{ name: 'GFD Studio E project', extensions: ['gfde', 'lvds', 'json'] }], properties: ['openFile'] });
   if (result.canceled || result.filePaths.length === 0) return null;
   return projectFiles.pickedProject(folder, result.filePaths[0]);
 });
 
-// Projects opened from Finder / Explorer (a .lvds double-clicked, or dropped on the app icon) wait here until the
+// Projects opened from Finder / Explorer (a .gfde double-clicked, or dropped on the app icon) wait here until the
 // window takes them, like drawings below (planOpened).
 const pendingProjects = [];
-const isProjectArg = (file) => typeof file === 'string' && path.isAbsolute(file) && file.toLowerCase().endsWith(projectFiles.PROJECT_EXT);
+const isProjectArg = (file) => typeof file === 'string' && path.isAbsolute(file) && /\.(gfde|lvds)$/i.test(file);
 function projectOpened(file) {
   pendingProjects.push(file);
   if (win && !win.isDestroyed()) {
@@ -355,7 +373,7 @@ handle('files:overwriteBinary', async (_evt, args) => {
 });
 
 // ---- IPC: drawings (DWG / DXF) for Design CAD, which reads them with its own engine in the window ----
-// Plans opened from Finder / Explorer ("Open with LV Design Studio", or dropped on the app icon) wait here until the
+// Plans opened from Finder / Explorer ("Open with GFD Studio E", or dropped on the app icon) wait here until the
 // window takes them: macOS sends open-file (also before the app is ready), Windows passes the path on the command line.
 const pendingPlans = [];
 const isPlanFile = (file) => typeof file === 'string' && path.isAbsolute(file) && /\.(dwg|dxf)$/i.test(file);
@@ -399,7 +417,7 @@ handle('cad:listFolder', (_evt, folder) => (typeof folder === 'string' && fs.exi
 handle('cad:sampleBytes', (_evt, name) => (SAMPLE_PLANS.has(name) ? { file: name, bytes: cadFile.readDrawingBytes(path.join(__dirname, 'samples', name)) } : null));
 
 
-// ---- IPC: LV Database (Excel workbooks in the projects folder) ----
+// ---- IPC: GFD Studio E Database (Excel workbooks in the projects folder) ----
 let stopWatching = () => {};
 let watchedFolder = null;
 
@@ -487,7 +505,7 @@ handle('files:savePdf', async (evt, args) => {
   const pdfWin = new BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, javascript: false, webSecurity: true, session: pdfSession() } });
   pdfWin.webContents.on('will-navigate', (e) => e.preventDefault());
   // The HTML goes in a private temporary folder (unpredictable name, this user only), removed afterwards.
-  const tmpDir = safeFs.makePrivateTempDir('lvds-pdf-');
+  const tmpDir = safeFs.makePrivateTempDir('gfde-pdf-');
   try {
     const tmp = path.join(tmpDir, 'report.html');
     safeFs.writeNewFile(tmp, html);
@@ -514,11 +532,11 @@ handle('files:printers', (evt) => printerList(evt.sender));
 handle('files:printHtml', async (evt, args) => htmlToPrinter(check.printArgs(args), await printerList(evt.sender)));
 
 // ---- IPC: external calculation engines (Python helper) ----
-// engines/python/lvds_engine.py runs OpenDSS (OpenDSSDirect.py) and
+// engines/python/gfde_engine.py runs OpenDSS (OpenDSSDirect.py) and
 // pandapower. It reads one JSON request on stdin and answers on stdout.
 const engineScript = isDev
-  ? path.join(__dirname, '..', 'engines', 'python', 'lvds_engine.py')
-  : path.join(process.resourcesPath, 'python', 'lvds_engine.py');
+  ? path.join(__dirname, '..', 'engines', 'python', 'gfde_engine.py')
+  : path.join(process.resourcesPath, 'python', 'gfde_engine.py');
 
 function pythonPath() {
   return readSettings().pythonPath || (process.platform === 'win32' ? 'python' : 'python3');

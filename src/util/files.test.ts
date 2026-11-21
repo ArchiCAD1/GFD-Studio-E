@@ -67,29 +67,29 @@ describe('where a save opens in a project folder (spec F2)', () => {
   });
   it('makes a missing role folder first, then suggests it, and remembers another folder the user picked', async () => {
     const { m, s } = memory();
-    s.setItem('lvds.projectFolder.p9', JSON.stringify({ root: '/jobs/P2611_Villa', unticked: [] }));
+    s.setItem('gfde.projectFolder.p9', JSON.stringify({ root: '/jobs/P2611_Villa', unticked: [] }));
     const create = vi.fn(async () => ({ root: '/jobs/P2611_Villa', rootMade: false, created: 1, existed: 1, failed: [] }));
     const status = vi.fn(async () => ({ root: '/jobs/P2611_Villa', exists: true, present: [], missing: ['05_Calcs/02_Volt_Drop'], looseFiles: [], looseCount: 0 }));
     vi.stubGlobal('localStorage', s);
-    vi.stubGlobal('window', { lvds: { projectFolders: { create, status } } });
+    vi.stubGlobal('window', { gfde: { projectFolders: { create, status } } });
     const p = await placeFor('a.pdf', 'pdf', { output: 'vdReport', project }, false);
     expect(create).toHaveBeenCalledWith('/jobs/P2611_Villa', ['05_Calcs/02_Volt_Drop']);
     expect(p.defaultDir).toBe('/jobs/P2611_Villa/05_Calcs/02_Volt_Drop');
     p.after('/elsewhere/P2611-E-CAL-004.pdf');
-    expect(JSON.parse(m.get('lvds.projectFolderChoices.p9')!)).toEqual({ calcVd: '/elsewhere' });
+    expect(JSON.parse(m.get('gfde.projectFolderChoices.p9')!)).toEqual({ calcVd: '/elsewhere' });
     const again = await placeFor('a.pdf', 'pdf', { output: 'vdReport', project }, false);
     expect(again.defaultDir).toBe('/elsewhere');
     expect(create).toHaveBeenCalledTimes(1);
   });
   it('falls back to the Projects folder when the project folder is missing or a folder cannot be made', async () => {
     const { s } = memory();
-    s.setItem('lvds.projectFolder.p9', JSON.stringify({ root: '/jobs/P2611_Villa', unticked: [] }));
+    s.setItem('gfde.projectFolder.p9', JSON.stringify({ root: '/jobs/P2611_Villa', unticked: [] }));
     const create = vi.fn(async () => ({ root: '/jobs/P2611_Villa', rootMade: false, created: 0, existed: 1, failed: [{ path: 'x', reason: 'no' }] }));
     vi.stubGlobal('localStorage', s);
-    vi.stubGlobal('window', { lvds: { projectFolders: { create, status: async () => ({ exists: false, present: [], missing: [] }) } } });
+    vi.stubGlobal('window', { gfde: { projectFolders: { create, status: async () => ({ exists: false, present: [], missing: [] }) } } });
     expect((await placeFor('a.pdf', 'pdf', { output: 'vdReport', project }, false)).defaultDir).toBeUndefined();
     expect(create).not.toHaveBeenCalled();
-    vi.stubGlobal('window', { lvds: { projectFolders: { create, status: async () => ({ exists: true, present: [], missing: ['05_Calcs/02_Volt_Drop'] }) } } });
+    vi.stubGlobal('window', { gfde: { projectFolders: { create, status: async () => ({ exists: true, present: [], missing: ['05_Calcs/02_Volt_Drop'] }) } } });
     expect((await placeFor('a.pdf', 'pdf', { output: 'vdReport', project }, false)).defaultDir).toBeUndefined();
   });
 });

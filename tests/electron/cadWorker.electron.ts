@@ -17,7 +17,7 @@ let outDir: string;
 function checks(inPage: boolean) {
   const out = path.join(outDir, `result-${inPage}.json`);
   const r = spawnSync(electron, [
-    path.resolve('tests/electron/cadWorker.cjs'), path.join(outDir, 'tests/electron/page/index.html'), path.resolve('electron/cad/lvds_cad_reader_bg.wasm'),
+    path.resolve('tests/electron/cadWorker.cjs'), path.join(outDir, 'tests/electron/page/index.html'), path.resolve('electron/cad/gfde_cad_reader_bg.wasm'),
     path.resolve('electron/samples/sample-villa-gf.dxf'), out, String(LINES), inPage ? '1' : '0'
   ], { encoding: 'utf-8', timeout: 150_000 });
   if (r.status !== 0) throw new Error(`Electron failed (${r.status}): ${r.error ?? ''}\n${r.stderr}`);
@@ -31,7 +31,7 @@ function report(where: string, r: { ticks: number; longest: number; snapMs: numb
 }
 
 beforeAll(async () => {
-  outDir = mkdtempSync(path.join(tmpdir(), 'lvds-cad-worker-'));
+  outDir = mkdtempSync(path.join(tmpdir(), 'gfde-cad-worker-'));
   // The app's own Vite config, so the worker is bundled and the security policy written as in the real build.
   await build({ logLevel: 'error', build: { outDir, emptyOutDir: false, rollupOptions: { input: path.resolve('tests/electron/page/index.html') } } });
 });

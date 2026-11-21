@@ -147,7 +147,7 @@ export function PageSetupsDialog({ project, current, onChange, onStatus, onClose
         <button className="chip" disabled={!saved} onClick={() => { if (!draft) return; saveToSetupLibrary(setupsFile(project, [draft.id])); setLib(loadSetupLibrary()); onStatus?.(`Page setup ${draft.name} saved to your library`); }}>Save to library</button>
         {fresh.length > 0 && <>
           <select aria-label="Library page setups" value={libName} onChange={(e) => setLibPick(e.target.value)}>{fresh.map((n) => <option key={n.name} value={n.name}>{n.name}</option>)}</select>
-          <button className="chip" onClick={() => { const n = fresh.find((x) => x.name === libName); if (n) onChange(importSetups(project, { kind: 'lvds.pageSetups', setups: [n], tables: lib.tables }).project, `Page setup ${n.name} added from your library · ⌘Z to undo`); }}>Add from library</button>
+          <button className="chip" onClick={() => { const n = fresh.find((x) => x.name === libName); if (n) onChange(importSetups(project, { kind: 'gfde.pageSetups', setups: [n], tables: lib.tables }).project, `Page setup ${n.name} added from your library · ⌘Z to undo`); }}>Add from library</button>
         </>}
       </div>}
       {draft && !applying && <div className="cad-devform">

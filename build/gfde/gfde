@@ -1,0 +1,14 @@
+#!/bin/sh
+# The gfde command of the installed app (command line, MCP server, local API): gfde help
+# Runs gfde.mjs, beside this file, with the app itself as its Node runtime (ELECTRON_RUN_AS_NODE):
+# no window opens and no separate Node is needed.
+self=$0
+while [ -L "$self" ]; do   # started through a link, such as one in /usr/local/bin
+  link=$(readlink "$self")
+  case $link in /*) self=$link ;; *) self=$(dirname "$self")/$link ;; esac
+done
+here=$(cd "$(dirname "$self")" && pwd)
+app="$here/../../MacOS/GFD Studio E"              # macOS: <app>/Contents/Resources/gfde
+[ -x "$app" ] || app="$here/../../gfd-studio-e"   # Linux: <app folder>/resources/gfde
+if [ ! -x "$app" ]; then echo "gfde: GFD Studio E was not found beside $here" >&2; exit 2; fi
+ELECTRON_RUN_AS_NODE=1 exec "$app" "$here/gfde.mjs" "$@"

@@ -4,7 +4,7 @@ Status: **approved by the user on 2026-11-12** ("proceed"), with the suggested a
 
 Mockup: `docs/mockups/load-schedule-ribbon-mockup.html` (image: `load-schedule-ribbon-mockup.png`).
 
-![The Load schedule ribbon, today and proposed](../../mockups/load-schedule-ribbon-mockup.png)
+![The Load schedule ribbon, today and proposed](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-ribbon-mockup.png)
 
 ## Today
 

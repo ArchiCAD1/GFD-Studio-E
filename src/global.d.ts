@@ -5,7 +5,7 @@ declare global {
   /** App version, e.g. "1.2" (from package.json; raised with each release). */
   const __APP_VERSION__: string;
   interface Window {
-    lvds: {
+    gfde: {
       settings: {
         get: () => Promise<{ projectsFolder: string; databaseFolder?: string; pythonPath?: string }>;
         chooseProjectsFolder: () => Promise<{ projectsFolder: string; databaseFolder?: string; pythonPath?: string }>;
@@ -26,7 +26,7 @@ declare global {
         restore?: (trashFile: string) => Promise<string>;
         emptyTrash?: () => Promise<number>;
         pick: () => Promise<{ file?: string; data?: unknown; from?: string } | null>;
-        /** The next project opened from Finder / Explorer (a .lvds double-clicked), as pick answers; null when there is none. */
+        /** The next project opened from Finder / Explorer (a .gfde double-clicked), as pick answers; null when there is none. */
         takePending?: () => Promise<{ file?: string; data?: unknown; from?: string } | null>;
         /** Called when a project is opened from Finder / Explorer while the app runs; returns the unsubscribe. */
         onPending?: (cb: () => void) => () => void;

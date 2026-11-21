@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import JSZip from 'jszip';
 import { buildBackup, checkpointsFor, readBackup, readBackupFile } from './projectBackup';
 import { autoCheckpoint, excess, MemoryStore, newCheckpoint, saveCheckpoint, type Checkpoint } from './checkpoints';
+import { issueRevision } from './revisions';
 import { sampleProject } from '../data/sampleProject';
 import type { Project } from '../types';
 
@@ -36,9 +37,9 @@ describe('portable project backup', () => {
   it('round-trips the project and its checkpoints with a manifest check', async () => {
     const bytes = await buildBackup(project, checkpoints, '1.69', at(5));
     const r = await readBackup(bytes);
-    expect(r.manifest).toMatchObject({ format: 'lvds-backup', formatVersion: 1, appVersion: '1.69', project: { id: 'p-1', name: project.name, schemaVersion: 1 } });
+    expect(r.manifest).toMatchObject({ format: 'gfde-backup', formatVersion: 1, appVersion: '1.69', project: { id: 'p-1', name: project.name, schemaVersion: 1 } });
     expect(r.manifest.files.map((f) => f.path)).toEqual(['project.json', ...checkpoints.map((c) => `checkpoints/${c.id}.json`)]);
-    expect(r.project).toEqual(project);
+    expect(r.project).toEqual({ ...project, format: 'gfde.project' });
     expect(r.checkpoints.map((c) => c.label)).toEqual(['Before client comments', 'Before issuing']);
     // Opened as a new project: copies with their own ids, so the original project's checkpoints stay where they are.
     const store = new MemoryStore();
@@ -46,6 +47,19 @@ describe('portable project backup', () => {
     for (const c of checkpointsFor(r.checkpoints, 'p-2-new-id')) await store.put(c);
     expect((await store.list('p-1')).length).toBe(2);
     expect((await store.list('p-2-new-id')).map((c) => c.label).sort()).toEqual(['Before client comments', 'Before issuing']);
+  });
+
+  it('brands the current project after a legacy import while preserving checkpoint and revision records', async () => {
+    const legacy = { ...project, format: 'lvds.project' };
+    const imported: Project = JSON.parse(JSON.stringify(issueRevision(legacy, { description: 'Issued before migration' })));
+    const checkpoint = newCheckpoint(imported, 'Before migration', { now: at(1) });
+    const before = JSON.stringify({ project: imported, checkpoint });
+    const result = await readBackup(await buildBackup(imported, [checkpoint], '2.212', at(5)));
+    expect(result.project).toMatchObject({ format: 'gfde.project' });
+    expect(result.project.revisions).toEqual(imported.revisions);
+    expect(result.project.revisions![0].snapshot).toMatchObject({ format: 'lvds.project' });
+    expect(result.checkpoints).toEqual([checkpoint]);
+    expect(JSON.stringify({ project: imported, checkpoint })).toBe(before);
   });
 
   it('refuses damaged, foreign or newer backups before anything is opened', async () => {
@@ -56,8 +70,8 @@ describe('portable project backup', () => {
     await expect(readBackup(await tamper((z) => z.file('project.json', JSON.stringify({ ...project, name: 'Changed' }))))).rejects.toThrow('project.json in the backup is damaged');
     await expect(readBackup(await tamper((z) => z.remove('project.json')))).rejects.toThrow('missing project.json');
     const manifest = JSON.parse(await (await JSZip.loadAsync(good)).file('manifest.json')!.async('string'));
-    await expect(readBackup(await tamper((z) => z.file('manifest.json', JSON.stringify({ ...manifest, formatVersion: 2, appVersion: '9.0' }))))).rejects.toThrow('newer LV Design Studio (9.0)');
-    await expect(readBackup(await tamper((z) => z.file('manifest.json', JSON.stringify({ ...manifest, format: 'other' }))))).rejects.toThrow('not an LV Design Studio backup');
+    await expect(readBackup(await tamper((z) => z.file('manifest.json', JSON.stringify({ ...manifest, formatVersion: 2, appVersion: '9.0' }))))).rejects.toThrow('newer GFD Studio E (9.0)');
+    await expect(readBackup(await tamper((z) => z.file('manifest.json', JSON.stringify({ ...manifest, format: 'other' }))))).rejects.toThrow('not a GFD Studio E backup');
   });
 
   it('drops checkpoints that belong to another project', async () => {
@@ -72,7 +86,7 @@ describe('a crafted backup cannot fill memory before it is checked', () => {
   const enc = new TextEncoder();
   const checkpoints = [newCheckpoint(project, 'Before issuing', { auto: true, now: at(2) })];
   const sha = (b: Uint8Array) => crypto.subtle.digest('SHA-256', b as BufferSource).then((d) => [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, '0')).join(''));
-  const manifestFor = (files: { path: string; bytes: number; sha256: string }[]) => ({ format: 'lvds-backup', formatVersion: 1, appVersion: '9.9', exportedAt: at(0).toISOString(), project: { name: 'P' }, files });
+  const manifestFor = (files: { path: string; bytes: number; sha256: string }[]) => ({ format: 'gfde-backup', formatVersion: 1, appVersion: '9.9', exportedAt: at(0).toISOString(), project: { name: 'P' }, files });
 
   /** A zip written by hand, to make what JSZip never writes: sizes that lie, the same entry listed many times. */
   function rawZip(entries: { name: string; data: Uint8Array; deflated?: boolean; size?: number }[], listed = 1): Uint8Array {
@@ -128,7 +142,7 @@ describe('a crafted backup cannot fill memory before it is checked', () => {
     expect(arrayBuffer).not.toHaveBeenCalled();
     const good = await buildBackup(project, checkpoints, '1.69');
     const picked = { size: good.length, arrayBuffer: async () => good.slice().buffer } as unknown as Blob;
-    expect((await readBackupFile(picked)).project).toEqual(project);
+    expect((await readBackupFile(picked)).project).toEqual({ ...project, format: 'gfde.project' });
   });
 
   it('stops unpacking an entry as soon as it holds more than the manifest says', async () => {

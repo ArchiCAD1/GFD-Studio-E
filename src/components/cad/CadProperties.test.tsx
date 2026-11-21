@@ -17,12 +17,12 @@ const rowText = () => [...document.querySelectorAll('.cad-pp-row')].map((r) => `
 const type = (input: HTMLInputElement, v: string) => act(() => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, v); input.dispatchEvent(new Event('input', { bubbles: true })); });
 const key = (t: HTMLElement, k: string, shiftKey = false) => act(() => { t.dispatchEvent(new KeyboardEvent('keydown', { key: k, shiftKey, bubbles: true })); });
 
-const a: SketchItem = { id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[4000, 1000], [7000, 1000]], lt: 'dashed' };
-const b: SketchItem = { id: 'S2', kind: 'line', layer: 'LV-SKETCH', pts: [[4000, 2000], [7000, 2000]] };
-const t: SketchItem = { id: 'X1', kind: 'text', layer: 'LV-ANNO', pts: [[0, 0]], text: 'DB-1', h: 250, rot: 0 };
+const a: SketchItem = { id: 'S1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[4000, 1000], [7000, 1000]], lt: 'dashed' };
+const b: SketchItem = { id: 'S2', kind: 'line', layer: 'GFDE-SKETCH', pts: [[4000, 2000], [7000, 2000]] };
+const t: SketchItem = { id: 'X1', kind: 'text', layer: 'GFDE-ANNO', pts: [[0, 0]], text: 'DB-1', h: 250, rot: 0 };
 
 function render(items: SketchItem[], over: Partial<Parameters<typeof PropertiesPalette>[0]> = {}) {
-  const props = { items, devices: 0, layers: ['LV-SKETCH', 'LV-ANNO', 'LV-HATCH'], styles: { 'LV-ANNO': { noPrint: true } }, current: 'LV-SKETCH', textMm: 2.5, k: 0.001,
+  const props = { items, devices: 0, layers: ['GFDE-SKETCH', 'GFDE-ANNO', 'GFDE-HATCH'], styles: { 'GFDE-ANNO': { noPrint: true } }, current: 'GFDE-SKETCH', textMm: 2.5, k: 0.001,
     onItems: vi.fn(), onCurrent: vi.fn(), onTextMm: vi.fn(), onClose: vi.fn(), ...over };
   act(() => root.render(<PropertiesPalette {...props} />));
   return props;
@@ -31,10 +31,10 @@ function render(items: SketchItem[], over: Partial<Parameters<typeof PropertiesP
 describe('Properties palette', () => {
   it('nothing picked: the defaults for new objects', () => {
     const p = render([]);
-    expect(rowText()).toEqual(['Layer=LV-SKETCH', 'Colour=ByLayer', 'Linetype=ByLayer', 'Lineweight=ByLayer', 'Print=Yes (layer)', 'Text height=2.5 mm']);
+    expect(rowText()).toEqual(['Layer=GFDE-SKETCH', 'Colour=ByLayer', 'Linetype=ByLayer', 'Lineweight=ByLayer', 'Print=Yes (layer)', 'Text height=2.5 mm']);
     const cur = el('Current layer') as HTMLSelectElement;
-    act(() => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(cur, 'LV-ANNO'); cur.dispatchEvent(new Event('change', { bubbles: true })); });
-    expect(p.onCurrent).toHaveBeenCalledWith('LV-ANNO');
+    act(() => { Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(cur, 'GFDE-ANNO'); cur.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(p.onCurrent).toHaveBeenCalledWith('GFDE-ANNO');
     act(() => { (el('Text height') as HTMLButtonElement).click(); });
     type(el('Text height') as HTMLInputElement, '3,5');
     key(el('Text height'), 'Enter');
@@ -43,7 +43,7 @@ describe('Properties palette', () => {
 
   it('two lines: shared values, varies apart from ByLayer, geometry in metres and degrees', () => {
     render([a, b]);
-    expect(rowText()).toEqual(['Layer=LV-SKETCH', 'Colour=ByLayer', 'Linetype=varies', 'Lineweight=ByLayer', 'Print=Yes (layer)',
+    expect(rowText()).toEqual(['Layer=GFDE-SKETCH', 'Colour=ByLayer', 'Linetype=varies', 'Lineweight=ByLayer', 'Print=Yes (layer)',
       'Start X=4.00', 'Start Y=varies', 'End X=7.00', 'End Y=varies', 'Length=3.00 m', 'Angle=0.0°']);
     expect(q('.cad-pp-vr').textContent).toBe('varies');
     expect([...document.querySelectorAll('.cad-pp-sec')].map((s) => s.textContent)).toEqual(['▾ General', '▾ Geometry']);
@@ -90,7 +90,7 @@ describe('Properties palette', () => {
   });
 
   it('a kind chosen that the objects no longer have (a polyline closed) goes back to All', () => {
-    const pl = (id: string): SketchItem => ({ id, kind: 'pline', layer: 'LV-SKETCH', pts: [[0, 0], [1000, 0], [1000, 1000]] });
+    const pl = (id: string): SketchItem => ({ id, kind: 'pline', layer: 'GFDE-SKETCH', pts: [[0, 0], [1000, 0], [1000, 1000]] });
     const open = [pl('P1'), pl('P2')];
     render([...open, t]);
     const kinds = () => [...document.querySelectorAll<HTMLOptionElement>('[aria-label="Objects shown"] option')].map((o) => o.textContent);
@@ -122,7 +122,7 @@ describe('Properties palette', () => {
   });
 
   it('a revision cloud exposes an adjustable arc length', () => {
-    const cloud: SketchItem = { id: 'C1', kind: 'pline', layer: 'LV-ANNO', pts: [[0, 0], [4000, 0], [4000, 2000], [0, 2000]], closed: true, cloud: 500 };
+    const cloud: SketchItem = { id: 'C1', kind: 'pline', layer: 'GFDE-ANNO', pts: [[0, 0], [4000, 0], [4000, 2000], [0, 2000]], closed: true, cloud: 500 };
     const p = render([cloud]);
     expect(rowText().slice(5)).toEqual(['X=0.00', 'Y=0.00', 'Outline length=12.00 m', 'Arc length=0.50 m']);
     act(() => { (el('Arc length') as HTMLButtonElement).click(); });
@@ -132,10 +132,10 @@ describe('Properties palette', () => {
   });
 
   it('an angular dimension is measured in degrees, a radius one in metres', () => {
-    render([{ id: 'an', kind: 'dim', dimKind: 'angular', layer: 'LV-ANNO', pts: [[0, 0], [1000, 0], [0, 1000], [500, 500]], h: 250 }]);
+    render([{ id: 'an', kind: 'dim', dimKind: 'angular', layer: 'GFDE-ANNO', pts: [[0, 0], [1000, 0], [0, 1000], [500, 500]], h: 250 }]);
     expect(rowText().slice(5)).toEqual(['Measured=90.0°', 'Text override=', 'Text height=0.25']);
     expect(document.body.textContent).toContain('Angular dimension');
-    render([{ id: 'ra', kind: 'dim', dimKind: 'radius', layer: 'LV-ANNO', pts: [[0, 0], [500, 0], [200, 0]], h: 250 }]);
+    render([{ id: 'ra', kind: 'dim', dimKind: 'radius', layer: 'GFDE-ANNO', pts: [[0, 0], [500, 0], [200, 0]], h: 250 }]);
     expect(rowText().slice(5)).toEqual(['Measured=0.50 m', 'Text override=', 'Text height=0.25']);
     expect(document.body.textContent).toContain('Radius dimension');
   });

@@ -1,0 +1,2 @@
+# Tested version for the approved company-logo icon bytes in branding.json.
+Pillow==13.0.0

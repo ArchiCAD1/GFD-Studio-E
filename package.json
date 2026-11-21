@@ -1,16 +1,16 @@
 {
-  "name": "lv-design-studio",
-  "productName": "LV Design Studio",
-  "version": "2.211.0",
+  "name": "gfd-studio-e",
+  "productName": "GFD Studio E",
+  "version": "2.212.0",
   "license": "(MIT OR Apache-2.0)",
-  "description": "Open-source offline low-voltage electrical design and calculation desktop app",
-  "homepage": "https://pdhruv15.github.io/LV-Design-Studio/",
+  "description": "GFD Studio E — offline electrical design, single-line diagrams, calculations and engineering documentation",
+  "homepage": "https://archicad1.github.io/GFD-Studio-E/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Pdhruv15/LV-Design-Studio.git"
+    "url": "git+https://github.com/ArchiCAD1/GFD-Studio-E.git"
   },
   "bugs": {
-    "url": "https://github.com/Pdhruv15/LV-Design-Studio/issues"
+    "url": "https://github.com/ArchiCAD1/GFD-Studio-E/issues"
   },
   "keywords": [
     "electrical-engineering",
@@ -28,6 +28,9 @@
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/prepare-cad.mjs",
+    "prebuild": "node scripts/prepare-cad.mjs",
+    "prebuild:cli": "node scripts/prepare-cad.mjs",
     "dev": "concurrently -k \"vite --host 127.0.0.1 --port 5173 --strictPort\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "build": "tsc -b && vite build && vite build -c vite.electron.config.ts && vite build -c vite.cli.config.ts",
     "dist": "npm run build && electron-builder",
@@ -51,7 +54,8 @@
     "test:pdf:update": "UPDATE_BASELINES=1 vitest run -c tests/pdf/vitest.config.ts tests/pdf/visual.pdf.ts",
     "build:cli": "vite build -c vite.cli.config.ts",
     "build:cad": "bash scripts/build-cad.sh",
-    "lvds": "node dist-cli/lvds.mjs"
+    "gfde": "node dist-cli/gfde.mjs",
+    "check:branding": "node scripts/check-branding.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
@@ -98,14 +102,20 @@
     }
   },
   "build": {
-    "appId": "com.lvdesignstudio.app",
+    "appId": "com.gfdstudio.e",
     "icon": "build/icon.png",
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
       "electron/**/*",
+      "branding.json",
+      "LICENSE-MIT",
+      "LICENSE-APACHE",
+      "NOTICE.md",
+      "docs/provenance/**/*",
       "!node_modules/**/*",
-      "!dist/assets/lvds_cad_reader_bg-*.wasm"
+      "!electron/cad/*.wasm.gz.*",
+      "!dist/assets/gfde_cad_reader_bg-*.wasm"
     ],
     "electronLanguages": [
       "en",
@@ -119,10 +129,17 @@
     "afterPack": "./scripts/mac-licences.cjs",
     "fileAssociations": [
       {
-        "ext": "lvds",
-        "name": "LV Design Studio project",
-        "description": "LV Design Studio project",
+        "ext": "gfde",
+        "name": "GFD Studio E project",
+        "description": "GFD Studio E project",
         "role": "Editor"
+      },
+      {
+        "ext": "lvds",
+        "name": "Legacy electrical project",
+        "description": "Legacy project imported by GFD Studio E",
+        "role": "Editor",
+        "rank": "Alternate"
       },
       {
         "ext": [
@@ -166,15 +183,15 @@
       },
       {
         "from": "dist-cli",
-        "to": "lvds",
+        "to": "gfde",
         "filter": [
-          "lvds.mjs",
+          "gfde.mjs",
           "third-party-licences.md"
         ]
       },
       {
-        "from": "build/lvds",
-        "to": "lvds"
+        "from": "build/gfde",
+        "to": "gfde"
       }
     ],
     "nsis": {
@@ -182,10 +199,14 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true
     },
-    "artifactName": "LV-Design-Studio-${version}-${os}-${arch}.${ext}"
+    "artifactName": "GFD-Studio-E-${version}-${os}-${arch}.${ext}",
+    "copyright": "Copyright © 2026 Gerardo Faustin Designs Limited. Includes licensed third-party components."
   },
-  "author": "Palanisami",
+  "author": {
+    "name": "Gerardo Moises Faustin",
+    "url": "https://github.com/ArchiCAD1"
+  },
   "bin": {
-    "lvds": "dist-cli/lvds.mjs"
+    "gfde": "dist-cli/gfde.mjs"
   }
 }

@@ -9,14 +9,14 @@ type Fn = (...a: unknown[]) => any; // eslint-disable-line @typescript-eslint/no
 const L = createRequire(import.meta.url)('../../electron/errorLog.cjs') as Record<'appendError' | 'watchWindow', Fn> & { MAX_BYTES: number };
 
 const canLink = (() => {
-  const d = mkdtempSync(join(tmpdir(), 'lvds-link-'));
+  const d = mkdtempSync(join(tmpdir(), 'gfde-link-'));
   try { symlinkSync(join(d, 'x'), join(d, 'y')); return true; } catch { return false; } finally { rmSync(d, { recursive: true, force: true }); }
 })();
 const it_ = canLink ? it : it.skip; // skipped where symbolic links cannot be created (Windows without the right)
 
 describe('the desktop log file (electron/errorLog.cjs)', () => {
   let root: string, dir: string;
-  beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'lvds-error-log-')); dir = join(root, 'logs'); });
+  beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'gfde-error-log-')); dir = join(root, 'logs'); });
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
   it('creates its folder and adds entries in order', () => {
@@ -74,7 +74,7 @@ describe('the way from the page to the log file', () => {
 });
 
 describe('a window that dies or stops answering (electron/errorLog.cjs)', () => {
-  const STOPPED = 'LV Design Studio stopped', HUNG = 'LV Design Studio is not responding';
+  const STOPPED = 'GFD Studio E stopped', HUNG = 'GFD Studio E is not responding';
 
   function watched(...answers: number[]) {
     const wc = Object.assign(new EventEmitter(), { reload: vi.fn(), forcefullyCrashRenderer: vi.fn() });
@@ -102,7 +102,7 @@ describe('a window that dies or stops answering (electron/errorLog.cjs)', () => 
   it('a crash is logged, with why, and asks', async () => {
     const w = watched(0);
     await w.emit('render-process-gone', ...crash('oom'));
-    expect(w.log.mock.calls[0][0]).toMatch(/LV Design Studio 2\.029 .* the page stopped: oom \(exit code 11\)/);
+    expect(w.log.mock.calls[0][0]).toMatch(/GFD Studio E 2\.029 .* the page stopped: oom \(exit code 11\)/);
     expect(w.asked.map((a) => a.title)).toEqual([STOPPED]);
     expect(w.asked[0].buttons).toEqual(['Reload', 'Quit']);
   });

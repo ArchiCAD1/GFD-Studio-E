@@ -3,7 +3,7 @@ import type { EngineAnswer, EngineOps } from './cadOps';
 import type { RefGeometry } from '../../model/cadRefs';
 import type { CadPiece } from '../../model/cadCrop';
 import type { ErasedParts } from '../../model/cadErased';
-import wasmUrl from '../../../electron/cad/lvds_cad_reader_bg.wasm?url';
+import wasmUrl from '../../../electron/cad/gfde_cad_reader_bg.wasm?url';
 import sampleGf from '../../../electron/samples/sample-villa-gf.dxf?url';
 import sampleFf from '../../../electron/samples/sample-villa-ff.dxf?url';
 
@@ -144,7 +144,7 @@ interface Engine {
 }
 
 async function engineBytes(): Promise<Uint8Array> {
-  const desktop = window.lvds?.cadFile?.engine;
+  const desktop = window.gfde?.cadFile?.engine;
   return desktop ? desktop() : new Uint8Array(await (await fetch(wasmUrl)).arrayBuffer());
 }
 
@@ -277,7 +277,7 @@ function pickFile(templates = false): Promise<File | null> {
  * templates (DWT) are offered too — only where the drawing is read and closed again (layouts from another drawing), not
  * where it becomes the drawing worked on. */
 export async function chooseDrawing({ templates = false }: { templates?: boolean } = {}): Promise<CadView | null> {
-  const desktop = window.lvds?.cadFile?.openBytes;
+  const desktop = window.gfde?.cadFile?.openBytes;
   if (desktop) {
     const r = await (templates ? desktop({ templates: true }) : desktop());
     return r ? openDrawing(r.file, r.bytes, r.path, templates) : null;
@@ -288,13 +288,13 @@ export async function chooseDrawing({ templates = false }: { templates?: boolean
 
 /** Reopens a drawing opened before (desktop only: by its path); null when it is no longer there. */
 export async function reopenDrawing(path: string): Promise<CadView | null> {
-  const r = await window.lvds?.cadFile?.readBytes?.(path);
+  const r = await window.gfde?.cadFile?.readBytes?.(path);
   return r ? openDrawing(r.file, r.bytes, r.path) : null;
 }
 
 /** One of the sample plans shipped with the app (a test aid). */
 export async function sampleDrawing(name: string): Promise<CadView | null> {
-  const desktop = window.lvds?.cadFile?.sampleBytes;
+  const desktop = window.gfde?.cadFile?.sampleBytes;
   if (desktop) {
     const r = await desktop(name);
     return r ? openDrawing(r.file, r.bytes) : null;
@@ -326,7 +326,7 @@ export async function readRefGeometry(file: string, bytes: Uint8Array, stamp?: s
 
 /** When a drawing file was last changed (desktop app only); undefined when it cannot tell, null when the file is gone. */
 export async function fileStamp(path: string | undefined): Promise<string | null | undefined> {
-  const stat = path ? window.lvds?.cadFile?.stat : undefined;
+  const stat = path ? window.gfde?.cadFile?.stat : undefined;
   if (!stat || !path) return undefined;
   const s = await stat(path).catch(() => undefined);
   return s === undefined ? undefined : s ? `${s.mtimeMs}:${s.size}` : null;

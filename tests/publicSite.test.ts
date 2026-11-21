@@ -40,22 +40,23 @@ describe('public website source', () => {
     expect(html).not.toContain('<script>');
     expect(html).toContain("script-src 'none'");
     expect(html).toContain("media-src 'self'");
-    expect(html).toContain('<video class="product-video" controls preload="metadata" playsinline');
-    expect(html).toContain('../media/lv-design-studio-product-intro-30s.mp4');
+    expect(html).toContain('<img class="product-mark"');
+    expect(html).not.toContain('<video');
+    expect(html).toContain('../media/gfd-company-logo.png');
     expect(html).not.toMatch(/<script\b|https:\/\/[^"']+\.js/i);
   });
 
   it('constructs installer links from fixed repository paths, not release-provided URLs or text', () => {
     const html = renderDownload(readProduct(), { ...beta, releaseNotes: '<img src=x onerror=alert(1)>', arbitraryUrl: 'https://example.test/evil.exe' });
-    expect(html).toContain(`https://github.com/Pdhruv15/LV-Design-Studio/releases/download/v${version}/${names.windows}`);
-    expect(html).toContain(`https://github.com/Pdhruv15/LV-Design-Studio/releases/download/v${version}/${names.macos}`);
+    expect(html).toContain(`https://github.com/ArchiCAD1/GFD-Studio-E/releases/download/v${version}/${names.windows}`);
+    expect(html).toContain(`https://github.com/ArchiCAD1/GFD-Studio-E/releases/download/v${version}/${names.macos}`);
     expect(html).not.toContain('example.test');
     expect(html).not.toContain('onerror');
     expect(html).toContain('Do not use the beta for production issue work.');
   });
 
   it('builds static pages, copied screenshots and the strict updater manifest', () => {
-    const work = mkdtempSync(join(tmpdir(), 'lvds-public-site-'));
+    const work = mkdtempSync(join(tmpdir(), 'gfde-public-site-'));
     try {
       const releaseFile = join(work, 'release.json');
       const sumsFile = join(work, 'SHA256SUMS.txt');
@@ -71,7 +72,7 @@ describe('public website source', () => {
       buildSite({ outDir: out, releaseFile, checksumsFile: sumsFile });
       expect(existsSync(join(out, 'about/index.html'))).toBe(true);
       expect(existsSync(join(out, 'download/index.html'))).toBe(true);
-      expect(existsSync(join(out, 'media', 'lv-design-studio-product-intro-30s.mp4'))).toBe(true);
+      expect(readFileSync(join(out, 'media', 'gfd-company-logo.png'))).toEqual(readFileSync(join(root, 'docs/brand/gfd-company-logo.png')));
       for (const shot of readProduct().screenshots) expect(existsSync(join(out, 'screenshots', shot.file))).toBe(true);
       expect(JSON.parse(readFileSync(join(out, 'download/beta.json'), 'utf8'))).toEqual({
         schemaVersion: 1,

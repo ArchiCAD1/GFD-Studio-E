@@ -30,10 +30,18 @@ describe('built-in DWG / DXF reader', () => {
     expect(plan.tags?.some((t) => t.name === 'Guest bedroom' && t.number === 'G.05')).toBe(true);
   });
 
-  it('keeps LVDS tags: linked routes come back as curves and routes', () => {
+  it('keeps GFDE tags: linked routes come back as curves and routes', () => {
     const plan = planFromDrawing(readCadDrawing(fixture('plan-2018.dwg')));
     expect(plan.curves).toEqual([expect.objectContaining({ layer: 'E-ROUTE', tag: 'route:F-03', length: 8000 })]);
     expect(traysFromDrawing(dxf).routes).toEqual([{ feederId: 'F-03', points: [[1000, 1000], [9000, 1000]] }]);
+  });
+
+  it('imports legacy XData tags as well as newly branded GFDE drawing tags', () => {
+    const text = new TextDecoder().decode(fixture('plan-tagged.dxf'));
+    const legacy = readCadDrawing(new TextEncoder().encode(text.split('GFDE').join('LVDS')));
+    const current = readCadDrawing(new TextEncoder().encode(text.split('LVDS').join('GFDE')));
+    expect(traysFromDrawing(current).routes).toEqual([{ feederId: 'F-03', points: [[1000, 1000], [9000, 1000]] }]);
+    expect(traysFromDrawing(legacy).routes).toEqual(traysFromDrawing(current).routes);
   });
 
   it('returns curves of the layers asked for only', () => {

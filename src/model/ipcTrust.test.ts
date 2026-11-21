@@ -19,7 +19,7 @@ interface Trust {
 const require = createRequire(import.meta.url);
 const trust = require('../../electron/trust.cjs') as Trust;
 
-const ENTRY = '/Applications/LV Design Studio.app/Contents/Resources/app.asar/dist/index.html';
+const ENTRY = '/Applications/GFD Studio E.app/Contents/Resources/app.asar/dist/index.html';
 const ENTRY_URL = pathToFileURL(ENTRY).href;
 const DEV = 'http://127.0.0.1:5173';
 
@@ -34,11 +34,13 @@ function fakeWindow(url = ENTRY_URL) {
 describe('development origin', () => {
   it('defaults to an exact loopback origin', () => {
     expect(trust.devUrlFrom({})).toBe(DEV);
-    expect(trust.devUrlFrom({ LVDS_DEV_URL: 'http://[::1]:5180/' })).toBe('http://[::1]:5180');
+    expect(trust.devUrlFrom({ GFDE_DEV_URL: 'http://[::1]:5180/' })).toBe('http://[::1]:5180');
+    expect(trust.devUrlFrom({ LVDS_DEV_URL: 'http://127.0.0.1:5181' })).toBe('http://127.0.0.1:5181');
+    expect(trust.devUrlFrom({ GFDE_DEV_URL: DEV, LVDS_DEV_URL: 'http://127.0.0.1:5181' })).toBe(DEV);
   });
   it('refuses anything that is not http on a loopback address with a port', () => {
     for (const bad of ['http://localhost:5173', 'http://evil.example:5173', 'https://127.0.0.1:5173', 'http://127.0.0.1', 'http://user:pw@127.0.0.1:5173', 'file:///x', 'not a url']) {
-      expect(() => trust.devUrlFrom({ LVDS_DEV_URL: bad }), bad).toThrow();
+      expect(() => trust.devUrlFrom({ GFDE_DEV_URL: bad }), bad).toThrow();
     }
   });
 });

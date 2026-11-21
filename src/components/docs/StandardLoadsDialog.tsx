@@ -22,7 +22,7 @@ export default function StandardLoadsDialog({ rows, onDone, onClose }: {
   const have = (l: StandardLoad) => inLibrary(rows, l);
   const chosen = items.filter((l) => !have(l) && !off.has(l.reference));
   const edit = (ref: string, patch: Partial<StandardLoad>) => setItems((xs) => xs.map((x) => (x.reference === ref ? { ...x, ...patch } : x)));
-  const write = window.lvds?.database.write;
+  const write = window.gfde?.database.write;
 
   async function add() {
     if (!write || !chosen.length) return;
@@ -64,7 +64,7 @@ export default function StandardLoadsDialog({ rows, onDone, onClose }: {
           })}
         </tbody>
       </table>
-      {!write && <p className="m">Adding to Loads.xlsx needs the LV Design Studio desktop app.</p>}
+      {!write && <p className="m">Adding to Loads.xlsx needs the GFD Studio E desktop app.</p>}
       {note && <p className="m">{note}</p>}
       <div className="modal-actions">
         <span className="sp" />

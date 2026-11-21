@@ -37,10 +37,10 @@ describe('beta release workflow trust boundary', () => {
     expect(beta).toContain('runs-on: windows-latest');
     expect(beta).toContain('runs-on: macos-15');
     expect(beta).toContain('node scripts/check-package.mjs release/win-unpacked');
-    expect(beta).toContain('node scripts/check-package.mjs "release/mac-arm64/LV Design Studio.app"');
-    // The packaged lvds command and MCP server are run, not only listed.
-    expect(beta).toContain('node scripts/check-packaged-lvds.mjs release/win-unpacked');
-    expect(beta).toContain('node scripts/check-packaged-lvds.mjs "release/mac-arm64/LV Design Studio.app"');
+    expect(beta).toContain('node scripts/check-package.mjs "release/mac-arm64/GFD Studio E.app"');
+    // The packaged gfde command and MCP server are run, not only listed.
+    expect(beta).toContain('node scripts/check-packaged-gfde.mjs release/win-unpacked');
+    expect(beta).toContain('node scripts/check-packaged-gfde.mjs "release/mac-arm64/GFD Studio E.app"');
     expect(beta).toContain('--config.mac.identity=null');
     expect(beta).toContain("CSC_IDENTITY_AUTO_DISCOVERY: 'false'");
     expect(beta).toContain("Get-AuthenticodeSignature $installer");

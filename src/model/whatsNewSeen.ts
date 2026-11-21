@@ -1,7 +1,7 @@
 /** What's new: which version this computer has seen (localStorage). Kept apart from the release list itself
  * (model/whatsNew, a long text that grows with every release) so the app can ask at start whether there is
  * anything to show without loading that list. */
-export const SEEN_KEY = 'lvds.whatsNewSeen';
+export const SEEN_KEY = 'gfde.whatsNewSeen';
 
 /** Whether the release list has to be read at start: not when this version was already seen (nothing is newer). */
 export function mayHaveUnseen(current: string): boolean {

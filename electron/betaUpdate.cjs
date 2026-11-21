@@ -1,8 +1,8 @@
 // Notification-only beta updates. This module never downloads or runs an installer. It is kept free of
 // Electron imports so the trust boundary, manifest parser and network limits can be unit tested.
 
-const BETA_MANIFEST_URL = 'https://pdhruv15.github.io/LV-Design-Studio/download/beta.json';
-const BETA_DOWNLOAD_URL = 'https://pdhruv15.github.io/LV-Design-Studio/download/';
+const BETA_MANIFEST_URL = 'https://archicad1.github.io/GFD-Studio-E/download/beta.json';
+const BETA_DOWNLOAD_URL = 'https://archicad1.github.io/GFD-Studio-E/download/';
 const MANIFEST_BYTES = 16 * 1024;
 const REQUEST_TIMEOUT_MS = 5_000;
 const STARTUP_DELAY_MS = 10_000;
@@ -130,8 +130,8 @@ function startBetaUpdateChecks({
         defaultId: 1,
         cancelId: 1,
         noLink: true,
-        title: 'LV Design Studio beta update',
-        message: 'A newer LV Design Studio beta is available.',
+        title: 'GFD Studio E beta update',
+        message: 'A newer GFD Studio E beta is available.',
         detail: `Version ${manifest.version} is available. The app will open the trusted beta download page; you choose whether to download and run the unsigned installer.`
       });
       if (result && result.response === 0) await openExternal(BETA_DOWNLOAD_URL);

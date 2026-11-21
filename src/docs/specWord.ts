@@ -152,7 +152,7 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
   const mark = (n: number) => (setup.watermark ? [watermark(setup.watermark, n)] : []); // one shape per header, as Word numbers its own
   return new Document({
     features: { updateFields: setup.contents.on && setup.contents.pageNumbers }, // Word then fills in the contents page numbers
-    creator: 'LV Design Studio', title: `${project.name} — ${doc.title}`,
+    creator: 'GFD Studio E', title: `${project.name} — ${doc.title}`,
     // Black headings (Word's own are blue): the specification prints black-and-white.
     styles: {
       default: { document: { run: { font: 'Arial', size: 21 } } },

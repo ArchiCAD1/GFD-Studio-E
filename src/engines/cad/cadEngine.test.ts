@@ -17,7 +17,7 @@ let gf: CadView;
 
 beforeAll(async () => {
   // The desktop app hands the engine over; the same bytes the web version fetches.
-  (window as { lvds?: unknown }).lvds = { cadFile: { engine: async () => bytes('electron/cad/lvds_cad_reader_bg.wasm') } };
+  (window as { gfde?: unknown }).gfde = { cadFile: { engine: async () => bytes('electron/cad/gfde_cad_reader_bg.wasm') } };
   gf = await openDrawing('sample-villa-gf.dxf', bytes('electron/samples/sample-villa-gf.dxf'));
 });
 
@@ -151,9 +151,9 @@ describe('CAD engine (Rust, WebAssembly)', () => {
 
   it('saves justified texts with their alignment, and reads them back anchored on their baseline', async () => {
     const shapes = [
-      { layer: 'LV-ANNO', kind: 'text', pts: [[1000, 500]], text: 'JUST-MC', h: 250, rot: 0, just: 'MC' },
-      { layer: 'LV-ANNO', kind: 'text', pts: [[3000, 500]], text: 'JUST-TR', h: 250, rot: Math.PI / 2, just: 'TR' },
-      { layer: 'LV-ANNO', kind: 'text', pts: [[5000, 500]], text: 'JUST-L', h: 250, rot: 0 }
+      { layer: 'GFDE-ANNO', kind: 'text', pts: [[1000, 500]], text: 'JUST-MC', h: 250, rot: 0, just: 'MC' },
+      { layer: 'GFDE-ANNO', kind: 'text', pts: [[3000, 500]], text: 'JUST-TR', h: 250, rot: Math.PI / 2, just: 'TR' },
+      { layer: 'GFDE-ANNO', kind: 'text', pts: [[5000, 500]], text: 'JUST-L', h: 250, rot: 0 }
     ];
     for (const as of ['dxf', 'dwg'] as const) {
       const saved = await openDrawing(`just.${as}`, await drawingWithDevices(gf, [], shapes, as));
@@ -183,9 +183,9 @@ describe('CAD engine (Rust, WebAssembly)', () => {
   });
 
   it('saves a note as one MTEXT with its box, attachment and codes, read back as a text per line', async () => {
-    const items: SketchItem[] = [{ id: 'n', kind: 'mtext', layer: 'LV-ANNO', pts: [[1000, 3000]], h: 250, w: 3000, note: [{ runs: [{ s: 'GENERAL ', b: true }, { s: 'NOTES' }] }, { runs: [{ s: 'Second line', u: true }] }] }];
+    const items: SketchItem[] = [{ id: 'n', kind: 'mtext', layer: 'GFDE-ANNO', pts: [[1000, 3000]], h: 250, w: 3000, note: [{ runs: [{ s: 'GENERAL ', b: true }, { s: 'NOTES' }] }, { runs: [{ s: 'Second line', u: true }] }] }];
     const shapes = shapesOut(items, 0.001);
-    expect(shapes).toEqual([{ layer: 'LV-ANNO', kind: 'mtext', pts: [[1000, 3000]], text: '{\\fArial|b1|i0;GENERAL }NOTES\\P\\LSecond line\\l', h: 250, rot: undefined, just: 'TL', w: 3000, lsp: 1, id: items[0].id }]);
+    expect(shapes).toEqual([{ layer: 'GFDE-ANNO', kind: 'mtext', pts: [[1000, 3000]], text: '{\\fArial|b1|i0;GENERAL }NOTES\\P\\LSecond line\\l', h: 250, rot: undefined, just: 'TL', w: 3000, lsp: 1, id: items[0].id }]);
     for (const as of ['dxf', 'dwg'] as const) {
       const saved = await openDrawing(`note.${as}`, await drawingWithDevices(gf, [], shapes, as));
       // The reader lists an MTEXT line by line under its top left corner, the codes gone.
@@ -198,7 +198,7 @@ describe('CAD engine (Rust, WebAssembly)', () => {
   });
 
   it('saves the drawing\'s own blocks as BLOCK records and INSERT entities, read back as one block showing its objects', async () => {
-    const def: CadBlockDef = { name: 'DB-A', units: 4, description: 'Board symbol', items: [{ id: 'r', kind: 'line', layer: '0', pts: [[0, 0], [400, 0]] }, { id: 't', kind: 'text', layer: 'LV-ANNO', pts: [[50, 100]], text: 'DB', h: 100 }] };
+    const def: CadBlockDef = { name: 'DB-A', units: 4, description: 'Board symbol', items: [{ id: 'r', kind: 'line', layer: '0', pts: [[0, 0], [400, 0]] }, { id: 't', kind: 'text', layer: 'GFDE-ANNO', pts: [[50, 100]], text: 'DB', h: 100 }] };
     const ins: SketchItem = { id: 'b', kind: 'insert', layer: 'E-POWER', pts: [[3000, 3000]], block: 'DB-A', sc: 2 };
     const shapes = [...shapesOut([ins], 0.001), ...blockDefsOut([def], 0.001)];
     expect(shapes[0]).toEqual({ layer: 'E-POWER', kind: 'insert', pts: [[3000, 3000]], name: 'DB-A', sc: 2, rot: 0, atts: [], id: ins.id });
@@ -228,7 +228,7 @@ describe('CAD engine (Rust, WebAssembly)', () => {
   it('saves a drawn line\'s own colour, linetype and lineweight, read back as the piece it explodes into', async () => {
     const { drawnFromPieces } = await import('../../model/cadTakeOver');
     const { explodeObjects } = await import('./cadEngine');
-    const shapes = shapesOut([{ id: 'r', kind: 'line', layer: 'LV-SKETCH', pts: [[90000, 90000], [91000, 90000]], color: '#ff0000', lt: 'dashed', lw: 0.35 }, { id: 'p', kind: 'line', layer: 'LV-SKETCH', pts: [[90000, 90500], [91000, 90500]] }], 0.001);
+    const shapes = shapesOut([{ id: 'r', kind: 'line', layer: 'GFDE-SKETCH', pts: [[90000, 90000], [91000, 90000]], color: '#ff0000', lt: 'dashed', lw: 0.35 }, { id: 'p', kind: 'line', layer: 'GFDE-SKETCH', pts: [[90000, 90500], [91000, 90500]] }], 0.001);
     for (const as of ['dxf', 'dwg'] as const) {
       const saved = await openDrawing(`style.${as}`, await drawingWithDevices(gf, [], shapes, as));
       const on = new Uint8Array(saved.info.layers.length).fill(1);
@@ -243,8 +243,8 @@ describe('CAD engine (Rust, WebAssembly)', () => {
   });
 
   it('saves drawn points as POINT entities, found by the Node snap, with the point style in the header', async () => {
-    const shapes = [...shapesOut([{ id: 'p', kind: 'point', layer: 'LV-SKETCH', pts: [[2500, 2500]] }], 0.001), pointStyleOut({ mode: 34, size: 5, relative: true })];
-    expect(shapes).toEqual([{ layer: 'LV-SKETCH', kind: 'point', pts: [[2500, 2500]], id: 'p' }, { layer: '', kind: 'pointstyle', pts: [], mode: 34, r: -5 }]);
+    const shapes = [...shapesOut([{ id: 'p', kind: 'point', layer: 'GFDE-SKETCH', pts: [[2500, 2500]] }], 0.001), pointStyleOut({ mode: 34, size: 5, relative: true })];
+    expect(shapes).toEqual([{ layer: 'GFDE-SKETCH', kind: 'point', pts: [[2500, 2500]], id: 'p' }, { layer: '', kind: 'pointstyle', pts: [], mode: 34, r: -5 }]);
     for (const as of ['dxf', 'dwg'] as const) {
       const saved = await openDrawing(`points.${as}`, await drawingWithDevices(gf, [], shapes, as));
       // A point has no line to pick, but the Node snap finds it.
@@ -261,8 +261,8 @@ describe('CAD engine (Rust, WebAssembly)', () => {
   it('saves radius and angular dimensions as their lines, an arc and their text, in DXF and DWG', async () => {
     const look = { arrow: 'closed' as const, size: 90, off: 20, ext: 50, unit: 'm' as const, decimals: 2 };
     const items: SketchItem[] = [
-      { id: 'r', kind: 'dim', dimKind: 'radius', layer: 'LV-ANNO', pts: [[1000, 1000], [1500, 1000], [1200, 1000]], h: 90, look },
-      { id: 'a', kind: 'dim', dimKind: 'angular', layer: 'LV-ANNO', pts: [[3000, 3000], [4000, 3000], [3000, 4000], [3300, 3300]], h: 90, look }
+      { id: 'r', kind: 'dim', dimKind: 'radius', layer: 'GFDE-ANNO', pts: [[1000, 1000], [1500, 1000], [1200, 1000]], h: 90, look },
+      { id: 'a', kind: 'dim', dimKind: 'angular', layer: 'GFDE-ANNO', pts: [[3000, 3000], [4000, 3000], [3000, 4000], [3300, 3300]], h: 90, look }
     ];
     const shapes = shapesOut(items, 0.001);
     expect(shapes.filter((x) => x.kind === 'arc').length).toBe(1);
@@ -270,7 +270,7 @@ describe('CAD engine (Rust, WebAssembly)', () => {
       const saved = await openDrawing(`dims.${as}`, await drawingWithDevices(gf, [], shapes, as));
       expect(saved.info.texts.map((t) => t.s), as).toEqual(expect.arrayContaining(['R0.50', '90.00°']));
       // Every line and the arc (stepped into segments) are read back on the annotation layer.
-      const anno = saved.info.layers.findIndex((l) => l.name === 'LV-ANNO');
+      const anno = saved.info.layers.findIndex((l) => l.name === 'GFDE-ANNO');
       let n = 0;
       for (let i = 0; i < saved.segLayers.length; i += 1) if (saved.segLayers[i] === anno) n += 1;
       expect(n, as).toBeGreaterThanOrEqual(shapes.filter((x) => x.kind === 'line').length + 8);
@@ -300,10 +300,10 @@ describe('CAD engine (Rust, WebAssembly)', () => {
   });
 
   it('saves a hatch with its pattern name, an island as a second loop and its link to the polyline it follows, in DXF and DWG, and reads it back', async () => {
-    const sq = (id: string, a: number, b: number): SketchItem => ({ id, kind: 'pline', layer: 'LV-SKETCH', closed: true, pts: [[a, a], [b, a], [b, b], [a, b]] });
+    const sq = (id: string, a: number, b: number): SketchItem => ({ id, kind: 'pline', layer: 'GFDE-SKETCH', closed: true, pts: [[a, a], [b, a], [b, b], [a, b]] });
     const items: SketchItem[] = [
       // The hatch comes first in the list: the polylines it follows are written first all the same.
-      { ...sq('H', 1000, 9000), layer: 'LV-HATCH', hatch: { pattern: 'brick', scale: 3, angle: 15, origin: [10, 20] }, holes: [sq('x', 3000, 4000).pts], assoc: ['P', 'Q'] },
+      { ...sq('H', 1000, 9000), layer: 'GFDE-HATCH', hatch: { pattern: 'brick', scale: 3, angle: 15, origin: [10, 20] }, holes: [sq('x', 3000, 4000).pts], assoc: ['P', 'Q'] },
       sq('P', 1000, 9000), sq('Q', 3000, 4000)
     ];
     const shapes = shapesOut(items, 0.001);

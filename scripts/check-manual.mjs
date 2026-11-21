@@ -50,6 +50,8 @@ for (const shot of visuals.shots) {
   const numbers = shot.callouts?.map((callout) => callout.number) ?? [];
   if (!numbers.length || new Set(numbers).size !== numbers.length) fail(`${shot.id} has missing or duplicate callout numbers`);
   const metadata = JSON.parse(read(metadataFile));
+  if (metadata.productName !== 'GFD Studio E') fail(`${shot.id} needs a GFD Studio E capture`);
+  if (shot.productImage) exists(path.join(root, shot.productImage), `${shot.id} product image`);
   if (metadata.shot !== shot.id) fail(`${shot.id} metadata belongs to ${metadata.shot ?? 'an unknown shot'}`);
   const captured = new Map(metadata.callouts?.map((callout) => [callout.number, callout]) ?? []);
   for (const callout of shot.callouts) {
