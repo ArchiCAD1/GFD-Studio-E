@@ -8,7 +8,7 @@ The user noticed two things on 2026-11-15. First, objects of a drawing opened fr
 
 Mockup: `docs/mockups/cad-selection-grips-mockup.html` (image: `cad-selection-grips-mockup.png`).
 
-![Design CAD selection, grips and opened drawings, today and proposed](../../mockups/cad-selection-grips-mockup.png)
+![Design CAD selection, grips and opened drawings, today and proposed](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/cad-selection-grips-mockup.png)
 
 ## Today
 

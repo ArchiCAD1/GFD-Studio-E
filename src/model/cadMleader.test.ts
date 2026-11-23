@@ -17,7 +17,7 @@ import type { SketchItem } from '../types';
 
 const style: CadMleaderStyle = { ...STANDARD_MLEADER, frame: false };
 const words = [{ runs: [{ s: 'L1-03' }] }];
-const make = (tip: [number, number], land: [number, number], st: CadMleaderStyle = style, note = words): SketchItem => ({ id: 'M1', ...newMleader(tip, land, note, st, 100, 'LV-ANNO', 2.5) });
+const make = (tip: [number, number], land: [number, number], st: CadMleaderStyle = style, note = words): SketchItem => ({ id: 'M1', ...newMleader(tip, land, note, st, 100, 'GFDE-ANNO', 2.5) });
 
 describe('Multileader: making one', () => {
   it('takes its look in drawing units from the style at k units per paper mm, the words\' height from the annotation when the style has none', () => {
@@ -49,7 +49,7 @@ describe('Multileader: the side of its words and their place', () => {
     const r = mleaderNote(make([0, 0], [1000, 500]))!;
     expect(r.kind).toBe('mtext');
     expect(r.id).toBe('M1');
-    expect(r.layer).toBe('LV-ANNO');
+    expect(r.layer).toBe('GFDE-ANNO');
     expect(r.pts).toEqual([[1000 + 250 + 100, 500]]);
     expect(r.just).toBe('ML');
     const l = mleaderNote(make([2000, 0], [1000, 500]))!;
@@ -154,7 +154,7 @@ describe('Multileader: aligning and collecting', () => {
     const v = collectedMleaders([a, b, c], [3000, 0], 'vertical');
     expect(v.pts).toEqual([[3000, 0], [0, 0], [0, -600], [0, -1200]]);
     expect(v.ml).toEqual(a.ml);
-    expect(v.layer).toBe('LV-ANNO');
+    expect(v.layer).toBe('GFDE-ANNO');
     expect(v.note!.map((p) => p.runs.map((r) => r.s).join(''))).toEqual(['L1-03', 'L1-03', 'L1-03']);
     const h = collectedMleaders([a, b, c], [3000, 0], 'horizontal');
     expect(h.note!).toHaveLength(1);
@@ -198,8 +198,8 @@ describe('Multileader: saved to a DXF', () => {
     expect(out.filter((s) => s.kind === 'line')).toHaveLength(mleaderSegments(it).length);
     const t = out.filter((s) => s.kind === 'mtext');
     expect(t).toHaveLength(1);
-    expect(t[0]).toMatchObject({ layer: 'LV-ANNO', pts: [[1350, 0]], text: 'L1-03', h: 250, just: 'ML' });
-    expect(out.every((s) => s.id === 'M1' && s.layer === 'LV-ANNO')).toBe(true);
+    expect(t[0]).toMatchObject({ layer: 'GFDE-ANNO', pts: [[1350, 0]], text: 'L1-03', h: 250, just: 'ML' });
+    expect(out.every((s) => s.id === 'M1' && s.layer === 'GFDE-ANNO')).toBe(true);
     expect(shapesOut([make([0, 0], [1000, 0], { ...style, content: 'none' })], 0.001).some((s) => s.kind === 'mtext')).toBe(false);
   });
 });
@@ -220,7 +220,7 @@ describe('Multileader: grips, explode, window, stretch, arrays, crop, blocks, FI
     const notes = items.filter((x) => x.kind === 'mtext');
     expect(notes).toHaveLength(1);
     expect(plainText(notes[0] as SketchItem)).toBe('L1-03');
-    expect(items.every((x) => x.layer === 'LV-ANNO')).toBe(true);
+    expect(items.every((x) => x.layer === 'GFDE-ANNO')).toBe(true);
   });
 
   it('is in a window when its lines and its words are', () => {

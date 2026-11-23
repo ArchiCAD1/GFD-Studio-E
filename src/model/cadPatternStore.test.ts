@@ -16,12 +16,12 @@ describe('patterns kept on this computer', () => {
   });
 
   it('leaves out what is not a valid pattern, caps the list at 500, and survives a storage that is refused or damaged', () => {
-    localStorage.setItem('lvds.cadPatterns.computer', JSON.stringify([patterns[0], { name: 'bad name!', lines: [] }, 7]));
+    localStorage.setItem('gfde.cadPatterns.computer', JSON.stringify([patterns[0], { name: 'bad name!', lines: [] }, 7]));
     expect(loadComputerPatterns()).toEqual([patterns[0]]);
     const many = Array.from({ length: 600 }, (_, i) => ({ ...patterns[0], name: `P${i}` }));
     expect(saveComputerPatterns(many)).toBe(true);
     expect(loadComputerPatterns()).toHaveLength(500);
-    localStorage.setItem('lvds.cadPatterns.computer', '{not json');
+    localStorage.setItem('gfde.cadPatterns.computer', '{not json');
     expect(loadComputerPatterns()).toEqual([]);
     const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('full'); });
     expect(saveComputerPatterns([patterns[0]])).toBe(false);

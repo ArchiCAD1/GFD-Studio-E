@@ -1,7 +1,7 @@
 import { validCustom, withPatterns, type CustomPattern } from './cadHatch';
 
 /** Design CAD → Hatch patterns kept on this computer for every project (browser storage; none when it is refused). */
-const KEY = 'lvds.cadPatterns.computer', MAX = 500;
+const KEY = 'gfde.cadPatterns.computer', MAX = 500;
 
 /** The patterns kept on this computer (only valid ones, at most 500). */
 export function loadComputerPatterns(): CustomPattern[] {

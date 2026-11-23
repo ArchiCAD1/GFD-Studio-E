@@ -15,7 +15,7 @@ import { mergePdfs } from '../../src/docs/mergePdf';
  * the app's Chromium call and merged — all pages kept, one bookmark per document, in list order. */
 
 const electron = createRequire(import.meta.url)('electron') as unknown as string;
-const dir = mkdtempSync(path.join(tmpdir(), 'lvds-export-'));
+const dir = mkdtempSync(path.join(tmpdir(), 'gfde-export-'));
 // Rendered files are removed after the run (set KEEP_PDF=1 to keep them for a look).
 afterAll(() => { if (!process.env.KEEP_PDF) rmSync(dir, { recursive: true, force: true }); });
 

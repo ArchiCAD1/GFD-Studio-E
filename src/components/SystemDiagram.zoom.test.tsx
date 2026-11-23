@@ -60,7 +60,7 @@ describe('SLD zoom and pan on the design canvas', () => {
   afterEach(() => {
     act(() => root.unmount());
     host.remove();
-    localStorage.removeItem('lvds.sldDetail');
+    localStorage.removeItem('gfde.sldDetail');
     delete (Element.prototype as unknown as { setPointerCapture?: () => void }).setPointerCapture;
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -192,7 +192,7 @@ describe('SLD zoom and pan on the design canvas', () => {
   });
 
   it('follows the zoom with text detail set to auto, drawing again only when the detail changes', () => {
-    localStorage.setItem('lvds.sldDetail', 'auto');
+    localStorage.setItem('gfde.sldDetail', 'auto');
     act(() => root.unmount());
     root = createRoot(host);
     draw();

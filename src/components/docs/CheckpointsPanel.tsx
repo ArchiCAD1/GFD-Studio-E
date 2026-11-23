@@ -51,7 +51,7 @@ export default function CheckpointsPanel({ project, onRestore, onOpenCopy, onSta
     try {
       const all = store && projectId ? await store.list(projectId) : [];
       const bytes = await buildBackup(project, all, __APP_VERSION__);
-      const where = await saveBinary(`${safeFileName(project.name)}.${BACKUP_EXT}`, bytes, 'LV Design Studio backup', BACKUP_EXT, 'application/zip', { output: 'projectBackup' });
+      const where = await saveBinary(`${safeFileName(project.name)}.${BACKUP_EXT}`, bytes, 'GFD Studio E backup', BACKUP_EXT, 'application/zip', { output: 'projectBackup' });
       if (where !== null) onStatus(`Backup exported with ${all.length} checkpoint${all.length === 1 ? '' : 's'} — the project as it is now (save it first if you want the file to match)`);
     } catch (e) { fail('Export backup')(e); }
   }
@@ -60,7 +60,7 @@ export default function CheckpointsPanel({ project, onRestore, onOpenCopy, onSta
     try {
       const b = await readBackupFile(file);
       const made = fmtDateTime(b.manifest.exportedAt);
-      if (!(await ask({ title: `Import the backup of “${b.project.name}”?`, message: `Made ${made} with LV Design Studio ${b.manifest.appVersion}, with ${b.checkpoints.length} checkpoint${b.checkpoints.length === 1 ? '' : 's'}. Every file in it passed its check.`, confirmLabel: 'Import' }))) return;
+      if (!(await ask({ title: `Import the backup of “${b.project.name}”?`, message: `Made ${made} with GFD Studio E ${b.manifest.appVersion}, with ${b.checkpoints.length} checkpoint${b.checkpoints.length === 1 ? '' : 's'}. Every file in it passed its check.`, confirmLabel: 'Import' }))) return;
       const same = !!project.id && b.project.id === project.id;
       // Two ways on: replace the open project, or (the other button, as Cancel was before) open the backup as a new project.
       const replace = same && await ask({ title: 'This backup is of the open project. Replace the open project with it?', message: 'Replace: the open design is kept as a checkpoint first, and the backup’s checkpoints are added.\nOpen as a new project: the open project is not changed.', confirmLabel: 'Replace the open project', cancelLabel: 'Open as a new project' });
@@ -96,9 +96,9 @@ export default function CheckpointsPanel({ project, onRestore, onOpenCopy, onSta
       </p>
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         <button className="primary" disabled={!project.id} onClick={create}>Create checkpoint…</button>
-        <button disabled={!project.id} onClick={exportBackup} title="One .lvds-backup file: the project, its checkpoints and a check of every file">Export backup…</button>
-        <button onClick={() => picker.current?.click()} title="Open a .lvds-backup file: it is checked before anything is opened">Import backup…</button>
-        <input ref={picker} type="file" accept={`.${BACKUP_EXT},.zip`} style={{ display: 'none' }} onChange={(e) => { void importBackup(e.target.files?.[0]); e.target.value = ''; }} />
+        <button disabled={!project.id} onClick={exportBackup} title="One .gfde-backup file: the project, its checkpoints and a check of every file">Export backup…</button>
+        <button onClick={() => picker.current?.click()} title="Open a .gfde-backup file: it is checked before anything is opened">Import backup…</button>
+        <input ref={picker} type="file" accept={`.${BACKUP_EXT},.lvds-backup,.zip`} style={{ display: 'none' }} onChange={(e) => { void importBackup(e.target.files?.[0]); e.target.value = ''; }} />
       </div>
       {!list.length ? <p className="m">None yet.</p> : (
         <table className="tbl"><tbody>{list.map((c) => (

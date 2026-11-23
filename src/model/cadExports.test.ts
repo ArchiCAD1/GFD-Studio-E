@@ -15,7 +15,7 @@ describe('Design CAD export lists', () => {
 
   it('cable routes: per cable, the routes drawn and their length on the plan (m)', () => {
     const r = (id: string, feederId: string, pts: [number, number][]): SketchItem => ({ id, layer: 'E-CABLE', kind: 'pline', pts, cable: { feederId } });
-    const sketch = [r('a', 'F1', [[0, 0], [3000, 0], [3000, 4000]]), r('b', 'F1', [[0, 0], [1000, 0]]), r('c', 'F2', [[0, 0], [0, 2500]]), { id: 'x', layer: 'LV-SKETCH', kind: 'line', pts: [[0, 0], [9, 9]] } as SketchItem];
+    const sketch = [r('a', 'F1', [[0, 0], [3000, 0], [3000, 4000]]), r('b', 'F1', [[0, 0], [1000, 0]]), r('c', 'F2', [[0, 0], [0, 2500]]), { id: 'x', layer: 'GFDE-SKETCH', kind: 'line', pts: [[0, 0], [9, 9]] } as SketchItem];
     expect(cableRows(sketch, (id) => (id === 'c' ? 'C-10' : 'C-2'), 0.001)).toEqual([['C-2', 2, 8], ['C-10', 1, 2.5]]);
   });
 });

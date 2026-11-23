@@ -7,11 +7,13 @@ import './styles.css';
 import { loadPrefs } from './model/profile';
 import { applyPalette, applyTheme } from './theme/theme';
 import { watchForErrors } from './util/errorLog';
+import { migrateLegacyLocalStorage } from './model/legacyStorage';
 
-// ?lvds-export: the hidden window of the command line's export (electron/headlessExport.cjs), not the app.
-if (new URLSearchParams(window.location.search).has('lvds-export')) {
+// ?gfde-export: the hidden window of the command line's export (electron/headlessExport.cjs), not the app.
+if (new URLSearchParams(window.location.search).has('gfde-export')) {
   import('./headless/rendererExport').then((m) => m.install());
 } else {
+  migrateLegacyLocalStorage();
   watchForErrors();
   // Before the first paint, so a light-theme user never sees a dark flash.
   const prefs = loadPrefs();

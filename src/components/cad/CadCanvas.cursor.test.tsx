@@ -156,7 +156,7 @@ describe('what a click would pick is marked first', () => {
 
 describe('Trim and Extend: the shadow before the click', () => {
   beforeEach(() => { for (const [k, v] of [['--acc', '#f5b301'], ['--cad-bg', '#15171a'], ['--cad-snap', '#37d67a']]) document.documentElement.style.setProperty(k, v); });
-  const piece: SketchItem = { id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[100, 250], [500, 250]], color: '#ff8800' };
+  const piece: SketchItem = { id: 'S1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[100, 250], [500, 250]], color: '#ff8800' };
   const band = (w: number) => strokes.findIndex((s) => s.c === '#15171a' && s.w === w);
 
   it('Trim: the piece under a band in the canvas colour, then dashed in its own colour at 35 %, in place of the hover mark', () => {

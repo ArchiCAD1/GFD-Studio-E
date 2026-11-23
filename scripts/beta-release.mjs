@@ -34,8 +34,8 @@ export function deriveBetaVersion(packageVersion, runNumber) {
 export function assetNames(version) {
   if (!betaParts(version)) throw new Error('Invalid beta version');
   return {
-    windows: `LV-Design-Studio-${version}-win-x64.exe`,
-    macos: `LV-Design-Studio-${version}-mac-arm64.dmg`,
+    windows: `GFD-Studio-E-${version}-win-x64.exe`,
+    macos: `GFD-Studio-E-${version}-mac-arm64.dmg`,
     checksums: 'SHA256SUMS.txt'
   };
 }
@@ -111,7 +111,7 @@ export async function writeChecksums(directory, version, output) {
 
 export function releaseNotes(version, commit) {
   if (!betaParts(version) || !COMMIT.test(commit)) throw new Error('Release version or commit is invalid');
-  return `# LV Design Studio ${version} — unsigned beta
+  return `# GFD Studio E ${version} — unsigned beta
 
 This prerelease was built from commit \`${commit}\` after the repository's CI completed successfully.
 
@@ -119,7 +119,7 @@ This prerelease was built from commit \`${commit}\` after the repository's CI co
 
 - This is an unsigned active-development build. macOS Gatekeeper and Windows SmartScreen or unknown-publisher warnings are expected.
 - Keep those operating-system protections enabled. This project does not provide instructions to bypass them.
-- Back up LV Design Studio project files before testing.
+- Back up GFD Studio E project files before testing.
 - Do not use this beta for production issue work.
 
 ## Packages

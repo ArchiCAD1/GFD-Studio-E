@@ -78,7 +78,7 @@ The module has three parts.
 
 **Quick calculators**
 1. Left menu → Calculators: `App.tsx` (:1644) renders the lazily loaded `QuickCalcs` with the project (view `calculators`).
-2. `useTab` restores the last tab from `localStorage` (`lvds.quick.tab`). `useInputs` restores each card's inputs. `restore` drops a saved value when its default (e.g. project voltage) has changed since it was saved.
+2. `useTab` restores the last tab from `localStorage` (`gfde.quick.tab`). `useInputs` restores each card's inputs. `restore` drops a saved value when its default (e.g. project voltage) has changed since it was saved.
 3. The user types a value. `Field` → `set` → `useInputs` saves to `localStorage` and re-renders.
 4. `quickInputErrors(card, values)` checks the inputs. If there is any error, `Card` shows "Correct the highlighted inputs" and no result.
 5. Otherwise the card's calc runs. For example the Cable tab calls `cableFor` → `nextBreaker` → `selectCableRuns` → `voltageDrop`, and `cableCandidates` fills the side table.

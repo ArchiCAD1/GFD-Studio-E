@@ -19,7 +19,7 @@ circuit in the app's project data, from a board to a load or to another board).
 - **Quick fixes** (`quickFixes`, `src/calc/quickFix.ts:25`): up to four one-click patches (breaker up/down, bigger
   cable, one more parallel run, higher Icu) offered on the system diagram for a failing circuit.
 - **Cable data** (`src/calc/cableTable.ts`): built-in reference table (Cu/XLPE/SWA 4-core, method E, 30 °C), replaced
-  machine-wide by `Cables.xlsx` from the LV Database; source tracking and "DATA REQUIRED" findings.
+  machine-wide by `Cables.xlsx` from the GFD Studio E Database; source tracking and "DATA REQUIRED" findings.
 
 `sizing.ts` also holds transformer, generator, UPS and PFC sizing (modules 12-transformer-generator, 15-ups-solar,
 13-power-factor-correction); only the "breaker & cable selection" part (lines 241–347) belongs here.
@@ -39,7 +39,7 @@ circuit in the app's project data, from a board to a load or to another board).
 | `src/types.ts:195-240, 554-567` | model | `Feeder` (`breakerRatingA`, `breakerIcuKa`, `breakerType`, `cableCsaMm2`, `parallel`, `cores`, `installMethod`, `cableType`, `cpcMm2`, `manualSize`), `Project` (`ambientC`, `vdLimitPct`, `vdTempC`, `groundTempC`, `soilResistivityKmW`, `strictCableData`), `BreakerType` | The saved fields this module reads and writes. |
 
 "Store" note: the cable table and breaker lists are **module-level variables** (`active` in `cableTable.ts:120`,
-`breakerList` / `icuList` in `sizing.ts:14`) — memory shared by the whole app, filled from the LV Database, not from
+`breakerList` / `icuList` in `sizing.ts:14`) — memory shared by the whole app, filled from the GFD Studio E Database, not from
 the project file.
 
 ## 3. Inputs — where its data comes from

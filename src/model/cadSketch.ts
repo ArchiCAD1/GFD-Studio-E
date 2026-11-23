@@ -672,7 +672,7 @@ export function shapesOut(items: SketchItem[], metresPerUnit: number, defs: CadB
         ...(n ? [{ layer: it.layer, kind: 'mtext' as const, pts: n.pts, text: toDxfMtext(n.note ?? []), h: n.h, rot: 0, just: n.just ?? 'ML', w: n.w ?? 0, lsp: 1 }] : [])];
     }
     if (it.kind === 'text') {
-      // Its mask (a solid hatch on LV-MASK, written before it so it lies under), the text, then its frame.
+      // Its mask (a solid hatch on GFDE-MASK, written before it so it lies under), the text, then its frame.
       const f = textFrameOf(it);
       return [...(it.mask ? [{ layer: MASK_LAYER, kind: 'hatch' as const, pts: [], loops: [textCorners(it)], solid: true }] : []),
         { layer: it.layer, kind: 'text', pts: it.pts, text: it.text, h: it.h, rot: it.rot, ...(it.just ? { just: it.just } : {}) },

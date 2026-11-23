@@ -47,7 +47,7 @@ Term used below: *store / project* = the in-memory `Project` object that is save
 |---|---|---|
 | `project.upsSystems`, `project.pv` saved in the project file | 02-project-storage | `UpsStudy.tsx:set`, `SolarStudy.tsx:set`; labels in `src/model/saveSafety.ts:42` |
 | Selected UPS kVA written to the SLD board (`board.upsKva`) | 06-network-sld-editor | `UpsStudy.tsx` `onApply` |
-| PV generation feeder `PV-<board>` | 06-network-sld-editor, 16-load-flow-engines | `pvFeeder.ts:pvToSld`; `summary.ts:boardTotalsOf` (`generationKw`), `engines/python/lvds_engine.py:397` (`create_sgen`), `src/engines/opendss/exportDss.ts:160` |
+| PV generation feeder `PV-<board>` | 06-network-sld-editor, 16-load-flow-engines | `pvFeeder.ts:pvToSld`; `summary.ts:boardTotalsOf` (`generationKw`), `engines/python/gfde_engine.py:397` (`create_sgen`), `src/engines/opendss/exportDss.ts:160` |
 | UPS and PV PDFs (page button, export centre, headless export) | 25-reports-exports, 31-headless-cli-mcp | `upsSolarReport.ts:buildUpsReportHtml`, `buildPvReportHtml`; `src/components/docs/exportCatalogue.ts:114–121` |
 | UPS table in the compliance report | 25-reports-exports | `src/docs/compliance.ts:45, 62` |
 | One-line UPS / PV entries in the design basis | 25-reports-exports | `src/docs/designBasis.ts:163–166` |
@@ -78,7 +78,7 @@ Solar PV:
 - 06-network-sld-editor: the UPS load is read live from the board demand (`upsLoad` → `boardTotals`). The UPS kVA is written back to `board.upsKva`. The PV feeder is written to `project.feeders`.
 - 12-transformer-generator: the leading-kvar check walks up to the first board with `standby.kva` (`generatorBoard`).
 - 11-breaker-cable-selection: the PV feeder uses the shared `recommend` and the shared breaker list.
-- 16-load-flow-engines: PV feeders are static generators in the Python engine (`lvds_engine.py:397`) and `Generator` elements in the OpenDSS export (`exportDss.ts:160`). The built-in totals keep them separate (`generationKw`).
+- 16-load-flow-engines: PV feeders are static generators in the Python engine (`gfde_engine.py:397`) and `Generator` elements in the OpenDSS export (`exportDss.ts:160`). The built-in totals keep them separate (`generationKw`).
 - 25-reports-exports / 31-headless-cli-mcp: both reports are in `exportCatalogue.ts` (headless `export_report`, tested in `src/headless/exportTools.test.ts:64, 101`).
 - 28-dashboard-readiness: UPS failures and PV status reach the to-do list.
 - 20-equipment-boq-pricing: PV items are in the BOM from `sizePv`.

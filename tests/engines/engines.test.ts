@@ -9,21 +9,21 @@ import { resistanceFactor } from '../../src/calc/electrical';
 import type { Project } from '../../src/types';
 import { referenceNetworks } from './referenceNetworks';
 
-/** The external engines (engines/python/lvds_engine.py) run on the reference networks:
+/** The external engines (engines/python/gfde_engine.py) run on the reference networks:
  * - golden results: every value must match tests/engines/golden/<engine>.json, made with the versions
  *   pinned in engines/python/requirements.txt. After an intended change, regenerate them with
  *   `UPDATE_GOLDEN=1 npx vitest run tests/engines` and review the diff;
  * - hand calculation and engine-to-engine agreement, so the golden values are known to be right;
  * - the error messages the app shows when a study cannot run.
- * Skipped when Python or an engine is missing, except with LVDS_ENGINES=required (CI). */
+ * Skipped when Python or an engine is missing, except with GFDE_ENGINES=required (CI). */
 
-const SCRIPT = 'engines/python/lvds_engine.py';
+const SCRIPT = 'engines/python/gfde_engine.py';
 const GOLDEN = 'tests/engines/golden';
 const ENGINES = ['opendss', 'pandapower'] as const;
 type EngineId = (typeof ENGINES)[number];
-const required = process.env.LVDS_ENGINES === 'required';
+const required = process.env.GFDE_ENGINES === 'required';
 const update = !!process.env.UPDATE_GOLDEN;
-const python = process.env.LVDS_PYTHON ?? ['python3', 'python'].find((p) => spawnSync(p, ['--version']).status === 0);
+const python = process.env.GFDE_PYTHON ?? ['python3', 'python'].find((p) => spawnSync(p, ['--version']).status === 0);
 const probe: EngineProbe | null = python ? JSON.parse(spawnSync(python, [SCRIPT], { input: '{"engine":"probe"}', encoding: 'utf8' }).stdout) : null;
 const has = (id: EngineId) => !!probe?.engines[id]?.available;
 
@@ -64,7 +64,7 @@ const golden = (r: StudyResults) => ({ feeders: roundAll(r.feeders as never), bo
 
 describe('external engines on the reference networks', () => {
   if (required) {
-    it('Python and both engines are installed (LVDS_ENGINES=required)', () => {
+    it('Python and both engines are installed (GFDE_ENGINES=required)', () => {
       expect(python, 'no python3 / python on PATH').toBeTruthy();
       for (const id of ENGINES) expect(probe?.engines[id], `${id} not installed: pip install -r engines/python/requirements.txt`).toMatchObject({ available: true });
     });

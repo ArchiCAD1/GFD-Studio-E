@@ -3,7 +3,7 @@
 // and never stored here. Every template is checked field by field (ipcValidate.cjs) on the way in and when
 // the file is read; the file is replaced atomically and never followed through a link.
 //
-// File: { format: 'lv-folder-templates', formatVersion: 1, defaultId?: string, templates: FolderTemplate[] }
+// File: { format: 'gfde-folder-templates', formatVersion: 1, defaultId?: string, templates: FolderTemplate[] }
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -13,7 +13,8 @@ const { LIMITS, readJsonLimited, assertTextWithin } = require('./limits.cjs');
 const { replaceFile, copyFileNoFollow } = require('./safeFs.cjs');
 
 const FILE = 'folder-templates.json';
-const FORMAT = 'lv-folder-templates';
+const FORMAT = 'gfde-folder-templates';
+const LEGACY_FORMAT = 'lv-folder-templates';
 const fileIn = (dir) => path.join(dir, FILE);
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 const newId = () => `user-${crypto.randomBytes(8).toString('hex')}`;
@@ -43,7 +44,7 @@ function read(dir) {
   } catch (e) {
     return { templates: [], defaultId: null, skipped: 0, error: `${FILE} could not be read: ${e.message}`, damaged: true };
   }
-  if (!isObj(data) || data.format !== FORMAT) return { templates: [], defaultId: null, skipped: 0, error: `${FILE} is not a folder templates file.`, damaged: true };
+  if (!isObj(data) || ![FORMAT, LEGACY_FORMAT].includes(data.format)) return { templates: [], defaultId: null, skipped: 0, error: `${FILE} is not a folder templates file.`, damaged: true };
   const { templates, skipped } = cleanList(data.templates);
   const defaultId = typeof data.defaultId === 'string' && data.defaultId.length <= 80 ? data.defaultId : null;
   return { templates, defaultId, skipped };

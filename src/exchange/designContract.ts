@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-/** Electrical design data for other programs (BIM add-ins, scripts, AI clients), contract `lvds.design` version 1.
- * Read only: the app writes it, nothing reads it back. A sibling of `lvds.exchange` (contracts.ts), not one of its
+/** Electrical design data for other programs (BIM add-ins, scripts, AI clients), contract `gfde.design` version 1.
+ * Read only: the app writes it, nothing reads it back. A sibling of `gfde.exchange` (contracts.ts), not one of its
  * kinds, so programs that check exchange packages are not affected.
  *
  * - Every board and circuit carries its permanent `uid` (model/stableIds) and its `tag` (the name the engineer
@@ -11,7 +11,7 @@ import { z } from 'zod';
  *   `calculation.fingerprint` changes when any input to any study changes.
  * - New optional fields may be added within version 1; anything else is a new version. */
 
-export const DESIGN_SCHEMA = 'lvds.design' as const;
+export const DESIGN_SCHEMA = 'gfde.design' as const;
 export const DESIGN_VERSION = 1 as const;
 
 const id = z.string().min(1).max(200);
@@ -77,7 +77,7 @@ export const designPackage = z.object({
   schema: z.literal(DESIGN_SCHEMA),
   version: z.literal(DESIGN_VERSION),
   project: z.object({ id: id.optional(), name: z.string().max(200), voltageV: num, frequencyHz: num, vdLimitPct: num }).strict(),
-  source: z.object({ app: z.literal('lvds'), appVersion: z.string().max(40).optional(), file: z.string().max(260).optional() }).strict(),
+  source: z.object({ app: z.literal('gfde'), appVersion: z.string().max(40).optional(), file: z.string().max(260).optional() }).strict(),
   exportedAt: z.iso.datetime({ offset: true }),
   calculation: z.object({ fingerprint: z.string().regex(/^[0-9a-f]{64}$/).describe('SHA-256 of the inputs of every study') }).strict(),
   boards: z.array(board).max(20000),

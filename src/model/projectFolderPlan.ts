@@ -83,7 +83,7 @@ export function joinPath(parent: string, name: string): string {
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export interface RememberedFolder { root: string; unticked: string[] }
-const KEY = (projectId: string | undefined) => `lvds.projectFolder.${projectId ?? 'new'}`;
+const KEY = (projectId: string | undefined) => `gfde.projectFolder.${projectId ?? 'new'}`;
 const store = (s?: Store): Store | undefined => s ?? (typeof localStorage === 'undefined' ? undefined : localStorage);
 
 /** The project folder chosen on this computer, and the folders left unticked there. */
@@ -103,7 +103,7 @@ export function rememberFolder(projectId: string | undefined, f: RememberedFolde
 
 /* ---------- where the user saved an output instead, on this computer (spec F2) ---------- */
 
-const CHOICE_KEY = (projectId: string | undefined) => `lvds.projectFolderChoices.${projectId ?? 'new'}`;
+const CHOICE_KEY = (projectId: string | undefined) => `gfde.projectFolderChoices.${projectId ?? 'new'}`;
 
 function readChoices(projectId: string | undefined, s?: Store): Record<string, string> {
   try {

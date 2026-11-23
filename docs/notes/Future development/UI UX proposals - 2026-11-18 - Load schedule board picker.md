@@ -4,7 +4,7 @@ Status: **proposed**, waiting for the user's decisions A–E. Nothing is built.
 
 Mockup: `docs/mockups/load-schedule-board-picker-mockup.html` (image: `load-schedule-board-picker-mockup.png`).
 
-![Load schedule with a Filter button instead of six rows of panel buttons](../../mockups/load-schedule-board-picker-mockup.png)
+![Load schedule with a Filter button instead of six rows of panel buttons](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-board-picker-mockup.png)
 
 ## Today
 

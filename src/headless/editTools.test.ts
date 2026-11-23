@@ -29,17 +29,17 @@ const load = (n: string) => parseProject(read(n), `${n}.json`);
 const run = (name: string, args: Record<string, unknown>): Record<string, any> => callTool(toolByName(name)!, args, ctx) as Record<string, any>;
 /** Symbolic links need permission on Windows; skip there when they cannot be made. */
 const canLink = (() => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-link-'));
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-link-'));
   try { fs.symlinkSync(path.join(d, 'x'), path.join(d, 'y')); return true; } catch { return false; } finally { fs.rmSync(d, { recursive: true, force: true }); }
 })();
 const it_ = canLink ? it : it.skip;
 
 beforeAll(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-edit-'));
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-edit-'));
   appData = path.join(root, 'app');
-  process.env.LVDS_APP_DATA = appData;
+  process.env.GFDE_APP_DATA = appData;
 });
-afterAll(() => { delete process.env.LVDS_APP_DATA; fs.rmSync(root, { recursive: true, force: true }); });
+afterAll(() => { delete process.env.GFDE_APP_DATA; fs.rmSync(root, { recursive: true, force: true }); });
 beforeEach(() => {
   folder = fs.mkdtempSync(path.join(root, 'projects-'));
   fs.writeFileSync(file('Villa'), JSON.stringify(villa, null, 2));
@@ -82,7 +82,7 @@ describe('proposals: the engineer applies them', () => {
     expect(p.checks.fixed).toContain('GF-SKT');
     const saved = load('Failing');
     const rec = saved.modifications!.find((m) => m.id === p.details.proposal)!;
-    expect(rec).toMatchObject({ status: 'proposed', author: 'AI assistant (lvds)' });
+    expect(rec).toMatchObject({ status: 'proposed', author: 'AI assistant (gfde)' });
     expect(rec.decision).toBeUndefined();
     expect(saved.feeders.find((f) => f.id === 'GF-SKT')!.cableCsaMm2).toBe(1.5); // not applied
     // The engineer's steps in the app: accept with their name, then apply (one undo step).
@@ -146,14 +146,14 @@ describe('backup, log and undo', () => {
   it('undo refuses when the file changed since, and says where the backup is', () => {
     const a = run('add_panel', { project: 'Villa', kind: 'DB', id: 'DB-Y', fedFrom: 'SMDB-GF', mode: 'apply' });
     fs.writeFileSync(file('Villa'), read('Villa').replace('"Demonstration Project', '"Edited Demonstration Project')); // saved from the app
-    expect(() => run('undo_change', { project: 'Villa', change: a.change, mode: 'apply' })).toThrow(/has changed since.*\.lvds-agent/);
+    expect(() => run('undo_change', { project: 'Villa', change: a.change, mode: 'apply' })).toThrow(/has changed since.*\.gfde-agent/);
   });
 });
 
 describe('a log changed by someone else cannot make undo copy another file into the project', () => {
   const SECRET = JSON.stringify({ ...villa, name: 'Secret from outside the projects folder' });
   const sha = (t: string) => crypto.createHash('sha256').update(t).digest('hex');
-  const log = () => path.join(folder, '.lvds-agent', 'log.jsonl');
+  const log = () => path.join(folder, '.gfde-agent', 'log.jsonl');
   // A line that passes the hash check: it claims to have written the file as it is now, from the secret.
   const forge = (id: string, backup: string, extra: Record<string, unknown> = {}) => fs.appendFileSync(log(),
     JSON.stringify({ id, at: new Date().toISOString(), file: 'Villa.json', tool: 'add_panel', summary: 'Forged', beforeHash: sha(SECRET), afterHash: sha(read('Villa')), backup, ...extra }) + '\n');
@@ -165,10 +165,10 @@ describe('a log changed by someone else cannot make undo copy another file into 
     const now = read('Villa');
     forge('C-20990101000000-aaaa', path.relative(folder, secret)); // ../secret.json
     forge('C-20990101000000-bbbb', secret); // absolute
-    forge('C-20990101000000-cccc', '.lvds-agent/backups/Villa/../../../../secret.json');
-    forge('../../secret', '.lvds-agent/backups/Villa/../../../secret.json');
-    forge('C-20990101000000-dddd', path.join('.lvds-agent', 'backups', 'Villa', 'C-20990101000000-dddd.json'), { afterHash: 'not a hash' });
-    forge('C-20990101000000-eeee', path.join('.lvds-agent', 'backups', 'Other', 'C-20990101000000-eeee.json')); // another project's backup
+    forge('C-20990101000000-cccc', '.gfde-agent/backups/Villa/../../../../secret.json');
+    forge('../../secret', '.gfde-agent/backups/Villa/../../../secret.json');
+    forge('C-20990101000000-dddd', path.join('.gfde-agent', 'backups', 'Villa', 'C-20990101000000-dddd.json'), { afterHash: 'not a hash' });
+    forge('C-20990101000000-eeee', path.join('.gfde-agent', 'backups', 'Other', 'C-20990101000000-eeee.json')); // another project's backup
     fs.appendFileSync(log(), 'not json\n[1, 2]\nnull\n');
     expect(readLog(folder).map((e) => e.id)).toEqual([a.change]);
     for (const change of ['C-20990101000000-aaaa', 'C-20990101000000-bbbb', 'C-20990101000000-cccc', '../../secret', 'C-20990101000000-eeee']) {
@@ -182,7 +182,7 @@ describe('a log changed by someone else cannot make undo copy another file into 
   it_('reads only the version that change kept: not a link, not in a linked folder, not changed', () => {
     const a = run('add_panel', { project: 'Villa', kind: 'DB', id: 'DB-U', fedFrom: 'SMDB-GF', mode: 'apply' });
     const now = read('Villa');
-    const dir = path.join(folder, '.lvds-agent', 'backups', 'Villa');
+    const dir = path.join(folder, '.gfde-agent', 'backups', 'Villa');
     const kept = path.join(dir, `${a.change}.json`);
     const copy = path.join(root, 'outside-copy.json');
     fs.copyFileSync(kept, copy); // the same text: only the link is wrong
@@ -245,7 +245,7 @@ describe('servers', () => {
       const sized = await client.callTool({ name: 'size_circuits', arguments: { project: 'Failing', mode: 'propose' } });
       expect(sized.isError).toBeFalsy();
       const rec = load('Failing').modifications!.slice(-1)[0];
-      expect(rec.author).toBe('AI assistant (lvds) via Test bClient/b 9.9');
+      expect(rec.author).toBe('AI assistant (gfde) via Test bClient/b 9.9');
       expect(readLog(folder).slice(-1)[0].client).toBe('Test bClient/b 9.9');
     } finally { await client.close(); }
   });

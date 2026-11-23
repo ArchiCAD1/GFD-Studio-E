@@ -30,13 +30,13 @@ const onChange = vi.fn((p: Project, _message: string) => { project = p; });
 const onPrefs = vi.fn((_p: { draft: DraftSettings; autosaveMin: number }) => {});
 beforeEach(() => {
   host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); localStorage.clear(); project = villa; onChange.mockClear();
-  (window as { lvds?: unknown }).lvds = { cadFile: {
-    engine: async () => bytes('electron/cad/lvds_cad_reader_bg.wasm'),
+  (window as { gfde?: unknown }).gfde = { cadFile: {
+    engine: async () => bytes('electron/cad/gfde_cad_reader_bg.wasm'),
     sampleBytes: vi.fn(async (name: string) => ({ file: name, bytes: bytes(`electron/samples/${name}`) })),
     openBytes: vi.fn(async () => ({ file: 'plan.dwg', path: '/plans/plan.dwg', bytes: bytes('tests/fixtures/cad/plan-2018.dwg') }))
   } };
 });
-afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; delete (window as { lvds?: unknown }).lvds; });
+afterEach(() => { act(() => root.unmount()); document.body.innerHTML = ''; delete (window as { gfde?: unknown }).gfde; });
 
 function Host({ start = villa, show }: { start?: Project; show?: (s: CadShow) => void }) {
   const cad = useCad('p1');
@@ -87,7 +87,7 @@ const clickAt = async (x: number, y: number, shiftKey = false) => {
 
 
 describe('CAD command aliases (2026-11-14)', () => {
-  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'LV-SKETCH', pts: [a, b] });
+  const line = (id: string, a: [number, number], b: [number, number]) => ({ id, kind: 'line' as const, layer: 'GFDE-SKETCH', pts: [a, b] });
   const X = 200000;
   const two: Project = { ...villa, cadSketch: [{ file: 'sample-villa-gf.dxf', items: [line('S1', [X, 0], [X + 4000, 0]), line('S2', [X + 6000, 1000], [X + 6000, 5000])] }] };
   const hist = () => document.querySelector('.cad-hist')?.textContent ?? '';

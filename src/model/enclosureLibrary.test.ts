@@ -43,6 +43,7 @@ describe('enclosure library', () => {
     const file = JSON.stringify(exportLibrary());
     store.clear();
     expect(importLibrary(file)).toEqual({ catalogues: 1, devices: 1 });
+    expect(importLibrary(file.replace('gfde-enclosure-library', 'lvds-enclosure-library'))).toEqual({ catalogues: 1, devices: 1 });
     expect(userCatalogues()[0].supplier).toBe('Brand B');
     expect(() => importLibrary('{"kind":"other"}')).toThrow();
     const wb = catalogueWorkbook(MOD);

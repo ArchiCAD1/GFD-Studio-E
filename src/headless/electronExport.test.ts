@@ -20,7 +20,7 @@ vi.mock('./electronExport', async (orig) => ({
   findRenderer: vi.fn(),
   runInRenderer: vi.fn()
 }));
-const found = { command: '/x/electron', args: ['headlessExport.cjs', '--lvds-headless-export'], where: 'Electron in /x' };
+const found = { command: '/x/electron', args: ['headlessExport.cjs', '--gfde-headless-export'], where: 'Electron in /x' };
 
 let root: string, folder: string;
 let ctx: ToolContext;
@@ -32,11 +32,11 @@ const exported = () => (fs.existsSync(path.join(folder, 'Exports')) ? fs.readdir
 const pdf = new TextEncoder().encode('%PDF-1.7 test');
 
 beforeAll(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-electron-'));
-  process.env.LVDS_APP_DATA = path.join(root, 'app');
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-electron-'));
+  process.env.GFDE_APP_DATA = path.join(root, 'app');
   vi.stubGlobal('DOMParser', DOMParser);
 });
-afterAll(() => { delete process.env.LVDS_APP_DATA; vi.unstubAllGlobals(); fs.rmSync(root, { recursive: true, force: true }); });
+afterAll(() => { delete process.env.GFDE_APP_DATA; vi.unstubAllGlobals(); fs.rmSync(root, { recursive: true, force: true }); });
 beforeEach(() => {
   folder = fs.mkdtempSync(path.join(root, 'projects-'));
   fs.writeFileSync(path.join(folder, 'Villa.json'), JSON.stringify(villa));
@@ -138,19 +138,19 @@ describe('installed app', () => {
   it('is looked for where each installer puts it', () => {
     const win = installedApps('win32', { LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local', ProgramFiles: 'C:\\Program Files' }, 'C:\\Users\\me').map((p) => p.split(path.sep).join('\\'));
     // The Windows installer's own folder for one user carries the product name.
-    expect(win[0]).toBe('C:\\Users\\me\\AppData\\Local\\Programs\\LV Design Studio\\LV Design Studio.exe');
-    expect(win).toContain('C:\\Program Files\\LV Design Studio\\LV Design Studio.exe');
-    expect(installedApps('darwin', {}, '/Users/me')).toEqual(['/Applications/LV Design Studio.app', '/Users/me/Applications/LV Design Studio.app'].map((a) => path.join(a, 'Contents', 'MacOS', 'LV Design Studio')));
+    expect(win[0]).toBe('C:\\Users\\me\\AppData\\Local\\Programs\\GFD Studio E\\GFD Studio E.exe');
+    expect(win).toContain('C:\\Program Files\\GFD Studio E\\GFD Studio E.exe');
+    expect(installedApps('darwin', {}, '/Users/me')).toEqual(['/Applications/GFD Studio E.app', '/Users/me/Applications/GFD Studio E.app'].map((a) => path.join(a, 'Contents', 'MacOS', 'GFD Studio E')));
     expect(installedApps('linux', {}, '/home/me')).toEqual([]);
   });
 
-  it('is the app lvds runs inside, wherever that was installed', () => {
+  it('is the app gfde runs inside, wherever that was installed', () => {
     const withExport = { dist: { files: {} }, electron: { files: { 'main.cjs': {}, 'headlessExport.cjs': {} } } };
     // The layout of a package: the program, and app.asar in its resources.
     const install = (name: string, files: Record<string, unknown>) => {
       const dir = path.join(root, name);
-      const exe = process.platform === 'darwin' ? path.join(dir, 'LV Design Studio.app', 'Contents', 'MacOS', 'LV Design Studio') : path.join(dir, 'lv-design-studio');
-      const resources = process.platform === 'darwin' ? path.join(dir, 'LV Design Studio.app', 'Contents', 'Resources') : path.join(dir, 'resources');
+      const exe = process.platform === 'darwin' ? path.join(dir, 'GFD Studio E.app', 'Contents', 'MacOS', 'GFD Studio E') : path.join(dir, 'gfd-studio-e');
+      const resources = process.platform === 'darwin' ? path.join(dir, 'GFD Studio E.app', 'Contents', 'Resources') : path.join(dir, 'resources');
       fs.mkdirSync(path.dirname(exe), { recursive: true });
       fs.mkdirSync(resources, { recursive: true });
       fs.writeFileSync(exe, '');
@@ -159,7 +159,7 @@ describe('installed app', () => {
     };
     const exe = install('Somewhere else', withExport);
     expect(hostApp(exe, true)).toBe(exe);
-    expect(hostApp(exe, false)).toBeUndefined(); // plain Node: lvds is not inside an app
+    expect(hostApp(exe, false)).toBeUndefined(); // plain Node: gfde is not inside an app
     expect(hostApp(install('Older app', { dist: { files: {} }, electron: { files: { 'main.cjs': {} } } }), true)).toBeUndefined();
     expect(hostApp()).toBeUndefined(); // these tests run in Node
   });

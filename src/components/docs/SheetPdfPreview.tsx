@@ -7,10 +7,10 @@ import { saveBinary, type SaveContext } from '../../util/files';
 import { Modal } from '../ui';
 import { renderDrawingSetPdf } from './sheetRender';
 
-export const canPreviewSheetPdf = () => !!window.lvds?.files?.pdfBytes;
+export const canPreviewSheetPdf = () => !!window.gfde?.files?.pdfBytes;
 const CSS_PIXELS_PER_POINT = 96 / 72;
 
-type ToBytes = NonNullable<Window['lvds']['files']['pdfBytes']>;
+type ToBytes = NonNullable<Window['gfde']['files']['pdfBytes']>;
 
 export function SheetPdfPreview(props: { project: Project; sheet: DrawingSheet; run?: CalcRun; onClose: () => void }) {
   const [{ project, sheet, run }] = useState(() => ({ project: props.project, sheet: props.sheet, run: props.run }));
@@ -34,7 +34,7 @@ export function PdfPreview({ title, load, onClose, save: saveAs = { output: 'dra
     let task: PDFDocumentLoadingTask | undefined;
     const load = async () => {
       try {
-        const toBytes = window.lvds?.files?.pdfBytes;
+        const toBytes = window.gfde?.files?.pdfBytes;
         if (!toBytes) throw new Error('PDF preview requires the desktop app');
         const [pdfjs, worker, file] = await Promise.all([
           import('pdfjs-dist'),

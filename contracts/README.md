@@ -1,6 +1,6 @@
 # Exchange contracts
 
-JSON Schema files for the packages LV Design Studio exchanges with other programs (contract `lvds.exchange`, version 1):
+JSON Schema files for the packages GFD Studio E exchanges with other programs (contract `gfde.exchange`, version 1):
 
 | File | Package |
 | --- | --- |
@@ -19,7 +19,7 @@ Rules: SI units (m², W, kW, V); every package names its source program and file
 the package without that field, keys sorted at every depth. A package is a proposal until the engineer accepts it.
 Examples: `tests/fixtures/exchange/`.
 
-## Design data (`lvds.design`, version 1)
+## Design data (`gfde.design`, version 1)
 
 `design.schema.json`: the electrical design as one file for BIM add-ins, scripts and AI clients. It holds boards,
 circuits (breaker, cable, length, load) and ELV devices, with the results of a calculation made at export time. Every

@@ -76,7 +76,7 @@ export function buildTransmittalHtml(project: Project, s: Submission): string {
 /** The register and the comments log in Excel. */
 export function buildSubmissionWorkbook(project: Project, today = new Date().toISOString().slice(0, 10)): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   const thin = { style: 'thin' as const, color: { argb: 'FF808080' } };
   const box = { top: thin, left: thin, bottom: thin, right: thin };
   const head = (r: ExcelJS.Row) => { r.font = { bold: true }; r.eachCell((x) => { x.border = box; x.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } }; }); };

@@ -13,7 +13,7 @@ vi.mock('../../util/files', async (orig) => ({ ...(await orig<typeof import('../
 const previews = vi.hoisted(() => [] as { title: string; load: (toBytes: (o: { html: string; cssPages?: boolean }) => Promise<Uint8Array>) => Promise<{ bytes: Uint8Array; name: string }>; onClose: () => void }[]);
 vi.mock('../docs/SheetPdfPreview', async () => {
   const { createElement } = await import('react');
-  return { canPreviewSheetPdf: () => !!window.lvds?.files?.pdfBytes, PdfPreview: (p: (typeof previews)[number]) => { previews.push(p); return createElement('div', { 'aria-label': 'PDF preview mock' }, p.title); } };
+  return { canPreviewSheetPdf: () => !!window.gfde?.files?.pdfBytes, PdfPreview: (p: (typeof previews)[number]) => { previews.push(p); return createElement('div', { 'aria-label': 'PDF preview mock' }, p.title); } };
 });
 let root: Root, host: HTMLDivElement;
 beforeEach(() => { localStorage.clear(); host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host); });
@@ -202,7 +202,7 @@ describe('Layouts from another drawing dialog', () => {
 
 describe('Layout plot dialog', () => {
   const props = (over: Partial<Parameters<typeof LayoutPlotDialog>[0]> = {}) => ({ name: 'Layout2', about: '420 × 297 mm · 1 viewport at 1:100', paper: [420, 297] as [number, number], html: vi.fn(() => '<html>page</html>'), fileName: 'plan Layout2.pdf', onStatus: vi.fn(), onClose: vi.fn(), ...over });
-  const desktop = (extra: Record<string, unknown> = {}) => { const pdfBytes = vi.fn(async () => new Uint8Array([1, 2, 3])); vi.stubGlobal('lvds', { files: { pdfBytes, ...extra } }); return pdfBytes; };
+  const desktop = (extra: Record<string, unknown> = {}) => { const pdfBytes = vi.fn(async () => new Uint8Array([1, 2, 3])); vi.stubGlobal('gfde', { files: { pdfBytes, ...extra } }); return pdfBytes; };
   it('plots a PDF: the page and its own size (css pages) go to the PDF maker, the saved-file message goes on, the dialog closes; the page is made only then', async () => {
     const pdfBytes = desktop(), p = props();
     act(() => root.render(<LayoutPlotDialog {...p} />));
@@ -263,7 +263,7 @@ describe('Layout plot dialog', () => {
     expect(p.html).not.toHaveBeenCalled();
   });
   it('a printer kept from the desktop app is not usable in a browser: the note shows and the button is off', () => {
-    localStorage.setItem('lvds.plotPrinter', 'P1');
+    localStorage.setItem('gfde.plotPrinter', 'P1');
     desktop(); // PDF bytes only: no printing
     act(() => root.render(<LayoutPlotDialog {...props()} />));
     expect(document.querySelector('.cad-devform')!.textContent).toContain('Printers need the desktop app.');

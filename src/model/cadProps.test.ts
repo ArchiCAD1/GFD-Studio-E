@@ -3,7 +3,7 @@ import { geometryRows, geomKind, hatchRows, kindChoices, kindLabel, parseTyped, 
 import type { SketchItem } from '../types';
 
 const k = 0.001; // a drawing in mm
-const line: SketchItem = { id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[1000, 2000], [5000, 2000]] };
+const line: SketchItem = { id: 'S1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[1000, 2000], [5000, 2000]] };
 const def = (key: PropDef['key']) => [...geometryRows(geomKind(line), [line]), ...geometryRows('arc', []), ...geometryRows('tray', []), ...geometryRows('pline', []), ...textRows('text'), ...textRows('dim')].find((d) => d.key === key)!;
 
 describe('properties palette: geometry in metres and degrees', () => {
@@ -35,7 +35,7 @@ describe('properties palette: geometry in metres and degrees', () => {
   });
 
   it('a circle and an arc: centre, radius, start and end angles', () => {
-    const arc: SketchItem = { id: 'A1', kind: 'arc', layer: 'LV-SKETCH', pts: [[0, 0]], r: 2000, a0: 0, a1: Math.PI / 2 };
+    const arc: SketchItem = { id: 'A1', kind: 'arc', layer: 'GFDE-SKETCH', pts: [[0, 0]], r: 2000, a0: 0, a1: Math.PI / 2 };
     expect(propValue(arc, 'r', k)).toBe(2);
     expect(propValue(arc, 'a1', k)).toBeCloseTo(90, 9);
     expect(withProp(arc, 'a1', 180, k)!.a1).toBeCloseTo(Math.PI, 9);
@@ -45,7 +45,7 @@ describe('properties palette: geometry in metres and degrees', () => {
   });
 
   it('a polyline: the vertex shown, its length, closed', () => {
-    const pl: SketchItem = { id: 'P1', kind: 'pline', layer: 'LV-SKETCH', pts: [[0, 0], [3000, 0], [3000, 4000]] };
+    const pl: SketchItem = { id: 'P1', kind: 'pline', layer: 'GFDE-SKETCH', pts: [[0, 0], [3000, 0], [3000, 4000]] };
     expect([propValue(pl, 'vx', k, 1), propValue(pl, 'vy', k, 2), propValue(pl, 'len', k)]).toEqual([3, 4, 7]);
     expect(withProp(pl, 'vy', 1, k, 1)!.pts[1]).toEqual([3000, 1000]);
     const shut = withProp(pl, 'closed', 'Yes', k)!;
@@ -68,12 +68,12 @@ describe('properties palette: geometry in metres and degrees', () => {
   });
 
   it('text: contents, height, rotation; a dimension: measured (read only) and a text override', () => {
-    const t: SketchItem = { id: 'X1', kind: 'text', layer: 'LV-ANNO', pts: [[0, 0]], text: 'DB-1', h: 250, rot: 0 };
+    const t: SketchItem = { id: 'X1', kind: 'text', layer: 'GFDE-ANNO', pts: [[0, 0]], text: 'DB-1', h: 250, rot: 0 };
     expect([propValue(t, 'h', k), propValue(t, 'rot', k)]).toEqual([0.25, 0]);
     expect(withProp(t, 'rot', 90, k)!.rot).toBeCloseTo(Math.PI / 2, 9);
     expect(withProp(t, 'text', 'DB-2', k)!.text).toBe('DB-2');
     expect(withProp(t, 'text', ' ', k)).toBeUndefined();
-    const d: SketchItem = { id: 'D1', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [4200, 0], [2100, -500]], text: '4.20' };
+    const d: SketchItem = { id: 'D1', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [4200, 0], [2100, -500]], text: '4.20' };
     expect([propValue(d, 'measured', k), propValue(d, 'override', k)]).toEqual([4.2, '']);
     const o = withProp(d, 'override', 'VARIES ON SITE', k)!;
     expect(propValue(o, 'override', k)).toBe('VARIES ON SITE');
@@ -82,7 +82,7 @@ describe('properties palette: geometry in metres and degrees', () => {
   });
 
   it('a dimension of a style: its text is measured until typed over; blank measures it again in its unit', () => {
-    const d: SketchItem = { id: 'D2', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [4200, 0], [2100, -500]], h: 200, look: { arrow: 'closed', size: 250, off: 60, ext: 125, unit: 'mm', decimals: 0 } };
+    const d: SketchItem = { id: 'D2', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [4200, 0], [2100, -500]], h: 200, look: { arrow: 'closed', size: 250, off: 60, ext: 125, unit: 'mm', decimals: 0 } };
     expect(propValue(d, 'override', k)).toBe('');
     const o = withProp(d, 'override', '4.20', k)!; // typed over, even with what it measures in metres
     expect([o.text, propValue(o, 'override', k)]).toEqual(['4.20', '4.20']);
@@ -114,7 +114,7 @@ describe('properties palette: several objects, shown and typed values', () => {
   });
 
   it('the kinds picked, for the drop-down', () => {
-    const t: SketchItem = { id: 'X1', kind: 'text', layer: 'LV-ANNO', pts: [[0, 0]], text: 'A' };
+    const t: SketchItem = { id: 'X1', kind: 'text', layer: 'GFDE-ANNO', pts: [[0, 0]], text: 'A' };
     expect(kindChoices([line, { ...line, id: 'S2' }, t])).toEqual([{ id: '', label: 'All', n: 3 }, { id: 'Line', label: 'Line', n: 2 }, { id: 'Text', label: 'Text', n: 1 }]);
   });
 
@@ -127,7 +127,7 @@ describe('properties palette: several objects, shown and typed values', () => {
     const swapped = withProp(e, 'ry', 5, 0.001)!; // the minor now longer: it is the major
     expect([swapped.ax!.map((v) => +v.toFixed(6) + 0), swapped.ratio]).toEqual([[0, 5000], 0.8]);
     expect(withProp(e, 'ang', 90, 0.001)!.ax!.map((v) => +v.toFixed(6) + 0)).toEqual([0, 4000]);
-    const cloud: SketchItem = { id: 'C', kind: 'pline', layer: 'LV-ANNO', pts: [[0, 0], [10000, 0], [10000, 4000], [0, 4000]], closed: true, cloud: 1500 };
+    const cloud: SketchItem = { id: 'C', kind: 'pline', layer: 'GFDE-ANNO', pts: [[0, 0], [10000, 0], [10000, 4000], [0, 4000]], closed: true, cloud: 1500 };
     expect(geomKind(cloud)).toBe('cloud');
     expect(propValue(cloud, 'arc', 0.001)).toBe(1.5);
     expect(withProp(cloud, 'arc', 2, 0.001)!.cloud).toBe(2000);
@@ -136,7 +136,7 @@ describe('properties palette: several objects, shown and typed values', () => {
 });
 
 describe('properties palette: hatches', () => {
-  const h: SketchItem = { id: 'H', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: [[0, 0], [10000, 0], [10000, 10000], [0, 10000]], hatch: { pattern: 'brick', scale: 3, angle: 30, origin: [1000, 2000] },
+  const h: SketchItem = { id: 'H', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: [[0, 0], [10000, 0], [10000, 10000], [0, 10000]], hatch: { pattern: 'brick', scale: 3, angle: 30, origin: [1000, 2000] },
     holes: [[[2000, 2000], [4000, 2000], [4000, 4000], [2000, 4000]]], assoc: ['S1', 'S2'] };
   it('is a Hatch, with rows for pattern, spacing, angle, origin, islands, associative and net area', () => {
     expect(kindLabel(h)).toBe('Hatch');

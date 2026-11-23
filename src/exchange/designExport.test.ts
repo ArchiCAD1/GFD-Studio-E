@@ -18,9 +18,9 @@ const sha256 = (t: string) => crypto.createHash('sha256').update(t).digest('hex'
 const project = (): Project => migrateProject({ ...sampleProject, id: 'p-1' }, 'sample.json');
 const exportOf = (p: Project, at = '2026-11-08T00:00:00.000Z') => designExport(p, { exportedAt: at, sha256, appVersion: 'test' });
 
-describe('lvds.design version 1', () => {
+describe('gfde.design version 1', () => {
   it('contracts/design.schema.json matches designContract.ts', () => {
-    const text = `${JSON.stringify({ $id: 'https://lv-design-studio/contracts/design.schema.json', ...z.toJSONSchema(designPackage, { io: 'input' }) }, null, 2)}\n`;
+    const text = `${JSON.stringify({ $id: 'https://gfd-studio-e/contracts/design.schema.json', ...z.toJSONSchema(designPackage, { io: 'input' }) }, null, 2)}\n`;
     const file = path.resolve(__dirname, '../../contracts/design.schema.json');
     if (process.env.UPDATE_CONTRACTS) fs.writeFileSync(file, text);
     expect(fs.readFileSync(file, 'utf-8')).toBe(text);

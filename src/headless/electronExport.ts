@@ -13,23 +13,23 @@ import type { ExportJob } from './rendererExport';
 export interface Renderer { command: string; args: string[]; where: string }
 export interface RendererFile { name: string; about: string; data: Uint8Array }
 
-/** The app folder this lvds belongs to (dist-cli/lvds.mjs or src/headless/*.ts → the folder with package.json). */
+/** The app folder this gfde belongs to (dist-cli/gfde.mjs or src/headless/*.ts → the folder with package.json). */
 function appRoot(): string | undefined {
   let dir: string;
   try { dir = path.dirname(fileURLToPath(import.meta.url)); } catch { return undefined; }
   for (let i = 0; i < 4; i++, dir = path.dirname(dir)) {
-    try { if (JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8')).name === 'lv-design-studio') return dir; } catch { /* up */ }
+    try { if (JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8')).name === 'gfd-studio-e') return dir; } catch { /* up */ }
   }
   return undefined;
 }
 
 /** Installed app executables, per platform. On Windows the installer's own folder for one user is
- * Programs\LV Design Studio (the installer lets the user choose the folder; a one-click installer would use the package name). */
+ * Programs\GFD Studio E (the installer lets the user choose the folder; a one-click installer would use the package name). */
 export function installedApps(platform = process.platform, env: Record<string, string | undefined> = process.env, home = os.homedir()): string[] {
-  if (platform === 'darwin') return ['/Applications/LV Design Studio.app', path.join(home, 'Applications', 'LV Design Studio.app')].map((a) => path.join(a, 'Contents', 'MacOS', 'LV Design Studio'));
+  if (platform === 'darwin') return ['/Applications/GFD Studio E.app', path.join(home, 'Applications', 'GFD Studio E.app')].map((a) => path.join(a, 'Contents', 'MacOS', 'GFD Studio E'));
   if (platform === 'win32') {
     const programs = path.join(env.LOCALAPPDATA ?? path.join(home, 'AppData', 'Local'), 'Programs');
-    return [path.join(programs, 'LV Design Studio', 'LV Design Studio.exe'), path.join(programs, 'lv-design-studio', 'LV Design Studio.exe'), path.join(env.ProgramFiles ?? 'C:\\Program Files', 'LV Design Studio', 'LV Design Studio.exe')];
+    return [path.join(programs, 'GFD Studio E', 'GFD Studio E.exe'), path.join(programs, 'gfd-studio-e', 'GFD Studio E.exe'), path.join(env.ProgramFiles ?? 'C:\\Program Files', 'GFD Studio E', 'GFD Studio E.exe')];
   }
   return [];
 }
@@ -58,33 +58,33 @@ export function asarHasHeadlessExport(asar: string): boolean {
 
 const asarOf = (exe: string) => (process.platform === 'darwin' ? path.join(exe, '..', '..', 'Resources', 'app.asar') : path.join(path.dirname(exe), 'resources', 'app.asar'));
 
-/** The installed app this lvds runs inside (its resources/lvds, with the app as the Node runtime), wherever
+/** The installed app this gfde runs inside (its resources/gfde, with the app as the Node runtime), wherever
  * it was installed: the same app makes the export. */
 export function hostApp(execPath = process.execPath, electron = !!process.versions.electron): string | undefined {
   return electron && asarHasHeadlessExport(asarOf(execPath)) ? execPath : undefined;
 }
 
-/** How to run the renderer export, or why it cannot run here. LVDS_ELECTRON: an Electron executable to use with this app folder. */
+/** How to run the renderer export, or why it cannot run here. GFDE_ELECTRON: an Electron executable to use with this app folder. */
 export function findRenderer(): Renderer | { missing: string } {
   const root = appRoot();
   const script = root && path.join(root, 'electron', 'headlessExport.cjs');
   const built = root && fs.existsSync(path.join(root, 'dist', 'index.html'));
   if (root && script && fs.existsSync(script)) {
-    let electron = process.env.LVDS_ELECTRON;
+    let electron = process.env.GFDE_ELECTRON ?? process.env.LVDS_ELECTRON;
     if (!electron) { try { electron = String(createRequire(path.join(root, 'package.json'))('electron')); } catch { /* not installed */ } }
     if (electron && fs.existsSync(electron)) {
-      if (built) return { command: electron, args: [script, '--lvds-headless-export'], where: `Electron in ${root}` };
+      if (built) return { command: electron, args: [script, '--gfde-headless-export'], where: `Electron in ${root}` };
       return { missing: `the app is not built in ${root}: run "npm run build" first` };
     }
   }
   const app = hostApp() ?? installedApps().find((exe) => fs.existsSync(exe) && asarHasHeadlessExport(asarOf(exe)));
-  if (app) return { command: app, args: ['--lvds-headless-export'], where: `the installed app (${app})` };
-  return { missing: 'it needs Electron: run lvds from the LV Design Studio source folder after "npm install" and "npm run build", or install a version of LV Design Studio that has this export' };
+  if (app) return { command: app, args: ['--gfde-headless-export'], where: `the installed app (${app})` };
+  return { missing: 'it needs Electron: run gfde from the GFD Studio E source folder after "npm install" and "npm run build", or install a version of GFD Studio E that has this export' };
 }
 
 /** Runs one job in Electron and returns its files. */
 export async function runInRenderer(job: ExportJob, renderer: Renderer, timeoutMs = 11 * 60 * 1000): Promise<RendererFile[]> {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-export-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-export-'));
   const jobFile = path.join(tmp, 'job.json'), resultFile = path.join(tmp, 'result.json');
   try {
     fs.writeFileSync(jobFile, JSON.stringify(job));

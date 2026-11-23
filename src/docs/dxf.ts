@@ -26,7 +26,7 @@ export interface DxfAttrib { tag: string; value: string; x: number; y: number; h
 export const dxfBlockName = (name: string) => (name.toUpperCase().replace(/[^A-Z0-9_$-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 31) || 'TITLE_BLOCK');
 
 /** Registered application name of the extended data that carries equipment tags. */
-export const DXF_APP = 'LVDS';
+export const DXF_APP = 'GFDE';
 
 /** Layer → CAD colour index (ACI). */
 export const DXF_LAYERS: Record<string, number> = {
@@ -44,11 +44,11 @@ export const DXF_LAYERS: Record<string, number> = {
  * primitive marks an element to be drawn dashed ('dashdot': dash and dot, as a substation frame); the caller that
  * knows the paper scale picks the name. */
 export const LINETYPES: Record<string, { description: string; pattern: number[] }> = {
-  'LV-DASHED': { description: 'Dashed', pattern: [3, -1.5] },
-  'LV-DASHED2': { description: 'Dashed (short)', pattern: [1.5, -0.75] },
-  /** The panel frame: LV-DASHED with half its gap. */
-  'LV-PANEL': { description: 'Dashed (panel frame)', pattern: [3, -0.75] },
-  'LV-DASHDOT': { description: 'Dash dot', pattern: [3, -1, 0, -1] }
+  'GFDE-DASHED': { description: 'Dashed', pattern: [3, -1.5] },
+  'GFDE-DASHED2': { description: 'Dashed (short)', pattern: [1.5, -0.75] },
+  /** The panel frame: GFDE-DASHED with half its gap. */
+  'GFDE-PANEL': { description: 'Dashed (panel frame)', pattern: [3, -0.75] },
+  'GFDE-DASHDOT': { description: 'Dash dot', pattern: [3, -1, 0, -1] }
 };
 export type Dashed = true | 'dashdot';
 

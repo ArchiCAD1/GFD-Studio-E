@@ -4,7 +4,7 @@ Status: **approved by the user on 2026-11-16** ("Yes, all recommended" for decis
 
 Mockup: `docs/mockups/sld-panel-symbols-mockup.html` (image: `sld-panel-symbols-mockup.png`).
 
-![Board symbols on the SLD: today, the three options, combinations, colours and print](../../mockups/sld-panel-symbols-mockup.png)
+![Board symbols on the SLD: today, the three options, combinations, colours and print](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-panel-symbols-mockup.png)
 
 The user's request: they sent seven board symbols: 2:1 rectangles with one diagonal, a half filled on the diagonal, crossed with the left and right or the top and bottom filled, crossed, split across the middle, and the top half filled. They said the SLD's square board box is not what anyone draws on an SLD. They asked which symbol fits which of our panels, how to show combinations (an emergency MCC, an existing board), whether colours help, and for a mockup with options.
 

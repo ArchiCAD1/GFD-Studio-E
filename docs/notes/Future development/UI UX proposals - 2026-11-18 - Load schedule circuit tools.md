@@ -4,7 +4,7 @@ Status: **approved on 2026-11-18**, all decisions answered (below). Step 1 in PR
 
 Mockup: `docs/mockups/load-schedule-circuit-tools-mockup.html` (image: `load-schedule-circuit-tools-mockup.png`).
 
-![Load distribution schedule with circuit tools above the grid](../../mockups/load-schedule-circuit-tools-mockup.png)
+![Load distribution schedule with circuit tools above the grid](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/load-schedule-circuit-tools-mockup.png)
 
 ## Today
 

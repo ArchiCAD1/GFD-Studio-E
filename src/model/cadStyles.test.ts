@@ -78,7 +78,7 @@ describe('dimension looks', () => {
   });
 
   it('writes a styled dimension as measured now, after a grip edit or a scale too; scale sizes its look', () => {
-    const dim: SketchItem = { id: 'd', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], h: 200, look: { arrow: 'closed', size: 300, off: 60, ext: 125, unit: 'mm', decimals: 0 } };
+    const dim: SketchItem = { id: 'd', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], h: 200, look: { arrow: 'closed', size: 300, off: 60, ext: 125, unit: 'mm', decimals: 0 } };
     const out = shapesOut([dim], 0.001);
     expect(out.filter((s) => s.kind === 'line')).toHaveLength(9);
     expect(out.find((s) => s.kind === 'text')).toMatchObject({ text: '4000', h: 200 });
@@ -90,7 +90,7 @@ describe('dimension looks', () => {
     expect(dimLabel(half, 0.001)).toBe('2000');
     expect(dimLabel({ ...dim, text: 'TYP.' }, 0.001)).toBe('TYP.'); // typed over: kept
     // One drawn before styles keeps its text on screen and on the sheets, and is saved as the length in metres.
-    const old: SketchItem = { id: 'o', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], text: '4.00' };
+    const old: SketchItem = { id: 'o', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], text: '4.00' };
     expect(dimLabel(old, 0.001)).toBe('4.00');
     expect(shapesOut([old], 0.001).find((s) => s.kind === 'text')!.text).toBe('4.00');
   });

@@ -28,7 +28,7 @@ describe('web version: a newer build', () => {
 
   it('offers Reload with the new version, even when the banner was hidden', () => {
     expect(renderToStaticMarkup(<WebBanner />)).toContain('Ready for offline use');
-    sessionStorage.setItem('lvds.webBanner', 'hidden');
+    sessionStorage.setItem('gfde.webBanner', 'hidden');
     expect(renderToStaticMarkup(<WebBanner />)).toBe('');
     state.newVersion = '2.013';
     const html = renderToStaticMarkup(<WebBanner />);

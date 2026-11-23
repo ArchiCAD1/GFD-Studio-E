@@ -49,7 +49,7 @@ export const EXCHANGE_TOOLS: Tool[] = [
   {
     name: 'exchange_check',
     title: 'Check an exchange package',
-    description: 'Checks an exchange package file (rooms, luminaires or ELV loads; contract lvds.exchange version 1) on its own: shape, units, duplicates and its sha256. Reports the rows that are wrong.',
+    description: 'Checks an exchange package file (rooms, luminaires or ELV loads; contract gfde.exchange version 1) on its own: shape, units, duplicates and its sha256. Reports the rows that are wrong.',
     input: { file },
     run: (a, ctx) => {
       const { raw, name } = readFile(String(a.file), ctx);

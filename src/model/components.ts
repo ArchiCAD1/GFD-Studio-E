@@ -86,7 +86,7 @@ export function syncComponent(p: Project, c: UserComponent): { project: Project;
   return { project: updated ? { ...p, feeders } : p, updated };
 }
 
-const LIB = 'lvds.components';
+const LIB = 'gfde.components';
 export function loadComponentLibrary(): UserComponent[] {
   try { const v = JSON.parse(localStorage.getItem(LIB) ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
 }

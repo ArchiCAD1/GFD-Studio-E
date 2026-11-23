@@ -41,11 +41,11 @@ beforeEach(() => {
   FakeWorker.failOn = null;
   FakeWorker.hold = false;
   vi.stubGlobal('Worker', FakeWorker);
-  (window as { lvds?: unknown }).lvds = { cadFile: { engine: async () => bytes('electron/cad/lvds_cad_reader_bg.wasm') } };
+  (window as { gfde?: unknown }).gfde = { cadFile: { engine: async () => bytes('electron/cad/gfde_cad_reader_bg.wasm') } };
 });
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete (window as { lvds?: unknown }).lvds;
+  delete (window as { gfde?: unknown }).gfde;
 });
 
 describe('the CAD engine in a worker', () => {
@@ -151,7 +151,7 @@ describe('the CAD engine in a worker', () => {
 
   it('hands the drawing over from the worker rather than copying it', () => {
     const ops = engineOps();
-    ops.init(bytes('electron/cad/lvds_cad_reader_bg.wasm'));
+    ops.init(bytes('electron/cad/gfde_cad_reader_bg.wasm'));
     const { answer, transfer } = answerCall(ops, { id: 1, op: 'open', args: [sample()] });
     expect('error' in answer).toBe(false);
     expect(transfer).toHaveLength(4);

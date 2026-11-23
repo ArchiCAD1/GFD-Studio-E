@@ -29,7 +29,7 @@ describe('layer templates per architect', () => {
     expect(withTemplate([], 'New', [], now)[0]).toMatchObject({ name: 'New', savedAt: now.toISOString() });
   });
 
-  it('stores templates for the LV Database, dropping damaged entries and unknown roles', () => {
+  it('stores templates for the GFD Studio E Database, dropping damaged entries and unknown roles', () => {
     const store: Record<string, string> = {};
     vi.stubGlobal('localStorage', { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = v; } });
     expect(saveLayerTemplates([xyz, abc])).toBe(true);

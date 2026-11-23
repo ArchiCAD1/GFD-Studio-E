@@ -14,7 +14,7 @@ This module covers what goes on around the design rather than the design calcula
 
 Terms used below:
 - "store" means the place the app keeps the open project in memory (`Project` in `src/types.ts`).
-- "library" means the user's own references kept in browser `localStorage` (the browser's built-in storage on this computer) and synced to `LV Database/Library.json`.
+- "library" means the user's own references kept in browser `localStorage` (the browser's built-in storage on this computer) and synced to `GFD Studio E Database/Library.json`.
 
 ## 2. Files, components, functions and stores
 
@@ -55,7 +55,7 @@ Terms used below:
 | Offers to record a submission after an export | 20-equipment-boq-pricing, 25-reports-exports, 26-revisions-changes | `offerSubmission` calls in `src/components/docs/BomView.tsx`:121, `StudyReportsView.tsx`:148/151, `VariationsView.tsx`:42 |
 | Library sync of user references | 32-component-database | `src/model/designReference.ts:saveUserReferences` → `pushLibrary` (`src/database/librarySync.ts`) |
 | Brief authority text | 04-building-load-assessment (brief) / 01-app-shell (wizard) | `src/model/brief.ts` `ProjectBrief.authority`; read by `reviewReport.ts:buildReviewDoc`:71 |
-| PDF/Word saving | 34-electron-desktop | `savePdf`, `saveBinary`, `window.lvds.files.pdfBytes` in `ReviewView.tsx:exportAs` |
+| PDF/Word saving | 34-electron-desktop | `savePdf`, `saveBinary`, `window.gfde.files.pdfBytes` in `ReviewView.tsx:exportAs` |
 
 ## 4. Outputs — where its results go
 

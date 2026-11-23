@@ -9,7 +9,7 @@ import type { SketchItem } from '../../types';
 
 /** CROP end to end on tests/fixtures/cad/crop-block.dxf (engines/cad-reader/examples/crop_fixture.rs): a DB symbol
  * block inserted plain, rotated, scaled, mirrored, nested and as an array, each with a CCT attribute. Each insert is
- * cropped, saved with the app's SAVE (the insert left out, the pieces added) and read back. With LVDS_CROP_OUT set,
+ * cropped, saved with the app's SAVE (the insert left out, the pieces added) and read back. With GFDE_CROP_OUT set,
  * the before / after drawings are written there to open in another CAD program. */
 
 const root = path.resolve(__dirname, '../../..');
@@ -18,7 +18,7 @@ let view: CadView;
 const KINDS = ['plain', 'rotated 30°', 'scaled 2×', 'non-uniform 2 × 1', 'mirrored', 'rotated 30° + scaled 1.5×', 'nested 2 deep', 'MINSERT 2 × 3', 'green (ByBlock)'];
 
 beforeAll(async () => {
-  (window as { lvds?: unknown }).lvds = { cadFile: { engine: async () => bytes('electron/cad/lvds_cad_reader_bg.wasm') } };
+  (window as { gfde?: unknown }).gfde = { cadFile: { engine: async () => bytes('electron/cad/gfde_cad_reader_bg.wasm') } };
   view = await openDrawing('crop-block.dxf', bytes('tests/fixtures/cad/crop-block.dxf'));
 });
 
@@ -70,7 +70,7 @@ describe('CROP on a drawing (engine)', () => {
       expect(after.info.texts.some((t) => /^L1-/.test(t.s))).toBe(false);
       expect(after.info.texts.filter((t) => t.s === 'DB').length).toBeGreaterThan(0);
       expect(list).toHaveLength(9);
-      const out = process.env.LVDS_CROP_OUT;
+      const out = process.env.GFDE_CROP_OUT;
       if (out) {
         mkdirSync(out, { recursive: true });
         writeFileSync(path.join(out, 'crop-block - before.dxf'), bytes('tests/fixtures/cad/crop-block.dxf'));

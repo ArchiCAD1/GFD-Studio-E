@@ -12,7 +12,7 @@ A read-only audit of standards and authority material in the app (2026-11-12) fo
 
 Add one small line at the foot of the page, black, same font as the notes:
 
-> Prepared with LV Design Studio. Not an official Dubai Municipality form — check against the current DM-D-013 before submission.
+> Prepared with GFD Studio E. Not an official Dubai Municipality form — check against the current DM-D-013 before submission.
 
 This changes PDF output, so it needs the `dm-d-013` baseline updated on the Mac (`npm run test:pdf:update`).
 

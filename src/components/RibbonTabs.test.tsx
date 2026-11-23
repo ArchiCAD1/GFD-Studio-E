@@ -105,7 +105,7 @@ describe('the Stages tab', () => {
   });
 
   it('drops down with its sub-tabs while the ribbon is collapsed, and stays open when a stage is chosen', () => {
-    localStorage.setItem('lvds.ribbonCollapsed', '1');
+    localStorage.setItem('gfde.ribbonCollapsed', '1');
     show('home');
     expect(document.getElementById('ribbon-tools')).toBeNull();
     click(tab('stages'));

@@ -4,11 +4,11 @@ import type { SketchItem } from '../types';
 
 /** POINT, DIVIDE, MEASURE and the point style (S8 of the Design CAD 2D gap plan). */
 
-const line: SketchItem = { id: 'L', kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [10000, 0]] };
-const bent: SketchItem = { id: 'P', kind: 'pline', layer: 'LV-SKETCH', pts: [[0, 0], [6000, 0], [6000, 4000]] };
-const square: SketchItem = { id: 'S', kind: 'pline', layer: 'LV-SKETCH', closed: true, pts: [[0, 0], [10000, 0], [10000, 10000], [0, 10000]] };
-const arc: SketchItem = { id: 'A', kind: 'arc', layer: 'LV-SKETCH', pts: [[0, 0]], r: 10000, a0: 0, a1: Math.PI / 2 };
-const circle: SketchItem = { id: 'C', kind: 'circle', layer: 'LV-SKETCH', pts: [[0, 0]], r: 10000 };
+const line: SketchItem = { id: 'L', kind: 'line', layer: 'GFDE-SKETCH', pts: [[0, 0], [10000, 0]] };
+const bent: SketchItem = { id: 'P', kind: 'pline', layer: 'GFDE-SKETCH', pts: [[0, 0], [6000, 0], [6000, 4000]] };
+const square: SketchItem = { id: 'S', kind: 'pline', layer: 'GFDE-SKETCH', closed: true, pts: [[0, 0], [10000, 0], [10000, 10000], [0, 10000]] };
+const arc: SketchItem = { id: 'A', kind: 'arc', layer: 'GFDE-SKETCH', pts: [[0, 0]], r: 10000, a0: 0, a1: Math.PI / 2 };
+const circle: SketchItem = { id: 'C', kind: 'circle', layer: 'GFDE-SKETCH', pts: [[0, 0]], r: 10000 };
 const xy = (q: { at: [number, number] }) => [Math.round(q.at[0]) || 0, Math.round(q.at[1]) || 0];
 const deg = (a: number) => Math.round((a * 180) / Math.PI);
 
@@ -39,14 +39,14 @@ describe('DIVIDE and MEASURE', () => {
     const c = pointsEvery(circle, (2 * Math.PI * 10000) / 4);
     expect(c.map(xy)).toEqual([[0, 10000], [-10000, 0], [0, -10000]]);
     expect(pointsAlong(circle, 4).map(xy)).toEqual([[10000, 0], [0, 10000], [-10000, 0], [0, -10000]]);
-    const e: SketchItem = { id: 'E', kind: 'ellipse', layer: 'LV-SKETCH', pts: [[0, 0]], ax: [10000, 0], ratio: 0.5 };
+    const e: SketchItem = { id: 'E', kind: 'ellipse', layer: 'GFDE-SKETCH', pts: [[0, 0]], ax: [10000, 0], ratio: 0.5 };
     expect(pointsAlong(e, 2).map(xy)).toEqual([[10000, 0], [-10000, 0]]); // closed: n points from its start
     // Not for texts, dimensions, notes, points or revision clouds.
-    expect(canDivide({ id: 'T', kind: 'text', layer: 'LV-ANNO', pts: [[0, 0]], text: 'x', h: 1 })).toBe(false);
+    expect(canDivide({ id: 'T', kind: 'text', layer: 'GFDE-ANNO', pts: [[0, 0]], text: 'x', h: 1 })).toBe(false);
     expect(canDivide({ ...square, cloud: 500 })).toBe(false);
     expect(canDivide({ ...line, infinite: 'xline' })).toBe(false);
     expect(canDivide({ ...line, infinite: 'ray' })).toBe(false);
-    expect(canDivide({ id: 'N', kind: 'point', layer: 'LV-SKETCH', pts: [[0, 0]] })).toBe(false);
+    expect(canDivide({ id: 'N', kind: 'point', layer: 'GFDE-SKETCH', pts: [[0, 0]] })).toBe(false);
   });
 });
 

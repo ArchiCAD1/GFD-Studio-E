@@ -1,11 +1,14 @@
 {
-  "$id": "https://lv-design-studio/contracts/rooms.schema.json",
+  "$id": "https://gfd-studio-e/contracts/rooms.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
     "schema": {
       "type": "string",
-      "const": "lvds.exchange"
+      "enum": [
+        "gfde.exchange",
+        "lvds.exchange"
+      ]
     },
     "version": {
       "type": "number",
@@ -37,6 +40,7 @@
             "ifc",
             "dialux",
             "elv",
+            "gfde",
             "lvds"
           ],
           "description": "Program that wrote the package"

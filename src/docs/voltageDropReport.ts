@@ -118,5 +118,5 @@ ${v.noType ? '' : v.segments.map((g) => { const st = g.cumPct > v.limitPct ? 'ba
 </tbody></table>`).join('')}`;
 
   return printDoc(project, { title: `${project.name} — voltage drop calculation`, headRight: 'Voltage drop calculation',
-    footer: `LV Design Studio ${displayVersion(pkg.version)} · Results must be checked by a qualified engineer`, body, landscape: true });
+    footer: `GFD Studio E ${displayVersion(pkg.version)} · Results must be checked by a qualified engineer`, body, landscape: true });
 }

@@ -20,7 +20,7 @@ const store = req('../../electron/folderTemplates.cjs') as {
 const check = req('../../electron/ipcValidate.cjs') as { folderTemplate: (t: unknown) => FolderTemplate; folderTemplatesExportArgs: (a: unknown) => { templates: FolderTemplate[] } };
 
 let dir: string;
-beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'lvds-ft-')); });
+beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'gfde-ft-')); });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 const mine = (over: Partial<FolderTemplate> = {}): FolderTemplate => ({ ...JSON.parse(JSON.stringify(builtInTemplate('consultant-full'))), id: 'user-office', name: 'Office standard', builtIn: undefined, ...over });
@@ -74,7 +74,7 @@ describe('folder-templates.json (electron/folderTemplates.cjs)', () => {
     s = store.save(dir, mine({ name: 'Office v2' }), day);
     expect(s.templates.map((t) => [t.name, t.version])).toEqual([['Office v2', 2]]);
     const raw = JSON.parse(readFileSync(join(dir, store.FILE), 'utf-8'));
-    expect(raw.format).toBe('lv-folder-templates');
+    expect(raw.format).toBe('gfde-folder-templates');
     if (process.platform !== 'win32') expect(statSync(join(dir, store.FILE)).mode & 0o777).toBe(0o600);
   });
 

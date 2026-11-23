@@ -136,7 +136,7 @@ describe('remembering where the user saved instead', () => {
     expect(rememberedChoice('p1', 'calcVd', s)).toBeUndefined();
     rememberChoice('p1', 'boq', undefined, s);
     expect(m.size).toBe(0);
-    m.set('lvds.projectFolderChoices.p1', '{bad');
+    m.set('gfde.projectFolderChoices.p1', '{bad');
     expect(rememberedChoice('p1', 'boq', s)).toBeUndefined();
   });
 });

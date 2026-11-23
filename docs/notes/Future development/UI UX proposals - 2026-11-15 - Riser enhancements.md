@@ -8,7 +8,7 @@ Status, 2026-11-15:
 
 Mockup: `docs/mockups/riser-enhancements-mockup.html` (image: `riser-enhancements-mockup.png`). Its figures come from the app's G+10 mock-up (Busbar riser page → G+10 mock-up: MDB-1 on a 1500 kVA transformer, 415 V, 45 °C, eleven SMDBs, a 630 A copper busway). They were worked out with the app's own functions. Rows marked "example" are added only to show a check.
 
-![Busbar riser page, where the busway shows, earthing checks and the sheets, proposed](../../mockups/riser-enhancements-mockup.png)
+![Busbar riser page, where the busway shows, earthing checks and the sheets, proposed](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/riser-enhancements-mockup.png)
 
 ## Today
 

@@ -4,7 +4,7 @@ Status: **approved by the user on 2026-11-15** ("You can proceed"), with the ans
 
 Mockup: `docs/mockups/sld-equipment-strip-mockup.html` (image: `sld-equipment-strip-mockup.png`).
 
-![The SLD equipment library as a thin strip, on the System and Board tabs](../../mockups/sld-equipment-strip-mockup.png)
+![The SLD equipment library as a thin strip, on the System and Board tabs](https://raw.githubusercontent.com/ArchiCAD1/GFD-Studio-E/1c47881360a4eeaa43e62235edcce0c21bfb7cf1/docs/mockups/sld-equipment-strip-mockup.png)
 
 The user's request: the equipment library is a wide panel and they do not like it; they asked for a small, thin, long strip instead. They can add equipment on the System diagram, but not on one board's own diagram (the Board tab), because the library is not there.
 

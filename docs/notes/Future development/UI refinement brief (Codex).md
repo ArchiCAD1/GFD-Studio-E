@@ -1,8 +1,8 @@
-# LV Design Studio — UI Refinement Brief
+# GFD Studio E — UI Refinement Brief
 
 ## Objective
 
-Update the LV Design Studio interface so it feels like polished, production-grade electrical engineering software. Improve spacing, alignment, typography, component consistency, readability, and responsive behavior without changing calculation logic or established workflows.
+Update the GFD Studio E interface so it feels like polished, production-grade electrical engineering software. Improve spacing, alignment, typography, component consistency, readability, and responsive behavior without changing calculation logic or established workflows.
 
 The interface should remain information-dense, but it must be easy to scan during long technical work sessions.
 

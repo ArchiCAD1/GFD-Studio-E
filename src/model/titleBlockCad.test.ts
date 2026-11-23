@@ -62,7 +62,7 @@ describe('title block in Design CAD', () => {
     const items: SketchItem[] = [
       ...tbSketchItems(drawn),
       { id: 'S20', kind: 'arc', layer: TB_LAYERS.grid, pts: [[300, 10]], r: 5, a0: 0, a1: Math.PI },
-      { id: 'S21', kind: 'text', layer: 'LV-ANNO', pts: [[300, 30]], text: '{Rev}', h: 3, just: 'MC', rot: Math.PI / 2 }
+      { id: 'S21', kind: 'text', layer: 'GFDE-ANNO', pts: [[300, 30]], text: '{Rev}', h: 3, just: 'MC', rot: Math.PI / 2 }
     ];
     const back = drawnFromSketch(items, drawn);
     expect(back.size).toEqual({ w: 180, h: 44 });

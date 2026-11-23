@@ -12,13 +12,13 @@
       "label": "SLD and selection commands",
       "rect": {
         "x": 0,
-        "y": 49,
+        "y": 61,
         "width": 1600,
-        "height": 131.390625
+        "height": 131.375
       },
       "point": {
         "x": 0.5,
-        "y": 0.1146953125
+        "y": 0.1266875
       }
     },
     {
@@ -27,13 +27,13 @@
       "label": "Panel tree",
       "rect": {
         "x": 0,
-        "y": 180.390625,
+        "y": 192.375,
         "width": 230,
-        "height": 787.609375
+        "height": 775.625
       },
       "point": {
         "x": 0.071875,
-        "y": 0.5741953125
+        "y": 0.5801875
       }
     },
     {
@@ -42,13 +42,13 @@
       "label": "Diagram views",
       "rect": {
         "x": 246,
-        "y": 193.2890625,
-        "width": 360.828125,
-        "height": 30.1953125
+        "y": 205.28125,
+        "width": 364.078125,
+        "height": 30.1875
       },
       "point": {
-        "x": 0.2665087890625,
-        "y": 0.20838671875
+        "x": 0.2675244140625,
+        "y": 0.220375
       }
     },
     {
@@ -56,14 +56,14 @@
       "target": "sld-display-tools",
       "label": "Drawing display tools",
       "rect": {
-        "x": 741.171875,
-        "y": 241.390625,
-        "width": 543.828125,
+        "x": 744.078125,
+        "y": 253.375,
+        "width": 540.921875,
         "height": 40
       },
       "point": {
-        "x": 0.6331787109375,
-        "y": 0.261390625
+        "x": 0.6340869140625,
+        "y": 0.273375
       }
     },
     {
@@ -72,13 +72,13 @@
       "label": "Interactive SLD canvas",
       "rect": {
         "x": 300,
-        "y": 232.390625,
+        "y": 244.375,
         "width": 994,
-        "height": 665
+        "height": 653
       },
       "point": {
         "x": 0.498125,
-        "y": 0.564890625
+        "y": 0.570875
       }
     },
     {
@@ -87,13 +87,13 @@
       "label": "Board properties and circuit results",
       "rect": {
         "x": 1310,
-        "y": 180.390625,
+        "y": 192.375,
         "width": 290,
-        "height": 787.609375
+        "height": 775.625
       },
       "point": {
         "x": 0.909375,
-        "y": 0.5741953125
+        "y": 0.5801875
       }
     },
     {
@@ -102,13 +102,13 @@
       "label": "System, bus, and feeder results",
       "rect": {
         "x": 230,
-        "y": 925.8046875,
+        "y": 925.8125,
         "width": 1080,
-        "height": 42.1953125
+        "height": 42.1875
       },
       "point": {
         "x": 0.48125,
-        "y": 0.94690234375
+        "y": 0.94690625
       }
     },
     {
@@ -116,15 +116,18 @@
       "target": "sld-command-bar",
       "label": "Add controls and results state",
       "rect": {
-        "x": 839.046875,
-        "y": 192.390625,
-        "width": 454.953125,
+        "x": 839.453125,
+        "y": 204.375,
+        "width": 454.546875,
         "height": 32
       },
       "point": {
-        "x": 0.6665771484375,
-        "y": 0.208390625
+        "x": 0.6667041015625,
+        "y": 0.220375
       }
     }
-  ]
+  ],
+  "productName": "GFD Studio E",
+  "appVersion": "2.212.0",
+  "captureSource": "offline documentation capture of committed demonstration data"
 }

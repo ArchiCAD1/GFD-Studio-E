@@ -3,9 +3,9 @@ import type { Project } from '../types';
 import type { Sheet } from './sheets';
 
 /** Your office's schedule formats: a linked sheet layout saved once and reused for other boards and other projects. Kept like the
- * other libraries: a working copy in this computer's storage, synced through LV Database/Library.json. */
+ * other libraries: a working copy in this computer's storage, synced through GFD Studio E Database/Library.json. */
 
-export const FORMATS_KEY = 'lvds.scheduleFormats';
+export const FORMATS_KEY = 'gfde.scheduleFormats';
 
 /** A linked sheet layout saved for reuse: your office's own schedule format. */
 export interface ScheduleFormat { id: string; name: string; category: 'db' | 'md'; sheet: Sheet; updatedAt: string } // updatedAt: yyyy-mm-dd

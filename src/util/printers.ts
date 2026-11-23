@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
  * An empty name is the built-in PDF. Offline: only printers already installed are listed. */
 export interface PrinterInfo { name: string; displayName: string; isDefault: boolean }
 export const PDF_PRINTER = '';
-export const canPrint = (): boolean => typeof window !== 'undefined' && !!window.lvds?.files?.printHtml;
+export const canPrint = (): boolean => typeof window !== 'undefined' && !!window.gfde?.files?.printHtml;
 
 export async function listPrinters(): Promise<PrinterInfo[]> {
-  try { return (await window.lvds?.files?.printers?.()) ?? []; } catch { return []; }
+  try { return (await window.gfde?.files?.printers?.()) ?? []; } catch { return []; }
 }
 /** The printers, once loaded (empty in a browser). */
 export function usePrinters(): { list: PrinterInfo[]; loaded: boolean } {
@@ -16,7 +16,7 @@ export function usePrinters(): { list: PrinterInfo[]; loaded: boolean } {
   return state;
 }
 
-const KEY = 'lvds.plotPrinter';
+const KEY = 'gfde.plotPrinter';
 /** The printer plots go to on this computer (Output → Printers); PDF unless one was chosen. */
 export function plotPrinter(): string { try { return localStorage.getItem(KEY) ?? PDF_PRINTER; } catch { return PDF_PRINTER; } }
 export function setPlotPrinter(name: string): void { try { if (name) localStorage.setItem(KEY, name); else localStorage.removeItem(KEY); } catch { /* preference only */ } }

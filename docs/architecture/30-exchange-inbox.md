@@ -3,10 +3,10 @@
 
 ## 1. What it does
 
-This module is the door between LV Design Studio and other programs.
+This module is the door between GFD Studio E and other programs.
 
 - **Incoming (the inbox).** Other programs send *exchange packages*: JSON files with room schedules (from CAD or IFC/BIM), luminaire schedules (lighting design program) or ELV upstream loads (from the app's own ELV estimate). A package is checked against a written *contract* (a fixed list of fields, units and limits), compared with the project, and nothing changes until the engineer ticks the rows to take and signs the decision with a name. Each decision is logged with the package's SHA-256 hash (a fingerprint of the file's contents), so the same file arriving again is recognised.
-- **Outgoing.** Two exports: a *rooms package* (the project's rooms for ELV design) and a *design package* (`lvds.design`: boards, circuits, breaker, cable, load and calculated results, for BIM add-ins and scripts). Both are only reachable from the headless tools (the command-line / MCP interface, module 31-headless-cli-mcp), not from a screen.
+- **Outgoing.** Two exports: a *rooms package* (the project's rooms for ELV design) and a *design package* (`gfde.design`: boards, circuits, breaker, cable, load and calculated results, for BIM add-ins and scripts). Both are only reachable from the headless tools (the command-line / MCP interface, module 31-headless-cli-mcp), not from a screen.
 
 Terms used below: *zod* = the library the code uses to describe and check the shape of data; *schema* = that description, also written out as JSON Schema files in `contracts/` for other programs; *store / project state* = the copy of the project the app keeps in memory; *undo step* = one entry in the undo history.
 
@@ -49,7 +49,7 @@ Stored in the project file: `Project.exchange` (`src/types.ts:518`) = `{ log: Ex
 | Decision log `X-NNN` | 26-revisions-changes (listed as "Exchange packages (imports)" in revision diffs) | `src/model/revisions.ts:152`, `src/model/changeClass.ts:34` |
 | New project state as one undo step | 02-project-storage | `src/App.tsx:1659 setProject(next, { step: true })`; headless: `src/headless/editTools.ts:edit` (backup + `undo_change`) |
 | Rooms package JSON | external ELV program | `src/headless/exportTools.ts:export_rooms_package` → `inbox.ts:roomsExport` |
-| Design package JSON (`lvds.design`) | external BIM add-ins / scripts | `src/headless/exportTools.ts:export_design_package` → `designExport.ts:designExport` |
+| Design package JSON (`gfde.design`) | external BIM add-ins / scripts | `src/headless/exportTools.ts:export_design_package` → `designExport.ts:designExport` |
 | Inbox badge count | 01-app-shell | `src/components/Ribbon.tsx:545` |
 
 ## 5. User flow — from button click to result

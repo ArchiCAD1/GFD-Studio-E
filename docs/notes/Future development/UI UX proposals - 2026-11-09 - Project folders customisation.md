@@ -1,12 +1,12 @@
 # UI UX proposals - 2026-11-09 - Project folders customisation
 
 **Status:** proposal. Merging this note's PR approves the UI/UX in Part A (screens C1–C8).
-**Mockups:** [LV-Design-Suite-Folder-Customisation-Mockups.html](LV-Design-Suite-Folder-Customisation-Mockups.html), in this folder. It shows screens C1–C8 in the Graphite theme, reading its data from [folder-templates.json](folder-templates.json).
+**Mockups:** [GFD-Studio-E-Folder-Customisation-Mockups.html](GFD-Studio-E-Folder-Customisation-Mockups.html), in this folder. It shows screens C1–C8 in the Graphite theme, reading its data from [folder-templates.json](folder-templates.json).
 **Build steps:** [CLAUDE-CODE-STEPS - Project folder customisation.md](CLAUDE-CODE-STEPS%20-%20Project%20folder%20customisation.md) (Steps 1–6).
 
 ## Open before Step 1
 
-- The steps file says this work builds on `feat/project-folders-create` and `feat/project-folders-output-roles` (from `LV-Design-Suite-Project-Folders.html`). Neither branch exists, and main has no `src/model/folderTemplates.ts` or `src/model/outputRoles.ts`. The steps file also names main @ 9a90e23 (v2.57.0), but main is now at v2.067. Step 1 must either create the base model itself or wait for those two steps.
+- The steps file says this work builds on `feat/project-folders-create` and `feat/project-folders-output-roles` (from `GFD-Studio-E-Project-Folders.html`). Neither branch exists, and main has no `src/model/folderTemplates.ts` or `src/model/outputRoles.ts`. The steps file also names main @ 9a90e23 (v2.57.0), but main is now at v2.067. Step 1 must either create the base model itself or wait for those two steps.
 - `folder-templates.json` was not supplied, so it was written here in the Part B format: `{ format, formatVersion, templates: FolderTemplate[] }`, with five built-ins. Consultant full has 62 folders and all 50 roles. Villa has 11 folders, contractor 12, ISO 19650 20 and Multi-building 9.
 - C1 adds a fourth Preferences tab, **Folder templates**, next to My details, New project defaults, and Appearance & saving.
 

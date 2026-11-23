@@ -166,7 +166,7 @@ export function reportText(fileName: string, r: XlsxReport): string {
  * a linked sheet (a schedule) gets the paper of its format, fitted to the page width, with its heading rows repeated on every printed page. */
 export function buildXlsx(sheets: Sheet[]): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   const used = new Set<string>();
   for (const s of sheets) {
     const base = s.name.replace(/[\\/?*[\]:]/g, ' ').slice(0, 31);

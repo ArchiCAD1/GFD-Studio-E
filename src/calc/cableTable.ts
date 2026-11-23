@@ -137,7 +137,7 @@ export function setCables(rows: CableSpec[] | null): void {
 /** True when the calculations use the app's built-in reference cable values
  * (approximations — replace with manufacturer data via Cables.xlsx). */
 export const usingReferenceCables = () => active === REFERENCE_CABLE_TABLE;
-export const cablesSource = () => (usingReferenceCables() ? 'app reference values (approximate, not manufacturer data)' : 'Cables.xlsx (LV Database)');
+export const cablesSource = () => (usingReferenceCables() ? 'app reference values (approximate, not manufacturer data)' : 'Cables.xlsx (GFD Studio E Database)');
 /** Notice printed on outputs made with the reference values. */
 export const REFERENCE_DATA_NOTICE = 'Cable data: app reference values (approximate, not manufacturer-verified). Replace them in Cables.xlsx before relying on these results.';
 

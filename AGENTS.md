@@ -1,6 +1,6 @@
-# LV Design Studio development rules
+# GFD Studio E development rules
 
-LV Design Studio is an offline desktop app for LV electrical design and calculation. It uses Electron, React 18, TypeScript, Vite, Vitest, and Python engines under `engines/python`. The base branch is `main`.
+GFD Studio E is an offline desktop app for LV electrical design and calculation. It uses Electron, React 18, TypeScript, Vite, Vitest, and Python engines under `engines/python`. The base branch is `main`.
 
 ## Start of a session: read little
 

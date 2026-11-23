@@ -28,7 +28,7 @@ import { commitProject, readLog, undoChange, WriteRefused } from './write';
  * MCP server and the local API offer these tools only when started with --write. Deleting (delete_panel, delete_circuit)
  * also needs the name of the engineer who approved it. Exports are in exportTools.ts. */
 
-export const AUTHOR = 'AI assistant (lvds)';
+export const AUTHOR = 'AI assistant (gfde)';
 /** The author of a proposal: the AI client by its own name when it gave one (MCP). */
 export const authorOf = (ctx: ToolContext): string => (ctx.client ? `${AUTHOR} via ${ctx.client}` : AUTHOR);
 const project = z.string().describe('Project file name in the projects folder, as given by list_projects');

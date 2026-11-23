@@ -10,7 +10,7 @@ import { scopeText, studyInfo, type Scope, type Section } from './studyReport';
 /** The report's tables as an Excel workbook: a cover sheet and one sheet per study. */
 export function buildStudyWorkbook(project: Project, scope: Scope, sections: Section[], meta: ReportMeta): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   const FILL: Record<ReportStatus, string> = { ok: 'FF13803D', warn: 'FFA86500', bad: 'FFC21F32', nc: 'FF5B6B82', data: 'FFA86500' };
   const cover = wb.addWorksheet('Cover');
   cover.columns = [{ width: 22 }, { width: 90 }];

@@ -12,7 +12,7 @@ let bin = '';
 
 /** Stand-ins on PATH that log their calls: pgrep finds the app open for its first `openFor` checks. */
 const stubs = (openFor: number) => {
-  bin = mkdtempSync(join(tmpdir(), 'lvds-quit-'));
+  bin = mkdtempSync(join(tmpdir(), 'gfde-quit-'));
   const tool = (name: string, body: string) => {
     writeFileSync(join(bin, name), `#!/bin/bash\necho "${name} $*" >> "${bin}/log"\n${body}\n`);
     chmodSync(join(bin, name), 0o755);
@@ -22,7 +22,7 @@ const stubs = (openFor: number) => {
   tool('sleep', '');
 };
 const run = (wait: number) =>
-  spawnSync('bash', [script, 'LV Design Studio', String(wait)], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, encoding: 'utf8' });
+  spawnSync('bash', [script, 'GFD Studio E', String(wait)], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, encoding: 'utf8' });
 const calls = () => (existsSync(join(bin, 'log')) ? readFileSync(join(bin, 'log'), 'utf8').trim().split('\n') : []);
 const count = (call: string) => calls().filter((c) => c === call).length;
 
@@ -34,16 +34,16 @@ describe.skipIf(process.platform === 'win32')('update-app quits the open app bef
     const r = run(60);
     expect(r.status).toBe(0);
     expect(r.stdout).toBe('');
-    expect(calls()).toEqual(['pgrep -xq LV Design Studio']);
+    expect(calls()).toEqual(['pgrep -xq GFD Studio E']);
   });
 
   it('asks the app to quit and goes on once it has closed', () => {
     stubs(3); // open, then still closing at the next two checks
     const r = run(60);
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain('Waiting for LV Design Studio to close');
+    expect(r.stdout).toContain('Waiting for GFD Studio E to close');
     expect(r.stdout).not.toContain('still open');
-    expect(calls().filter((c) => c.startsWith('osascript'))).toEqual(['osascript -e quit app "LV Design Studio"']);
+    expect(calls().filter((c) => c.startsWith('osascript'))).toEqual(['osascript -e quit app "GFD Studio E"']);
     expect(count('sleep 1')).toBe(3);
   });
 
@@ -51,7 +51,7 @@ describe.skipIf(process.platform === 'win32')('update-app quits the open app bef
     stubs(1000);
     const r = run(5);
     expect(r.status).toBe(1);
-    expect(r.stdout).toContain('LV Design Studio is still open, perhaps asking about unsaved changes. Nothing was replaced');
+    expect(r.stdout).toContain('GFD Studio E is still open, perhaps asking about unsaved changes. Nothing was replaced');
     expect(count('sleep 1')).toBe(5);
   });
 

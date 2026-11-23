@@ -46,8 +46,8 @@ app.whenReady().then(async () => {
   const result = {};
 
   await win.loadURL(PAGE);
-  result.logged = await wc.executeJavaScript("window.lvds.log.error('an entry from the page')");
-  result.refused = await wc.executeJavaScript("window.lvds.log.error({ not: 'text' }).then(() => false, () => true)");
+  result.logged = await wc.executeJavaScript("window.gfde.log.error('an entry from the page')");
+  result.refused = await wc.executeJavaScript("window.gfde.log.error({ not: 'text' }).then(() => false, () => true)");
   await wc.executeJavaScript('window.marked = true');
   answers.push(0); // Reload
   let done = reloaded();

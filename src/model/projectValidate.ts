@@ -19,7 +19,7 @@ const isId = (v: unknown) => typeof v === 'string' && v.trim() !== '';
 
 /** The project, when the data has the structure the app needs; otherwise a ProjectFileError naming the problem. */
 export function checkProjectShape(raw: unknown, name = 'The file'): Project {
-  const fail = (why: string): never => { throw new ProjectFileError(`${name} is not a valid LV Design Studio project: ${why}.`); };
+  const fail = (why: string): never => { throw new ProjectFileError(`${name} is not a valid GFD Studio E project: ${why}.`); };
   if (!isObj(raw)) return fail('it does not contain a project');
   if (!Array.isArray(raw.boards)) return fail('the list of panels (boards) is missing');
   if (!Array.isArray(raw.feeders)) return fail('the list of circuits (feeders) is missing');

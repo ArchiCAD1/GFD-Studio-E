@@ -1,15 +1,17 @@
 <!-- PUBLIC-PRODUCT:START — generated from docs/public-site/product.json by scripts/public-site.mjs -->
-# LV Design Studio
+# GFD Studio E
 
-An open-source, offline-first workspace for single-line diagrams, load schedules, electrical calculations, drawings and reports. Projects remain under the engineer's control as local files.
+<img src="docs/brand/gfd-company-logo.png" alt="Gerardo Faustin Designs Limited company logo" width="320" height="320" />
 
-[Try the browser app](https://pdhruv15.github.io/LV-Design-Studio/)
-· [About the project](https://pdhruv15.github.io/LV-Design-Studio/about/)
-· [Download an unsigned beta](https://pdhruv15.github.io/LV-Design-Studio/download/)
+GFD Studio E is Gerardo Faustin Designs Limited's offline electrical design workspace for single-line diagrams, load schedules, electrical calculations, drawings and reports. Save native .gfde projects locally and keep control of your design data.
+
+[Build and run](#setup)
+· [Releases](https://github.com/ArchiCAD1/GFD-Studio-E/releases)
+· [GFD identity and source notices](docs/provenance/README.md)
 · [Calculation methods and limits](docs/engineering/calculation-methods.md)
 · [Privacy and project data](docs/privacy.md)
 
-**Version 2.211** (see `package.json`). The app is in active use and active development.
+**Version 2.212** (see `package.json`). This GFD distribution is in active development.
 
 > **Engineering status.** The calculations are first-pass design checks, not a substitute for an engineer's verified study. Built-in cable values are approximate references until replaced with manufacturer data, and some study methods are intentionally simplified. Nothing in the app constitutes approval by an electrical authority. Methods, assumptions and limits are in [docs/engineering/calculation-methods.md](docs/engineering/calculation-methods.md).
 
@@ -17,35 +19,11 @@ An open-source, offline-first workspace for single-line diagrams, load schedules
 
 The built-in demonstration project shows the same project model across the design stages, calculations, drawings and deliverables.
 
-**Overview and design stages**: Each stage's checklist, its stage gate and the key project figures.
-![Overview and design stages](docs/screenshots/10-overview-design-stages.png)
-
 **Single line diagram**: IEC and DEWA symbols, the panel tree and board properties.
 ![Single line diagram](docs/screenshots/01-single-line-diagram.png)
 
 **Load schedule**: The DEWA connected-load and maximum-demand schedule for the selected board.
 ![Load schedule](docs/screenshots/02-load-schedule.png)
-
-**Transformer and generator sizing**: Transformer fault level and regulation, plus generator sizing with motor starting.
-![Transformer and generator sizing](docs/screenshots/03-transformer-generator.png)
-
-**Power factor correction**: Central, group or individual correction with staged and detuned banks.
-![Power factor correction](docs/screenshots/04-power-factor-correction.png)
-
-**Earthing**: Earthing results filtered by the selected panel and its downstream boards.
-![Earthing](docs/screenshots/05-earthing-with-panel-tree.png)
-
-**Study reports**: Select boards and studies, then prepare PDF or Excel engineering deliverables.
-![Study reports](docs/screenshots/06-study-reports.png)
-
-**Cable tray schedule**: Route paths, tray sizing, grouping derating, cross-sections and quantities.
-![Cable tray schedule](docs/screenshots/07-cable-tray-schedule.png)
-
-**Quick calculators**: Fast checks for current, power, cable sizing, voltage drop, transformers and more.
-![Quick calculators](docs/screenshots/08-quick-calculators.png)
-
-**Projects dashboard**: Recent local projects, status, search and duplication.
-![Projects dashboard](docs/screenshots/09-projects-dashboard.png)
 <!-- PUBLIC-PRODUCT:END -->
 
 ## Setup
@@ -61,17 +39,17 @@ This opens the app in an Electron window (with the Vite dev server on
 http://127.0.0.1:5173). Click **Explore sample** for a worked 415 V villa
 complex, or start a new project.
 
-The development window trusts only that exact address (set `LVDS_DEV_URL`
+The development window trusts only that exact address (set `GFDE_DEV_URL`
 to another loopback port if you need one). Development builds load the app
 from the dev server: never distribute them; ship the packaged app.
 
 ## Saving projects to Google Drive
 
-On first run the app creates `~/LV Design Studio Projects`. Click the
+On first run the app creates `~/GFD Studio E Projects`. Click the
 **Folder** button on the ribbon's **Project** tab and point it at a folder
 inside your Google Drive desktop-sync folder (e.g.
-`~/Google Drive/My Drive/LV Projects`). Every "Save" writes a `.lvds`
-project file there (JSON text inside; older `.json` projects still open and are saved as `.lvds`), which Drive then syncs automatically — no login or API needed
+`~/Google Drive/My Drive/GFD Studio E Projects`). Every "Save" writes a `.gfde`
+project file there (JSON text inside; legacy `.lvds` and `.json` projects remain readable; new saves use `.gfde`), which Drive then syncs automatically — no login or API needed
 inside the app itself.
 
 ## Building an installer
@@ -114,7 +92,7 @@ the installed app can start without a network connection.
 
 Browser installations are independent: projects and personal libraries stay
 in that browser profile and are not synchronized to Google Drive or another
-device. Download project `.lvds` backups regularly. Clearing the site's data
+device. Download project `.gfde` backups regularly. Clearing the site's data
 or deleting the browser profile removes locally stored projects.
 
 The same workflow also publishes an architecture page at `<site>/architecture/`,
@@ -125,7 +103,7 @@ The README's marked public section is generated from the same reviewed content;
 `docs/screenshots` files rather than maintaining a second set.
 
 The architecture page
-(for this repository, https://pdhruv15.github.io/LV-Design-Studio/architecture/). It shows every
+(for this repository, https://archicad1.github.io/GFD-Studio-E/architecture/). It shows every
 module, its main files and how the modules pass data to each other. The page and its Markdown
 sources are in [`docs/architecture/`](docs/architecture/00-index.md); open
 `docs/architecture/navigator.html` in a browser to use it offline.
@@ -137,7 +115,7 @@ npm run typecheck   # TypeScript
 npm run lint        # ESLint, no warnings allowed
 npm test            # unit tests (Vitest), src/**/*.test.ts
 npm run build       # production build
-npm run test:pdf    # reports printed through Electron's Chromium (needs Electron's binary); pages compared with tests/pdf/baselines; lvds PDF and DXF exports (needs npm run build)
+npm run test:pdf    # reports printed through Electron's Chromium (needs Electron's binary); pages compared with tests/pdf/baselines; gfde PDF and DXF exports (needs npm run build)
 npm run test:pdf:update  # new layout baselines, after an intended layout change
 npm run bench       # calculation performance on large networks
 npm run check:privacy  # personal paths and e-mail addresses in tracked files (docs/privacy.md)
@@ -154,7 +132,7 @@ dependency audit of the shipped packages, the privacy check and a secret scan
 
 ## Database (Excel, synced by Google Drive)
 
-Reusable data lives in Excel workbooks in the `LV Database` folder inside
+Reusable data lives in Excel workbooks in the `GFD Studio E Database` folder inside
 your projects folder, so Google Drive syncs it across PCs and to anyone
 sharing the folder:
 
@@ -189,7 +167,7 @@ shows their results next to the built-in engine's for every feeder:
 | **OpenDSS** (via OpenDSSDirect.py) | Full load flow, including unbalance from single-phase loads; fault study |
 | **pandapower** | Newton-Raphson load flow; IEC 60909 maximum short circuit (cmax = 1.10, transformer KT correction) |
 
-Both run in a small Python helper (`engines/python/lvds_engine.py`) that the
+Both run in a small Python helper (`engines/python/gfde_engine.py`) that the
 Electron main process starts on demand. Setup:
 
 ```bash
@@ -232,62 +210,62 @@ header of the exported file.
 
 ## Command line, MCP server and local API
 
-`lvds` uses the app's own calculations without opening the app. It works on
+`gfde` uses the app's own calculations without opening the app. It works on
 projects in the app's projects folder. Reading and checking never changes a
 file; changing a project is described below.
 
 ```bash
 npm run build:cli
-node dist-cli/lvds.mjs help
-node dist-cli/lvds.mjs check "My project"      # to-do list; exit code 1 if anything fails
-node dist-cli/lvds.mjs panel "My project" SMDB-GF
-node dist-cli/lvds.mjs cable --current 120 --length 80 --ambient 45
+node dist-cli/gfde.mjs help
+node dist-cli/gfde.mjs check "My project"      # to-do list; exit code 1 if anything fails
+node dist-cli/gfde.mjs panel "My project" SMDB-GF
+node dist-cli/gfde.mjs cable --current 120 --length 80 --ambient 45
 ```
 
 Add `--json` for scripts, `--folder <path>` for another projects folder.
 
-**In the installed app.** The installer carries the same `lvds`. The app itself
+**In the installed app.** The installer carries the same `gfde`. The app itself
 runs it, so no window opens and no Node is needed:
 
 | System | Command |
 | --- | --- |
-| macOS | `"/Applications/LV Design Studio.app/Contents/Resources/lvds/lvds" help` |
-| Windows | `"%LOCALAPPDATA%\Programs\LV Design Studio\resources\lvds\lvds.cmd" help` |
+| macOS | `"/Applications/GFD Studio E.app/Contents/Resources/gfde/gfde" help` |
+| Windows | `"%LOCALAPPDATA%\Programs\GFD Studio E\resources\gfde\gfde.cmd" help` |
 
 On Windows the path starts at the folder you installed to, if you chose
 another one. The Linux AppImage holds the files too, but not at a fixed path:
 use the source folder there.
 
-**MCP (bring your own AI).** `lvds mcp` runs an MCP server on this computer.
+**MCP (bring your own AI).** `gfde mcp` runs an MCP server on this computer.
 Your own AI program (any MCP client, or a free local model through one) can
 then list projects, read panels and results, run the checks and use the quick
 calculations. The app has no AI of its own: it makes no AI calls, holds no
 account or key, and needs no paid service. To connect, print the settings of
-this copy and paste them into the MCP settings of your AI program (`lvds` is
-the command from the table above, or `node dist-cli/lvds.mjs` in the source
+this copy and paste them into the MCP settings of your AI program (`gfde` is
+the command from the table above, or `node dist-cli/gfde.mjs` in the source
 folder):
 
 ```bash
-lvds mcp-config
+gfde mcp-config
 ```
 
 It prints the `mcpServers` entry most MCP clients take, with the paths filled
 in. From the installed app that is the app itself run as Node:
-`{"mcpServers": {"lv-design-studio": {"command": "<the app>", "args": ["<its resources>/lvds/lvds.mjs", "mcp"], "env": {"ELECTRON_RUN_AS_NODE": "1"}}}}`.
+`{"mcpServers": {"gfd-studio-e": {"command": "<the app>", "args": ["<its resources>/gfde/gfde.mjs", "mcp"], "env": {"ELECTRON_RUN_AS_NODE": "1"}}}}`.
 From the source folder it is
-`{"command": "node", "args": ["/path/to/LV-Design-Studio/dist-cli/lvds.mjs", "mcp"]}`.
+`{"command": "node", "args": ["/path/to/GFD-Studio-E/dist-cli/gfde.mjs", "mcp"]}`.
 Through MCP and the API, only files inside the projects folder can be opened.
 
-**Local API.** `lvds serve` (default port 8765) answers on `http://127.0.0.1`
+**Local API.** `gfde serve` (default port 8765) answers on `http://127.0.0.1`
 only: `GET /api/tools` lists the tools and their inputs, `GET
 /api/tools/run_checks?project=My%20project` or `POST` with a JSON body runs
 one. Every request needs `Authorization: Bearer <token>`. The token is new
 each time the server starts; it is written to a file only you can read (the
 server names the file when it starts, `api-token` in the app's data folder)
 and removed when it stops. It is never printed or put in a URL. To use a fixed
-token in your own scripts, set `LVDS_API_TOKEN` (32 characters or more) before
+token in your own scripts, set `GFDE_API_TOKEN` (32 characters or more) before
 starting the server. Requests from web pages (an `Origin` header) are refused,
-and no CORS headers are sent. `lvds help serve` shows an example:
+and no CORS headers are sent. `gfde help serve` shows an example:
 
 ```bash
 curl -H "Authorization: Bearer $(cat "<token file>")" "http://127.0.0.1:8765/api/tools/run_checks?project=My%20project"
@@ -296,7 +274,7 @@ curl -H "Authorization: Bearer $(cat "<token file>")" "http://127.0.0.1:8765/api
 From Python: `requests.get(url, headers={"Authorization": f"Bearer {open(token_file).read().strip()}"})`.
 Errors name the projects folder as `<projects folder>`, not its full path.
 
-**Changing a project.** `lvds mcp --write` and `lvds serve --write` also offer
+**Changing a project.** `gfde mcp --write` and `gfde serve --write` also offer
 tools that change a project (on the command line they are always there). They
 show a preview unless called with `mode` apply / propose (`--apply` /
 `--propose` on the command line):
@@ -311,7 +289,7 @@ show a preview unless called with `mode` apply / propose (`--apply` /
   and circuits are sized by the app's selection. `add_building` and `add_level`
   add to Building information, so a rooms package can be accepted into a
   project that does not have its building yet.
-- Every change keeps the previous version in `.lvds-agent/` in the projects
+- Every change keeps the previous version in `.gfde-agent/` in the projects
   folder and is logged (`list_changes`); `undo_change` puts it back.
 - `delete_panel` and `delete_circuit` use the app's own delete. To apply, they
   need `approvedBy` (the engineer's name), and `undo_change` puts it back.
@@ -337,26 +315,26 @@ preview: the files it would make, failing checks and proposals still waiting.
 Exporting needs `approvedBy` (the engineer's name). It is refused while checks
 fail or proposals wait, unless the engineer sets `exportAnyway`. Files go to
 `Exports/<project>/<date>/` in the projects folder, never over an existing
-file, and every export is logged in `.lvds-agent/exports.jsonl`.
+file, and every export is logged in `.gfde-agent/exports.jsonl`.
 
 PDFs and the drawing sheets are made by the app itself, in Electron with no
-window (`electron/headlessExport.cjs`), only after the export is approved. lvds
+window (`electron/headlessExport.cjs`), only after the export is approved. gfde
 uses Electron from the app's source folder (`npm install` and `npm run build`
 first), else an installed app that has this export. Without either, reports are
 made as HTML and the earthing schematic is the only DXF.
 
 ```bash
-node dist-cli/lvds.mjs size "My project"            # preview the sizing proposal
-node dist-cli/lvds.mjs size "My project" --propose  # add it to Reports → Changes
-node dist-cli/lvds.mjs add-panel "My project" --kind SMDB --id SMDB-L3 --fedFrom MDB-1 --lengthM 45 --apply
-node dist-cli/lvds.mjs add-building "My project" --name "Tower A" --apply
-node dist-cli/lvds.mjs add-level "My project" --building "Tower A" --name "L1–L10" --kind typical --count 10 --apply
-node dist-cli/lvds.mjs rooms-from-cad "My project" --drawing "GF plan.dwg" --building "Tower A" --level Ground --apply
-node dist-cli/lvds.mjs undo "My project" --apply
-node dist-cli/lvds.mjs forms-xlsx "My project" --export --approvedBy "A. Engineer"
-node dist-cli/lvds.mjs schedule-xlsx "My project" --template "Company schedule.xlsx" --export --approvedBy "A. Engineer"  # your own Excel template, see docs/excel-load-schedule-template.md
-node dist-cli/lvds.mjs dxf "My project" --drawing sld --export --approvedBy "A. Engineer"
-node dist-cli/lvds.mjs report "My project" --report calc-report --format pdf --export --approvedBy "A. Engineer"
+node dist-cli/gfde.mjs size "My project"            # preview the sizing proposal
+node dist-cli/gfde.mjs size "My project" --propose  # add it to Reports → Changes
+node dist-cli/gfde.mjs add-panel "My project" --kind SMDB --id SMDB-L3 --fedFrom MDB-1 --lengthM 45 --apply
+node dist-cli/gfde.mjs add-building "My project" --name "Tower A" --apply
+node dist-cli/gfde.mjs add-level "My project" --building "Tower A" --name "L1–L10" --kind typical --count 10 --apply
+node dist-cli/gfde.mjs rooms-from-cad "My project" --drawing "GF plan.dwg" --building "Tower A" --level Ground --apply
+node dist-cli/gfde.mjs undo "My project" --apply
+node dist-cli/gfde.mjs forms-xlsx "My project" --export --approvedBy "A. Engineer"
+node dist-cli/gfde.mjs schedule-xlsx "My project" --template "Company schedule.xlsx" --export --approvedBy "A. Engineer"  # your own Excel template, see docs/excel-load-schedule-template.md
+node dist-cli/gfde.mjs dxf "My project" --drawing sld --export --approvedBy "A. Engineer"
+node dist-cli/gfde.mjs report "My project" --report calc-report --format pdf --export --approvedBy "A. Engineer"
 ```
 
 ## What it does
@@ -424,6 +402,8 @@ for what is kept, a checklist before sharing, and the rules for contributors.
 
 ## Licence
 
-LV Design Studio is **open source**, dual-licensed under the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE), at your option. You may use, copy, change, distribute, sublicense and sell it, including in commercial and closed-source products — just keep the copyright and licence notice. The Apache 2.0 option also gives an explicit patent licence. See [NOTICE.md](NOTICE.md).
+GFD Studio E is developed by **Gerardo Moises Faustin / Gerardo Faustin Designs Limited**. Its inherited source and notices are documented in [NOTICE.md](NOTICE.md) and [the provenance record](docs/provenance/README.md).
+
+GFD Studio E is **open source**, dual-licensed under the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE), at your option. You may use, copy, change, distribute, sublicense and sell it, including in commercial and closed-source products — just keep the copyright and licence notice. The Apache 2.0 option also gives an explicit patent licence. See [NOTICE.md](NOTICE.md).
 
 Unless you state otherwise, any contribution you submit for inclusion is dual-licensed as above, without any additional terms.

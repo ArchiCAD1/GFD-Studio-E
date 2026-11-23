@@ -172,7 +172,7 @@ describe('rooms export', () => {
     const pkg = roomsExport(villa(), AT, sha256, 'Villa');
     const back = read(pkg as unknown as Record<string, unknown>);
     expect(back.hash).toBe(pkg.sha256);
-    expect(pkg.source).toEqual({ app: 'lvds', file: 'Villa' });
+    expect(pkg.source).toEqual({ app: 'gfde', file: 'Villa' });
     expect(pkg.items.map((x) => [x.sourceId, x.building, x.level, x.name])).toEqual([['R1', 'Villa', 'Ground', 'Kitchen'], ['R2', 'Villa', 'Ground', 'Store'], ['R3', 'Villa', 'First', 'Hall']]);
     expect(() => roomsExport({ ...villa(), building: undefined }, AT, sha256)).toThrow(/no rooms/);
   });

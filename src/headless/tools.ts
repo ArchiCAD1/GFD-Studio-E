@@ -31,9 +31,9 @@ export interface ToolContext {
   /** MCP / API: only these tool groups besides the core tools (--tools); absent = every group. */
   groups?: ToolGroup[];
   /** MCP: project names, file names, parties and addresses are not sent to the AI program (src/headless/privacy.ts);
-   * the default of `lvds mcp`, off with --show-names. */
+   * the default of `gfde mcp`, off with --show-names. */
   hideNames?: boolean;
-  /** MCP: lists of records are sent as columns and rows (src/headless/compact.ts); the default of `lvds mcp`, off
+  /** MCP: lists of records are sent as columns and rows (src/headless/compact.ts); the default of `gfde mcp`, off
    * with --full-rows. */
   compactRows?: boolean;
   /** MCP: the AI client that called, from its own initialize message (clientLabel). Recorded on changes, proposals and
@@ -62,7 +62,7 @@ export interface Tool {
 
 export const r = (x: number | undefined, d = 2): number | undefined => (x === undefined || !Number.isFinite(x) ? undefined : Math.round(x * 10 ** d) / 10 ** d);
 
-const project = z.string().describe('Project file name in the projects folder (with or without .lvds), as given by list_projects');
+const project = z.string().describe('Project file name in the projects folder (with or without .gfde), as given by list_projects');
 const statusFilter = z.enum(['bad', 'warn', 'all']).default('bad').describe('bad = failures only, warn = failures and items to check, all = everything');
 const limit = z.number().int().min(1).max(1000).default(50).describe('Most rows to return');
 const phases = z.union([z.literal(1), z.literal(3)]).default(3).describe('1 or 3 phase');
@@ -90,7 +90,7 @@ export const TOOLS: Tool[] = [
   {
     name: 'list_projects',
     title: 'List projects',
-    description: 'The project files in the LV Design Studio projects folder, newest first: file, name, panels, circuits, status and latest revision.',
+    description: 'The project files in the GFD Studio E projects folder, newest first: file, name, panels, circuits, status and latest revision.',
     input: {},
     run: (_a, ctx) => ({ folder: ctx.folder, projects: listProjects(ctx.folder, ctx.anywhere) })
   },

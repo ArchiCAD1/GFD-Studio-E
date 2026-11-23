@@ -5,7 +5,7 @@ prompt to the screen, so it waits for approval** (`AGENTS.md`, "Do not change UI
 
 ## Why
 
-A project backup (`.lvds-backup`) is a zip with the project and its checkpoints in plain text. Backups are what
+A project backup (`.gfde-backup`) is a zip with the project and its checkpoints in plain text. Backups are what
 gets copied to a cloud folder, a USB stick or an e-mail, so they are the file most likely to be read by someone
 else. Project files on this computer are not part of this proposal.
 
@@ -13,7 +13,7 @@ else. Project files on this computer are not part of this proposal.
 
 1. **Checkpoints panel → Back up project**: one new optional field under the button, *Password (optional)*, with a
    *Show* tick box. Empty = a backup exactly as today.
-2. With a password, the saved file is still `.lvds-backup`. Nothing else on the panel changes.
+2. With a password, the saved file is still `.gfde-backup`. Nothing else on the panel changes.
 3. **Restore from backup**: when the chosen file has a password, one prompt: *This backup has a password*, a
    password field, *Restore* and *Cancel*. A wrong password says *The password is not right* and asks again.
 4. No way to recover a forgotten password: the prompt says so in one line when a password is typed
@@ -31,7 +31,7 @@ Black-and-white, the existing field and button styles, no new colours or icons.
   "needs a password"; a wrong password is told apart from a damaged file by the GCM check.
 - Backup format version 1 → 2 only for encrypted files; plain backups stay version 1, so an older app still opens
   them. An older app shown an encrypted backup says it is not a backup it can read.
-- Headless: `lvds` has no backup command today, so nothing changes there.
+- Headless: `gfde` has no backup command today, so nothing changes there.
 
 ## Tests it would come with
 

@@ -28,4 +28,4 @@ Record investigation findings, proposed solutions and retest evidence here. Keep
 
 Useful statuses: Open · Proposed solution · Fixed — awaiting retest · Verified fixed · Needs supplier confirmation · Out of scope.
 
-Project: [[LV Design Studio]] · Module: [[Enclosure sizing]]
+Project: [[GFD Studio E]] · Module: [[Enclosure sizing]]

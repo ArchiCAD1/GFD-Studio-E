@@ -211,7 +211,7 @@ describe('Specification page', () => {
       act(() => saveButton().click());
       expect(status[status.length - 1]).toBe(`Template saved: Scope wording (clauses, ${under} lines)`);
       expect(card('Templates')!.textContent).toContain('Scope wording');
-      expect(JSON.parse(localStorage.getItem('lvds.specTemplates')!)).toHaveLength(1);
+      expect(JSON.parse(localStorage.getItem('gfde.specTemplates')!)).toHaveLength(1);
       // use it in the second section
       act(() => sectionButton('LV switchboards').click());
       const before = now().sections[1].clauses.length;
@@ -221,7 +221,7 @@ describe('Specification page', () => {
       expect(new Set(now().sections.flatMap((x) => x.clauses.map((c) => c.id))).size).toBe(now().sections.reduce((n, x) => n + x.clauses.length, 0));
       click('Delete template Scope wording');
       expect(card('Templates')!.textContent).toContain('No templates yet');
-      expect(JSON.parse(localStorage.getItem('lvds.specTemplates')!)).toEqual([]);
+      expect(JSON.parse(localStorage.getItem('gfde.specTemplates')!)).toEqual([]);
     });
 
     it('saves the whole specification as a template; using it replaces the sections and says how to get back', () => {
@@ -247,8 +247,8 @@ describe('Specification page', () => {
       render(sampleProject);
       tabTo('File');
       await act(async () => { tool('Save specification as').click(); await vi.waitFor(() => expect(saved.length).toBe(1)); });
-      expect(saved[0].name.endsWith('.lvspec')).toBe(true);
-      expect(JSON.parse(saved[0].text!)).toMatchObject({ format: 'lvds-specification', spec: { title: 'Electrical specification' } });
+      expect(saved[0].name.endsWith('.gfde-spec')).toBe(true);
+      expect(JSON.parse(saved[0].text!)).toMatchObject({ format: 'gfde-specification', spec: { title: 'Electrical specification' } });
       const open = async (name: string, text: string) => {
         const input = document.querySelector<HTMLInputElement>('input[aria-label="Specification file"]')!;
         Object.defineProperty(input, 'files', { configurable: true, value: [new File([text], name)] });
@@ -259,7 +259,7 @@ describe('Specification page', () => {
       expect(sectionButton('From file')).toBeTruthy();
       const before = changes;
       await open('notes.lvspec', 'not a specification');
-      expect(status[status.length - 1]).toBe('notes.lvspec: not a specification saved by LV Design Studio');
+      expect(status[status.length - 1]).toBe('notes.lvspec: not a specification saved by GFD Studio E');
       expect(changes).toBe(before);
     });
   });

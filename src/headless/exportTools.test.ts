@@ -7,6 +7,7 @@ import { DOMParser } from '@xmldom/xmldom';
 import ExcelJS from 'exceljs';
 import { sampleProject } from '../data/sampleProject';
 import { applyTransformers, planTransformers } from '../model/transformers';
+import { issueRevision } from '../model/revisions';
 import type { Project } from '../types';
 import { callTool, offeredTools, toolByName, type ToolContext } from './tools';
 import { parseProject } from './project';
@@ -24,12 +25,12 @@ const exportsDir = () => path.join(folder, 'Exports');
 const exported = () => (fs.existsSync(exportsDir()) ? fs.readdirSync(exportsDir(), { recursive: true }).map(String).filter((f) => /\.\w+$/.test(f)) : []);
 
 beforeAll(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-export-'));
-  process.env.LVDS_APP_DATA = path.join(root, 'app');
-  process.env.LVDS_ELECTRON = path.join(root, 'no-electron'); // no renderer lookup: requiring electron downloads its binary on CI
-  vi.stubGlobal('DOMParser', DOMParser); // as the lvds entry does (src/headless/main.ts)
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-export-'));
+  process.env.GFDE_APP_DATA = path.join(root, 'app');
+  process.env.GFDE_ELECTRON = path.join(root, 'no-electron'); // no renderer lookup: requiring electron downloads its binary on CI
+  vi.stubGlobal('DOMParser', DOMParser); // as the gfde entry does (src/headless/main.ts)
 });
-afterAll(() => { delete process.env.LVDS_APP_DATA; delete process.env.LVDS_ELECTRON; vi.unstubAllGlobals(); fs.rmSync(root, { recursive: true, force: true }); });
+afterAll(() => { delete process.env.GFDE_APP_DATA; delete process.env.GFDE_ELECTRON; vi.unstubAllGlobals(); fs.rmSync(root, { recursive: true, force: true }); });
 beforeEach(() => {
   folder = fs.mkdtempSync(path.join(root, 'projects-'));
   fs.writeFileSync(file('Villa'), JSON.stringify(villa, null, 2));
@@ -94,8 +95,8 @@ describe('exports', () => {
     expect(log[0]).toMatchObject({ file: 'Villa.json', tool: 'export_forms_xlsx', approvedBy: 'A. Engineer', exportedAnyway: false });
     expect(read('Villa')).toBe(JSON.stringify(villa, null, 2)); // the project itself is untouched
   });
-  it('exports a .lvds project as plain JSON that opens as the same project', async () => {
-    fs.writeFileSync(path.join(folder, 'Tower.lvds'), JSON.stringify({ format: 'lvds.project', ...villa, name: 'Tower' }, null, 2));
+  it('exports a .gfde project as plain JSON that opens as the same project', async () => {
+    fs.writeFileSync(path.join(folder, 'Tower.gfde'), JSON.stringify({ format: 'gfde.project', ...villa, name: 'Tower' }, null, 2));
     const preview = await run('export_project_json', { project: 'Tower' });
     expect(exported()).toEqual([]);
     expect(JSON.stringify(preview)).toContain('Tower.json');
@@ -104,6 +105,18 @@ describe('exports', () => {
     const back = parseProject(fs.readFileSync(done.files[0], 'utf-8'), 'Tower.json');
     expect(back).toMatchObject({ id: villa.id, name: 'Tower' });
     expect(back.feeders).toHaveLength(villa.feeders.length);
+  });
+  it('exports a legacy project with the native marker while retaining issued revisions and the source file', async () => {
+    const legacy = { ...villa, name: 'Legacy tower', format: 'lvds.project' };
+    const original = JSON.stringify(issueRevision(legacy, { description: 'Issued before migration' }), null, 2);
+    const source = path.join(folder, 'Legacy.lvds');
+    fs.writeFileSync(source, original);
+    const done = await run('export_project_json', { project: 'Legacy', mode: 'export', approvedBy: 'A. Engineer' });
+    const saved = JSON.parse(fs.readFileSync(done.files[0], 'utf-8'));
+    expect(saved.format).toBe('gfde.project');
+    expect(saved.revisions).toEqual(JSON.parse(original).revisions);
+    expect(saved.revisions[0].snapshot.format).toBe('lvds.project');
+    expect(fs.readFileSync(source, 'utf-8')).toBe(original);
   });
   it('reports come from the app catalogue as HTML', async () => {
     const r = await run('export_report', { project: 'Villa', report: 'calc-report', mode: 'export', approvedBy: 'A. Engineer' });

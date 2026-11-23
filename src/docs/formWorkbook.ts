@@ -431,7 +431,7 @@ export interface WorkbookScope {
  * sheet and / or its DB load schedule, in supply order within each group. */
 export function buildFormWorkbook(project: Project, scope: WorkbookScope = {}): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   wb.created = new Date();
   const forms = scope.forms ?? ['tx', 'riser', 'md', 'db'];
   if (forms.includes('tx') && !scope.boardIds && project.boards.some((b) => !b.upstreamId)) addTxSheet(wb, project);

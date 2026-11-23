@@ -1,11 +1,11 @@
 {
-  "$id": "https://lv-design-studio/contracts/design.schema.json",
+  "$id": "https://gfd-studio-e/contracts/design.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
     "schema": {
       "type": "string",
-      "const": "lvds.design"
+      "const": "gfde.design"
     },
     "version": {
       "type": "number",
@@ -46,7 +46,7 @@
       "properties": {
         "app": {
           "type": "string",
-          "const": "lvds"
+          "const": "gfde"
         },
         "appVersion": {
           "type": "string",

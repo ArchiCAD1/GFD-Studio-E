@@ -78,11 +78,11 @@ All built-in rates are in AED (`rates.ts:36` `CURRENCY`). New database workbooks
 | `src/components/docs/Documents.tsx` | screen | `EquipmentScheduleView` (line 64) | Equipment schedule page and CSV / PDF export |
 | `src/docs/schedules.ts` | report | `equipmentSchedule` (line 43) | Rows: transformer (`TX-<board id>`) + each board |
 | `src/components/CatalogueManager.tsx` | screen | `CatalogueManager` | Enclosure catalogues + device dimension library (opened from Enclosure sizing) |
-| `src/components/ComponentEditor.tsx`, `src/model/components.ts` | screen / model | `ComponentEditor`, `componentPreset`, `syncComponent`, `loadComponentLibrary` | User load templates with formulas; library in `localStorage` `lvds.components` |
+| `src/components/ComponentEditor.tsx`, `src/model/components.ts` | screen / model | `ComponentEditor`, `componentPreset`, `syncComponent`, `loadComponentLibrary` | User load templates with formulas; library in `localStorage` `gfde.components` |
 | `src/database/catalog.ts` | model | `catalogRate`, `catalog` | Catalogue prices by BOQ key (store: Excel database, in memory) |
 | `src/App.tsx` | screen | view `'boq'` (lines 1692-1695), `'equipment'` (line 1627) | Mounts `BomView` with the **live** `project`, and the equipment schedule with `calcProject` |
 
-Stores in the project file: `project.priceList`, `project.boq` (`BoqCustom`: overrides, manual, sections, wastage, discount, VAT, document, scopeReview, projectType, includeSchedulePoints), `project.boqRevisions`, `project.elvBoq`, `project.components`. Stores on this computer: `localStorage` `lvds.priceLists` (synced by `pushLibrary`) and Prices.xlsx lists (`catalog().priceLists`, ids `xl-…`).
+Stores in the project file: `project.priceList`, `project.boq` (`BoqCustom`: overrides, manual, sections, wastage, discount, VAT, document, scopeReview, projectType, includeSchedulePoints), `project.boqRevisions`, `project.elvBoq`, `project.components`. Stores on this computer: `localStorage` `gfde.priceLists` (synced by `pushLibrary`) and Prices.xlsx lists (`catalog().priceLists`, ids `xl-…`).
 
 ## 3. Inputs — where its data comes from
 

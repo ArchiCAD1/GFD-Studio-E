@@ -79,9 +79,9 @@ All print in black and white; Solid stays light grey on sheets.
   - Imported patterns are kept in the project (`Project.cadPatterns`) and listed after the built-in ones. Each hatch
     also carries its own pattern lines, so a project or drawing sent to someone else draws the same.
   - CROP of a block keeps the drawing's own pattern lines (found by layer and outline in the open drawing), so a hatch
-    is no longer turned into ANSI31. This includes hatches the app saved earlier (named `LVDS_REF` in the file).
+    is no longer turned into ANSI31. This includes hatches the app saved earlier (named `GFDE_REF` in the file).
   - Spacing for an imported pattern is the distance between its first family's lines in paper mm.
-- The saved pattern name used to stay `LVDS_REF`; fixed in v2.125 (below).
+- The saved pattern name used to stay `GFDE_REF`; fixed in v2.125 (below).
 
 ## Built in v2.125 (2026-11-14)
 
@@ -102,7 +102,7 @@ All print in black and white; Solid stays light grey on sheets.
 - **Match properties (D.2):** hatch to hatch also copies pattern, spacing, angle and custom pattern.
 - **Pattern preview (D.5):** a small black-and-white swatch of the chosen pattern beside the Pattern list.
 - **Export .pat… and patterns on this computer (C.4, C.5):** Export .pat… saves every pattern in the list (built-in,
-  project, this computer). A tick keeps imported patterns on this computer (browser storage, `lvds.cadPatterns.computer`)
+  project, this computer). A tick keeps imported patterns on this computer (browser storage, `gfde.cadPatterns.computer`)
   for every project; the list shows them under On this computer.
 - **Boundary:** `BO` / `BOUNDARY` / `BPOLY` draws a closed polyline round the area clicked (a circle stays a circle) and
   one per island; areas closed by drawn lines are found by Hatch and Boundary alike.

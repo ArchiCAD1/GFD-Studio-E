@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('lvds', {
+contextBridge.exposeInMainWorld('gfde', {
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     chooseProjectsFolder: () => ipcRenderer.invoke('settings:chooseProjectsFolder'),

@@ -17,7 +17,7 @@ export function elvLoadsPackage(project: Project, estimate: ElvEstimate, exporte
   const pkg = {
     schema: EXCHANGE_SCHEMA, version: EXCHANGE_VERSION, kind: 'loads' as const,
     project: { ...(project.id ? { id: project.id } : {}), name: project.name },
-    source: { app: 'elv' as const, file: `${project.name} — ELV estimate`, tool: 'LV Design Studio ELV estimate' }, exportedAt, items
+    source: { app: 'elv' as const, file: `${project.name} — ELV estimate`, tool: 'GFD Studio E ELV estimate' }, exportedAt, items
   };
   return { ...pkg, sha256: sha256(hashedText(pkg)) };
 }

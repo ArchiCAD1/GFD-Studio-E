@@ -47,7 +47,7 @@ const trayText = (r: TrayResult) => `${r.tiers > 1 ? `${r.tiers} × ` : ''}${r.w
 
 export function buildTrayWorkbook(project: Project, plan: TrayPlan, results: TrayResult[]): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   const s = { ...plan.settings };
 
   // Schedule: each route, its cables, its tray.

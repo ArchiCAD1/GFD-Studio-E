@@ -181,12 +181,12 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
 
   describe('drawn work (Design CAD lines, hatches and text) on plan sheets', () => {
     const work: SketchItem[] = [
-      { id: 'S1', kind: 'line', layer: 'LV-SKETCH', pts: [[10000, -2000], [10000, 14000]], lt: 'center', lw: 0.35 },
-      { id: 'S2', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: box(12000, 0, 20000, 4000), hatch: { pattern: 'ansi31', scale: 3, angle: 0 } },
-      { id: 'S3', kind: 'circle', layer: 'LV-HATCH', pts: [[4000, 4000]], r: 1000, hatch: { pattern: 'solid', scale: 3, angle: 0 } },
-      { id: 'S4', kind: 'text', layer: 'LV-ANNO', pts: [[2000, 10000]], text: 'PLANT <A>', h: 250, rot: 0 },
-      { id: 'S5', kind: 'pline', layer: 'LV-ANNO', pts: [[16000, 2000], [18000, 8000], [19000, 8000]], leader: true },
-      { id: 'S6', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [20000, 0], [10000, -1000]], text: '20.00' },
+      { id: 'S1', kind: 'line', layer: 'GFDE-SKETCH', pts: [[10000, -2000], [10000, 14000]], lt: 'center', lw: 0.35 },
+      { id: 'S2', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: box(12000, 0, 20000, 4000), hatch: { pattern: 'ansi31', scale: 3, angle: 0 } },
+      { id: 'S3', kind: 'circle', layer: 'GFDE-HATCH', pts: [[4000, 4000]], r: 1000, hatch: { pattern: 'solid', scale: 3, angle: 0 } },
+      { id: 'S4', kind: 'text', layer: 'GFDE-ANNO', pts: [[2000, 10000]], text: 'PLANT <A>', h: 250, rot: 0 },
+      { id: 'S5', kind: 'pline', layer: 'GFDE-ANNO', pts: [[16000, 2000], [18000, 8000], [19000, 8000]], leader: true },
+      { id: 'S6', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [20000, 0], [10000, -1000]], text: '20.00' },
       { id: 'S7', kind: 'text', layer: 'E-HELP', pts: [[2000, 8000]], text: 'HELPER', h: 250, rot: 0 },
       { id: 'S8', kind: 'line', layer: 'E-OFF', pts: [[0, 6000], [20000, 6000]] }
     ];
@@ -202,8 +202,8 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
     });
 
     it('prints an attribute definition as its tag, and an insert\'s attribute values where they sit (S11)', () => {
-      const ad: SketchItem = { id: 'A1', kind: 'attdef', layer: 'LV-ANNO', pts: [[2000, 2000]], tag: 'DB_REF', text: 'DB-1', h: 250 };
-      const ins: SketchItem = { id: 'B1', kind: 'insert', layer: 'LV-SKETCH', pts: [[5000, 5000]], block: 'LT', attrs: { CIRCUIT: 'DB1/L3' } };
+      const ad: SketchItem = { id: 'A1', kind: 'attdef', layer: 'GFDE-ANNO', pts: [[2000, 2000]], tag: 'DB_REF', text: 'DB-1', h: 250 };
+      const ins: SketchItem = { id: 'B1', kind: 'insert', layer: 'GFDE-SKETCH', pts: [[5000, 5000]], block: 'LT', attrs: { CIRCUIT: 'DB1/L3' } };
       const defs = [{ name: 'LT', items: [{ id: 'a', kind: 'attdef' as const, layer: '0', pts: [[0, 0]] as [number, number][], tag: 'CIRCUIT', text: 'L1', h: 250 }, { id: 'w', kind: 'attdef' as const, layer: '0', pts: [[0, -400]] as [number, number][], tag: 'WATTS', text: '36', h: 250, att: { invisible: true as const } }] }];
       const g = /<g class="drawn" clip-path="url\(#dw-[\w-]+\)">(.*?)<\/g>/.exec(svgOf({ ...withWork(), ...drawn(villa(), [ad, ins]), cadBlockDefs: [{ file: 'GF.dwg', defs }] }))![1];
       expect(g).toMatch(/>DB_REF<\/text>/);
@@ -212,9 +212,9 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
     });
 
     it('prints an insert as what its block shows, at the insert\'s place and scale (S9)', () => {
-      const ins: SketchItem = { id: 'B1', kind: 'insert', layer: 'LV-SKETCH', pts: [[5000, 5000]], block: 'DB-A', sc: 2 };
+      const ins: SketchItem = { id: 'B1', kind: 'insert', layer: 'GFDE-SKETCH', pts: [[5000, 5000]], block: 'DB-A', sc: 2 };
       const p: Project = { ...withWork(), ...drawn(villa(), [ins]), cadBlockDefs: [{ file: 'GF.dwg', defs: [{ name: 'DB-A', items: [
-        { id: 'r', kind: 'pline', layer: '0', closed: true, pts: [[0, 0], [400, 0], [400, 300], [0, 300]] }, { id: 't', kind: 'text', layer: 'LV-ANNO', pts: [[50, 100]], text: 'DB', h: 100 }] }] }] };
+        { id: 'r', kind: 'pline', layer: '0', closed: true, pts: [[0, 0], [400, 0], [400, 300], [0, 300]] }, { id: 't', kind: 'text', layer: 'GFDE-ANNO', pts: [[50, 100]], text: 'DB', h: 100 }] }] }] };
       const g = /<g class="drawn" clip-path="url\(#dw-[\w-]+\)">(.*?)<\/g>/.exec(svgOf(p))![1];
       // At 1:100: the 0.8 × 0.6 m rectangle is 8 × 6 mm on paper, the text 2 mm high (its capitals: the font 2.79).
       const m = /<path d="M([\d.]+) ([\d.]+)L([\d.]+) ([\d.]+)L([\d.]+) ([\d.]+)L([\d.]+) ([\d.]+)L/.exec(g)!;
@@ -224,7 +224,7 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
     });
 
     it('prints drawn points with the point style: 2 mm across when sized to the screen, else at their size in the drawing\'s units (S8)', () => {
-      const pt: SketchItem = { id: 'P1', kind: 'point', layer: 'LV-SKETCH', pts: [[5000, 5000]] };
+      const pt: SketchItem = { id: 'P1', kind: 'point', layer: 'GFDE-SKETCH', pts: [[5000, 5000]] };
       const group = (p: Project) => /<g class="drawn" clip-path="url\(#dw-[\w-]+\)">(.*?)<\/g>/.exec(svgOf(p))![1];
       // A dot sized to the screen: a filled circle of 0.25 mm.
       expect(group({ ...withWork(), ...drawn(villa(), [pt]) })).toMatch(/<circle cx="[\d.]+" cy="[\d.]+" r="0.25" fill="#000" stroke="none"\/>/);
@@ -252,14 +252,14 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
     });
 
     it('leaves a frozen layer off the sheet, as one that is off', () => {
-      const p = withWork({ cadLayerStyle: { 'gf.dwg': { 'LV-ANNO': { freeze: true } } } });
+      const p = withWork({ cadLayerStyle: { 'gf.dwg': { 'GFDE-ANNO': { freeze: true } } } });
       const g = /<g class="drawn" clip-path="url\(#dw-[\w-]+\)">(.*?)<\/g>/.exec(svgOf(p))![1];
       expect(g).not.toContain('PLANT');
       expect(g).toContain('HELPER');
     });
 
     it('prints a dimension of a style at its paper sizes, with its length measured in its unit', () => {
-      const dim: SketchItem = { id: 'D1', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [20000, 0], [10000, -1000]], h: 200, look: { arrow: 'closed', size: 250, off: 60, ext: 125, unit: 'mm', decimals: 0 } };
+      const dim: SketchItem = { id: 'D1', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [20000, 0], [10000, -1000]], h: 200, look: { arrow: 'closed', size: 250, off: 60, ext: 125, unit: 'mm', decimals: 0 } };
       const g = /<g class="drawn" clip-path="url\(#dw-[\w-]+\)">(.*?)<\/g>/.exec(svgOf(drawn(villa(), [dim])))![1];
       expect(g).toMatch(/font-size="2.79" text-anchor="middle" fill="#000">20000<\/text>/); // 200 mm at 1:100: capitals 2 mm high
       const pts = pathPts(/<path d="([^"]+)"/.exec(g)![1]);
@@ -276,7 +276,7 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
     });
 
     it('prints a dashed pattern with its dashes and a dotted one as dots, both inside the outline', () => {
-      const brick: SketchItem = { id: 'B1', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: box(12000, 0, 20000, 4000), hatch: { pattern: 'brick', scale: 3, angle: 0 } };
+      const brick: SketchItem = { id: 'B1', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: box(12000, 0, 20000, 4000), hatch: { pattern: 'brick', scale: 3, angle: 0 } };
       const gravel: SketchItem = { ...brick, id: 'G1', pts: box(0, 0, 8000, 4000), hatch: { pattern: 'gravel', scale: 3, angle: 0 } };
       const svg = svgOf(drawn(villa(), [brick, gravel]));
       expect(svg).toMatch(/<path d="M[^"]+" clip-path="url\(#(dw-[\w-]+-0)\)" fill="none" stroke="#666666" stroke-width="0.13"\/><path d="M[^"]+" clip-path="url\(#\1\)" fill="none" stroke="#666666" stroke-width="0.13" stroke-dasharray="3 3"\/>/); // courses, then joints
@@ -285,8 +285,8 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
 
     it('a hatch with islands is one path filled and clipped even-odd; a circle one as two arcs; the pattern starts at its origin', () => {
       const ansi = { pattern: 'ansi31' as const, scale: 3, angle: 0 };
-      const holed: SketchItem = { id: 'H1', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: box(0, 0, 8000, 4000), hatch: ansi, holes: [box(2000, 1000, 4000, 3000)] };
-      const round: SketchItem = { id: 'H2', kind: 'circle', layer: 'LV-HATCH', pts: [[14000, 2000]], r: 1500, hatch: { ...ansi, pattern: 'solid' }, holes: [box(13500, 1500, 14500, 2500)] };
+      const holed: SketchItem = { id: 'H1', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: box(0, 0, 8000, 4000), hatch: ansi, holes: [box(2000, 1000, 4000, 3000)] };
+      const round: SketchItem = { id: 'H2', kind: 'circle', layer: 'GFDE-HATCH', pts: [[14000, 2000]], r: 1500, hatch: { ...ansi, pattern: 'solid' }, holes: [box(13500, 1500, 14500, 2500)] };
       const svg = svgOf(drawn(villa(), [holed, round]));
       expect(svg).toMatch(/<clipPath id="dw-[\w-]+-0"><path d="M[^"]+ZM[^"]+Z" clip-rule="evenodd"\/><\/clipPath>/);
       expect(svg).toMatch(/<path d="M[^"]+a[\d.]+ [\d.]+ 0 1 0 [^"]+ZM[^"]+Z" fill-rule="evenodd" fill="#b3b3b3" stroke="none"\/>/);
@@ -443,7 +443,7 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
       const p = villa();
       expect(planLevels(p, 'containment')).toEqual([]); // a DB is placed, but no containment is drawn
       expect(addPlanSheets(setOf(p), p, 'containment').ids).toEqual([]);
-      expect(planLevels(drawn(p, [{ id: 'S9', kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [5000, 0]] }]), 'containment')).toEqual([]); // nor a plain line
+      expect(planLevels(drawn(p, [{ id: 'S9', kind: 'line', layer: 'GFDE-SKETCH', pts: [[0, 0], [5000, 0]] }]), 'containment')).toEqual([]); // nor a plain line
       const q = drawn(p, [run]);
       expect(planLevels(q, 'containment').map((l) => l.name)).toEqual(['Ground floor']);
       const { set, sheets } = sheetOf(q, 'containment');
@@ -655,7 +655,7 @@ describe('plan sheets (Design CAD → Sheets → Plans)', () => {
       expect(hash(drawn(p, [items[0]]))).not.toBe(h);
       expect(hash({ ...p, feeders: p.feeders.map((f) => (f.id === 'DB-GF1-Y1' ? { ...f, cableCsaMm2: 4 } : f)) })).not.toBe(h);
       expect(hash(drawn(p, items, 6))).not.toBe(h); // the plan now reads in metres
-      expect(hash(drawn(p, [...items, { id: 'S9', kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [5, 5]] }]))).not.toBe(h); // drawn work prints too
+      expect(hash(drawn(p, [...items, { id: 'S9', kind: 'line', layer: 'GFDE-SKETCH', pts: [[0, 0], [5, 5]] }]))).not.toBe(h); // drawn work prints too
       // What the sheet does not draw: the lights.
       expect(hash(lightsMoved(p))).toBe(h);
     });

@@ -117,7 +117,7 @@ scale ÷ print scale) ≥ 1.8 mm**, and 2.5 mm for authority submissions (IEC 61
 | --- | --- | --- | --- |
 | B1 | `TH` list (A1) | — | The ISO series as the default heights offered everywhere a height is typed (Text, Notes, styles, leaders, tags). |
 | B2 | `RESCALE`, `ANNORESCALE` | `From 1:<100> to 1:<200>:` → `[All annotation/Selection] <All>:` | Resizes the existing texts, dimension looks (arrows, offsets, text), leaders, room tags, north arrow, revision-cloud arcs and hatch spacing about their anchors so they print the same mm at the new scale, and sets the plan's annotation scale. One undo step. S17 does this for new objects; RESCALE fixes what is already drawn. |
-| B3 | `ANNOCHECK`, `CHECKTEXT` | `Check for [Paper and scale/Each layout] <Each layout>:` → `Paper [A0/A1/A2/A3/A4] <A1>:` → `Print scale 1:<100>:` | Lists in the Output panel, with zoom-to on click: texts that print below 1.8 mm (2.5 mm option), heights outside the ISO series, mixed heights on one layer, texts not on LV-ANNO / LV-DIMS, texts overlapping other texts or devices, dimensions whose text was overridden. A fix button runs A1 on the listed texts. |
+| B3 | `ANNOCHECK`, `CHECKTEXT` | `Check for [Paper and scale/Each layout] <Each layout>:` → `Paper [A0/A1/A2/A3/A4] <A1>:` → `Print scale 1:<100>:` | Lists in the Output panel, with zoom-to on click: texts that print below 1.8 mm (2.5 mm option), heights outside the ISO series, mixed heights on one layer, texts not on GFDE-ANNO / LV-DIMS, texts overlapping other texts or devices, dimensions whose text was overridden. A fix button runs A1 on the listed texts. |
 | B4 | Text style per paper | Text style dialog: `Heights <2.5 / 3.5 / 5>` | A style keeps a height per use (notes, titles, sub-titles), picked by the plan sheet's paper (A3: 2.5 / 3.5 / 5; A1: 3.5 / 5 / 7). Optional; needs a small change to the existing STYLE dialog. |
 
 Recommended heights (paper mm), for the help text and B3's defaults (to verify against ISO 3098-2 and the
@@ -135,7 +135,7 @@ authority's drawing standards): general notes 2.5; room and device tags 2.5; dim
 | C5 | `DTAG`, `DEVTAG` | `Select devices or boards:` → `Show [Circuit/Load/Type/Room/All] <Circuit>:` → `Place [Beside/Leader/Frame] <Beside>:` | Drawn tags from the device's data: circuit reference (`DB-GF-1/L3`), load, type code, room. A tag remembers its device uid; when the model changes it shows a "needs update" mark and `DTAG U` updates them (as the linked tables of the Annotate sub-tab proposal). The TAGS overlay stays for checking; DTAG is for what prints and saves. |
 | C6 | `COUNT`, `BCOUNT` | `Select objects:` → `By [Device type/Layer/Kind/Block] <Device type>:` → `[Table/Done] <Done>:` | Counts in the Output panel; Table writes a legend with quantities at a point (lines and texts now; S13's table when it exists). |
 | C7 | `JUMP`, `CROSSOVER` | `Select the line that jumps:` → `[Arc/Gap] <Arc>:` | A small half-circle (or gap) where two drawn lines cross, radius from the text height, for wiring and schematic drawings. |
-| C8 | `SWLINK`, `CONTROL` | `Select the switch:` → `Select the lights it controls:` | A dashed control arc from a switch to its luminaires, saved on LV-ANNO. `src/model/cadWiring.ts` wires a circuit's devices to the board and has no switch groups, so this is new; it needs a decision on whether switch-to-light control belongs in the model (per circuit) or stays a drawn annotation. |
+| C8 | `SWLINK`, `CONTROL` | `Select the switch:` → `Select the lights it controls:` | A dashed control arc from a switch to its luminaires, saved on GFDE-ANNO. `src/model/cadWiring.ts` wires a circuit's devices to the board and has no switch groups, so this is new; it needs a decision on whether switch-to-light control belongs in the model (per circuit) or stays a drawn annotation. |
 | C9 | `KN`, `KEYNOTE` | `Number <next>:` → `Place:` → `Note text:` | A hexagon with the number (A7 + A4) and one legend table per level (C6 / S13) that updates as keynotes are added. |
 
 ### Group D — layers and housekeeping (drawn objects only)
@@ -153,7 +153,7 @@ authority's drawing standards): general notes 2.5; room and device tags 2.5; dim
 
 | # | Command | What it does |
 | --- | --- | --- |
-| E1 | `ALIASEDIT` | The user's own aliases, kept per user in the LV Database (`aliases.json`): add a short name for any command (`LL` → LBL), see conflicts with built-in aliases, reset. Built-in aliases cannot be removed. UI: a small dialog or a tab in Drafting settings — approval needed. |
+| E1 | `ALIASEDIT` | The user's own aliases, kept per user in the GFD Studio E Database (`aliases.json`): add a short name for any command (`LL` → LBL), see conflicts with built-in aliases, reset. Built-in aliases cannot be removed. UI: a small dialog or a tab in Drafting settings — approval needed. |
 | E2 | `SCRIPT`, `SCR` | Plays a plain text file: one command or value per line, exactly as if typed on the command line, with the Output panel showing each line's message and stopping at the first error. Replaces an office's script files for repeated setups (layers, styles, title block, standard notes). Points are typed as `x,y`. |
 | E3 | `RECORD` / `STOP` | Later: records what is typed into a script file for E2. |
 | E4 | MCP tools | Already there: `src/headless/cadTools.ts` lets a user's AI run the same jobs headless. Each command above that is a pure function in `src/model` can be exposed as a tool with no extra logic. |
@@ -251,11 +251,11 @@ are left as they are (`src/model/cadText.ts`, pure, with tests; the flows in `Ca
   Copy, Rotate, Scale and TXTHEIGHT carry it. Saved as a circle or closed polyline on the text's layer. Properties:
   a **Frame** list.
 - **TMASK** (A9): `Mask behind the text [Yes/No] <Yes>:`. An optional `mask` fills the text's box in the paper colour
-  (the canvas background; white on the sheets) under the text. Saved as a solid hatch on **LV-MASK**, written before the
+  (the canvas background; white on the sheets) under the text. Saved as a solid hatch on **GFDE-MASK**, written before the
   text (set that layer to the paper colour in the other program). Properties: a **Mask** list.
 - **TCOUNT / TNUM** (A4): `Prefix <>:` → `Start number <1>:` (a leading zero keeps the digits: 01 → 01, 02 …) →
   `Step <1>:` → `Suffix <>:` → `Place text or [Select existing/Undo]:`. Each click places the next number centred
-  (MC) on it at the annotation text height on LV-ANNO; U takes the last one back; S renumbers the texts picked, in the
+  (MC) on it at the annotation text height on GFDE-ANNO; U takes the last one back; S renumbers the texts picked, in the
   order picked (or asks for them first); Enter ends. Prefix and suffix are taken as typed, spaces included.
 - **KN / KEYNOTE** (C9): `Number (Enter: the next):` → `Place keynote n:` → `Note text:` → the first time,
   `Legend position (the top left of its title):`. A hexagon-framed number (MC) at the point, and a line `n  note` in

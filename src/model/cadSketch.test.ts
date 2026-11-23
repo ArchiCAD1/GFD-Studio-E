@@ -10,12 +10,12 @@ const near = (a: [number, number][][], b: [number, number][][]) => {
   expect(a.map((q) => q.length)).toEqual(b.map((q) => q.length));
   a.forEach((q, i) => q.forEach(([x, y], j) => { expect(x).toBeCloseTo(b[i][j][0], 6); expect(y).toBeCloseTo(b[i][j][1], 6); }));
 };
-const line: Omit<SketchItem, 'id'> = { kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [4000, 0]] };
+const line: Omit<SketchItem, 'id'> = { kind: 'line', layer: 'GFDE-SKETCH', pts: [[0, 0], [4000, 0]] };
 
 describe('drawing in the CAD view', () => {
   it('keeps what was drawn per drawing file, with permanent IDs', () => {
     const a = addSketch(p0, 'GF.dwg', line);
-    const b = addSketch(a.project, 'gf.DWG', { kind: 'circle', layer: 'LV-SKETCH', pts: [[0, 0]], r: 500 });
+    const b = addSketch(a.project, 'gf.DWG', { kind: 'circle', layer: 'GFDE-SKETCH', pts: [[0, 0]], r: 500 });
     expect(sketchOf(b.project, 'GF.dwg').map((x) => x.id)).toEqual(['S1', 'S2']);
     expect(sketchOf(b.project, 'L1.dwg')).toEqual([]);
     const c = updateSketch(b.project, 'GF.dwg', moved(sketchOf(b.project, 'GF.dwg')[0], 100, 50));
@@ -55,19 +55,19 @@ describe('drawing in the CAD view', () => {
   });
 
   it('finds what was drawn under a click, snaps to it, and writes it for the DXF', () => {
-    const items: SketchItem[] = [{ ...line, id: 'S1' }, { id: 'S2', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], text: '4.00' }];
+    const items: SketchItem[] = [{ ...line, id: 'S1' }, { id: 'S2', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], text: '4.00' }];
     expect(itemAt(items, [2000, 30], 50)?.id).toBe('S1');
     expect(itemAt(items, [2000, 780], 50)?.id).toBe('S2');
     expect(itemAt(items, [2000, 400], 50)).toBeUndefined();
     expect(snapPoints(items)).toContainEqual({ x: 2000, y: 0, kind: 2 });
     const out = shapesOut(items, 0.001);
-    expect(out.filter((s) => s.layer === 'LV-ANNO' && s.kind === 'text')[0].text).toBe('4.00');
-    expect(out.filter((s) => s.layer === 'LV-ANNO' && s.kind === 'line').length).toBe(5);
+    expect(out.filter((s) => s.layer === 'GFDE-ANNO' && s.kind === 'text')[0].text).toBe('4.00');
+    expect(out.filter((s) => s.layer === 'GFDE-ANNO' && s.kind === 'line').length).toBe(5);
   });
 
   it('clips, picks, snaps and writes construction lines and rays as infinite CAD entities', () => {
-    const xline: SketchItem = { id: 'XL', kind: 'line', infinite: 'xline', layer: 'LV-SKETCH', pts: [[5, 5], [6, 6]] };
-    const ray: SketchItem = { id: 'R', kind: 'line', infinite: 'ray', layer: 'LV-SKETCH', pts: [[5, 5], [6, 5]] };
+    const xline: SketchItem = { id: 'XL', kind: 'line', infinite: 'xline', layer: 'GFDE-SKETCH', pts: [[5, 5], [6, 6]] };
+    const ray: SketchItem = { id: 'R', kind: 'line', infinite: 'ray', layer: 'GFDE-SKETCH', pts: [[5, 5], [6, 5]] };
     expect(constructionSegment(xline, [0, 0, 10, 10])).toEqual([[0, 0], [10, 10]]);
     expect(constructionSegment(ray, [0, 0, 10, 10])).toEqual([[5, 5], [10, 5]]);
     expect(constructionDistance(xline, [1, 2])).toBeCloseTo(Math.SQRT1_2, 9);
@@ -80,11 +80,11 @@ describe('drawing in the CAD view', () => {
   it('writes every kind of dimension\'s text centred on the middle of its baseline, where it is drawn', () => {
     const look = { arrow: 'closed' as const, size: 90, off: 20, ext: 50, unit: 'mm' as const, decimals: 0 };
     const dims: SketchItem[] = [
-      { id: 'old', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], text: '4.00' }, // drawn before styles
-      { id: 'up', kind: 'dim', layer: 'LV-ANNO', pts: [[0, 0], [0, 3000], [-600, 1500]], h: 100, look: { ...look, textPos: 'above' }, dir: Math.PI / 2 },
-      { id: 'radius', kind: 'dim', dimKind: 'radius', layer: 'LV-ANNO', pts: [[1000, 1000], [1500, 1000], [1200, 1300]], h: 90, look },
-      { id: 'diameter', kind: 'dim', dimKind: 'diameter', layer: 'LV-ANNO', pts: [[1000, 1000], [1500, 1000], [1800, 1000]], h: 90, look },
-      { id: 'angular', kind: 'dim', dimKind: 'angular', layer: 'LV-ANNO', pts: [[3000, 3000], [4000, 3000], [3000, 4000], [3300, 3300]], h: 90, look }
+      { id: 'old', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [4000, 0], [2000, 800]], text: '4.00' }, // drawn before styles
+      { id: 'up', kind: 'dim', layer: 'GFDE-ANNO', pts: [[0, 0], [0, 3000], [-600, 1500]], h: 100, look: { ...look, textPos: 'above' }, dir: Math.PI / 2 },
+      { id: 'radius', kind: 'dim', dimKind: 'radius', layer: 'GFDE-ANNO', pts: [[1000, 1000], [1500, 1000], [1200, 1300]], h: 90, look },
+      { id: 'diameter', kind: 'dim', dimKind: 'diameter', layer: 'GFDE-ANNO', pts: [[1000, 1000], [1500, 1000], [1800, 1000]], h: 90, look },
+      { id: 'angular', kind: 'dim', dimKind: 'angular', layer: 'GFDE-ANNO', pts: [[3000, 3000], [4000, 3000], [3000, 4000], [3300, 3300]], h: 90, look }
     ];
     for (const it of dims) {
       const d = dimOf(it, 0.001), text = shapesOut([it], 0.001).filter((s) => s.kind === 'text');
@@ -96,7 +96,7 @@ describe('drawing in the CAD view', () => {
   it('picks a justified text by its box, and writes its justification for the DXF', () => {
     // "TAG" 250 high (its capitals), about 628 wide (0.84 × 250 a letter), anchored at its middle centre: its box runs
     // about 686–1314 × 375–625.
-    const mc: SketchItem = { id: 'T1', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 500]], text: 'TAG', h: 250, just: 'MC' };
+    const mc: SketchItem = { id: 'T1', kind: 'text', layer: 'GFDE-ANNO', pts: [[1000, 500]], text: 'TAG', h: 250, just: 'MC' };
     expect(itemAt([mc], [800, 400], 10)?.id).toBe('T1');
     expect(itemAt([mc], [1200, 600], 10)?.id).toBe('T1');
     expect(itemAt([mc], [1300, 500], 10)?.id).toBe('T1'); // its last letter (past the 0.6 × 250 a letter of before)
@@ -109,13 +109,13 @@ describe('drawing in the CAD view', () => {
   });
 
   it('draws a framed text\'s frame with the lines, and writes its mask under it and its frame after it', () => {
-    const fr: SketchItem = { id: 'T2', kind: 'text', layer: 'LV-ANNO', pts: [[1000, 500]], text: 'L1', h: 250, just: 'MC', frame: 'box', mask: true };
+    const fr: SketchItem = { id: 'T2', kind: 'text', layer: 'GFDE-ANNO', pts: [[1000, 500]], text: 'L1', h: 250, just: 'MC', frame: 'box', mask: true };
     expect(segmentsOf({ ...fr, frame: undefined })).toEqual([]);
     expect(segmentsOf(fr)).toHaveLength(4);
     expect(segmentsOf({ ...fr, frame: 'hexagon' })).toHaveLength(6);
     expect(segmentsOf({ ...fr, frame: 'circle' }).length).toBeGreaterThan(8);
     const out = shapesOut([fr], 0.001);
-    expect(out.map((s) => `${s.kind}@${s.layer}`)).toEqual(['hatch@LV-MASK', 'text@LV-ANNO', 'pline@LV-ANNO']);
+    expect(out.map((s) => `${s.kind}@${s.layer}`)).toEqual(['hatch@GFDE-MASK', 'text@GFDE-ANNO', 'pline@GFDE-ANNO']);
     expect(out[0]).toMatchObject({ solid: true }); expect(out[0].loops![0]).toHaveLength(4);
     expect(out[2]).toMatchObject({ closed: true });
     expect(shapesOut([{ ...fr, frame: 'circle', mask: undefined }], 0.001).map((s) => s.kind)).toEqual(['text', 'circle']);
@@ -159,7 +159,7 @@ describe('cable tray runs', () => {
   });
 
   it('draws a revision cloud as arcs bulging out of its outline, whichever way the outline runs', () => {
-    const ccw: SketchItem = { id: 'C', kind: 'pline', layer: 'LV-ANNO', pts: rectangle([0, 0], [10, 4]), closed: true, cloud: 2 };
+    const ccw: SketchItem = { id: 'C', kind: 'pline', layer: 'GFDE-ANNO', pts: rectangle([0, 0], [10, 4]), closed: true, cloud: 2 };
     const l = cloudLobes(ccw);
     expect(l.pts).toHaveLength(14); // sides of 10, 4, 10, 4: 5 + 2 + 5 + 2 arcs
     expect(l.bulge).toBe(0.5);
@@ -172,7 +172,7 @@ describe('cable tray runs', () => {
     expect(Math.min(...segmentsOf({ ...ccw, pts: [...ccw.pts].reverse() }).flat().map((q) => q[1]))).toBeLessThan(-0.2);
     // Saved as one closed polyline of arcs.
     const [out] = shapesOut([ccw], 0.001);
-    expect(out).toMatchObject({ kind: 'pline', closed: true, layer: 'LV-ANNO' });
+    expect(out).toMatchObject({ kind: 'pline', closed: true, layer: 'GFDE-ANNO' });
     expect(out.bulges).toEqual(Array(14).fill(0.5));
     expect(snapPoints([ccw]).filter((q) => q.kind === 2)).toEqual([]); // no middles of its outline
   });
@@ -185,12 +185,12 @@ describe('cable tray runs', () => {
 
   it('saves a hatch as a hatch with its outline and pattern lines at 1:100, Solid as solid, a circle as its outline', () => {
     const sq: [number, number][] = [[0, 0], [1000, 0], [1000, 1000], [0, 1000]];
-    const [h] = shapesOut([{ id: 'H', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: sq, hatch: { pattern: 'ansi31', scale: 3, angle: 0 } }], 0.001);
-    expect(h).toMatchObject({ layer: 'LV-HATCH', kind: 'hatch', loops: [sq], solid: false });
+    const [h] = shapesOut([{ id: 'H', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: sq, hatch: { pattern: 'ansi31', scale: 3, angle: 0 } }], 0.001);
+    expect(h).toMatchObject({ layer: 'GFDE-HATCH', kind: 'hatch', loops: [sq], solid: false });
     expect(h.lines).toHaveLength(1);
     expect(h.lines![0].angle).toBeCloseTo(Math.PI / 4, 9);
     expect(Math.hypot(...h.lines![0].offset)).toBeCloseTo(300, 9); // 3 mm at 1:100 in a mm drawing
-    const [s] = shapesOut([{ id: 'S', kind: 'circle', layer: 'LV-HATCH', pts: [[0, 0]], r: 500, hatch: { pattern: 'solid', scale: 3, angle: 0 } }], 0.001);
+    const [s] = shapesOut([{ id: 'S', kind: 'circle', layer: 'GFDE-HATCH', pts: [[0, 0]], r: 500, hatch: { pattern: 'solid', scale: 3, angle: 0 } }], 0.001);
     expect(s).toMatchObject({ kind: 'hatch', solid: true });
     expect(s.lines).toBeUndefined();
     expect(s.loops![0]).toHaveLength(128);
@@ -225,7 +225,7 @@ describe('cable tray runs', () => {
 
 type Pt = [number, number];
 describe('hatches: islands, origin and what they save', () => {
-  const hatch: SketchItem = { id: 'H', kind: 'pline', layer: 'LV-HATCH', closed: true, pts: [[0, 0], [100, 0], [100, 100], [0, 100]], hatch: { pattern: 'brick', scale: 3, angle: 30, origin: [10, 20] },
+  const hatch: SketchItem = { id: 'H', kind: 'pline', layer: 'GFDE-HATCH', closed: true, pts: [[0, 0], [100, 0], [100, 100], [0, 100]], hatch: { pattern: 'brick', scale: 3, angle: 30, origin: [10, 20] },
     holes: [[[40, 40], [60, 40], [60, 60], [40, 60]]], assoc: ['S1', 'S2'] };
 
   it('move takes the islands and the pattern\'s origin along; rotate turns them and the pattern\'s angle', () => {
@@ -251,7 +251,7 @@ describe('hatches: islands, origin and what they save', () => {
 
   it('is saved with its loops, the name of its pattern, its angle and scale, and the objects it follows', () => {
     const [h] = shapesOut([hatch], 0.001);
-    expect(h).toMatchObject({ kind: 'hatch', layer: 'LV-HATCH', name: 'BRICK', solid: false, id: 'H', srcs: ['S1', 'S2'] });
+    expect(h).toMatchObject({ kind: 'hatch', layer: 'GFDE-HATCH', name: 'BRICK', solid: false, id: 'H', srcs: ['S1', 'S2'] });
     expect(h.loops).toEqual([hatch.pts, hatch.holes![0]]);
     expect(h.hangle).toBeCloseTo(Math.PI / 6);
     expect(h.hscale).toBeCloseTo(3 * 100 * 1); // 3 mm paper at 1:100 in mm units
@@ -260,7 +260,7 @@ describe('hatches: islands, origin and what they save', () => {
     const none = at({ ...hatch, hatch: { ...hatch.hatch!, origin: undefined } });
     expect(at(hatch)).toEqual([none[0] + 10, none[1] + 20]);
     // A circle is 128 sides; a custom pattern is named for itself; Solid is solid; a plain object has no srcs.
-    const circle: SketchItem = { id: 'C', kind: 'circle', layer: 'LV-HATCH', pts: [[0, 0]], r: 50, hatch: { pattern: 'solid', scale: 3, angle: 0 } };
+    const circle: SketchItem = { id: 'C', kind: 'circle', layer: 'GFDE-HATCH', pts: [[0, 0]], r: 50, hatch: { pattern: 'solid', scale: 3, angle: 0 } };
     const [c] = shapesOut([circle], 0.001);
     expect(c.loops![0]).toHaveLength(128);
     expect(c).toMatchObject({ name: 'SOLID', solid: true });
@@ -274,7 +274,7 @@ describe('hatches: islands, origin and what they save', () => {
   it('withSketchItems lets an associative hatch follow its boundary (see cadHatchAssoc)', () => {
     const sq = (id: string, x: number): Omit<SketchItem, 'id'> => ({ kind: 'pline', layer: 'L', closed: true, pts: [[x, 0], [x + 10, 0], [x + 10, 10], [x, 10]], ...(id ? {} : {}) });
     let p = addSketch(p0, 'GF.dwg', sq('', 0)).project;
-    p = addSketch(p, 'GF.dwg', { ...sq('', 0), layer: 'LV-HATCH', hatch: { pattern: 'ansi31', scale: 3, angle: 0 }, assoc: ['S1'] }).project;
+    p = addSketch(p, 'GF.dwg', { ...sq('', 0), layer: 'GFDE-HATCH', hatch: { pattern: 'ansi31', scale: 3, angle: 0 }, assoc: ['S1'] }).project;
     p = updateSketch(p, 'GF.dwg', moved(sketchOf(p, 'GF.dwg')[0], 20, 0));
     expect(sketchOf(p, 'GF.dwg')[1].pts[0]).toEqual([20, 0]);
   });
@@ -285,17 +285,17 @@ describe('hatches: islands, origin and what they save', () => {
     const [b] = shapesOut([{ id: 'b', ...line, color: '#FF0000', ltName: 'ACAD_ISO02W100', lt: 'dashed' }], 0.01);
     expect(b).toMatchObject({ color: '#ff0000', lt: 'ACAD_ISO02W100' }); expect(b.ltdash).toBeUndefined(); expect(b.lw).toBeUndefined();
     const [c] = shapesOut([{ id: 'c', ...line }], 0.001);
-    expect(c).toEqual({ layer: 'LV-SKETCH', kind: 'line', pts: [[0, 0], [4000, 0]], closed: undefined, r: undefined, a0: undefined, a1: undefined, id: 'c' });
+    expect(c).toEqual({ layer: 'GFDE-SKETCH', kind: 'line', pts: [[0, 0], [4000, 0]], closed: undefined, r: undefined, a0: undefined, a1: undefined, id: 'c' });
   });
 });
 
 describe('a leader\'s arrowhead in Save DXF / DWG', () => {
   it('is written as a solid triangle of the size and shape the canvas draws, after the leader\'s line', () => {
-    const lead: SketchItem = { id: 'L1', kind: 'line', layer: 'LV-ANNO', pts: [[0, 0], [1000, 0]], leader: true };
+    const lead: SketchItem = { id: 'L1', kind: 'line', layer: 'GFDE-ANNO', pts: [[0, 0], [1000, 0]], leader: true };
     const out = shapesOut([lead], 0.001); // mm: 3 mm on paper at 1:100 is 300
     expect(out.map((s) => s.kind)).toEqual(['line', 'hatch']);
     const h = out[1];
-    expect(h).toMatchObject({ layer: 'LV-ANNO', solid: true, id: 'L1' });
+    expect(h).toMatchObject({ layer: 'GFDE-ANNO', solid: true, id: 'L1' });
     const [tip, a, b] = h.loops![0];
     expect(tip).toEqual([0, 0]);
     expect(a[0]).toBeCloseTo(300 * Math.cos(0.3), 6); expect(a[1]).toBeCloseTo(300 * Math.sin(-0.3), 6);

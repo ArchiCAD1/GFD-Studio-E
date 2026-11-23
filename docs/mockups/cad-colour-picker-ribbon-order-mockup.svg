@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="940" viewBox="0 0 1600 940" role="img" aria-labelledby="title desc">
   <title id="title">Proposed compact CAD colour picker and reorderable ribbon panels</title>
-  <desc id="desc">Dark LV Design Studio mockup showing Layers moved to the first ribbon position and a compact Select colour dialog with Index colour and True colour tabs.</desc>
+  <desc id="desc">Dark GFD Studio E mockup showing Layers moved to the first ribbon position and a compact Select colour dialog with Index colour and True colour tabs.</desc>
   <defs>
     <radialGradient id="page" cx="50%" cy="0" r="90%"><stop offset="0" stop-color="#2b3447"/><stop offset=".48" stop-color="#171c24"/><stop offset="1" stop-color="#0c0f14"/></radialGradient>
     <linearGradient id="ribbon" x2="0" y2="1"><stop stop-color="#30363f"/><stop offset="1" stop-color="#292e36"/></linearGradient>
@@ -28,7 +28,7 @@
       <rect width="1496" height="827" rx="10" fill="#151a21" stroke="#56606e" stroke-width="1.5"/>
       <path d="M10 0h1476a10 10 0 0 1 10 10v25H0V10A10 10 0 0 1 10 0" fill="#20242b"/>
       <circle cx="18" cy="17" r="5" fill="#667080"/><circle cx="36" cy="17" r="5" fill="#667080"/><circle cx="54" cy="17" r="5" fill="#667080"/>
-      <text x="74" y="21" class="t small" font-weight="600">LV Design Studio</text><text x="182" y="21" class="m small">— Design CAD / Ground Floor Lighting</text><text x="1450" y="21" class="m small">87%</text>
+      <text x="74" y="21" class="t small" font-weight="600">GFD Studio E</text><text x="182" y="21" class="m small">— Design CAD / Ground Floor Lighting</text><text x="1450" y="21" class="m small">87%</text>
 
       <rect y="35" width="1496" height="38" fill="#252930" stroke="#454c57"/>
       <g class="small m">
@@ -49,7 +49,7 @@
       <g transform="translate(13 113)">
         <rect width="206" height="100" rx="5" fill="url(#layerPanel)" stroke="#64a0ff"/>
         <rect x="9" y="9" width="184" height="26" rx="4" fill="#1b2027" stroke="#667180"/>
-        <rect x="17" y="16" width="12" height="12" rx="2" fill="#1f252d" stroke="#808a98"/><text x="37" y="27" class="t small">LV-SKETCH</text><text x="179" y="27" class="m small">⌄</text>
+        <rect x="17" y="16" width="12" height="12" rx="2" fill="#1f252d" stroke="#808a98"/><text x="37" y="27" class="t small">GFDE-SKETCH</text><text x="179" y="27" class="m small">⌄</text>
         <g class="tiny t"><text x="14" y="52">▣  Off</text><text x="98" y="52">▣  All on</text><text x="14" y="71">▣  Freeze</text><text x="98" y="71">▣  Thaw</text></g>
         <text x="62" y="94" class="cap">⠿  Layers</text><rect x="135" y="79" width="20" height="16" rx="3" fill="#20252c" stroke="#566170"/><rect x="158" y="79" width="20" height="16" rx="3" fill="#20252c" stroke="#566170"/><text x="145" y="91" text-anchor="middle" class="tiny t">◀</text><text x="168" y="91" text-anchor="middle" class="tiny t">▶</text>
       </g>

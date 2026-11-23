@@ -14,7 +14,7 @@ import { bookmarkMarkers, markerBookmarks } from '../../src/docs/outline';
  * becomes a bookmark, on the page its section landed on, in document order. */
 
 const electron = createRequire(import.meta.url)('electron') as unknown as string;
-const dir = mkdtempSync(path.join(tmpdir(), 'lvds-outline-'));
+const dir = mkdtempSync(path.join(tmpdir(), 'gfde-outline-'));
 // Rendered files are removed after the run (set KEEP_PDF=1 to keep them for a look).
 afterAll(() => { if (!process.env.KEEP_PDF) rmSync(dir, { recursive: true, force: true }); });
 const docs = printDocs();

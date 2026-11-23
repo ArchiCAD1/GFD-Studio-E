@@ -29,12 +29,12 @@ describe('the web version\'s template store', () => {
   });
   it('leaves out stored content that is not a user template, and survives unreadable storage', async () => {
     const store = memory();
-    store.m.set('lvds.folderTemplates', JSON.stringify({ templates: [mine(), { id: 'user-x', name: 1 }, { ...mine(), id: 'consultant-full' }], defaultId: 5 }));
+    store.m.set('gfde.folderTemplates', JSON.stringify({ templates: [mine(), { id: 'user-x', name: 1 }, { ...mine(), id: 'consultant-full' }], defaultId: 5 }));
     const s = await webTemplatesClient(store).list();
     expect(s.templates).toHaveLength(1);
     expect(s.skipped).toBe(2);
     expect(s.defaultId).toBeNull();
-    store.m.set('lvds.folderTemplates', '{not json');
+    store.m.set('gfde.folderTemplates', '{not json');
     expect((await webTemplatesClient(store).list()).templates).toEqual([]);
     const blocked = webTemplatesClient({ getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } });
     expect((await blocked.save(mine())).templates).toHaveLength(1);

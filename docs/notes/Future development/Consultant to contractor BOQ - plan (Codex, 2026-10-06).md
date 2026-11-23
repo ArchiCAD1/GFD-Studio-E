@@ -1,7 +1,7 @@
 # Consultant design to contractor BOQ: implementation plan
 
 Created: 6 October 2026  
-Source reviewed: `e182110` (LV Design Studio 1.5.0)  
+Source reviewed: `e182110` (GFD Studio E 1.5.0)\
 Status: planned; application implementation has not started.
 
 ## Intended result

@@ -179,6 +179,6 @@ describe('reading a folder in the browser (File System Access API)', () => {
     const opts: unknown[] = [];
     const ok = webFolderScan({ showDirectoryPicker: (o) => { opts.push(o); return Promise.resolve(withFiles('Job', 0, [withFiles('VD', 0, [])])); } })!;
     expect((await ok())?.count).toBe(1);
-    expect(opts).toEqual([{ mode: 'read', id: 'lvds-learn-folder' }]);
+    expect(opts).toEqual([{ mode: 'read', id: 'gfde-learn-folder' }]);
   });
 });

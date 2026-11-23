@@ -21,10 +21,10 @@ const project = () => parseProject(fs.readFileSync(path.join(folder, 'Villa.json
 const run = async (name: string, args: Record<string, unknown>): Promise<Record<string, any>> => (await callTool(toolByName(name)!, args, ctx)) as Record<string, any>;
 
 beforeAll(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'lvds-exchange-'));
-  process.env.LVDS_APP_DATA = path.join(root, 'app');
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'gfde-exchange-'));
+  process.env.GFDE_APP_DATA = path.join(root, 'app');
 });
-afterAll(() => { delete process.env.LVDS_APP_DATA; fs.rmSync(root, { recursive: true, force: true }); });
+afterAll(() => { delete process.env.GFDE_APP_DATA; fs.rmSync(root, { recursive: true, force: true }); });
 beforeEach(() => {
   folder = fs.mkdtempSync(path.join(root, 'projects-'));
   fs.writeFileSync(path.join(folder, 'Villa.json'), JSON.stringify(villa, null, 2));
@@ -92,7 +92,7 @@ describe('exchange tools', () => {
     expect(preview).toMatchObject({ mode: 'preview', written: false, files: [{ file: expect.stringMatching(/-rooms\.json$/), about: 'rooms package, 1 room' }] });
     const done = await run('export_rooms_package', { project: 'Villa', approvedBy: 'A. Engineer', exportAnyway: true, mode: 'export' });
     const written = JSON.parse(fs.readFileSync(done.files[0], 'utf-8'));
-    expect(written).toMatchObject({ schema: 'lvds.exchange', version: 1, kind: 'rooms', source: { app: 'lvds' }, items: [{ sourceId: 'R1', name: 'Kitchen', netAreaM2: 25 }] });
+    expect(written).toMatchObject({ schema: 'gfde.exchange', version: 1, kind: 'rooms', source: { app: 'gfde' }, items: [{ sourceId: 'R1', name: 'Kitchen', netAreaM2: 25 }] });
     fs.copyFileSync(done.files[0], path.join(folder, 'back.json'));
     expect(await run('exchange_check', { file: 'back.json' })).toMatchObject({ ok: true, hash: written.sha256 });
   });

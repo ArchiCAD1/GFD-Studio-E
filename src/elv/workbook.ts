@@ -12,7 +12,7 @@ const BORDER: Partial<ExcelJS.Borders> = { top: thin, left: thin, bottom: thin, 
 export async function elvWorkbook(project: Project, tables: ScheduleTable[], stamp = ''): Promise<ExcelJS.Workbook> {
   const { default: Excel } = await import('exceljs');
   const wb = new Excel.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   for (const t of tables) {
     if (!t.rows.length) continue;
     const ws = wb.addWorksheet(t.title.replace(/^ELV /, '').slice(0, 31));

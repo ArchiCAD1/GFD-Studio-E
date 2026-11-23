@@ -6,7 +6,7 @@
 This module runs a project's network through more than one calculation method, so the engineer can check the app's own results.
 
 - **Built-in engine.** This is the app's own TypeScript calculation (`evaluateProject` in `src/calc/electrical.ts`, module 06), wrapped so it can be called the same way as the other engines. It is a hand-calculation method: Ib at nominal voltage, voltage drop by the (R cos φ + X sin φ) formula, and Ik″ to IEC 60909 with c = 1.05.
-- **External engines (OpenDSS, pandapower).** A Python helper (`engines/python/lvds_engine.py`) runs a true load flow (an iterative solution of the network voltages) and a fault study. OpenDSS and pandapower are free power-system programs. Both must be installed separately with `pip`, and they run only in the desktop app.
+- **External engines (OpenDSS, pandapower).** A Python helper (`engines/python/gfde_engine.py`) runs a true load flow (an iterative solution of the network voltages) and a fault study. OpenDSS and pandapower are free power-system programs. Both must be installed separately with `pip`, and they run only in the desktop app.
 - **OpenDSS export.** This writes the network as an OpenDSS script (`.dss`, a text file of OpenDSS commands). The engineer can open the file in OpenDSS. The OpenDSS engine runs the same script.
 - **Engine compare screen.** This is the "Load flow" left-menu view (`view === 'engines'`). It shows Ib, total voltage drop, Ik″ at the breaker and Ik″ at the cable end for every circuit: built-in value, external value and the difference between them.
 - **SLD results source.** On the network SLD (single-line diagram), the results bar can switch the labels from the built-in values to OpenDSS or pandapower results.
@@ -33,12 +33,12 @@ This module runs a project's network through more than one calculation method, s
 | `src/engines/external.ts` | calc | `openDssEngine`, `pandapowerEngine`, `pythonEngine`, `probeEngines`, `engineRequest`, `engineCableData` | Sends the project, the cable table (`cables()`) and the R factor (`resistanceFactor`) to the Python helper over IPC (inter-process messages between the screen and the desktop main process). The probe result is cached in `probeCache`. |
 | `src/engines/index.ts` | model | `EXTERNAL_ENGINES`, `builtinEngine` | Lists the engines shown in the drop-downs. |
 | `src/engines/opendss/exportDss.ts` | calc / export | `exportDss`, `dssName`, `uniqueDssNames`, `dssComment` | Builds the OpenDSS script and warnings, then runs a load flow and a fault study in it. |
-| `engines/python/lvds_engine.py` | calc (Python) | `main`, `probe`, `run_opendss`, `run_pandapower`, `check_project`, `check_dss_line`, `overload_hints`, `supply_board_of`, `CABLES` | Reads one JSON request on stdin and writes one JSON answer on stdout. Allows only these OpenDSS commands: `ALLOWED_DSS`, `ALLOWED_DSS_SET`. |
+| `engines/python/gfde_engine.py` | calc (Python) | `main`, `probe`, `run_opendss`, `run_pandapower`, `check_project`, `check_dss_line`, `overload_hints`, `supply_board_of`, `CABLES` | Reads one JSON request on stdin and writes one JSON answer on stdout. Allows only these OpenDSS commands: `ALLOWED_DSS`, `ALLOWED_DSS_SET`. |
 | `engines/python/requirements.txt` | config | — | Pins pandapower 3.2.2, opendssdirect.py 0.9.4 and dss-python. `tested_versions` reads it to warn when a different version is installed. |
 | `electron/engineRunner.cjs` | desktop process | `runJsonProcess` | Starts Python with no shell. Limits output size, applies a timeout (120 s for a run, 30 s for the probe), stops the child process, and always answers with JSON or `{error}`. |
 | `electron/main.cjs` (:461–487) | desktop process | `engineScript`, `pythonPath`, `runEngine`, IPC `engines:probe`, `engines:run`, `settings:choosePython` | Finds the script (dev folder, or `resources/python` in the installed app). Uses the saved Python path, otherwise `python3` (`python` on Windows). |
 | `electron/ipcValidate.cjs` | desktop process | `engineRequest` (:115) | Checks the engine name, the request size (≤ 20 MB) and that a project / dss script is present. |
-| `electron/preload.cjs` (:52–54) | desktop process | `lvds.engines.probe/run`, `lvds.settings.choosePython` | The bridge the screen code calls. |
+| `electron/preload.cjs` (:52–54) | desktop process | `gfde.engines.probe/run`, `gfde.settings.choosePython` | The bridge the screen code calls. |
 | `src/components/EngineCompare.tsx` | screen | `EngineCompare`, `delta`, `formatDelta`, `COLUMNS` | The comparison table. Tolerances: Ib 5 %, VD 0.25 points, Ik 5 %. Also shows install hints and "Choose Python…". |
 | `src/components/DiagramResultsBar.tsx` (:79–86) | screen | "Results: … load flow" select, "Run simulation" | Chooses the SLD result source. |
 | `src/diagram/annotations.ts` | calc / screen | `buildAnnotations` | Puts engine values in place of the built-in Ib, VD, end fault, busbar voltage and busbar fault on the SLD labels. |
@@ -74,7 +74,7 @@ This module runs a project's network through more than one calculation method, s
 
 **Compare screen**
 1. The user opens "Load flow" in the left menu (`src/App.tsx:195` view list) and `EngineCompare` mounts.
-2. `useEffect` → `probeEngines()` (`external.ts`) → `window.lvds.engines.probe()` → IPC `engines:probe` → `runEngine({engine:'probe'}, 30000)` → `runJsonProcess` starts `python3 lvds_engine.py`. `probe()` tries to import `opendssdirect` and `pandapower` and compares the versions with `requirements.txt`.
+2. `useEffect` → `probeEngines()` (`external.ts`) → `window.gfde.engines.probe()` → IPC `engines:probe` → `runEngine({engine:'probe'}, 30000)` → `runJsonProcess` starts `python3 gfde_engine.py`. `probe()` tries to import `opendssdirect` and `pandapower` and compares the versions with `requirements.txt`.
 4. The user picks an engine and clicks "Run study". `runStudy` runs `builtinEngine.run(project)` and `engine.run(project)` together.
 5. `engine.run` → `engineRequest(id, project)`. For OpenDSS this adds `exportDss(project).script`. For both engines it adds `engineCableData` → IPC `engines:run` → `ipcValidate.engineRequest` → Python `main` → `run_opendss` or `run_pandapower`.
 7. The table shows each circuit with its difference. A cell is coloured `warn` when the difference is above the tolerance. Below the table come the engine messages and a fixed "Expected differences" note. If the project has changed since the run, a warning appears.
@@ -97,7 +97,7 @@ This module runs a project's network through more than one calculation method, s
 - **07-load-schedule-panels (in):** `unbalancedFlow` takes per-phase demand from `boardPhasePQ`, so circuits with R/Y/B allocation are modelled on their own phase.
 - **25-reports-exports (out):** the unbalanced flow appears in the Phase balance study report (`studyReport.ts:293`). The `.dss` file is saved through `saveText`.
 - **34-electron-desktop (both):** `runJsonProcess` sets the timeout and output limits, `ipcValidate.engineRequest` checks the request, and the Python path is kept in settings.
-- **12-transformer-generator (in):** closed bus ties between main boards become parallel transformers in OpenDSS (`exportDss.ts:106`) and in pandapower (`lvds_engine.py:368`).
+- **12-transformer-generator (in):** closed bus ties between main boards become parallel transformers in OpenDSS (`exportDss.ts:106`) and in pandapower (`gfde_engine.py:368`).
 
 
 

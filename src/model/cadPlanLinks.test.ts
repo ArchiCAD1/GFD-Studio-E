@@ -26,7 +26,7 @@ describe('floor plan links', () => {
     expect(toggleCurve(l, 'trays', 'B1', 'A').trays).toEqual({ A2: 'B' });
   });
 
-  it('writes the links as LVDS tags so routes are measured as before', () => {
+  it('writes the links as GFDE tags so routes are measured as before', () => {
     const l = { file: 'GF.dwg', routes: { A1: 'F-03', A2: 'F-03' }, trays: { B1: 'A' } };
     const plan = planFromDrawing(linkedDrawing(d, l));
     expect(linkedRoutes(plan)).toEqual([{ feederId: 'F-03', length: 15000, pieces: 2 }]);

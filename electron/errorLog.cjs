@@ -29,7 +29,7 @@ function appendError(dir, text) {
  * asks what to do. After a reload any recovery copy is offered, as after any crash. */
 function watchWindow(win, { dialog, log, quit, version }) {
   const wc = win.webContents;
-  const note = (what) => log(`LV Design Studio ${version} (desktop window) · ${new Date().toISOString()} · ${what}`);
+  const note = (what) => log(`GFD Studio E ${version} (desktop window) · ${new Date().toISOString()} · ${what}`);
   let reloading = false; // ending a stuck page on request also reads as a crash: that one needs no question
   let asking = null;
 
@@ -40,7 +40,7 @@ function watchWindow(win, { dialog, log, quit, version }) {
     if (details.reason === 'clean-exit' || win.isDestroyed()) return;
     const { response } = await dialog.showMessageBox(win, {
       type: 'error',
-      title: 'LV Design Studio stopped',
+      title: 'GFD Studio E stopped',
       message: 'The window stopped unexpectedly.',
       detail: 'Reload to carry on. Any recovery copy is then offered; changes made since your last save or recovery copy are lost.',
       buttons: ['Reload', 'Quit'],
@@ -59,7 +59,7 @@ function watchWindow(win, { dialog, log, quit, version }) {
     asking = new AbortController();
     const { response } = await dialog.showMessageBox(win, {
       type: 'warning',
-      title: 'LV Design Studio is not responding',
+      title: 'GFD Studio E is not responding',
       message: 'The window is not responding.',
       detail: 'It may be busy with a large job, so waiting is the safer choice. If you reload, any recovery copy is then offered; changes made since your last save or recovery copy are lost.',
       buttons: ['Keep waiting', 'Reload'],

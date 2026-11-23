@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { displayVersion } from './src/model/appVersion';
 
-/** The `lvds` command (CLI, MCP server, local API) as one Node file: dist-cli/lvds.mjs.
+/** The `gfde` command (CLI, MCP server, local API) as one Node file: dist-cli/gfde.mjs.
  * Uses the app's own calculation code (src/calc, src/model); no React, no Electron.
- * The installed app carries it in resources/lvds (package.json extraResources), run by the app as Node. */
+ * The installed app carries it in resources/gfde (package.json extraResources), run by the app as Node. */
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 export default defineConfig({
@@ -23,7 +23,7 @@ export default defineConfig({
     license: { fileName: 'third-party-licences.md' },
     rollupOptions: {
       external: [...builtinModules, ...builtinModules.map((m) => `node:${m}`)],
-      output: { entryFileNames: 'lvds.mjs', banner: '#!/usr/bin/env node', codeSplitting: false }
+      output: { entryFileNames: 'gfde.mjs', banner: '#!/usr/bin/env node', codeSplitting: false }
     }
   },
   // Bundle the dependencies into the one file, so it runs without node_modules.

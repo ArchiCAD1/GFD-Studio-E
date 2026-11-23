@@ -13,8 +13,8 @@ let reader;
 /** The reader module, set up once. After a read that crashed inside the WebAssembly, a fresh copy is loaded. */
 async function load() {
   if (reader) return reader;
-  const module = await import(`${pathToFileURL(path.join(CAD_DIR, 'lvds_cad_reader.js')).href}?v=${generation}`);
-  module.initSync({ module: fs.readFileSync(path.join(CAD_DIR, 'lvds_cad_reader_bg.wasm')) });
+  const module = await import(`${pathToFileURL(path.join(CAD_DIR, 'gfde_cad_reader.js')).href}?v=${generation}`);
+  module.initSync({ module: fs.readFileSync(path.join(CAD_DIR, 'gfde_cad_reader_bg.wasm')) });
   reader = module;
   return reader;
 }
@@ -56,6 +56,6 @@ function listDrawingFolder(folder) {
 }
 
 /** The engine itself (WebAssembly), for the CAD view in the window. */
-const engineBytes = () => new Uint8Array(fs.readFileSync(path.join(CAD_DIR, 'lvds_cad_reader_bg.wasm')));
+const engineBytes = () => new Uint8Array(fs.readFileSync(path.join(CAD_DIR, 'gfde_cad_reader_bg.wasm')));
 
 module.exports = { readDrawingFile, readDrawingBytes, listDrawingFolder, engineBytes, MAX_BYTES };

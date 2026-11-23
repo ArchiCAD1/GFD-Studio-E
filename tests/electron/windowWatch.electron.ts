@@ -9,13 +9,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
  * (as the app does with unsaved work). A page really stuck in a loop answers nothing, so nothing short of ending it works. */
 
 const electron = createRequire(import.meta.url)('electron') as unknown as string;
-const STOPPED = 'LV Design Studio stopped', HUNG = 'LV Design Studio is not responding';
+const STOPPED = 'GFD Studio E stopped', HUNG = 'GFD Studio E is not responding';
 let work: string;
 let r: { crash: Page; busy: Page & { whileBusy: string[] }; hang: Page & { stuck: boolean }; nextCrash: Page; closed: { asked: string[] }; quits: number; blocked: number; logged: boolean; refused: boolean };
 type Page = { asked: string[]; title: string; isNew: boolean };
 
 beforeAll(() => {
-  work = mkdtempSync(path.join(tmpdir(), 'lvds-window-watch-'));
+  work = mkdtempSync(path.join(tmpdir(), 'gfde-window-watch-'));
   const out = path.join(work, 'result.json');
   const run = spawnSync(electron, [path.resolve('tests/electron/windowWatch.cjs'), out, path.join(work, 'logs')], { encoding: 'utf-8', timeout: 120_000 });
   if (run.status !== 0 || run.error) throw new Error(`Electron failed (${run.status}): ${run.error ?? ''}\n${run.stderr}`);
@@ -61,6 +61,6 @@ describe('the window watch on a real window', () => {
     expect(order.every((at) => at >= 0)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(log.lastIndexOf('the page stopped')).toBeGreaterThan(order[3]);
-    expect(log).toContain('LV Design Studio test (desktop window)');
+    expect(log).toContain('GFD Studio E test (desktop window)');
   });
 });

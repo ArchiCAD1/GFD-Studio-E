@@ -6,7 +6,7 @@
 export type ErrorKind = 'app' | 'page' | 'script' | 'promise';
 export interface ErrorEntry { at: string; kind: ErrorKind; message: string; stack?: string; where?: string; version: string }
 
-const KEY = 'lvds.errorLog';
+const KEY = 'gfde.errorLog';
 const MAX_ENTRIES = 30, MAX_MESSAGE = 1000, MAX_TEXT = 4000;
 /** The same error again within this is not written again: one on every mouse move would fill the log with it alone. */
 const REPEAT_MS = 5000;
@@ -24,7 +24,7 @@ export function readErrorLog(): ErrorEntry[] {
 /** An entry as text, for copying and for the log file. */
 export function errorText(e: ErrorEntry): string {
   return [
-    `LV Design Studio ${e.version} (${window.lvds ? 'desktop' : 'web'}) · ${e.at} · ${e.kind}`,
+    `GFD Studio E ${e.version} (${window.gfde ? 'desktop' : 'web'}) · ${e.at} · ${e.kind}`,
     ...(e.stack?.includes(e.message) ? [] : [e.message]),
     ...(e.stack ? [e.stack] : []),
     ...(e.where ? [`In:${e.where}`] : []),
@@ -43,7 +43,7 @@ export function logError(kind: ErrorKind, error: unknown, where?: string): Error
   if (lastWritten?.message === message && now - lastWritten.at < REPEAT_MS) return entry;
   lastWritten = { message, at: now };
   try { localStorage.setItem(KEY, JSON.stringify([...readErrorLog(), entry].slice(-MAX_ENTRIES))); } catch { /* storage full or blocked */ }
-  try { void window.lvds?.log?.error(errorText(entry)).catch(() => { /* the file is the second copy */ }); } catch { /* an older desktop build */ }
+  try { void window.gfde?.log?.error(errorText(entry)).catch(() => { /* the file is the second copy */ }); } catch { /* an older desktop build */ }
   return entry;
 }
 

@@ -8,7 +8,7 @@ import { scheduleCircuits } from '../../calc/loadSchedule';
  * such as {{board.id}} and a repeated {{row.…}} row) for this DB or every DB.
  * The last template is kept on this computer for the next export. */
 
-const KEY = 'lvds.scheduleTemplate';
+const KEY = 'gfde.scheduleTemplate';
 interface Stored { name: string; data: string }
 
 const toBase64 = (b: Uint8Array) => { let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };

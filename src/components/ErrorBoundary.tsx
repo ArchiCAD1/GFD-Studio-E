@@ -32,7 +32,7 @@ export function CrashScreen({ text, kept }: { text: string; kept: CrashKept | nu
     <div className="crash-screen" role="alert">
       <div className="crash-box">
         <h1>Something went wrong</h1>
-        <p>LV Design Studio hit an error and needs to reload. The details are saved on this computer.</p>
+        <p>GFD Studio E hit an error and needs to reload. The details are saved on this computer.</p>
         <p>{kept ? KEPT_TEXT[kept] : 'Keeping your unsaved work…'}</p>
         <div className="crash-actions">
           <button className="chip primary" disabled={!kept} onClick={() => location.reload()}>Reload</button>

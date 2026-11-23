@@ -4,7 +4,7 @@ import type { SketchItem } from '../types';
 
 /** Draw order (S7 of the Design CAD 2D gap plan): the list order is the paint order; moved objects keep theirs. */
 
-const it_ = (id: string, more: Partial<SketchItem> = {}): SketchItem => ({ id, kind: 'line', layer: 'LV-SKETCH', pts: [[0, 0], [1, 0]], ...more });
+const it_ = (id: string, more: Partial<SketchItem> = {}): SketchItem => ({ id, kind: 'line', layer: 'GFDE-SKETCH', pts: [[0, 0], [1, 0]], ...more });
 const H = it_('H', { kind: 'pline', closed: true, pts: [[0, 0], [5, 0], [5, 5]], hatch: { pattern: 'solid', scale: 3, angle: 0 } });
 const A = it_('A'), B = it_('B'), T = it_('T', { kind: 'text', text: 'DB', h: 1, pts: [[1, 1]] }), D = it_('D', { kind: 'dim', pts: [[0, 0], [4, 0], [2, 1]], text: '4' });
 const L = it_('L', { kind: 'pline', leader: true, pts: [[0, 0], [2, 2]] }), N = it_('N', { kind: 'mtext', note: [{ runs: [{ s: 'x' }] }], h: 1, pts: [[3, 3]] });

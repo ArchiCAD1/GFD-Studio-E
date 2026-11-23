@@ -5,7 +5,7 @@ import { qsFields, qsKinds, qsValues, quickSelect, selectSimilar, wildcard } fro
 const K = 0.001; // drawing units mm
 const line = (id: string, layer: string, len: number, more: Partial<SketchItem> = {}): SketchItem => ({ id, kind: 'line', layer, pts: [[0, 0], [len, 0]], ...more });
 const items: SketchItem[] = [
-  line('l1', 'E-POWER', 3000), line('l2', 'E-POWER', 1500, { color: '#ff0000' }), line('l3', 'LV-SKETCH', 3000, { lt: 'dashed' }),
+  line('l1', 'E-POWER', 3000), line('l2', 'E-POWER', 1500, { color: '#ff0000' }), line('l3', 'GFDE-SKETCH', 3000, { lt: 'dashed' }),
   { id: 'c1', kind: 'circle', layer: 'E-POWER', pts: [[0, 0]], r: 150 }, { id: 'c2', kind: 'circle', layer: 'E-LIGHT', pts: [[0, 0]], r: 600 },
   { id: 't1', kind: 'text', layer: 'E-POWER', pts: [[0, 0]], text: 'DB-1', h: 250 }, { id: 't2', kind: 'text', layer: 'E-POWER', pts: [[0, 0]], text: 'DB-12', h: 250 },
   { id: 'tr', kind: 'pline', layer: 'E-TRAY', pts: [[0, 0], [5000, 0]], tray: { widthMm: 300, service: 'POWER' } }, { id: 'tr2', kind: 'pline', layer: 'E-TRAY', pts: [[0, 0], [2000, 0]], tray: { widthMm: 300, service: 'POWER' } },
@@ -19,7 +19,7 @@ describe('QSELECT', () => {
     expect(qsFields('', items).map((f) => f.key)).toEqual(['layer', 'color', 'lt', 'lw']);
     expect(qsFields('Circle', items).map((f) => f.label)).toEqual(['Layer', 'Colour', 'Linetype', 'Lineweight', 'Centre X', 'Centre Y', 'Radius']);
     expect(qsFields('Text', items).map((f) => f.key)).toContain('text');
-    expect(qsValues(items, 'layer', K)).toEqual(['E-LIGHT', 'E-POWER', 'E-TRAY', 'LV-SKETCH']);
+    expect(qsValues(items, 'layer', K)).toEqual(['E-LIGHT', 'E-POWER', 'E-TRAY', 'GFDE-SKETCH']);
     expect(qsValues(items, 'color', K)).toEqual(['#ff0000', 'ByLayer']);
     expect(qsValues(items, 'lt', K)).toEqual(['ByLayer', 'dashed']);
   });
@@ -28,7 +28,7 @@ describe('QSELECT', () => {
     expect(ids(quickSelect(items, { kind: 'Line', key: 'layer', op: '≠', value: 'E-POWER' }, K))).toEqual(['l3']);
     expect(ids(quickSelect(items, { kind: 'Text', key: 'text', op: '*', value: 'DB-?' }, K))).toEqual(['t1']);
     expect(ids(quickSelect(items, { kind: '', key: 'layer', op: '*', value: 'E-*' }, K)).length).toBe(9);
-    expect(wildcard('L?-*')('LV-SKETCH')).toBe(true); expect(wildcard('L?-*')('E-POWER')).toBe(false);
+    expect(wildcard('GFD?-*')('GFDE-SKETCH')).toBe(true); expect(wildcard('GFD?-*')('E-POWER')).toBe(false);
     expect(wildcard('a.b')('axb')).toBe(false); // a dot is a dot
   });
   it('compares numbers in metres and degrees, >, < and = within a millionth', () => {

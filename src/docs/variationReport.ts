@@ -101,7 +101,7 @@ export function buildVariationHtml(project: Project, o: VariationDocOptions = {}
 /** The variation account in Excel: the register with the contract sum, and every line. */
 export function buildVariationWorkbook(project: Project): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'LV Design Studio';
+  wb.creator = 'GFD Studio E';
   const t = variationTotals(project);
   const vos = variationsOf(project);
   const cur = project.priceList?.currency ?? 'AED';

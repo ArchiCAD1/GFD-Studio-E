@@ -21,7 +21,7 @@ The module turns the network (boards, feeders, buildings) into a numbered **draw
 - **Busbar riser form** (`buildRiserForm`, `RiserFormView`): the DEWA "Bus bar riser — details of connected load / max. demand" table.
 - **Other drawing exports kept outside the set**: the "Export SLD drawing" dialog (`SldExportDialog`, the SLD as on screen, own title block in `Project.drawing`) and the board-wise sheets of Design ▸ Board (`boardSheetPages`, numbered `E-DB-` on the fly).
 
-Terms used below: *store* = the project object kept in memory and saved to the `.lvds` file; *fingerprint / hash* = a short code computed from what a sheet draws, used to detect change; *SVG* = the vector picture format the diagrams are drawn in; *DXF R12* = the plain CAD exchange format written by `src/docs/dxf.ts`.
+Terms used below: *store* = the project object kept in memory and saved to the `.gfde` file; *fingerprint / hash* = a short code computed from what a sheet draws, used to detect change; *SVG* = the vector picture format the diagrams are drawn in; *DXF R12* = the plain CAD exchange format written by `src/docs/dxf.ts`.
 
 ## 2. Files, components, functions and stores
 

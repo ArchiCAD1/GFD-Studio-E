@@ -1,4 +1,5 @@
 import type { Project } from '../types';
+import { openExistingDatabase } from './legacyStorage';
 
 /** Checkpoints: named copies of the working design kept beside the project so you can go back. They are not revisions: a
  * revision is an issued, frozen record and is never touched; a checkpoint is a private safety copy, kept per project and
@@ -55,7 +56,7 @@ export async function autoCheckpoint(p: Project, label: string, store: Checkpoin
   } catch (e) { onError?.(`Automatic checkpoint not saved: ${e instanceof Error ? e.message : String(e)}`); }
 }
 /** Window event sent after an automatic checkpoint is saved (detail: the project id). */
-export const CHECKPOINTS_CHANGED = 'lvds-checkpoints-changed';
+export const CHECKPOINTS_CHANGED = 'gfde-checkpoints-changed';
 
 export class MemoryStore implements CheckpointStore {
   private m = new Map<string, Checkpoint>();
@@ -64,17 +65,55 @@ export class MemoryStore implements CheckpointStore {
   async remove(id: string) { this.m.delete(id); }
 }
 
+/** Copy the previous product's checkpoints once, in one transaction, without
+ * overwriting GFD checkpoints or removing the source. The marker has no projectId
+ * so it never appears in a project's list. */
+async function importLegacyCheckpoints(db: IDBDatabase): Promise<void> {
+  const marker = '__gfde_legacy_checkpoints_v1';
+  const done = await new Promise<unknown>((resolve, reject) => {
+    const r = db.transaction('cp', 'readonly').objectStore('cp').get(marker);
+    r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
+  });
+  if (done) return;
+  const old = await openExistingDatabase('lvds-checkpoints', 'cp');
+  if (!old) return;
+  try {
+    const items = await new Promise<Checkpoint[]>((resolve, reject) => {
+      const r = old.transaction('cp', 'readonly').objectStore('cp').getAll();
+      r.onsuccess = () => resolve(r.result as Checkpoint[]); r.onerror = () => reject(r.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('cp', 'readwrite'), store = tx.objectStore('cp');
+      for (const c of items) {
+        if (!c || typeof c.id !== 'string' || typeof c.projectId !== 'string' || !c.project) continue;
+        const check = store.get(c.id);
+        check.onsuccess = () => { if (check.result === undefined) store.put(c); };
+      }
+      store.put({ id: marker });
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('Previous checkpoints could not be imported'));
+    });
+  } finally { old.close(); }
+}
+
 /** IndexedDB store (browser and desktop renderer). Returns undefined where IndexedDB is unavailable, so callers can say so. */
 export function idbStore(): CheckpointStore | undefined {
   if (typeof indexedDB === 'undefined') return undefined;
   const open = () => new Promise<IDBDatabase>((res, rej) => {
-    const r = indexedDB.open('lvds-checkpoints', 1);
+    const r = indexedDB.open('gfde-checkpoints', 1);
     r.onupgradeneeded = () => { const s = r.result.createObjectStore('cp', { keyPath: 'id' }); s.createIndex('projectId', 'projectId'); };
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
   const run = async <T,>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> => {
     const db = await open();
-    return new Promise<T>((res, rej) => { const req = fn(db.transaction('cp', mode).objectStore('cp')); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); });
+    try {
+      await importLegacyCheckpoints(db);
+      return await new Promise<T>((res, rej) => {
+        const tx = db.transaction('cp', mode), req = fn(tx.objectStore('cp'));
+        tx.oncomplete = () => res(req.result);
+        tx.onerror = tx.onabort = () => rej(tx.error ?? req.error);
+      });
+    } finally { db.close(); }
   };
   return {
     list: (id) => run('readonly', (s) => s.index('projectId').getAll(id) as IDBRequest<Checkpoint[]>),

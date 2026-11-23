@@ -1,18 +1,19 @@
 import { z } from 'zod';
 
-/** Exchange packages between LV Design Studio and other programs, contract version 1: room schedules from CAD / BIM,
+/** Exchange packages between GFD Studio E and other programs, contract version 1: room schedules from CAD / BIM,
  * luminaire schedules (DIALux) and upstream loads (ELV). SI units at the boundary: m², W, kW, V. A package is only a
  * proposal until the engineer accepts it (inbox.ts). The JSON Schema files in contracts/ are generated from these
  * definitions (contracts.test.ts), so programs in other languages read the same rules. */
 
-export const EXCHANGE_SCHEMA = 'lvds.exchange' as const;
+export const EXCHANGE_SCHEMA = 'gfde.exchange' as const;
+export const LEGACY_EXCHANGE_SCHEMA = 'lvds.exchange' as const;
 export const EXCHANGE_VERSION = 1 as const;
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 const positive = (max: number) => z.number().positive().max(max);
 const pf = z.number().gt(0).max(1).describe('Power factor');
 
-export const SOURCE_APPS = ['cad', 'ifc', 'dialux', 'elv', 'lvds'] as const;
+export const SOURCE_APPS = ['cad', 'ifc', 'dialux', 'elv', 'gfde', 'lvds'] as const;
 export const ELV_SYSTEMS = ['fire-alarm', 'cctv', 'access-control', 'ict', 'public-address', 'bms', 'other'] as const;
 export const ELV_EQUIPMENT = ['panel', 'psu', 'poe-switch', 'ups', 'rack', 'amplifier', 'other'] as const;
 
@@ -24,7 +25,8 @@ const source = z.object({
 }).strict();
 
 const header = {
-  schema: z.literal(EXCHANGE_SCHEMA),
+  // Retain legacy spelling while validating: it participates in the package hash.
+  schema: z.enum([EXCHANGE_SCHEMA, LEGACY_EXCHANGE_SCHEMA]),
   version: z.literal(EXCHANGE_VERSION),
   project: z.object({ id: text(80).optional(), name: text(200).optional() }).strict().optional(),
   source,

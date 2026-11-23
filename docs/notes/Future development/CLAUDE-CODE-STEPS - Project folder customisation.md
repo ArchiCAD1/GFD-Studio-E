@@ -1,8 +1,8 @@
 # Project folder customisation — spec and Claude Code steps
 
-**For:** LV Design Suite (github.com/Pdhruv15/LV-Design-Suit), base main @ 9a90e23 (v2.57.0)
-**Mockups:** `LV-Design-Suite-Folder-Customisation-Mockups.html` (screens C1–C8), in the same folder as this file
-**Builds on:** the project folder steps in `LV-Design-Suite-Project-Folders.html` (Step 1 `feat/project-folders-create` and Step 2 `feat/project-folders-output-roles`). Merge those first.
+**For:** GFD Studio E (github.com/Pdhruv15/LV-Design-Suit), base main @ 9a90e23 (v2.57.0)
+**Mockups:** `GFD-Studio-E-Folder-Customisation-Mockups.html` (screens C1–C8), in the same folder as this file
+**Builds on:** the project folder steps in `GFD-Studio-E-Project-Folders.html` (Step 1 `feat/project-folders-create` and Step 2 `feat/project-folders-output-roles`). Merge those first.
 
 ## How to use this file
 
@@ -152,7 +152,7 @@ Branch: `docs/project-folders-customisation-proposal`
 Documentation only, no code changes.
 Create "docs/notes/Future development/UI UX proposals - 2026-11-09 - Project folders customisation.md"
 by copying Part A (C1–C8) and Part B of "docs/notes/Future development/CLAUDE-CODE-STEPS - Project folder
-customisation.md" into it, with a link to "LV-Design-Suite-Folder-Customisation-Mockups.html" in the same folder.
+customisation.md" into it, with a link to "GFD-Studio-E-Folder-Customisation-Mockups.html" in the same folder.
 Add the built-in templates ISO 19650 and Multi-building to the appendix as JSON in the same format as
 folder-templates.json (ISO 19650: 00_WIP, 01_SHARED, 02_PUBLISHED, 03_ARCHIVE each with discipline subfolders;
 Multi-building: 00_Common {Admin, DEWA, Transmittals} + a building:each node {Calcs, Drawings, Schedules, BOQ}).

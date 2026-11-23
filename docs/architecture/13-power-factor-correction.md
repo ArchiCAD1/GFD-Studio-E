@@ -51,7 +51,7 @@ The module sizes capacitor banks that raise the power factor (PF) to the project
 | PFC section in study/calculation report, PDF + Excel | 25-reports-exports | `studyReport.ts` `pfcSection`:466; `calcReport.ts` `CALC_REPORT_STUDIES`:26; `reportTypes.ts`:23 |
 | Custom-calculation PDF in the export centre | 25-reports-exports | `src/components/docs/exportCatalogue.ts`:110–113 (`pfc-calc`) |
 | BOQ line per capacitor way | 20-equipment-boq-pricing | `src/calc/bom.ts`:228 |
-| Capacitor element in external load flow | 16-load-flow-engines | `engines/python/lvds_engine.py`:395; `src/engines/opendss/exportDss.ts`:155 |
+| Capacitor element in external load flow | 16-load-flow-engines | `engines/python/gfde_engine.py`:395; `src/engines/opendss/exportDss.ts`:155 |
 | IEC 60831 listed in the design basis | 25-reports-exports | `src/docs/designBasis.ts`:93 |
 | Plan/calculator changes recorded in revisions | 26-revisions-changes | `src/model/revisions.ts`:149–150; `src/model/changeClass.ts`:37 |
 | Plan board references checked | 02-project-storage | `src/model/integrity.ts`:55 |
