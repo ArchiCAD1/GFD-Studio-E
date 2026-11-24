@@ -253,6 +253,7 @@ describe('what the main process may load', () => {
     expect(own.length).toBeGreaterThan(10);
     for (const f of own) {
       if (f === 'dist-electron/exceljs.cjs') continue; // built by vite.electron.config.ts
+      if (f === 'branding.json') { expect(existsSync(join(root, f))).toBe(true); continue; }
       expect(f.startsWith('electron/') && existsSync(join(root, f)), f).toBe(true);
     }
   });
@@ -299,7 +300,7 @@ describe('ExcelJS for the main process', () => {
 
 describe('scripts/check-package.mjs', () => {
   const clean = () => ({
-    files: [...PRODUCT_NOTICES, 'package.json', 'dist/index.html', 'dist/third-party-licences.md', 'dist/assets/index-abc.js', 'dist-electron/exceljs.cjs', 'dist-electron/third-party-licences.md', 'electron/main.cjs', 'electron/cad/gfde_cad_reader_bg.wasm'],
+    files: [...PRODUCT_NOTICES, 'package.json', 'branding.json', 'dist/index.html', 'dist/gfd-company-logo.png', 'dist/third-party-licences.md', 'dist/assets/index-abc.js', 'dist-electron/exceljs.cjs', 'dist-electron/third-party-licences.md', 'electron/main.cjs', 'electron/cad/gfde_cad_reader_bg.wasm'],
     asarMb: 11.6,
     languages: { locales: { found: ['en-US.pak', 'en-GB.pak'], expected: LOCALE_FILES }, framework: { found: ['en_GB.lproj', 'en.lproj'], expected: MAC_LANGUAGES } },
     badNotices: [] as string[],
@@ -325,6 +326,7 @@ describe('scripts/check-package.mjs', () => {
   });
 
   it('finds a missing file the app needs', () => {
+    expect(problems((p) => { p.files = p.files.filter((f) => f !== 'branding.json'); })).toContain('branding.json is missing from app.asar');
     expect(problems((p) => { p.files = p.files.filter((f) => f !== 'dist-electron/exceljs.cjs'); })).toContain('dist-electron/exceljs.cjs is missing');
     expect(problems((p) => { p.files = p.files.filter((f) => f !== 'electron/cad/gfde_cad_reader_bg.wasm'); })).toContain('gfde_cad_reader_bg.wasm is missing');
     expect(problems((p) => { p.files = p.files.filter((f) => f !== 'dist/third-party-licences.md'); })).toContain('dist/third-party-licences.md is missing');

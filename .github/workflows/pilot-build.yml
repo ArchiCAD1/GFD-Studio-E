@@ -1,0 +1,97 @@
+name: Jamaica pilot installers
+
+on:
+  push:
+    branches:
+      - 'codex/jamaica-trial-branding-*'
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: pilot-build-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      VERSION: 2.213.0-beta.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check:branding
+      - name: Set runner-only pilot version
+        run: npm version "$env:VERSION" --no-git-tag-version --ignore-scripts
+      - run: npm run build
+      - name: Build unsigned Windows x64 installer
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Validate installer and packaged files
+        shell: pwsh
+        run: |
+          node scripts/check-package.mjs release/win-unpacked
+          $installer = Get-ChildItem release/GFD-Studio-E-*-win-x64.exe | Select-Object -First 1 -ExpandProperty FullName
+          if (-not (Test-Path $installer -PathType Leaf)) { throw "Windows installer is missing" }
+          if ((Get-AuthenticodeSignature $installer).Status -ne 'NotSigned') { throw "Pilot installer must be unsigned" }
+      - name: Build portable no-install application
+        run: npx electron-builder --config scripts/electron-builder-portable.cjs --win portable --x64 --publish never
+      - name: Validate portable application is unsigned
+        shell: pwsh
+        run: |
+          $portable = Get-ChildItem release-portable/GFD-Studio-E-*-win-x64-portable.exe | Select-Object -First 1 -ExpandProperty FullName
+          if (-not (Test-Path $portable -PathType Leaf)) { throw "Windows portable app is missing" }
+          if ((Get-AuthenticodeSignature $portable).Status -ne 'NotSigned') { throw "Portable pilot must be unsigned" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jamaica-pilot-windows-x64-${{ github.sha }}
+          path: |
+            release/GFD-Studio-E-*-win-x64.exe
+            release-portable/GFD-Studio-E-*-win-x64-portable.exe
+          if-no-files-found: error
+          retention-days: 30
+
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      VERSION: 2.213.0-beta.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check:branding
+      - name: Set runner-only pilot version
+        run: npm version "$VERSION" --no-git-tag-version --ignore-scripts
+      - run: npm run build
+      - name: Build unsigned Apple-silicon disk image
+        run: npx electron-builder --mac dmg --arm64 --config.mac.identity=null --publish never
+      - name: Validate app bundle and disk image
+        run: |
+          set -euo pipefail
+          node scripts/check-package.mjs "release/mac-arm64/GFD Studio E.app"
+          test -f release/GFD-Studio-E-*-mac-arm64.dmg
+          if codesign --verify --deep --strict "release/mac-arm64/GFD Studio E.app" >/dev/null 2>&1; then
+            echo "Pilot app must be unsigned" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jamaica-pilot-macos-arm64-${{ github.sha }}
+          path: release/GFD-Studio-E-*-mac-arm64.dmg
+          if-no-files-found: error
+          retention-days: 30

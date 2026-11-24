@@ -1,11 +1,12 @@
 import { Document, HeadingLevel, Paragraph, ShadingType, Table, TableCell, TableRow, TextRun, WidthType, BorderStyle, PageOrientation } from 'docx';
 import type { ReviewDoc } from './reviewReport';
+import { companyPageFooter, companyPageHeader } from './brandWord';
 
 /** The review report as an editable Word document, from the same document model as the PDF. */
 const border = { style: BorderStyle.SINGLE, size: 4, color: '9AA6B8' };
 const borders = { top: border, bottom: border, left: border, right: border };
 
-export function buildReviewDocx(doc: ReviewDoc): Document {
+export function buildReviewDocx(doc: ReviewDoc, watermark?: Uint8Array): Document {
   const children: (Paragraph | Table)[] = [
     new Paragraph({ children: [new TextRun({ text: doc.project, color: '5B6B82' })] }),
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: doc.title })] })
@@ -24,6 +25,11 @@ export function buildReviewDocx(doc: ReviewDoc): Document {
   children.push(new Paragraph({ spacing: { before: 300 }, children: [new TextRun({ text: doc.footer, size: 16, color: '5B6B82' })] }));
   return new Document({
     creator: 'GFD Studio E', title: doc.title, styles: { default: { document: { run: { font: 'Arial', size: 20 } } } },
-    sections: [{ properties: { page: { size: { orientation: PageOrientation.LANDSCAPE }, margin: { top: 720, bottom: 720, left: 720, right: 720 } } }, children }]
+    sections: [{
+      properties: { page: { size: { orientation: PageOrientation.LANDSCAPE }, margin: { top: 1200, bottom: 900, left: 720, right: 720 } } },
+      headers: { default: companyPageHeader([], watermark), first: companyPageHeader([], watermark) },
+      footers: { default: companyPageFooter(), first: companyPageFooter() },
+      children
+    }]
   });
 }

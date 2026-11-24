@@ -495,13 +495,16 @@ describe('Specification page', () => {
       expect(status[status.length - 1]).toContain('1 clause used it');
     });
 
-    it('sets paper, margins, a footer slot, the logo position and the watermark; the preview and the PDF follow', async () => {
+    it('sets page details while company branding stays fixed; the preview and PDF follow', async () => {
       saved.length = 0;
       render(sampleProject);
       tabTo('Specification');
       choose('Paper', 'A3'); choose('Orientation', 'landscape');
       type('Margin top', '30'); type('Margin left', '500');
       type('Footer left', '{{doc.title}} — {{page}}/{{pages}}'); type('Watermark', 'DRAFT');
+      expect(document.querySelector('input[aria-label="Logo picture"]')).toBeNull();
+      expect(document.querySelector('select[aria-label="Logo position"]')).toBeNull();
+      expect(document.querySelector('.spx-logo')?.getAttribute('src')).toContain('gfd-company-logo.png');
       expect(spec().setup).toMatchObject({ paper: 'A3', landscape: true, watermark: 'DRAFT' });
       expect(spec().setup!.marginsMm).toMatchObject({ top: 30, left: 60 });
       expect(document.querySelector('.spx-foot')!.textContent).toContain('Electrical specification — 1/1');
@@ -527,7 +530,7 @@ describe('Specification page', () => {
       press('Cover page'); press('Contents page');
       expect(spec().setup).toMatchObject({ cover: { on: false }, contents: { on: false } });
       expect(document.querySelector('.spx-strip')!.textContent).toContain('No cover page · no contents page');
-      expect(document.querySelector<HTMLInputElement>('input[aria-label="Cover: Logo"]')!.disabled).toBe(true);
+      expect(document.querySelector<HTMLInputElement>('input[aria-label="Cover: Logo"]')).toBeNull();
     });
 
     it('the header on the page follows the header slots', () => {

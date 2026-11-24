@@ -15,6 +15,7 @@
 - **GFD Studio E Database** (`electron/database.cjs`): the Excel workbooks and `Library.json`, created, read, watched and written.
 - **CI guards** (`scripts/check-audit.mjs`, `check-privacy.mjs`, `check-package.mjs`, `check-manual.mjs`, allowlists in
   `security/`): dependency advisories, personal paths/e-mails, package contents, manual consistency.
+- **Beta trial** (`electron/trial.cjs`, `electron/trial-expired.html`): packaged `-beta.` builds start a 90-day clock on first launch and lock the design workspace when it expires. The lock page leaves project files and backups in place; stable versions do not enforce the beta trial.
 
 ## 2. Files, components, functions and stores
 

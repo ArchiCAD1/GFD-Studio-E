@@ -5,6 +5,7 @@ import { PRINT as P } from './printStyles';
 import { destMarker } from './outline';
 import { isRasterDataUrl } from '../util/escape';
 import { fmtDate, fmtDateLong } from '../util/format';
+import { COMPANY_NAME } from '../model/companyBrand';
 
 /** The document frame of the design report: cover page, document control,
  * contents, running header / footer and the report typography. Presentation
@@ -62,7 +63,7 @@ export function reportDoc(project: Project, meta: ReportMeta): ReportDoc {
     projectName: project.name,
     projectNo: clean(meta.projectNo),
     client: clean(info.owner),
-    consultant: clean(info.consultant),
+    consultant: COMPANY_NAME,
     contractor: clean(info.contractor),
     location: clean([info.plotNo, info.area].filter(Boolean).join(' · ')),
     title: meta.title,
@@ -76,7 +77,7 @@ export function reportDoc(project: Project, meta: ReportMeta): ReportDoc {
     approvedBy: clean(meta.approvedBy) ?? clean(params.approvedBy) ?? clean(project.drawing?.approvedBy),
     issueStatus: meta.issueStatus,
     revisions: (project.revisions ?? []).map((r) => ({ id: r.id, date: fmtDate(r.date), description: r.description, by: r.by })),
-    logo: isRasterDataUrl(project.drawing?.logo) ? project.drawing!.logo : undefined
+    logo: undefined
   };
 }
 

@@ -14,6 +14,7 @@ import {
 import { buildStudyWorkbook } from '../../docs/studyWorkbook';
 import { workbookBytes } from '../../docs/formWorkbook';
 import { buildStudyDocx, docxBytes } from '../../docs/studyWord';
+import { companyWatermarkPng } from '../../model/companyBrand';
 import { mergePdfs } from '../../docs/mergePdf';
 import { packageCoverHtml, packageStamp, snapshotId, unresolvedChecks, type PackageMeta } from '../../docs/issuePackage';
 import { setOf } from '../../model/drawingSet';
@@ -179,7 +180,7 @@ export default function StudyReportsView({ project, me, run, stale, onRun, onCha
     if (!(await confirmIssues())) return;
     setBusy('docx');
     try {
-      const doc = buildStudyDocx(calc, scope, sections, reportMeta, basisOpt);
+      const doc = buildStudyDocx(calc, scope, sections, reportMeta, basisOpt, await companyWatermarkPng());
       const m = await saveBinary(`${safeFileName(`${project.name} ${title}`)}.docx`, await docxBytes(doc), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', { output: 'studyReport', project });
       if (m) onStatus(m);
     } catch (e) {

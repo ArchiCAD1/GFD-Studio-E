@@ -8,6 +8,7 @@ import { STUDY_LABEL, type CalcRun, type StudyKey } from '../../calc/runs';
 import { buildReviewDoc, defaultSetup, reviewHtml, SECTION_IDS, SECTION_LABEL, type ReviewReportSetup, type SectionId } from '../../docs/reviewReport';
 import { buildClarificationDoc } from '../../docs/clarificationReport';
 import { buildReviewDocx } from '../../docs/reviewWord';
+import { companyWatermarkPng } from '../../model/companyBrand';
 import { docxBytes } from '../../docs/studyWord';
 import { safeFileName, saveBinary, savePdf } from '../../util/files';
 import { prepareSheets } from './sheetRender';
@@ -55,7 +56,7 @@ export default function ReviewView({ project, me = "", run, stale = [], onChange
         return;
       }
       const m = kind === 'pdf' ? await savePdf(`${name}.pdf`, reviewHtml(d), { pageSize: 'A4', landscape: true }, { output: 'reviewReport', project })
-        : await saveBinary(`${name}.docx`, await docxBytes(buildReviewDocx(d)), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', { output: 'reviewReport', project });
+        : await saveBinary(`${name}.docx`, await docxBytes(buildReviewDocx(d, await companyWatermarkPng())), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', { output: 'reviewReport', project });
       if (m) onStatus(m);
     } catch (e) { onStatus(`Export failed: ${e instanceof Error ? e.message : String(e)}`); } finally { setBusy(''); }
   }

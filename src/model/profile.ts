@@ -1,5 +1,6 @@
 import { STUDY_DEFAULTS, type DrawingInfo, type Project, type StudySettings } from '../types';
 import type { PalettePref, ThemePref } from '../theme/theme';
+import { COMPANY_NAME } from './companyBrand';
 
 const THEMES: readonly string[] = ['dark', 'light', 'system'];
 const PALETTES: readonly string[] = ['graphite', 'blueprint'];
@@ -56,7 +57,7 @@ export interface Preferences {
   app: AppPrefs;
 }
 
-export const DEFAULT_PREFS: Preferences = { profile: {}, defaults: {}, app: { autosaveMin: 2 } };
+export const DEFAULT_PREFS: Preferences = { profile: { company: COMPANY_NAME }, defaults: {}, app: { autosaveMin: 2 } };
 
 const KEY = 'gfde.preferences';
 
@@ -69,7 +70,7 @@ export function loadPrefs(): Preferences {
     if (app.palette !== undefined && !PALETTES.includes(app.palette)) delete app.palette;
     if (!Array.isArray(app.cadRibbonOrder)) delete app.cadRibbonOrder;
     else app.cadRibbonOrder = app.cadRibbonOrder.filter((id): id is string => typeof id === 'string');
-    return { profile: v.profile ?? {}, defaults: v.defaults ?? {}, app };
+    return { profile: { ...v.profile, company: COMPANY_NAME, logo: undefined }, defaults: v.defaults ?? {}, app };
   } catch {
     return DEFAULT_PREFS;
   }
@@ -78,7 +79,7 @@ export function loadPrefs(): Preferences {
 /** False when this computer's storage refused it (e.g. a very large logo). */
 export function savePrefs(p: Preferences): boolean {
   try {
-    localStorage.setItem(KEY, JSON.stringify(p));
+    localStorage.setItem(KEY, JSON.stringify({ ...p, profile: { ...p.profile, company: COMPANY_NAME, logo: undefined } }));
     return true;
   } catch {
     return false;
@@ -115,11 +116,11 @@ export function applyProfile(p: Project, u: UserProfile, overwrite: boolean): Pr
   const d = p.drawing ?? {};
   const drawing: DrawingInfo = clean({
     ...d,
-    company: pick(d.company, u.company),
+    company: COMPANY_NAME,
     drawnBy: pick(d.drawnBy, u.name),
     checkedBy: pick(d.checkedBy, u.checkedBy),
     approvedBy: pick(d.approvedBy, u.approvedBy),
-    logo: pick(d.logo, u.logo)
+    logo: undefined
   });
   const sr = p.studyReport;
   const studyReport = sr

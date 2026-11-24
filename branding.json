@@ -2,6 +2,8 @@
   "productName": "GFD Studio E",
   "packageName": "gfd-studio-e",
   "publisher": "Gerardo Faustin Designs Limited",
+  "trialDays": 90,
+  "watermarkOpacity": 0.1,
   "founder": "Gerardo Moises Faustin",
   "appId": "com.gfdstudio.e",
   "repository": "https://github.com/ArchiCAD1/GFD-Studio-E",
@@ -18,6 +20,8 @@
     "width": 1024,
     "height": 1024,
     "publicAsset": "public/gfd-company-logo.png",
+    "watermarkAsset": "src/assets/gfd-company-logo-watermark.png",
+    "watermarkSha256": "46f51f1eb5623155dd38ac767946b05487c82acfdb77e12aef5e6128d9f3ab4f",
     "icons": [
       {
         "path": "public/icon-192.png",

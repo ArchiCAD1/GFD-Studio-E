@@ -1,10 +1,11 @@
-import { AlignmentType, BorderStyle, Document, Footer, Header, HeadingLevel, ImageRun, Packer, PageNumber, PageOrientation, Paragraph, ShadingType, Table, TableCell, TableOfContents, TableRow, TextRun, WidthType } from 'docx';
+import { BorderStyle, Document, HeadingLevel, Packer, PageOrientation, Paragraph, ShadingType, Table, TableCell, TableOfContents, TableRow, TextRun, WidthType } from 'docx';
 import { cableDataNotice } from '../calc/cableTable';
 import { CALC_DISCLAIMER, REPORT_STATUS_TEXT, type ReportStatus } from '../calc/statusText';
 import type { Project } from '../types';
 import { fig, fmtFixed } from '../util/format';
 import { laBandText, laGenText, laTxText } from './designBasis';
-import { NOT_DEFINED, pageFrame } from './reportFrame';
+import { NOT_DEFINED } from './reportFrame';
+import { companyPageFooter, companyPageHeader } from './brandWord';
 import { planReport, scopeText, type ReportMeta, type ReportOptions, type Scope, type Section } from './studyReport';
 
 /** Word (.docx) output of the design report. Landscape A4 so the wide tables fit. */
@@ -28,16 +29,6 @@ function table(headers: string[], rows: Cell[][]): Table {
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [head, ...body] });
 }
 
-function logoRun(project: Project): ImageRun | undefined {
-  const logo = project.drawing?.logo;
-  const m = logo?.match(/^data:image\/(png|jpe?g);base64,(.+)$/);
-  if (!m) return undefined;
-  const bin = atob(m[2]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new ImageRun({ type: m[1] === 'png' ? 'png' : 'jpg', data: bytes, transformation: { width: 150, height: 50 } });
-}
-
 const LABEL: Record<ReportStatus | 'info', string> = { ...REPORT_STATUS_TEXT, info: 'NOTE' };
 const P = (text: string, o: { italics?: boolean; color?: string; bold?: boolean; size?: number } = {}) => new Paragraph({ children: [new TextRun({ text, ...o })] });
 const bullets = (xs: string[]) => xs.map((x) => new Paragraph({ bullet: { level: 0 }, children: [new TextRun(x)] }));
@@ -47,10 +38,9 @@ const missing = (x?: string): Cell => (x ? x : { v: NOT_DEFINED, s: 'data' });
  * sections as the PDF (cover, document control, contents, design basis, studies,
  * results and compliance, appendices). Charts and single line diagrams are in the
  * PDF only; the Word contents is a field Word fills in (Update field). */
-export function buildStudyDocx(project: Project, scope: Scope, sections: Section[], meta: ReportMeta, opts: ReportOptions = {}): Document {
+export function buildStudyDocx(project: Project, scope: Scope, sections: Section[], meta: ReportMeta, opts: ReportOptions = {}, watermark?: Uint8Array): Document {
   const plan = planReport(project, scope, sections, meta, [], opts);
   const { doc, basisData, resultsData, appendices, basisNo, secNo, resNo } = plan;
-  const logo = logoRun(project);
   const tableNo = { n: 0 };
   const out: (Paragraph | Table | TableOfContents)[] = [];
   const h1 = (text: string) => out.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun(text)] }));
@@ -67,7 +57,6 @@ export function buildStudyDocx(project: Project, scope: Scope, sections: Section
   const revText = doc.revision ? `${doc.revision}${doc.revisionDate ? ` (${doc.revisionDate})` : ''}` : undefined;
 
   // Cover
-  if (logo) out.push(new Paragraph({ alignment: AlignmentType.RIGHT, children: [logo] }));
   out.push(P(doc.projectName, { color: '5B6B82' }), new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: doc.title })] }));
   kvT([['Project', doc.projectName], ['Project no.', missing(doc.projectNo)], ['Client', missing(doc.client)], ['Consultant', missing(doc.consultant)], ['Contractor', missing(doc.contractor)],
     ...(doc.location ? [['Plot / area', doc.location] as [string, Cell]] : []), ['Scope', scopeText(project, scope)], ['Studies', sections.map((x) => x.title).join('; ')],
@@ -192,8 +181,7 @@ export function buildStudyDocx(project: Project, scope: Scope, sections: Section
     for (const { section: s, table: t } of a.tables) tbl(s && sections.length > 1 ? `${s.title} — ${t.title ?? ''}` : t.title, t.headers, t.rows);
   }
 
-  const frame = pageFrame(doc);
-  const small = (text: string) => new TextRun({ text, size: 14, color: '5B6B82' });
+  const pageHeading = () => P(`${project.name}   ·   ${doc.title}`, { size: 14, color: '5B6B82' });
   return new Document({
     creator: meta.preparedBy ?? 'GFD Studio E',
     title: meta.title,
@@ -201,11 +189,8 @@ export function buildStudyDocx(project: Project, scope: Scope, sections: Section
     styles: { default: { document: { run: { font: 'Arial', size: 20 } } } },
     sections: [{
       properties: { titlePage: true, page: { size: { orientation: PageOrientation.LANDSCAPE }, margin: { top: 900, bottom: 720, left: 720, right: 720 } } },
-      headers: { default: new Header({ children: [new Paragraph({ children: [small(`${frame.headerLeft}   ·   ${frame.headerRight}`)] })] }), first: new Header({ children: [] }) },
-      footers: {
-        default: new Footer({ children: [new Paragraph({ children: [small(`${frame.footerLeft}   ·   Page `), new TextRun({ children: [PageNumber.CURRENT], size: 14, color: '5B6B82' }), small(' of '), new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: '5B6B82' })] })] }),
-        first: new Footer({ children: [] })
-      },
+      headers: { default: companyPageHeader([pageHeading()], watermark), first: companyPageHeader([pageHeading()], watermark) },
+      footers: { default: companyPageFooter(), first: companyPageFooter() },
       children: out
     }]
   });

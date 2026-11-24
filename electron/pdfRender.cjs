@@ -4,6 +4,7 @@
 const { BrowserWindow, session } = require('electron');
 const path = require('node:path');
 const safeFs = require('./safeFs.cjs');
+const { withCompanyPrintBrand } = require('./companyPrint.cjs');
 
 // Sheet sizes in inches (A-series); Electron knows A3/A4 by name only.
 const SHEETS = { A1: { width: 33.11, height: 23.39 }, A2: { width: 23.39, height: 16.54 }, 'A3 portrait': { width: 11.69, height: 16.54 } };
@@ -27,7 +28,7 @@ async function htmlToPdf({ html, pageSize, landscape, cssPages }) {
   const tmpDir = safeFs.makePrivateTempDir('gfde-pdf-');
   const tmp = path.join(tmpDir, 'part.html');
   try {
-    safeFs.writeNewFile(tmp, html);
+    safeFs.writeNewFile(tmp, withCompanyPrintBrand(html));
     await pdfWin.loadFile(tmp);
     const size = SHEETS[pageSize] ?? pageSize;
     const pdf = cssPages
@@ -58,7 +59,7 @@ async function htmlToPrinter({ html, pageSize, landscape, deviceName, copies }, 
   const tmpDir = safeFs.makePrivateTempDir('gfde-print-');
   try {
     const tmp = path.join(tmpDir, 'sheet.html');
-    safeFs.writeNewFile(tmp, html);
+    safeFs.writeNewFile(tmp, withCompanyPrintBrand(html));
     await win.loadFile(tmp);
     const size = MICRONS[pageSize];
     await new Promise((resolve, reject) => win.webContents.print(

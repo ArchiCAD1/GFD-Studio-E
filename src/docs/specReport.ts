@@ -118,7 +118,7 @@ export function buildSpecHtml(project: Project, doc: SpecDoc, pages: Record<stri
 
   let front: string;
   if (setup.cover.on) {
-    const c = setup.cover, logo = c.logo ? cssImage(setup.logo) : undefined;
+    const c = setup.cover, logo = undefined;
     const revs = c.revisions ? specRevisionRows(project, doc) : [];
     const sub = [fields.get('doc.number'), stamp].filter(Boolean).join(' · ');
     const [pw, ph] = SPEC_PAPER_MM[setup.paper];

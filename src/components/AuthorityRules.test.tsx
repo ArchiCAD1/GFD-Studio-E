@@ -14,15 +14,16 @@ const noop = () => {};
 const text = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/\s+/g, ' ');
 
 describe('new project: authority and design rules', () => {
-  it('offers country, authority and rule set, starting on DEWA, with the values the project starts with', () => {
+  it('offers the Jamaican pilot basis first and shows its service-voltage limitation', () => {
     const html = renderToStaticMarkup(<NewProjectWizard initialName="Villa" references={BUILT_IN_REFERENCES} onQuick={noop} onCreate={noop} onCancel={noop} />);
     const t = text(html);
     expect(t).toContain('Authority and design rules');
-    expect(html).toMatch(/<option value="United Arab Emirates" selected="">United Arab Emirates<\/option>/);
-    expect(t).toMatch(/DEWA — Dubai.*ADDC — Abu Dhabi.*EtihadWE — Northern Emirates/);
-    expect(t).toContain('DEWA (Dubai) — built-in v1');
-    expect(t).toMatch(/415 V · 50 Hz.*Ambient 45 °C.*VD 4 %.*Min wire 2.5 \/ 4 mm².*ELCB 100 \/ 30 mA.*To verify/);
-    expect(t).toContain('filled in as DEWA');
+    expect(html).toMatch(/<option value="Jamaica" selected="">Jamaica<\/option>/);
+    expect(t).toContain('Jamaica — Jamaica');
+    expect(t).toContain('Jamaica (JS 21 / Jamaica Building Code) — built-in v1');
+    expect(t).toContain('JPS 415/240 V, three-phase service — built-in v1');
+    expect(t).toContain('split-phase');
+    expect(t).toContain('filled in as Jamaica');
   });
 });
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { placeFor, toCsv } from './files';
+import { brandSvg, placeFor, toCsv } from './files';
 import { builtInTemplate } from '../model/folderTemplateBuiltins';
 import type { Project } from '../types';
 
@@ -44,6 +44,21 @@ describe('CSV cells a spreadsheet could run as a formula (CSV injection)', () =>
 
   it('are not slipped into a new cell by a semicolon or tab (the cell separator in some spreadsheets)', () => {
     expect(toCsv(['a', 'b'], [['x;=1+1', 'y\t=1+1']])).toBe('\uFEFFa,b\r\n"x;=1+1","y\t=1+1"');
+  });
+});
+
+describe('fixed company mark in SVG exports', () => {
+  it('adds the 10% logo and company name once, inside the drawing bounds', async () => {
+    const svg = await brandSvg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><path d="M0 0h400"/></svg>');
+    expect(svg).toContain('id="gfde-company-brand"');
+    expect(svg).toContain('data:image/png;base64,');
+    expect(svg).toContain('Gerardo Faustin Designs Limited');
+    expect(svg).toContain('x="164" y="64" width="72" height="72"');
+    expect(await brandSvg(svg)).toBe(svg);
+  });
+
+  it('leaves non-SVG text unchanged', async () => {
+    expect(await brandSvg('ordinary text')).toBe('ordinary text');
   });
 });
 

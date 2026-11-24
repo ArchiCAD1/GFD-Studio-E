@@ -95,6 +95,12 @@ export interface PointTemplate {
 
 export const POINT_TEMPLATES: PointTemplate[] = [
   {
+    id: 'jamaica-general',
+    name: 'Jamaica pilot — general DB schedule (not an authority form)',
+    columns: ['ltg', 'cfan', 'exfan', 's13', 'wh', 'cooker', 'sac', 'pump', 'spare1', 'spare2'],
+    labels: { s13: 'S/O', sac: 'A/C', spare1: 'OTHER', spare2: 'OTHER' }
+  },
+  {
     id: 'dewa-villa',
     name: 'Villa (LTG, EX.FAN … FCU, SPUR, ISOL, OTH)',
     columns: ['ltg', 'exfan', 'shaver', 's13', 's13t', 'wh', 'fcu', 'spur', 'isol', 'cooker', 'sac', 'pump', 'spare1'],
@@ -109,8 +115,8 @@ export const POINT_TEMPLATES: PointTemplate[] = [
 
 /** Template for projects that don't name one (older projects). */
 export const DEFAULT_POINT_TEMPLATE = 'dewa-standard';
-/** Template for new projects: the DEWA villa submission form. */
-export const NEW_PROJECT_POINT_TEMPLATE = 'dewa-villa';
+/** Template for new projects in this beta: a generic Jamaica schedule, not a utility form. */
+export const NEW_PROJECT_POINT_TEMPLATE = 'jamaica-general';
 
 export const pointTemplateOf = (p: Pick<Project, 'pointTemplate'>): PointTemplate =>
   POINT_TEMPLATES.find((t) => t.id === p.pointTemplate) ?? POINT_TEMPLATES.find((t) => t.id === DEFAULT_POINT_TEMPLATE)!;

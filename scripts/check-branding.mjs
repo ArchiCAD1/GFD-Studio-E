@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PNG } from 'pngjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -17,12 +18,14 @@ assert.equal(pkg.productName, brand.productName);
 assert.equal(typeof pkg.author === 'string' ? pkg.author : pkg.author.name, brand.founder);
 assert.ok(pkg.build.copyright.includes(brand.publisher));
 assert.equal(pkg.build.appId, brand.appId);
+assert.equal(brand.trialDays, 90);
+assert.equal(brand.watermarkOpacity, 0.1);
 assert.equal(pkg.repository.url, `git+${brand.repository}.git`);
 assert.equal(pkg.bugs.url, `${brand.repository}/issues`);
 assert.ok(pkg.build.artifactName.startsWith('GFD-Studio-E-'));
 assert.equal(pkg.bin[brand.command], `dist-cli/${brand.command}.mjs`);
 assert.ok(pkg.build.fileAssociations.some((entry) => entry.ext === brand.projectExtension && entry.name.startsWith(brand.productName)));
-for (const path of ['public/gfd-company-logo.png', 'public/icon-192.png', 'public/icon-512.png', 'build/icon.png',
+for (const path of ['public/gfd-company-logo.png', 'src/assets/gfd-company-logo-watermark.png', 'public/icon-192.png', 'public/icon-512.png', 'build/icon.png',
   'docs/brand/gfd-company-logo.png',
   'build/gfde/gfde', 'build/gfde/gfde.cmd', 'engines/python/gfde_engine.py']) {
   assert.ok(existsSync(resolve(root, path)), `Missing GFD asset or entry point: ${path}`);
@@ -50,6 +53,16 @@ function checkedPng(path, width, height, sha256) {
 const original = checkedPng(logo.source, logo.width, logo.height, logo.sha256);
 for (const path of [logo.publicAsset, 'build/icon.png']) {
   assert.ok(readFileSync(resolve(root, path)).equals(original), `The full company logo must be copied byte-for-byte: ${path}`);
+}
+const watermark = checkedPng(logo.watermarkAsset, logo.width, logo.height, logo.watermarkSha256);
+const sourcePixels = PNG.sync.read(original).data;
+const watermarkPixels = PNG.sync.read(watermark).data;
+for (let i = 3; i < watermarkPixels.length; i += 4) {
+  const sourceAlpha = sourcePixels[i];
+  const expected = Math.round(sourceAlpha * brand.watermarkOpacity);
+  assert.equal(watermarkPixels[i], expected, 'Watermark opacity must match the branding manifest');
+  assert.equal(watermarkPixels[i - 1], watermarkPixels[i - 2], 'Watermark must be monochrome');
+  assert.equal(watermarkPixels[i - 2], watermarkPixels[i - 3], 'Watermark must be monochrome');
 }
 assert.deepEqual(logo.icons.map(({ path, width, height }) => ({ path, width, height })), [
   { path: 'public/icon-192.png', width: 192, height: 192 },

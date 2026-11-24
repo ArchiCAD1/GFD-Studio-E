@@ -10,6 +10,7 @@ This module holds the **design basis values** a project is calculated with, and 
 - **Text parameters** `{Name}`. Named values that are filled into title blocks, SLD notes and labels (`src/model/params.ts`, page `src/components/docs/ParametersView.tsx`). This is a text substitution system, **not** a calculation-parameter system.
 - **Feeder presets.** A whole outgoing way in one drag: breaker, RCD, meter, isolator, and the load or sub-board (`src/model/presets.ts`, editor `src/components/PresetEditor.tsx`).
 - **User profile and design defaults.** Kept on this computer and applied to every new project (`src/model/profile.ts`).
+- **Pilot company identity.** The company name and logo are fixed from `branding.json`; the profile screen shows them read-only. The new Jamaica authority reference is built in and starts first in the project wizard (`src/model/designReference.ts`).
 - **Setup templates.** A saved "kind of job" (role, authority, scope, deliverables and four system values) applied once at project creation (`src/model/setupTemplate.ts`). There is also the preview of where each starting value comes from (`src/model/setupPreview.ts`).
 - **Design stage.** Concept → Schematic → Detailed → (Tender) → IFC, with stage gates that issue a revision and set a baseline. The stage also decides which to-do findings count (`src/model/designStage.ts`).
 

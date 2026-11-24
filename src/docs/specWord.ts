@@ -1,9 +1,11 @@
 import { ShadingType, AlignmentType, BorderStyle, Bookmark, Document, ImportedXmlComponent, LeaderType, PageReference, Footer, Header, HeadingLevel, ImageRun, Packer, PageNumber, PageOrientation, Paragraph, TabStopType, Table, TableCell, TableRow, TextRun, WidthType, type ParagraphChild } from 'docx';
 import { changeRows, deletedBySection, marksOf, specChanges } from '../model/specRevisions';
-import { slotRuns, specAnchor, specContents, specFields, specRevisionRows, specSetup, specStamp, specView, SPEC_PAPER_MM, type SpecDoc, type SpecLine, type SpecPage } from '../model/specDoc';
+import { slotRuns, specAnchor, specContents, specFields, specRevisionRows, specSetup, specStamp, specView, SPEC_PAPER_MM, type SpecDoc, type SpecLine } from '../model/specDoc';
 import type { Project } from '../types';
 import { missingList, specInfoRows } from './specReport';
 import { fmtDate } from '../util/format';
+import { companyWatermarkPng } from '../model/companyBrand';
+import { companyFooterParagraph, companyLogoParagraph } from './brandWord';
 
 // Kept apart from specReport.ts so the docx library loads only when the Word file is exported.
 /** The specification as a Word file in the built-in format: the cover page (or a title block), the contents with
@@ -18,13 +20,6 @@ const runs = (l: SpecLine, more: { bold?: boolean; italics?: boolean; size?: num
 
 const TWIP = 1440 / 25.4; // twips per mm
 const NONE = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
-function logoRun(logo: string | undefined, width = 108, height = 36): ImageRun | undefined {
-  const m = logo?.match(/^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/);
-  if (!m) return undefined;
-  const bin = atob(m[2]), bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new ImageRun({ type: m[1] === 'png' ? 'png' : 'jpg', data: bytes, transformation: { width, height } });
-}
 /** A picture of the text at its share of the text width (`wide`, in pixels), its own proportions kept. */
 function pictureRun(image: NonNullable<SpecLine['image']>, wide: number): ImageRun | undefined {
   const m = image.src.match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
@@ -35,12 +30,9 @@ function pictureRun(image: NonNullable<SpecLine['image']>, wide: number): ImageR
   return new ImageRun({ type: m[1] === 'png' ? 'png' : 'jpg', data: bytes, transformation: { width, height: Math.max(1, Math.round((width * image.h) / image.w)) } });
 }
 /** A header or footer: its three slots as one row of a borderless table (left, centre, right). */
-function slotRow(edge: 'header' | 'footer', slots: readonly string[], doc: SpecDoc, project: Project, s: SpecPage): Table {
-  const logo = logoRun(s.logo);
+function slotRow(slots: readonly string[], doc: SpecDoc, project: Project): Table {
   const cell = (text: string, i: number) => {
-    const side = ['left', 'center', 'right'][i];
-    const children: ParagraphChild[] = logo && s.logoPlace === `${edge}-${side}` ? [logo]
-      : slotRuns(text, doc, project).map((r) => ('text' in r ? new TextRun({ text: r.text, size: 16 }) : new TextRun({ children: [r.page === 'page' ? PageNumber.CURRENT : PageNumber.TOTAL_PAGES], size: 16 })));
+    const children: ParagraphChild[] = slotRuns(text, doc, project).map((r) => ('text' in r ? new TextRun({ text: r.text, size: 16 }) : new TextRun({ children: [r.page === 'page' ? PageNumber.CURRENT : PageNumber.TOTAL_PAGES], size: 16 })));
     return new TableCell({ width: { size: 100 / 3, type: WidthType.PERCENTAGE }, borders: { top: NONE, bottom: NONE, left: NONE, right: NONE }, children: [new Paragraph({ alignment: [AlignmentType.LEFT, AlignmentType.CENTER, AlignmentType.RIGHT][i], children })] });
   };
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: { top: NONE, bottom: NONE, left: NONE, right: NONE, insideHorizontal: NONE, insideVertical: NONE }, rows: [new TableRow({ children: slots.map(cell) })] });
@@ -56,7 +48,7 @@ function watermark(text: string, n = 1): Paragraph {
   return new Paragraph({ children: [run as unknown as ParagraphChild] }); // a ready-made run: the library has no watermark of its own
 }
 
-export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
+export function buildSpecDocx(project: Project, doc: SpecDoc, companyWatermark?: Uint8Array): Document {
   const v = specView(doc, project), missing = missingList(v), setup = specSetup(doc, project);
   const [w, h] = SPEC_PAPER_MM[setup.paper], m = setup.marginsMm;
   const fields = new Map(specFields(project, doc).map((f) => [f.key, f.value]));
@@ -64,12 +56,12 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
   const infoLines = (rows: [string, string][], after: number) => rows.map(([k, x], i) => new Paragraph({ tabStops: [{ type: TabStopType.LEFT, position: 2600 }], spacing: { after: i === rows.length - 1 ? after : 0 }, children: [new TextRun({ text: `${k}\t`, bold: true }), new TextRun(x)] }));
   const body: (Paragraph | Table)[] = [];
   if (setup.cover.on) {
-    const c = setup.cover, logo = c.logo ? logoRun(setup.logo, 180, 60) : undefined;
+    const c = setup.cover;
     const revs = c.revisions ? specRevisionRows(project, doc) : [];
     const line = { style: BorderStyle.SINGLE, size: 4, color: '000000' }, box = { top: line, bottom: line, left: line, right: line };
     const cell = (text: string, bold = false) => new TableCell({ borders: box, children: [new Paragraph({ children: [new TextRun({ text, bold, size: 18 })] })] });
     body.push(
-      new Paragraph({ tabStops: [{ type: TabStopType.RIGHT, position: textWide }], border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: '000000', space: 6 } }, children: [...(logo ? [logo] : []), new TextRun({ text: `\t${fields.get('party.consultant') ?? ''}`, bold: true, size: 22 })] }),
+      new Paragraph({ tabStops: [{ type: TabStopType.RIGHT, position: textWide }], border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: '000000', space: 6 } }, children: [new TextRun({ text: `\t${fields.get('party.consultant') ?? ''}`, bold: true, size: 22 })] }),
       new Paragraph({ spacing: { before: 3600 }, children: [new TextRun({ text: (fields.get('doc.status') ?? '').toUpperCase(), size: 18, characterSpacing: 40 })] }),
       new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun(doc.title)] }),
       new Paragraph({ children: [new TextRun({ text: project.name, size: 28 })] }),
@@ -167,13 +159,14 @@ export function buildSpecDocx(project: Project, doc: SpecDoc): Document {
       // Word swaps width and height itself for landscape.
       properties: { titlePage: setup.cover.on, page: { size: { width: Math.round(w * TWIP), height: Math.round(h * TWIP), orientation: setup.landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT }, margin: { top: Math.round(m.top * TWIP), right: Math.round(m.right * TWIP), bottom: Math.round(m.bottom * TWIP), left: Math.round(m.left * TWIP) } } },
       // The cover carries no header or footer (only the watermark).
-      headers: { default: new Header({ children: [slotRow('header', setup.header, doc, project, setup), ...mark(1)] }), ...(setup.cover.on ? { first: new Header({ children: [new Paragraph({}), ...mark(2)] }) } : {}) },
-      footers: { default: new Footer({ children: [slotRow('footer', setup.footer, doc, project, setup)] }), ...(setup.cover.on ? { first: new Footer({ children: [new Paragraph({})] }) } : {}) },
+      headers: { default: new Header({ children: [slotRow(setup.header, doc, project), ...(companyWatermark ? [companyLogoParagraph(companyWatermark)] : []), ...mark(1)] }), ...(setup.cover.on ? { first: new Header({ children: [...(companyWatermark ? [companyLogoParagraph(companyWatermark)] : []), ...mark(2)] }) } : {}) },
+      footers: { default: new Footer({ children: [slotRow(setup.footer, doc, project), companyFooterParagraph()] }), ...(setup.cover.on ? { first: new Footer({ children: [companyFooterParagraph()] }) } : {}) },
       children: body
     }]
   });
 }
 
 export async function specDocxBytes(project: Project, doc: SpecDoc): Promise<Uint8Array> {
-  return new Uint8Array(await (await Packer.toBlob(buildSpecDocx(project, doc))).arrayBuffer());
+  const companyWatermark = await companyWatermarkPng();
+  return new Uint8Array(await (await Packer.toBlob(buildSpecDocx(project, doc, companyWatermark))).arrayBuffer());
 }

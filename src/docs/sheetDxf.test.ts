@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DOMParser } from '@xmldom/xmldom';
 import { dxfExportProject } from '../../tests/fixtures/dxfExport';
 import { FIRE_NOTE } from '../model/cableRefs';
+import { COMPANY_NAME } from '../model/companyBrand';
 import { standardTemplate } from '../model/titleBlock';
 import type { Project } from '../types';
 import { dxfText, toDxf, type DxfPrimitive } from './dxf';
@@ -135,12 +136,12 @@ describe('complete paper-sized DXF sheets', () => {
     expect(right).toMatchObject({ align: 'right', x: 168.8 });
   });
 
-  it('reports raster-logo handling and rejects broken custom grids explicitly', () => {
+  it('prints the fixed company name for the logo cell and rejects broken custom grids explicitly', () => {
     const template = standardTemplate();
     const project: Project = { ...dxfExportProject, titleTemplates: [template], drawing: { ...dxfExportProject.drawing, titleTemplateId: template.id, logo: 'data:image/png;base64,AA==' } };
     const pages = buildSheetDxfPages(project, svg, 'A3', info);
-    expect(textOf(pages[0].data, 'E-TITLE')).toContain('LOGO');
-    expect(pages[0].warnings.join(' ')).toContain('LOGO placeholder');
+    expect(textOf(pages[0].data, 'E-TITLE')).toContain(COMPANY_NAME);
+    expect(pages[0].warnings.join(' ')).toContain('fixed company name');
     const invalid = { ...template, cols: [0, 45] };
     expect(() => templateTitleBlockDxf(invalid, project, { x: 0, y: 0, w: 100, h: 100 }, {}, [])).toThrow('positive row heights');
     expect(() => templateTitleBlockDxf({ ...template, cells: [template.cells[0], template.cells[0]] }, project, { x: 0, y: 0, w: 180, h: 58 }, {}, [])).toThrow('overlap');
