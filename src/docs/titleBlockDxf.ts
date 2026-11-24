@@ -4,7 +4,7 @@ import { fillParams, paramList } from '../model/params';
 import { dxfBlockName, type DxfAttdef, type DxfAttrib, type DxfPrimitive } from './dxf';
 import { DRAWN_CHAR, drawnTextValue, isDrawn, templateSize } from '../model/titleBlock';
 import { textInBox, textWidth, type DxfBox } from './dxfLayout';
-import { isRasterDataUrl } from '../util/escape';
+import { COMPANY_NAME } from '../model/companyBrand';
 
 export interface TitleDetail { label: string; value: string }
 
@@ -47,7 +47,7 @@ export function drawnTitleBlockDxf(template: TitleTemplate, project: Project, bo
     let tag = 'LOGO'; while (tags.has(tag)) tag = `${tag}_`;
     attdefs.push({ tag, prompt: 'Logo (the company name; place the logo image here)', value: '{Company}', x, y, height: cap, align: 'center' });
     attribs.push({ tag, value, x: box.x + x * scale, y: box.y + y * scale, height: +(cap * scale).toFixed(3), align: 'center' });
-    if (isRasterDataUrl(project.drawing?.logo)) warnings.push('DXF shows the company name in the logo area; the logo image prints in the PDF.');
+    warnings.push('DXF carries the fixed company name as a LOGO attribute; the 10% company logo mark is in the PDF and SVG outputs.');
   }
   const name = dxfBlockName(`TB_${template.name}`);
   const insert: DxfPrimitive = { type: 'insert', layer: 'E-TITLE', name, x: box.x, y: box.y, scale, block: { name, items, attdefs }, attribs, extent: [[box.x, box.y], [box.x + w * scale, box.y + h * scale]] };
@@ -96,10 +96,8 @@ export function templateTitleBlockDxf(template: TitleTemplate, project: Project,
       inside.h -= ch;
     }
     if (c.kind === 'logo') {
-      if (isRasterDataUrl(project.drawing?.logo)) {
-        bounded(inside, 'LOGO', 2 * scale, 'Logo', 'center');
-        warnings.push('DXF uses a LOGO placeholder; raster logos are available in the PDF.');
-      }
+      bounded(inside, COMPANY_NAME, 2 * scale, 'Company logo', 'center');
+      warnings.push('DXF title block carries the fixed company name; the 10% logo mark is in the PDF and SVG outputs.');
     } else if (c.kind === 'revisions') {
       const rows = history.length ? history : [{ id: '-', date: '', description: 'Not issued' }];
       const rowH = inside.h / rows.length;

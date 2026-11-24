@@ -1,5 +1,6 @@
 import type { Project } from '../types';
 import { PRINT, STATUS_CSS } from './printStyles';
+import { COMPANY_NAME } from '../model/companyBrand';
 
 const escH = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 /** A quoted CSS string for `content:` inside the <style> element. */
@@ -11,8 +12,8 @@ export const cssImage = (v?: string) => (v && /^data:image\/(png|jpe?g|gif|webp|
  * company name) and project · `headRight`, footer with `footer` and Page n of N, and the
  * shared typography and table styles. Used by the BOQ, the variation and submission registers and the calculation report. */
 export function printDoc(project: Project, o: { title: string; headRight: string; footer: string; body: string; landscape?: boolean }): string {
-  const company = project.drawing?.company?.trim() || project.info?.consultant?.trim() || '';
-  const headLogo = cssImage(project.drawing?.logo);
+  const company = COMPANY_NAME;
+  const headLogo = undefined;
   const { footer, body } = o;
   const box = (where: string, content: string, extra = '') => `@${where} { content: ${content}; ${extra} }`;
   const rule = `font: 7.5pt ${PRINT.font}; color: ${PRINT.ink2};`;

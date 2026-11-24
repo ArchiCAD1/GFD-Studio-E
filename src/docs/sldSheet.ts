@@ -12,6 +12,7 @@ import { FIRE_NOTE } from '../model/cableRefs';
 import { markupLayerHtml, type SheetMarkup } from '../model/sheetMarkup';
 import { isRasterDataUrl, num } from '../util/escape';
 import { fmtDate } from '../util/format';
+import { COMPANY_NAME } from '../model/companyBrand';
 
 /** The SLD as a drawing sheet: frame, the diagram scaled to fit, and a
  * title block (company, project, owner, consultant, title, drawing no.,
@@ -42,7 +43,7 @@ export function titleBlockOf(project: Project, date = new Date().toISOString().s
   const d = project.drawing ?? {};
   const rev = currentRevision(project);
   return {
-    company: d.company ?? project.info?.consultant ?? '',
+    company: COMPANY_NAME,
     project: project.name,
     owner: project.info?.owner ?? '',
     consultant: project.info?.consultant ?? '',
@@ -54,7 +55,7 @@ export function titleBlockOf(project: Project, date = new Date().toISOString().s
     drawnBy: d.drawnBy ?? '',
     checkedBy: d.checkedBy ?? '',
     approvedBy: d.approvedBy ?? '',
-    logo: isRasterDataUrl(d.logo) ? d.logo : undefined,
+    logo: undefined,
     history: (project.revisions ?? []).slice(-revRows).reverse().map((r) => ({ id: r.id, date: fmtDate(r.date), description: r.description, ...(r.by ? { by: r.by } : {}) }))
   };
 }

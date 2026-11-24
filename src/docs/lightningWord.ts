@@ -1,4 +1,6 @@
 import { BorderStyle, Document, HeadingLevel, Packer, Paragraph, ShadingType, Table, TableCell, TableRow, TextRun, WidthType } from 'docx';
+import { companyWatermarkPng } from '../model/companyBrand';
+import { companyPageFooter, companyPageHeader } from './brandWord';
 import { lightningProtection, type LpsInputs } from '../calc/lightningProtection';
 import { revisionStamp } from '../model/revisions';
 import type { Project } from '../types';
@@ -16,7 +18,7 @@ const cell = (text: string, head = false) => new TableCell({
 });
 const table = (rows: TableRow[]) => new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
 
-export function buildLightningDocx(project: Project, keys?: LpsSectionKey[]): Document {
+export function buildLightningDocx(project: Project, keys?: LpsSectionKey[], watermark?: Uint8Array): Document {
   const i: LpsInputs = project.lightning ?? { lengthM: 0, widthM: 0, heightM: 0, method: 'mesh' };
   const children: (Paragraph | Table)[] = [
     new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun('Lightning protection — concept calculation')] }),
@@ -32,9 +34,15 @@ export function buildLightningDocx(project: Project, keys?: LpsSectionKey[]): Do
     }
     for (const t of b.notes ?? []) children.push(new Paragraph({ children: [new TextRun({ text: t, size: 18 })] }));
   }
-  return new Document({ creator: 'GFD Studio E', title: `${project.name} — Lightning protection`, sections: [{ children }] });
+  return new Document({ creator: 'GFD Studio E', title: `${project.name} — Lightning protection`, sections: [{
+    properties: { page: { margin: { top: 1200, bottom: 900, left: 720, right: 720 } } },
+    headers: { default: companyPageHeader([], watermark), first: companyPageHeader([], watermark) },
+    footers: { default: companyPageFooter(), first: companyPageFooter() },
+    children
+  }] });
 }
 
 export async function lightningDocxBytes(project: Project, keys?: LpsSectionKey[]): Promise<Uint8Array> {
-  return new Uint8Array(await (await Packer.toBlob(buildLightningDocx(project, keys))).arrayBuffer());
+  const watermark = await companyWatermarkPng();
+  return new Uint8Array(await (await Packer.toBlob(buildLightningDocx(project, keys, watermark))).arrayBuffer());
 }

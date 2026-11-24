@@ -2,6 +2,7 @@ import { newProject, type Project } from '../types';
 import { applyDefaults, type Preferences } from './profile';
 import { SYSTEM_LABEL, type SetupTemplate } from './setupTemplate';
 import { applyParameters, type Database } from '../database/database';
+import { COMPANY_NAME } from './companyBrand';
 
 /** What a new project will start with, and where each value comes from: the app's built-in default, the company
  * database (Parameters.xlsx), or your profile and design defaults. Shown in the New project wizard before creating. */
@@ -21,6 +22,7 @@ export function defaultsPreview(db: Database, prefs: Preferences): DefaultRow[] 
     ['Calculations run automatically', (p) => (p.calc?.autoRun ? 'yes' : 'on Run (F5)')]
   ];
   return rows.map(([label, get]) => {
+    if (label === 'Company (title block)') return { label, value: COMPANY_NAME, source: 'built-in' };
     const a = JSON.stringify(get(base) ?? null), b = JSON.stringify(get(afterDb) ?? null), c = JSON.stringify(get(final) ?? null);
     return { label, value: show(get(final)), source: c !== b ? 'your profile' : b !== a ? 'company database' : 'built-in' };
   });

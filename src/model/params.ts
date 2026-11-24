@@ -4,6 +4,7 @@ import { currentRevision } from './revisions';
 import { systemSummary, boardTotals, boardSummary } from '../calc/summary';
 import { builtUpAreaOf } from '../calc/building';
 import { fmtDate } from '../util/format';
+import { COMPANY_NAME } from './companyBrand';
 
 /** Project parameters: named values written as {Name} in title blocks,
  * notes, labels and custom text. Built-in ones come from the project; people,
@@ -38,7 +39,7 @@ export function paramList(p: Project): ParamDef[] {
     { name: 'Area', value: i.area ?? '', group: 'Project' },
     { name: 'Consultant', value: i.consultant ?? '', group: 'Project' },
     { name: 'Contractor', value: i.contractor ?? '', group: 'Project' },
-    { name: 'Company', value: d.company ?? i.consultant ?? '', group: 'Project' },
+    { name: 'Company', value: COMPANY_NAME, group: 'Project' },
     { name: 'DrawingNo', value: d.number ?? '', group: 'Project' },
     { name: 'DrawingTitle', value: d.title ?? 'SINGLE LINE DIAGRAM', group: 'Project' },
     { name: 'Rev', value: rev?.id ?? '—', group: 'Project' },

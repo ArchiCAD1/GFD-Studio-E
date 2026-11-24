@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState, type ClipboardEvent } from 'react';
 import {
   AlignLeft, ArrowDown, ArrowUp, Baseline, Bold, Braces, ClipboardPaste, Copy, FilePlus2, FileText, FileType, FolderOpen, Heading1, Heading2, Italic, List, ListOrdered, PaintBucket, Paintbrush,
-  BookmarkPlus, BookOpen, Link2, Cloud, Highlighter as MarkIcon, ListChecks, Stamp, Strikethrough, Triangle, Undo as WithdrawIcon, LibraryBig, Save, Columns3, Image as ImageIcon, Rows3, Table as TableIcon, ImageMinus, ImagePlus, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
+  BookmarkPlus, BookOpen, Link2, Cloud, Highlighter as MarkIcon, ListChecks, Stamp, Strikethrough, Triangle, Undo as WithdrawIcon, LibraryBig, Save, Columns3, Image as ImageIcon, Rows3, Table as TableIcon, IndentDecrease, IndentIncrease, ListPlus, Paperclip, SeparatorHorizontal, TableOfContents, Pencil, Pilcrow, Plus, RotateCcw, Scissors, Search, StickyNote, Trash2, Underline, Undo2
 } from 'lucide-react';
 import type { Project } from '../../types';
 import {
   addClause, addDetail, addSection, fieldUses, indentClause, maxLevel, withAppendix, moveClause, moveSection, removeClause, removeDetail, removeSection, slotText, specFields, specRevisionRows, specSetup, specView, starterSpec, withClause, withContents, withCover, withDetail,
-  withInfo, withSectionIncluded, withSectionTitle, withSetup, withTitle, fieldKeys, captionText, SPEC_PARTIES, SPEC_SETUP, type SpecClause, type SpecDoc, type SpecKind, type SpecLogoPlace, type SpecMargins, type SpecPaper, type SpecSlots
+  withInfo, withSectionIncluded, withSectionTitle, withSetup, withTitle, fieldKeys, captionText, SPEC_PARTIES, type SpecClause, type SpecDoc, type SpecKind, type SpecMargins, type SpecPaper, type SpecSlots
 } from '../../model/specDoc';
 import { addCol, addRow, deleteCol, deleteRow, imageFromDataUrl, setCell, tableFromSheet, tableFromText, tableSize, IMAGE_MAX_BYTES } from '../../model/specBlocks';
 import { Big, Group, Icons, IconTool, PageRibbon, RIBBON_CSS, Rows, Small } from '../pageRibbon';
@@ -15,6 +15,7 @@ import { safeFileName, saveBinary, savePdf, saveText } from '../../util/files';
 import { linkFields, linkSuggestions } from '../../model/specLink';
 import { changeRows, changedSinceIssue, issueRevision, marksOf, nextRevisionId, revisionIdError, specChanges, withdrawLast, withMarks } from '../../model/specRevisions';
 import { fmtDate } from '../../util/format';
+import { COMPANY_NAME, companyLogoUrl } from '../../model/companyBrand';
 import {
   applyTemplate, loadTemplates, removeTemplate, saveTemplates, specFileText, specFromFileText, templateNameError, templateOf, templateSummary, withTemplate,
   SPEC_FILE_EXT, TEMPLATE_KINDS, TEMPLATE_MAX_CHARS, type SpecTemplate, type SpecTemplateKind
@@ -95,8 +96,6 @@ const CSS = `${RIBBON_CSS}
 `;
 
 type Tab = 'file' | 'home' | 'setup' | 'review';
-const LOGO_PLACES: [SpecLogoPlace, string][] = [['none', 'Not shown'], ['header-left', 'Header, left'], ['header-right', 'Header, right'], ['footer-left', 'Footer, left'], ['footer-right', 'Footer, right']];
-const LOGO_MAX = 400_000; // bytes: the logo is kept in the project file
 const SIDES = ['left', 'centre', 'right'] as const;
 const MARGINS: (keyof SpecMargins)[] = ['top', 'right', 'bottom', 'left'];
 
@@ -146,12 +145,13 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
         ? await savePdf(`${name}.pdf`, buildSpecHtml(project, doc), specPdfPage(project, doc), { output: 'specDoc', project })
         : await saveBinary(`${name}.docx`, await (await import('../../docs/specWord')).specDocxBytes(project, doc), 'Word document', 'docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', { output: 'specDoc', project });
       if (m) onStatus?.(view.missing.length ? `${m} — ${view.missing.length} value${view.missing.length === 1 ? '' : 's'} in it are DATA REQUIRED` : m);
+    } catch (error) {
+      onStatus?.(`Export failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setBusy(false);
     }
   }
   const setup = useMemo(() => specSetup(doc, project), [doc, project]);
-  const logoFile = useRef<HTMLInputElement>(null);
   const picFile = useRef<HTMLInputElement>(null);
   const [cell, setCell_] = useState<[number, number] | null>(null); // the table cell last clicked, for row and column tools
   /** Puts a table or a picture after the clause being edited (at the end of the section when none) and selects it. */
@@ -271,14 +271,6 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
   const info = doc.info ?? {};
   const setSlot = (edge: 'header' | 'footer', i: number, v: string) => { const next = [...setup[edge]] as SpecSlots; next[i] = v; save(withSetup(doc, { [edge]: next })); };
   const setMargin = (side: keyof SpecMargins, v: string) => { const n = Number(v); if (Number.isFinite(n)) save(withSetup(doc, { marginsMm: { ...setup.marginsMm, [side]: Math.min(60, Math.max(5, n)) } })); };
-  const readLogo = (file: File | undefined) => {
-    if (!file) return;
-    if (!/^image\/(png|jpeg)$/.test(file.type)) { onStatus?.('Logo: choose a PNG or JPEG picture'); return; }
-    if (file.size > LOGO_MAX) { onStatus?.(`Logo: the picture is ${Math.round(file.size / 1000)} kB; use one under ${LOGO_MAX / 1000} kB`); return; }
-    const r = new FileReader();
-    r.onload = () => { save(withSetup(doc, { logo: String(r.result), ...(setup.logoPlace === 'none' ? { logoPlace: 'header-left' as const } : {}) })); onStatus?.('Logo: set for this specification'); };
-    r.readAsDataURL(file);
-  };
   const dropDetail = (id: string) => { const n = fieldUses(doc, `detail.${id}`); save(removeDetail(doc, id)); if (n) onStatus?.(`Detail removed — ${n} clause${n === 1 ? '' : 's'} used it and now show DATA REQUIRED (undo to bring it back)`); };
   const pick = (id: string | null) => { setClauseId(id); caret.current = null; };
   const commitText = (id: string, text: string) => { const c = section.clauses.find((x) => x.id === id); if (c && c.text !== text) save(withClause(doc, section.id, id, { text })); };
@@ -383,10 +375,6 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
             <Group name="Information">
               <Big icon={ListPlus} label="Add detail" onClick={() => save(addDetail(doc))} />
             </Group>
-            <Group name="Logo">
-              <Big icon={ImagePlus} label="Choose logo" onClick={() => logoFile.current?.click()} />
-              <Big icon={ImageMinus} label="Use project logo" onClick={() => save(withSetup(doc, { logo: undefined }))} disabled={!doc.setup?.logo} />
-            </Group>
             <Group name="Pages">
               <Rows>
                 <Small icon={BookOpen} label="Cover page" onClick={() => save(withCover(doc, { on: !setup.cover.on }))} pressed={setup.cover.on} />
@@ -394,7 +382,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
               </Rows>
             </Group>
             <Group name="Page">
-              <Big icon={RotateCcw} label="Default page setup" onClick={() => save({ ...doc, setup: doc.setup?.logo ? { logo: doc.setup.logo } : undefined })} disabled={!doc.setup} />
+              <Big icon={RotateCcw} label="Default page setup" onClick={() => save({ ...doc, setup: undefined })} disabled={!doc.setup} />
             </Group>
             <Group name="Output">
               <Big icon={FileText} label="Export Word" onClick={() => void exportAs('docx')} disabled={busy || !included} />
@@ -487,7 +475,6 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
       </div>
 
       <input ref={picFile} type="file" accept="image/png,image/jpeg" aria-label="Picture file" hidden onChange={(e) => { addPicture(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
-      <input ref={logoFile} type="file" accept="image/png,image/jpeg" aria-label="Logo picture" hidden onChange={(e) => { readLogo(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       <input ref={specFile} type="file" accept={`.${SPEC_FILE_EXT},.lvspec,application/json`} aria-label="Specification file" hidden onChange={(e) => { void openSpecFile(e.currentTarget.files?.[0]); e.currentTarget.value = ''; }} />
       {panel === 'save' && tab !== 'setup' && tab !== 'review' && (
         <section className="spx-card" aria-label="Save as template">
@@ -616,7 +603,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
             <h4>Cover page and contents page</h4>
             <label className="spx-tick"><input type="checkbox" checked={setup.cover.on} onChange={(e) => save(withCover(doc, { on: e.target.checked }))} /> Cover page</label>
             <div className="spx-sub">
-              {([['logo', 'Logo'], ['parties', 'Parties'], ['details', 'Additional details'], ['revisions', 'Revision table']] as const).map(([k, l]) => (
+              {([['parties', 'Parties'], ['details', 'Additional details'], ['revisions', 'Revision table']] as const).map(([k, l]) => (
                 <label key={k} className="spx-tick"><input type="checkbox" disabled={!setup.cover.on} checked={setup.cover[k]} aria-label={`Cover: ${l}`} onChange={(e) => save(withCover(doc, { [k]: e.target.checked }))} /> {l}</label>
               ))}
             </div>
@@ -649,19 +636,17 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
               <div className="spx-three">{SIDES.map((side, i) => <Entry key={side} label={`Header ${side}`} value={setup.header[i]} placeholder={side} onSave={(v) => setSlot('header', i, v)} />)}</div>
               <label>Footer</label>
               <div className="spx-three">{SIDES.map((side, i) => <Entry key={side} label={`Footer ${side}`} value={setup.footer[i]} placeholder={side} onSave={(v) => setSlot('footer', i, v)} />)}</div>
-              <label>Logo</label>
+              <label>Company branding</label>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
-                {setup.logo ? <img className="spx-logo" src={setup.logo} alt="Logo" /> : <span className="spx-note">No logo — use Choose logo</span>}
-                {setup.logo && <span className="spx-note">{doc.setup?.logo ? 'This specification’s own' : 'The project’s company logo'}</span>}
+                <img className="spx-logo" src={companyLogoUrl()} alt="Gerardo Faustin Designs company logo" />
+                <span className="spx-note">{COMPANY_NAME} · fixed for this beta</span>
               </div>
-              <label>Logo position</label>
-              <select aria-label="Logo position" value={setup.logoPlace} onChange={(e) => save(withSetup(doc, { logoPlace: e.target.value as SpecLogoPlace }))}>{LOGO_PLACES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
               <label>Watermark</label><Entry label="Watermark" value={doc.setup?.watermark ?? ''} placeholder="e.g. DRAFT — blank for none" onSave={(v) => save(withSetup(doc, { watermark: v.trim() || undefined }))} />
             </div>
-            <p className="spx-note">Left, centre and right. Use any field, and {'{{'}page{'}}'} and {'{{'}pages{'}}'} for page numbers — the default footer is “{SPEC_SETUP.footer[2]}”. The logo takes the place of the text at its position. The watermark prints light grey behind the text of every page.</p>
+            <p className="spx-note">The company logo and name are embedded on every exported page. The additional watermark field is for document status text such as DRAFT.</p>
             <div className="spx-paper" aria-label="Header and footer as printed" style={{ padding: '14px 18px' }}>
-              <div className="spx-head">{setup.header.map((x, i) => <span key={i}>{setup.logo && setup.logoPlace === `header-${['left', 'center', 'right'][i]}` ? '[logo]' : slotText(x, doc, project)}</span>)}</div>
-              <div className="spx-foot" style={{ marginTop: 6 }}>{setup.footer.map((x, i) => <span key={i}>{setup.logo && setup.logoPlace === `footer-${['left', 'center', 'right'][i]}` ? '[logo]' : slotText(x, doc, project)}</span>)}</div>
+              <div className="spx-head">{setup.header.map((x, i) => <span key={i}>{slotText(x, doc, project)}</span>)}</div>
+              <div className="spx-foot" style={{ marginTop: 6 }}>{setup.footer.map((x, i) => <span key={i}>{slotText(x, doc, project)}</span>)}</div>
             </div>
           </section>
         </div>
@@ -682,7 +667,7 @@ export default function SpecPage({ project, onChange, onStatus, onUndo }: { proj
         </section>
 
         <div className="spx-paper" aria-label={`Section ${section.title}`} tabIndex={0} onPaste={onPaste}>
-          <div className="spx-head">{setup.header.map((x, i) => <span key={i}>{setup.logo && setup.logoPlace === `header-${['left', 'center', 'right'][i]}` ? '[logo]' : slotText(x, doc, project)}</span>)}</div>
+          <div className="spx-head">{setup.header.map((x, i) => <span key={i}>{slotText(x, doc, project)}</span>)}</div>
           <h5>{block.heading}</h5>
           {!section.included && <p className="spx-off">This section is not included in the specification. Tick it in the list to include it.</p>}
           {block.lines.length === 0 && <p className="spx-off">No clauses yet. Use Add clause.</p>}

@@ -269,12 +269,13 @@ describe('tender-format PDF BOQ', () => {
     expect(buildBoqHtml(project({ document: { status: 'Cost estimate' } }), priceBom([item], list), list)).not.toContain('Tenderer’s name');
   });
 
-  it('heads every page after the cover with the company logo', () => {
+  it('locks company branding and ignores project logo overrides', () => {
     const logo = 'data:image/png;base64,iVBORw0KGgo=';
     const html = buildBoqHtml({ ...project(), drawing: { ...sampleProject.drawing, logo } }, priceBom([item], list), list);
-    expect(html).toContain(`@top-left { content: ""; width: 45mm; background: url("${logo}")`);
+    expect(html).toContain('@top-left { content: "Gerardo Faustin Designs Limited"');
     expect(html).toContain('@page cover');
-    expect(html).toContain(`<img class="logo" src="${logo}"`);
+    expect(html).not.toContain(`<img class="logo" src="${logo}"`);
+    expect(html).toContain('<div class="co">Gerardo Faustin Designs Limited</div>');
     const unsafe = buildBoqHtml({ ...project(), drawing: { ...sampleProject.drawing, logo: 'data:image/png;base64,x");}body{color:red' } }, priceBom([item], list), list);
     expect(unsafe.slice(unsafe.indexOf('<style>'), unsafe.indexOf('</style>'))).not.toContain('color:red');
   });

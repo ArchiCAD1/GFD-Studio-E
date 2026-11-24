@@ -4,6 +4,7 @@ import { sampleProject } from '../data/sampleProject';
 import { applyDefaults, applyProfile, defaultsFromProject, DEFAULT_PREFS, initialsOf, loadPrefs, savePrefs, signature, type Preferences } from './profile';
 import { clearRecovery, deleteProjectFile, emptyTrash, keepUnsavedWork, listProjects, listTrash, restoreProject, loadProject, metaOf, readRecoveries, recentFiles, recoveryIsCurrent, saveProjectFile, touchRecent, whenText, writeRecovery } from './projectStore';
 import { titleBlockOf } from '../docs/sldSheet';
+import { COMPANY_NAME } from './companyBrand';
 
 // A small in-memory localStorage (the store falls back to it without the desktop app).
 beforeEach(() => {
@@ -26,19 +27,22 @@ describe('profile and new project defaults', () => {
     expect([p.voltageV, p.ambientC, p.vdLimitPct, p.frequencyHz]).toEqual([400, 50, 5, 50]);
     expect(p.studySettings?.elcbPowerMa).toBe(100);
     expect(p.calc?.autoRun).toBe(true);
-    expect(p.drawing).toMatchObject({ sheet: 'A1', company: 'Demo Engineering Consultants', drawnBy: 'Demo Engineer', checkedBy: 'R. Kumar' });
+    expect(p.drawing).toMatchObject({ sheet: 'A1', company: COMPANY_NAME, drawnBy: 'Demo Engineer', checkedBy: 'R. Kumar' });
     expect(p.createdBy).toBe('Demo Engineer');
     const t = titleBlockOf(p);
-    expect([t.company, t.drawnBy, t.logo]).toEqual(['Demo Engineering Consultants', 'Demo Engineer', 'data:image/png;base64,AAAA']);
+    expect([t.company, t.drawnBy, t.logo]).toEqual([COMPANY_NAME, 'Demo Engineer', undefined]);
     // No profile: the app's defaults, nothing filled in.
-    expect(applyDefaults(newProject('X'), DEFAULT_PREFS).drawing).toEqual({});
+    expect(applyDefaults(newProject('X'), DEFAULT_PREFS).drawing).toEqual({ company: COMPANY_NAME });
   });
 
   it('"use my details" replaces the names; filling only fills blanks', () => {
     const p = { ...sampleProject, drawing: { drawnBy: 'Someone', company: 'Other Co' }, studyReport: { boards: [], downstream: true, studies: [], sld: true, separate: false } };
-    expect(applyProfile(p, me.profile, false).drawing).toMatchObject({ drawnBy: 'Someone', company: 'Other Co', checkedBy: 'R. Kumar' });
+    const filled = applyProfile(p, me.profile, false);
+    expect(filled.drawing).toMatchObject({ drawnBy: 'Someone', company: COMPANY_NAME, checkedBy: 'R. Kumar' });
+    expect(filled.drawing?.logo).toBeUndefined();
     const mine = applyProfile(p, me.profile, true);
-    expect(mine.drawing).toMatchObject({ drawnBy: 'Demo Engineer', company: 'Demo Engineering Consultants' });
+    expect(mine.drawing).toMatchObject({ drawnBy: 'Demo Engineer', company: COMPANY_NAME });
+    expect(mine.drawing?.logo).toBeUndefined();
     expect(mine.studyReport?.preparedBy).toBe('Demo Engineer, Senior Electrical Engineer');
     expect(signature({ name: 'A' })).toBe('A');
     expect(initialsOf('Gerardo Faustin')).toBe('GF');
@@ -51,7 +55,8 @@ describe('profile and new project defaults', () => {
     expect(d.studySettings?.pfTarget).toBeGreaterThan(0);
     expect(loadPrefs()).toEqual(DEFAULT_PREFS);
     expect(savePrefs(me)).toBe(true);
-    expect(loadPrefs()).toEqual(me);
+    expect(loadPrefs()).toMatchObject({ profile: { ...me.profile, company: COMPANY_NAME, logo: undefined } });
+    expect(loadPrefs().profile.logo).toBeUndefined();
   });
 
   it('keeps only text panel IDs from a saved Design CAD ribbon order', () => {

@@ -8,6 +8,7 @@ import { dxfExportNotice, namedDxfFiles } from '../docs/dxfFiles';
 import { cableRefsUsed } from '../model/cableRefs';
 import { printableSvg } from '../diagram/exportSvg';
 import { dxfToDwg } from '../engines/cad/cadEngine';
+import { COMPANY_NAME } from '../model/companyBrand';
 import { safeFileName, saveBinary, savePdf, saveText } from '../util/files';
 
 /** The diagram on screen (full extent), as printable SVG. */
@@ -30,19 +31,20 @@ export default function SldExportDialog({ project, onSave, onStatus, onClose, st
   onStatus: (m: string) => void;
   onClose: () => void;
 }) {
-  const [d, setD] = useState<DrawingInfo>({ sheet: 'A3', ...project.drawing });
+  const [d, setD] = useState<DrawingInfo>({ sheet: 'A3', ...project.drawing, company: COMPANY_NAME, logo: undefined });
   const [busy, setBusy] = useState('');
-  const t = titleBlockOf({ ...project, drawing: d });
+  const t = titleBlockOf({ ...project, drawing: { ...d, company: COMPANY_NAME, logo: undefined } });
   const set = (k: keyof DrawingInfo, v: string) => setD({ ...d, [k]: v || undefined });
   const name = safeFileName(`${project.name} ${d.number || 'SLD'}`);
 
   async function run(kind: 'pdf' | 'dxf' | 'dwg' | 'svg') {
     const cur = currentSvg();
     if (!cur) return onStatus('Open the system diagram first');
-    onSave(d);
+    const branded = { ...d, company: COMPANY_NAME, logo: undefined };
+    onSave(branded);
     setBusy(kind);
     try {
-      const p = { ...project, drawing: d };
+      const p = { ...project, drawing: branded };
       let m: string | null = null;
       if (kind === 'pdf') {
         m = await savePdf(`${name}.pdf`, buildSldSheetHtml(p, cur.svg, d.sheet ?? 'A3'), { pageSize: d.sheet ?? 'A3', landscape: true }, { output: 'drawingPdf', project });
@@ -78,7 +80,7 @@ export default function SldExportDialog({ project, onSave, onStatus, onClose, st
       {stale && <p className="warn export-note"><TriangleAlert size={13} aria-hidden /> The result labels on the diagram are out of date — press Run (F5) first if the drawing shows results.</p>}
       <p className="m">The drawing shows the diagram as it is on screen — result labels, colours and generator mode included. Title block details are saved with the project.</p>
       <div className="grid2">
-        <label style={{ gridColumn: '1 / -1' }}>Company / consultant<input value={d.company ?? ''} placeholder={project.info?.consultant ?? ''} onChange={(e) => set('company', e.target.value)} /></label>
+        <label style={{ gridColumn: '1 / -1' }}>Company<input value={COMPANY_NAME} readOnly aria-readonly="true" /></label>
         <label style={{ gridColumn: '1 / -1' }}>Drawing title<input value={d.title ?? ''} placeholder={DEFAULT_DRAWING_TITLE} onChange={(e) => set('title', e.target.value)} /></label>
         <label>Drawing no.<input value={d.number ?? ''} placeholder="e.g. E-SLD-001" onChange={(e) => set('number', e.target.value)} /></label>
         <label>Sheet
@@ -94,7 +96,7 @@ export default function SldExportDialog({ project, onSave, onStatus, onClose, st
         <label>Approved<input value={d.approvedBy ?? ''} onChange={(e) => set('approvedBy', e.target.value)} /></label>
       </div>
       <ExportBar scope={`System diagram · ${d.sheet ?? 'A3'} landscape · as on screen`} revision={<span title="From Documents → Revisions">{t.revision} · {t.date}</span>}
-        lead={<button className="chip" onClick={() => { onSave(d); onClose(); }}>Save details</button>}>
+        lead={<button className="chip" onClick={() => { onSave({ ...d, company: COMPANY_NAME, logo: undefined }); onClose(); }}>Save details</button>}>
         <button className="chip" disabled={!!busy} onClick={() => run('svg')}>{busy === 'svg' ? 'Exporting…' : 'SVG'}</button>
         <button className="chip" disabled={!!busy} onClick={() => run('dxf')} title="R12 DXF at the selected paper size, with editable layers and title block. Additional notes and schedules are included as continuation sheets in a ZIP.">{busy === 'dxf' ? 'Exporting…' : `DXF ${d.sheet ?? 'A3'} (CAD)`}</button>
         <button className="chip" disabled={!!busy} onClick={() => run('dwg')} title="2018-format DWG with the same sheets, layers and title block as the DXF. Continuation sheets are included in a ZIP.">{busy === 'dwg' ? 'Exporting…' : 'DWG'}</button>

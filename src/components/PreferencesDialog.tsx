@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { POINT_TEMPLATES, STUDY_DEFAULTS, type Project, type StudySettings } from '../types';
-import { defaultsFromProject, readLogo, signature, type DesignDefaults, type Preferences, type UserProfile } from '../model/profile';
+import { defaultsFromProject, signature, type DesignDefaults, type Preferences, type UserProfile } from '../model/profile';
+import { COMPANY_NAME, companyLogoUrl } from '../model/companyBrand';
 import FolderTemplatesPanel from './FolderTemplatesPanel';
 import { Modal } from './ui';
 import { PALETTE_LABEL, THEME_LABEL, type PalettePref, type ThemePref } from '../theme/theme';
@@ -20,9 +21,7 @@ export default function PreferencesDialog({ prefs, project, onSave, onApplyToPro
 }) {
   const [tab, setTab] = useState<Tab>('me');
   const [p, setP] = useState<Preferences>(prefs);
-  const [logoErr, setLogoErr] = useState('');
   const [editingTemplate, setEditingTemplate] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
   const u = p.profile;
   const d = p.defaults;
 
@@ -35,7 +34,7 @@ export default function PreferencesDialog({ prefs, project, onSave, onApplyToPro
   );
 
   return (
-    <Modal onClose={onClose} className={tab === 'folders' ? 'modal prefs wide' : 'modal prefs'} closeOnBackdrop={!editingTemplate} onSubmit={(e) => { e.preventDefault(); onSave(p); }}>
+    <Modal onClose={onClose} className={tab === 'folders' ? 'modal prefs wide' : 'modal prefs'} closeOnBackdrop={!editingTemplate} onSubmit={(e) => { e.preventDefault(); onSave({ ...p, profile: { ...u, company: COMPANY_NAME, logo: undefined } }); }}>
       <h3>Profile &amp; preferences</h3>
       <div className="tabs prefs-tabs">
         <button type="button" className={tab === 'me' ? 'on' : ''} onClick={() => setTab('me')}>My details</button>
@@ -50,31 +49,20 @@ export default function PreferencesDialog({ prefs, project, onSave, onApplyToPro
           <div className="grid2">
             {text('name', 'Your name', 'Full name, as on drawings')}
             {text('designation', 'Designation', 'e.g. Senior Electrical Engineer')}
-            {text('company', 'Company / consultant', '', true)}
+            <label style={{ gridColumn: '1 / -1' }}>Company<input value={COMPANY_NAME} readOnly aria-readonly="true" /></label>
             {text('phone', 'Phone')}
             {text('email', 'Email')}
             {text('checkedBy', 'Usually checked by')}
             {text('approvedBy', 'Usually approved by')}
           </div>
           <div className="logo-row">
-            <div className="logo-box">{u.logo ? <img src={u.logo} alt="Company logo" /> : <span className="m">No logo</span>}</div>
-            <div>
-              <button type="button" className="chip" onClick={() => fileRef.current?.click()}>{u.logo ? 'Change logo…' : 'Add company logo…'}</button>
-              {u.logo && <button type="button" className="chip" onClick={() => setU('logo', '')}>Remove</button>}
-              <p className="m">PNG or JPG; shown in the SLD title block and on report covers.</p>
-              {logoErr && <p className="bad">{logoErr}</p>}
-            </div>
-            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml" hidden onChange={async (e) => {
-              const f = e.target.files?.[0];
-              e.target.value = '';
-              if (!f) return;
-              try { setU('logo', await readLogo(f)); setLogoErr(''); } catch (err) { setLogoErr(err instanceof Error ? err.message : String(err)); }
-            }} />
+            <div className="logo-box"><img src={companyLogoUrl()} alt="Gerardo Faustin Designs company logo" /></div>
+            <p className="m">Company branding is fixed for this beta pilot and appears on exported pages.</p>
           </div>
           {signature(u) && <p className="m">Reports will say: <b>Prepared by {signature(u)}</b></p>}
-          <button type="button" className="chip" style={{ alignSelf: 'flex-start' }} disabled={!u.name && !u.company}
-            title="Replace the drawn / checked / approved names, company and logo of the open project with yours"
-            onClick={() => onApplyToProject(u)}>
+          <button type="button" className="chip" style={{ alignSelf: 'flex-start' }} disabled={!u.name}
+            title="Replace the drawn / checked / approved names in the open project with yours; company branding stays fixed"
+            onClick={() => onApplyToProject({ ...u, company: COMPANY_NAME, logo: undefined })}>
             Use my details in “{project.name}”
           </button>
         </>

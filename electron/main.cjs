@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, session, ipcMain, dialog, shell, safeStorage } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -16,6 +16,7 @@ const folderTemplates = require('./folderTemplates.cjs');
 const projectFolders = require('./projectFolders.cjs');
 const folderScan = require('./folderScan.cjs');
 const betaUpdate = require('./betaUpdate.cjs');
+const trial = require('./trial.cjs');
 const identity = require('./appIdentity.cjs');
 
 // `gfde` (the command line) exports drawings and PDFs through this app with --gfde-headless-export:
@@ -73,6 +74,7 @@ function ensureProjectsFolder() {
 }
 
 let win;
+let trialExpired = false;
 const logDir = path.join(app.getPath('userData'), 'logs');
 
 /** Every IPC handler goes through this: only the app's own page in its main window, top frame, may call. */
@@ -80,7 +82,24 @@ const handle = trust.trustedHandler(ipcMain, () => win, isAppUrl, (channel, why)
 /** The window a dialog belongs to: the (already checked) sender's. */
 const ownerOf = (evt) => BrowserWindow.fromWebContents(evt.sender) ?? win;
 
+function createExpiredWindow() {
+  win = new BrowserWindow({
+    title: identity.APP_NAME,
+    width: 560,
+    height: 620,
+    minWidth: 520,
+    minHeight: 560,
+    resizable: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true }
+  });
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-navigate', (e) => e.preventDefault());
+  win.loadFile(path.join(__dirname, 'trial-expired.html'));
+  return win;
+}
+
 function createWindow() {
+  if (trialExpired) return createExpiredWindow();
   win = new BrowserWindow({
     title: identity.APP_NAME,
     icon: path.join(__dirname, '..', isDev ? 'public' : 'dist', 'icon-512.png'),
@@ -148,6 +167,21 @@ function createWindow() {
 
 app.whenReady().then(() => {
   if (headless) return;
+  if (app.isPackaged && app.getVersion().includes('-beta.')) {
+    try {
+      const result = trial.loadOrStart(path.join(app.getPath('userData'), 'pilot-trial.bin'), safeStorage);
+      trialExpired = result.expired;
+      if (trialExpired) {
+        createExpiredWindow();
+        return;
+      }
+    } catch (error) {
+      console.error(`[gfde] could not check the pilot trial: ${error instanceof Error ? error.message : error}`);
+      trialExpired = true;
+      createExpiredWindow();
+      return;
+    }
+  }
   if (profileImportError) {
     // Opening Chromium after a failed import would create an empty database in its place and prevent retry.
     dialog.showErrorBox('GFD Studio E could not import existing data', `Your original data is unchanged. Close the previous application, then reopen GFD Studio E to retry.\n\n${profileImportError}`);

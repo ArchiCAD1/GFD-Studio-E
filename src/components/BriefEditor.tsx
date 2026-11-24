@@ -156,6 +156,7 @@ function AuthorityPicker({ choices, country, authId, setId, ruleSet, refs, forma
             {r.status !== 'verified' && <span className="tag warn">To verify</span>}
           </div>
           <p className="m">The project starts with these values; change any of them later in Project settings. The approving authority on the Parties step is filled in as {auths.find((a) => a.authority.id === authId)?.label}.</p>
+          {ruleSet?.id.startsWith('builtin-jamaica') && <p className="warn">Jamaica pilot basis: confirm the JPS service voltage before calculating. This model matches 415/240 V three-phase; Jamaican 110/220 V split-phase and 220/110 V three-phase services are not represented exactly.</p>}
         </>
       ) : <p className="m">No rule set: the project starts with the app defaults, as Quick create does.</p>}
       {[PANEL_CATEGORIES.filter((c) => c.kind === 'db'), PANEL_CATEGORIES.filter((c) => c.kind === 'md')].map((row) => (

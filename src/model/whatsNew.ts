@@ -18,6 +18,14 @@ export interface Release { version: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: Release[] = [
   {
+    version: '2.213', date: '2026-11-23',
+    items: [
+      { title: 'Jamaica pilot design basis', text: 'New Jamaica (JS 21 / Jamaica Building Code) authority reference and a JPS 415/240 V service profile are available at project setup. They cite the Jamaican standards and utility sources, remain marked To verify, and warn that Jamaican 110/220 V split-phase and 220/110 V three-phase supplies are not fully represented by the current solver.' },
+      { title: 'Fixed company branding for the beta', text: 'Gerardo Faustin Designs Limited and the company logo are locked in the profile. Exported PDF, Word, Excel, SVG and raster pages carry the fixed 10% grayscale logo mark and company name; sheet DXF/DWG titles carry the company name.' },
+      { title: '90-day beta trial', text: 'The packaged beta locks the design workspace after 90 days. Native .gfde project files and backups remain in the chosen project folder for the official release.' }
+    ]
+  },
+  {
     version: '2.212', date: '2026-11-20',
     items: [
       { title: 'GFD Studio E', text: 'A dedicated GFD identity from Gerardo Faustin Designs Limited, with new application artwork, installer names, documentation and report attribution.' },

@@ -10,11 +10,12 @@ import { fillParams, paramList } from '../../model/params';
 import { saveText } from '../../util/files';
 import { Page } from '../ui';
 import { sanitizeHtml } from '../../util/sanitize';
+import { COMPANY_NAME, companyLogoUrl } from '../../model/companyBrand';
 
 const PX = 3.2; // preview px per mm
 
 /** Design title blocks: a grid of cells with text and {Parameters}, the
- * logo or the revision table; merge / split cells, add rows and columns,
+ * fixed company logo or the revision table; merge / split cells, add rows and columns,
  * set sizes. Save several templates, pick the one the SLD sheet uses, keep
  * them as your library or share them as a file. */
 export default function TitleBlockDesigner({ project, onChange, onStatus, onParams, onEditInCad }: { project: Project; onChange: (p: Project) => void; onStatus: (m: string) => void; onParams: () => void; /** Opens the template in Design CAD (a drawn copy of a grid template) to draw on it. */ onEditInCad?: (t: TitleTemplate) => void }) {
@@ -64,7 +65,7 @@ export default function TitleBlockDesigner({ project, onChange, onStatus, onPara
 
   if (!t) {
     return (
-      <Page title="Title block designer" intro="Make your own title blocks for the SLD sheet: your layout, logo, text and {Parameters} such as {DesignedBy} and {SubmissionDate}.">
+      <Page title="Title block designer" intro="Make your own title blocks for the SLD sheet: your layout, fixed company logo, text and {Parameters} such as {DesignedBy} and {SubmissionDate}.">
         <div className="card">
           <p>No title block template in this project yet.</p>
           <button className="chip primary" onClick={() => create(standardTemplate(), 'My title block')}>Start from the standard block</button>
@@ -107,7 +108,7 @@ export default function TitleBlockDesigner({ project, onChange, onStatus, onPara
                   style={{ gridRow: `${c.r + 1} / span ${c.rs ?? 1}`, gridColumn: `${c.c + 1} / span ${c.cs ?? 1}`, textAlign: c.align ?? 'left' }}>
                   {c.caption && <span className="tbd-cap">{c.caption}</span>}
                   <span style={{ fontSize: (c.size ?? 8) * 1.25, fontWeight: c.bold ? 700 : 400 }}>
-                    {c.kind === 'logo' ? (project.drawing?.logo ? <img src={project.drawing.logo} alt="" style={{ maxWidth: '100%', maxHeight: (t.rows[c.r] * (c.rs ?? 1)) * PX - 6 }} /> : <i>logo</i>)
+                    {c.kind === 'logo' ? <img src={companyLogoUrl()} alt="" style={{ maxWidth: '100%', maxHeight: (t.rows[c.r] * (c.rs ?? 1)) * PX - 6 }} />
                       : c.kind === 'revisions' ? <i>revision table</i> : fillParams(c.text, project, {}, list) || <i className="m">empty</i>}
                   </span>
                 </button>
@@ -185,12 +186,12 @@ export default function TitleBlockDesigner({ project, onChange, onStatus, onPara
           )}
           <details style={{ marginTop: 10 }}>
             <summary className="m">Printed version</summary>
-            <div className="tbd-print" dangerouslySetInnerHTML={{ __html: sanitizeHtml(titleBlockHtml(t, project)) }} />
+            <div className="tbd-print" dangerouslySetInnerHTML={{ __html: sanitizeHtml(titleBlockHtml(t, { ...project, drawing: { ...project.drawing, logo: companyLogoUrl(), company: COMPANY_NAME } })) }} />
           </details>
         </section>
       </div>
       )}
-      <p className="m">{isDrawn(t) || covered.size === t.rows.length * t.cols.length ? '' : '⚠ Some grid positions are empty.'} The block sits at the bottom right of the SLD sheet, inside the frame, in PDF and DXF exports. DXF keeps the grid and text editable; raster logos are shown in the PDF.</p>
+      <p className="m">{isDrawn(t) || covered.size === t.rows.length * t.cols.length ? '' : '⚠ Some grid positions are empty.'} The block sits at the bottom right of the SLD sheet, inside the frame, in PDF and DXF exports. The company logo is fixed in the app; DXF and DWG title blocks carry the company name as editable text.</p>
     </Page>
   );
 }
@@ -208,13 +209,14 @@ function DrawnEditor({ t, project, params, setT, onProject, onStatus, onDelete }
   const setArea = (patch: Partial<Border['area']>) => b && setT({ ...t, border: { ...b, area: { ...b.area, ...patch } } });
   const setLogo = (patch: Partial<LogoArea>) => lg && setT({ ...t, logo: { ...lg, ...patch } });
   const revRows = revRowsIn(t);
+  const previewProject = { ...project, drawing: { ...project.drawing, logo: companyLogoUrl(), company: COMPANY_NAME } };
   return (
     <div className="tbd-grid">
       <div>
-        <div className="tbd-preview-wrap" style={{ width: Math.min(w * PX + 24, 1100) }} dangerouslySetInnerHTML={{ __html: sanitizeSvg(drawnTitleBlockHtml(t, project).replace('</svg>', `${area}</svg>`)).replace(/width="[^"]+" height="[^"]+"/, `width="${w * PX}" height="${h * PX}"`) }} />
+        <div className="tbd-preview-wrap" style={{ width: Math.min(w * PX + 24, 1100) }} dangerouslySetInnerHTML={{ __html: sanitizeSvg(drawnTitleBlockHtml(t, previewProject).replace('</svg>', `${area}</svg>`)).replace(/width="[^"]+" height="[^"]+"/, `width="${w * PX}" height="${h * PX}"`) }} />
         <p className="m">{w} × {h} mm · {t.shapes?.length ?? 0} lines and shapes · {texts.length} texts, {fieldCount(t)} of them fields{revRows ? `, ${revRows} revision rows of its own` : ''}. Imported from a drawing: a field prints the project's value in the text's place and goes to DXF / DWG as an attribute of the block.</p>
         <div className="tbd-sizes">
-          <label className="row" title="The project's logo (Project → Drawing) prints inside this area, centred and in proportion; DWG / DXF show the company name there as a LOGO attribute"><input type="checkbox" checked={!!lg} onChange={(e) => setT({ ...t, logo: e.target.checked ? { x: 2, y: 2, w: Math.min(40, +(w - 4).toFixed(1)), h: Math.min(12, +(h - 4).toFixed(1)) } : undefined })} /> Logo area</label>
+          <label className="row" title="The fixed company logo prints inside this area, centred and in proportion; DWG / DXF carry the company name there as a LOGO attribute"><input type="checkbox" checked={!!lg} onChange={(e) => setT({ ...t, logo: e.target.checked ? { x: 2, y: 2, w: Math.min(40, +(w - 4).toFixed(1)), h: Math.min(12, +(h - 4).toFixed(1)) } : undefined })} /> Logo area</label>
           {lg && <>
             <span className="m">(mm):</span>
             {(['x', 'y', 'w', 'h'] as const).map((k) => <label key={k} className="row">{k}<input type="number" step={0.5} style={{ width: 64 }} value={lg[k]} onChange={(e) => setLogo({ [k]: +e.target.value || 0 })} /></label>)}

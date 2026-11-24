@@ -6,7 +6,7 @@ import { addDetail, specView, starterSpec, withInfo, withSetup, type SpecDoc } f
 import type { Project } from '../types';
 import { CATALOGUE, unavailable } from '../components/docs/exportCatalogue';
 import { buildSpecHtml, missingList, specPlainText } from './specReport';
-import { buildSpecDocx } from './specWord';
+import { buildSpecDocx, specDocxBytes } from './specWord';
 
 const bare: Project = { ...sampleProject, boards: sampleProject.boards.map((b) => ({ ...b, busbarMaterial: undefined, ipRating: undefined })), lightning: undefined, earthingPlan: undefined };
 const doc: SpecDoc = { title: 'Electrical specification', sections: [
@@ -203,9 +203,18 @@ describe('specification — tables and pictures in the output', () => {
     expect(xml).toContain('MDB &amp; Co');
     expect(xml).toContain('<w:tblHeader/>');
     expect(xml).toContain('Figure 1');
-    expect(Object.keys(zip.files).filter((f) => /^word\/media\/.+/.test(f)).length).toBe(1);
+    expect(Object.keys(zip.files).filter((f) => /^word\/media\/.+/.test(f)).length).toBe(1); // the clause picture; builder unit calls have no watermark argument
     // 50 % of the text width less the clause indent: (210 − 18 − 16) mm = 9978 twips, less 850, at 15 twips a pixel: 304 pixels wide, 101 high (120 × 40 kept in proportion).
     expect(xml).toMatch(/<wp:extent cx="2895600" cy="962025"\/>/);
+  });
+
+  it('serializes the browser Word export buffer', async () => {
+    const bytes = await specDocxBytes(sampleProject, d);
+    expect(new TextDecoder().decode(bytes.subarray(0, 2))).toBe('PK');
+    const JSZip = (await import('jszip')).default;
+    const zip = await JSZip.loadAsync(bytes);
+    expect(Object.keys(zip.files).filter((f) => /^word\/media\/.+/.test(f)).length).toBe(2);
+    expect(await zip.file('word/footer1.xml')!.async('string')).toContain('Gerardo Faustin Designs Limited');
   });
 });
 

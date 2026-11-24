@@ -10,6 +10,7 @@ import { revisionStamp } from '../model/revisions';
 import { fmtFixed } from '../util/format';
 import { acbText, buildTxSummary, rowCtText } from './txSummary';
 import { buildRiserForm, type RiserFormRow } from './riserForm';
+import { brandWorkbook } from './brandXlsx';
 
 /** Page header and footer printed on every sheet: revision top right. */
 function stamp(ws: ExcelJS.Worksheet, project: Project) {
@@ -450,5 +451,5 @@ export function buildFormWorkbook(project: Project, scope: WorkbookScope = {}): 
 }
 
 export async function workbookBytes(wb: ExcelJS.Workbook): Promise<Uint8Array> {
-  return new Uint8Array(await wb.xlsx.writeBuffer());
+  return brandWorkbook(wb);
 }

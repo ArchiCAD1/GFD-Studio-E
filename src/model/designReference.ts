@@ -97,8 +97,39 @@ const APP_VALUES: Partial<Record<RefKey, RefValue>> = {
 /** The app's (DEWA) values for fields a regulation does not set, each flagged in its note. */
 const fromDewa = (keys: RefKey[], who: string) => Object.fromEntries(keys.map((k) => [k, { ...APP_VALUES[k]!, note: `App value (as DEWA) — not set by the ${who} regulations` }])) as Partial<Record<RefKey, RefValue>>;
 const UAE = '2026-10-27';
+const JAMAICA = '2026-11-23';
 
 export const BUILT_IN_REFERENCES: DesignReference[] = [
+  {
+    id: 'builtin-jamaica', name: 'Jamaica (JS 21 / Jamaica Building Code)', kind: 'authority', region: 'Jamaica', status: 'to-verify', builtIn: true, version: 1, updatedAt: JAMAICA,
+    edition: 'JS 21:1992; 2023 Jamaica Building Code, Chapter 27',
+    source: 'Jamaica Trade Portal — Engineering / Electrical; 2023 Jamaica Building Code; Jamaica Electricity Sector Book of Codes',
+    notes: 'Pilot reference only. The Jamaica Trade Portal lists JS 21:1992 Electrical Installations as mandatory (with JS 20:1987 for panelboards). The 2023 Jamaica Building Code Chapter 27 references the NEC; residential provisions in the 2023 Jamaica Small Building/Residential Code are based on NFPA 70:2017. Confirm the governing Specification, current JPS connection offer and current GEI requirements for each job. The model represents 3-phase line-line voltage and derives phase-neutral voltage as U/√3; it does not exactly model Jamaica 110/220 V split-phase or 220/110 V 3-phase services. Do not use those supply arrangements without an engineer-confirmed model basis. No proprietary cable, breaker or protection tables are reproduced here.',
+    values: {
+      frequencyHz: { value: 50, note: 'OUR Jamaica Electricity Sector Book of Codes, Supply Code SC 2.1; confirm against the current JPS connection offer.' }
+    },
+    entries: [
+      { id: 'jm-js21', topic: 'Wiring-installation standard', value: 'JS 21:1992 — Electrical installations', clause: 'Mandatory listing', note: 'Jamaica Trade Portal: https://www.jamaicatradeportal.gov.jm/en-gb/site/display/849' },
+      { id: 'jm-js20', topic: 'Panelboards and enclosures', value: 'JS 20:1987 — read with JS 21', note: 'Jamaica Trade Portal: https://www.jamaicatradeportal.gov.jm/en-gb/site/display/849' },
+      { id: 'jm-jbc', topic: 'Building-code electrical basis', value: '2023 Jamaica Building Code, Chapter 27 — references the NEC', note: 'ICC code index: https://codes.iccsafe.org/content/JAMBC2023P1/index' },
+      { id: 'jm-residential', topic: 'Small-building / residential electrical basis', value: '2023 Jamaica Small Building/Residential Code — NFPA 70:2017', note: 'ICC 2023 JSB/RC publication; verify the locally applicable edition and amendments.' },
+      { id: 'jm-regulations', topic: 'Electrical work licensing and certification', value: 'Electricity (Electrical Work, Registration and Licensing) Regulations, 2020', note: 'Government Electrical Regulator: https://jamger.gov.jm/wp-content/uploads/2021/10/The-Electricity-Electrical-Work-Registration-and-Licensing-Regulations-2020.pdf' },
+      { id: 'jm-frequency', topic: 'Declared utility frequency', value: '50', unit: 'Hz', clause: 'Supply Code SC 2.1', note: 'OUR Electricity Sector Book of Codes: https://our.org.jm/wp-content/uploads/2021/01/electricity_act_-_jamaica_electricity_book_of_codes_-_clean.pdf' },
+      { id: 'jm-supply-options', topic: 'Supply arrangements listed by the OUR Code', value: '110/220 V single-phase; 220/110 V three-phase; 415/240 V three-phase', clause: 'Supply Code SC 2.1', note: 'The 415/240 V option is subject to the Code’s service-availability conditions. Confirm the actual service with JPS. The app currently models 415/240 V accurately, but not Jamaican split-phase.' }
+    ]
+  },
+  {
+    id: 'builtin-jamaica-415', name: 'JPS 415/240 V, three-phase service', kind: 'standard', region: 'Jamaica', edition: 'OUR Supply Code SC 2.1', status: 'to-verify', builtIn: true, version: 1, updatedAt: JAMAICA,
+    source: 'Jamaica Electricity Sector Book of Codes, Supply Code SC 2.1', extends: 'builtin-jamaica',
+    notes: 'Use only when JPS confirms this 415/240 V, 3-phase, 4-wire service for the premises. The OUR Code lists availability conditions for this voltage. Confirm the current connection offer and the applicable JS 21 / Jamaica Building Code requirements before issue.',
+    values: {
+      voltageV: { value: 415, clause: 'SC 2.1', note: '415 V phase-phase / approximately 240 V phase-neutral. Use only for a confirmed 415/240 V service.' },
+      frequencyHz: { value: 50, clause: 'SC 2.1' }
+    },
+    entries: [
+      { id: 'jm-415-service', topic: 'Utility service configuration', value: '415/240 V, 3-phase, 4-wire', clause: 'SC 2.1', note: 'JPS must confirm availability for the site.' }
+    ]
+  },
   {
     id: 'builtin-dewa', name: 'DEWA (Dubai)', kind: 'authority', region: 'Dubai', status: 'to-verify', builtIn: true, version: 1, updatedAt: D,
     source: 'DEWA Regulations for Electrical Installations',
@@ -447,6 +478,7 @@ export function appliedStatus(p: Project, list: DesignReference[]): { ref?: Desi
 
 /** Countries of the built-in references; your own take the country of the one they come from. */
 const BUILT_IN_COUNTRY: Record<string, string> = {
+  'builtin-jamaica': 'Jamaica',
   'builtin-dewa': 'United Arab Emirates', 'builtin-addc': 'United Arab Emirates', 'builtin-etihadwe': 'United Arab Emirates',
   'builtin-bs7671': 'United Kingdom', 'builtin-iec': 'International'
 };
@@ -510,7 +542,7 @@ export function startChoices(list: DesignReference[] = loadReferences()): Countr
     if (!c) out.push(c = { country, authorities: [] });
     c.authorities.push({ authority: a, label: authorityLabel(a), sets: [a, ...list.filter((r) => r.id !== a.id && originOf(r, list).id === a.id)] });
   }
-  return out;
+  return out.sort((a, b) => (a.country === 'Jamaica' ? -1 : b.country === 'Jamaica' ? 1 : 0));
 }
 
 /** Where a project setting comes from, for the line under the field. */

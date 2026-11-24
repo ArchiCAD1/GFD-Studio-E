@@ -12,7 +12,7 @@ import { gunzipSync } from 'node:zlib';
 
 const CAD_ENGINE = 'electron/cad/gfde_cad_reader_bg.wasm';
 export const PRODUCT_NOTICES = ['LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE.md', 'docs/provenance/README.md', 'docs/provenance/UPSTREAM-NOTICE.md'];
-const NEEDED = [...PRODUCT_NOTICES, 'package.json', 'dist/index.html', 'dist/third-party-licences.md', 'dist-electron/exceljs.cjs', 'dist-electron/third-party-licences.md', 'electron/main.cjs', CAD_ENGINE];
+const NEEDED = [...PRODUCT_NOTICES, 'package.json', 'branding.json', 'dist/index.html', 'dist/gfd-company-logo.png', 'dist/third-party-licences.md', 'dist-electron/exceljs.cjs', 'dist-electron/third-party-licences.md', 'electron/main.cjs', CAD_ENGINE];
 // English only, as Chromium names it on each system. "en-US" is the one file Chromium needs on Windows and Linux;
 // British English stays so a computer set to it keeps its 24-hour times and day-first dates.
 export const MAC_LANGUAGES = ['en.lproj', 'en_GB.lproj'];

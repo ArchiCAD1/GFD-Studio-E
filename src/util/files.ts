@@ -1,10 +1,63 @@
 import type { Project } from '../types';
 import { choiceAfterSave, outputRole, saveTarget, type OutputKey, type SaveValues } from '../model/outputRoles';
 import { rememberChoice, rememberedChoice, rememberedFolder } from '../model/projectFolderPlan';
+import { COMPANY_NAME, companyWatermarkPng } from '../model/companyBrand';
 
 const hasBridge = () => typeof window !== 'undefined' && !!window.gfde?.files;
 
 export const safeFileName = (s: string) => s.replace(/[^a-z0-9]+/gi, '-').replace(/(^-|-$)/g, '') || 'export';
+
+export async function brandSvg(content: string): Promise<string> {
+  if (!/<svg\b/i.test(content) || content.includes('gfde-company-brand')) return content;
+  const box = /\bviewBox=["']\s*(-?[\d.]+)\s+(-?[\d.]+)\s+([\d.]+)\s+([\d.]+)["']/i.exec(content);
+  const width = box ? Number(box[3]) : Number(/\bwidth=["']([\d.]+)/i.exec(content)?.[1]) || 1000;
+  const height = box ? Number(box[4]) : Number(/\bheight=["']([\d.]+)/i.exec(content)?.[1]) || 700;
+  const x0 = box ? Number(box[1]) : 0, y0 = box ? Number(box[2]) : 0;
+  const size = Math.min(width, height) * 0.36;
+  const x = x0 + (width - size) / 2, y = y0 + (height - size) / 2;
+  const png = await companyWatermarkPng();
+  let binary = '';
+  for (let i = 0; i < png.length; i += 0x8000) binary += String.fromCharCode(...png.subarray(i, i + 0x8000));
+  const logo = btoa(binary);
+  const fontSize = Math.max(7, height * 0.018);
+  const footerY = y0 + height - fontSize;
+  const escaped = COMPANY_NAME.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]!));
+  const mark = `<g id="gfde-company-brand" pointer-events="none"><image href="data:image/png;base64,${logo}" x="${x}" y="${y}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid meet"/><text x="${x0 + width / 2}" y="${footerY}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${fontSize}" fill="#444">${escaped}</text></g>`;
+  return content.replace(/<\/svg\s*>/i, `${mark}</svg>`);
+}
+
+async function brandRaster(bytes: Uint8Array, ext: string): Promise<Uint8Array> {
+  const type = ext.toLowerCase() === 'jpg' || ext.toLowerCase() === 'jpeg' ? 'image/jpeg' : 'image/png';
+  const source = await createImageBitmap(new Blob([bytes as BlobPart], { type }));
+  const sourceHeight = source.height;
+  const canvas = document.createElement('canvas');
+  const footerHeight = Math.max(28, Math.round(source.width / 60));
+  canvas.width = source.width;
+  canvas.height = sourceHeight + footerHeight;
+  const context = canvas.getContext('2d');
+  if (!context) { source.close(); throw new Error('Could not prepare the branded image export.'); }
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(source, 0, 0);
+  source.close();
+  const watermark = await companyWatermarkPng();
+  const mark = await createImageBitmap(new Blob([watermark as BlobPart], { type: 'image/png' }));
+  const size = Math.min(canvas.width, sourceHeight) * 0.34;
+  context.drawImage(mark, (canvas.width - size) / 2, (sourceHeight - size) / 2, size, size);
+  mark.close();
+  context.strokeStyle = '#999';
+  context.beginPath();
+  context.moveTo(0, sourceHeight + 1);
+  context.lineTo(canvas.width, sourceHeight + 1);
+  context.stroke();
+  context.fillStyle = '#333';
+  context.font = `${Math.max(8, Math.min(13, Math.round(canvas.width / 90)))}px Arial, sans-serif`;
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(COMPANY_NAME, canvas.width / 2, sourceHeight + footerHeight / 2);
+  const output = await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Could not encode the branded image export.')), type, 0.92));
+  return new Uint8Array(await output.arrayBuffer());
+}
 
 // Text a spreadsheet may run as a formula (CSV injection): = + - or @ first, also after spaces or control characters
 // (some programs skip them), their full-width forms, or a tab or carriage return first.
@@ -81,6 +134,7 @@ export async function placeFor(defaultName: string, ext: string, ctx: SaveContex
 /** Saves text through the desktop save dialog, or downloads it in a plain
  * browser. Resolves to a short status message, or null if cancelled. */
 export async function saveText(defaultName: string, content: string, filterName: string, ext: string, ctx?: SaveContext): Promise<string | null> {
+  if (ext.toLowerCase() === 'svg') content = await brandSvg(content);
   const place = await placeFor(defaultName, ext, ctx);
   if (!hasBridge()) {
     browserDownload(place.name, content, 'text/plain;charset=utf-8');
@@ -98,6 +152,11 @@ export async function saveBinary(defaultName: string, bytes: Uint8Array, filterN
 }
 /** As saveBinary, with where it went: the path chosen (desktop), or none (a browser download); null when cancelled. */
 export async function saveBinaryAt(defaultName: string, bytes: Uint8Array, filterName: string, ext: string, mime: string, ctx?: SaveContext): Promise<{ message: string; path?: string; name: string } | null> {
+  if (ext.toLowerCase() === 'xlsx') {
+    const { brandXlsxBytes } = await import('../docs/brandXlsx');
+    bytes = await brandXlsxBytes(bytes);
+  }
+  if (['png', 'jpg', 'jpeg'].includes(ext.toLowerCase())) bytes = await brandRaster(bytes, ext);
   const save = typeof window !== 'undefined' ? window.gfde?.files?.saveBinary : undefined;
   const place = await placeFor(defaultName, ext, ctx, !save);
   if (!save) {

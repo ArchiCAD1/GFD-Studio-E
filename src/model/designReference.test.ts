@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sampleProject } from '../data/sampleProject';
 import { buildDesignBasis } from '../docs/designBasis';
+import { NEW_PROJECT_POINT_TEMPLATE, newProject, pointTemplateOf } from '../types';
 import {
   BUILT_IN_REFERENCES, REFERENCES_KEY, applyReference, appliedStatus, authorityChange, changedSinceApplied, duplicateReference, exportReferences, importReferences,
   loadReferences, loadUserReferences, newReference, originOf, projectValue, referenceChanges, referenceIssues, referenceSourceOf, resolveReference, saveReference, saveUserReferences, settingSource, startChoices, supplyAuthorityOf
@@ -11,13 +12,31 @@ const ref = (id: string) => BUILT_IN_REFERENCES.find((r) => r.id === id)!;
 const base: Project = { ...sampleProject, voltageV: 415, ambientC: 45, vdLimitPct: 4, studySettings: {}, info: { ...sampleProject.info, mdDemandFactor: 0.8 }, designReference: undefined };
 
 describe('built-in design references', () => {
-  it('has DEWA, IEC, BS 7671, ADDC and EtihadWE, all read only and marked to verify', () => {
-    expect(BUILT_IN_REFERENCES.map((r) => r.name)).toEqual(['DEWA (Dubai)', 'IEC 60364', 'BS 7671', 'ADDC (Abu Dhabi)', 'EtihadWE (Northern Emirates)']);
+  it('has Jamaica alongside the built-in reference sets; all are read only and marked to verify', () => {
+    expect(BUILT_IN_REFERENCES.map((r) => r.name)).toEqual([
+      'Jamaica (JS 21 / Jamaica Building Code)', 'JPS 415/240 V, three-phase service',
+      'DEWA (Dubai)', 'IEC 60364', 'BS 7671', 'ADDC (Abu Dhabi)', 'EtihadWE (Northern Emirates)'
+    ]);
     for (const r of BUILT_IN_REFERENCES) {
       expect(r.builtIn).toBe(true);
       expect(r.status).toBe('to-verify');
       expect(referenceIssues(r)).toEqual([]);
     }
+  });
+  it('records Jamaican source standards and does not apply a split-phase voltage the calculator cannot represent', () => {
+    const jamaica = ref('builtin-jamaica');
+    expect(jamaica.values.frequencyHz?.value).toBe(50);
+    expect(jamaica.values.voltageV).toBeUndefined();
+    expect(jamaica.entries.some((e) => e.value.includes('JS 21:1992'))).toBe(true);
+    expect(jamaica.notes).toMatch(/does not exactly model Jamaica 110\/220 V split-phase/);
+    const service = resolveReference(ref('builtin-jamaica-415'));
+    expect(service.values.voltageV?.value).toBe(415);
+    expect(service.values.frequencyHz?.value).toBe(50);
+    expect(service.limitsFrom).toBeUndefined();
+  });
+  it('starts a new beta project with the general Jamaica schedule instead of a UAE villa form', () => {
+    expect(NEW_PROJECT_POINT_TEMPLATE).toBe('jamaica-general');
+    expect(pointTemplateOf(newProject('Pilot project')).name).toContain('Jamaica pilot');
   });
   it('DEWA holds the values new projects have used, so applying it to a default project changes nothing', () => {
     expect(referenceChanges(base, ref('builtin-dewa'))).toEqual([]);
@@ -175,9 +194,12 @@ describe('choosing at project start', () => {
 
   it('groups authorities by country, each with its own rule set first, then yours that come from it', () => {
     const c = startChoices(list);
-    expect(c.map((x) => x.country)).toEqual(['United Arab Emirates']);
-    expect(c[0].authorities.map((a) => a.label)).toEqual(['DEWA', 'ADDC', 'EtihadWE']);
-    expect(c[0].authorities[0].sets.map((s) => s.id)).toEqual(['builtin-dewa', 'co-dewa', 'site']);
+    expect(c.map((x) => x.country)).toEqual(['Jamaica', 'United Arab Emirates']);
+    const uae = c.find((x) => x.country === 'United Arab Emirates')!;
+    expect(uae.authorities.map((a) => a.label)).toEqual(['DEWA', 'ADDC', 'EtihadWE']);
+    expect(uae.authorities[0].sets.map((s) => s.id)).toEqual(['builtin-dewa', 'co-dewa', 'site']);
+    expect(c[0].authorities[0].label).toBe('Jamaica');
+    expect(c[0].authorities[0].sets.map((s) => s.id)).toEqual(['builtin-jamaica', 'builtin-jamaica-415']);
     expect(originOf(layered, list).id).toBe('builtin-dewa');
   });
   it('an authority of your own is offered under its region', () => {
